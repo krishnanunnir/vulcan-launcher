@@ -367,7 +367,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="glanceStyle_clock">Große Uhr und Datum</string>
     <string name="glanceStyle_date">Nur Datum</string>
     <string name="clock">Uhr</string>
-    
     <string name="set_hideClock">Statusleisten-Uhr ausblenden</string>
     <string name="set_hideClock_info">Auf dem Startbildschirm. Erfordert einmalige adb-Freigabe</string>
     <string name="set_homeButton">Home-Taste</string>
@@ -385,7 +384,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="set_labelSize">Beschriftungsgröße</string>
     <string name="set_labels">Beschriftungen</string>
     <string name="set_launchAnim">App-Animation</string>
-    <string name="set_lockLayout">Layout sperren</string>
+    <string name="set_lockLayout">Startbildschirm sperren</string>
     <string name="set_nightEnd">Zeitplan-Ende</string>
     <string name="set_nightMode">Nachtmodus</string>
     <string name="set_nightStart">Zeitplan-Beginn</string>
@@ -549,4 +548,39 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
         <item quantity="one">%1$d Widget</item>
         <item quantity="other">%1$d Widgets</item>
     </plurals>
+    <string name="custom_colors">Eigene Farben</string>
+    <string name="custom_colors_info">Jede Farbe ersetzt die entsprechende Theme-Farbe in allen Designs. Eine Farbe zurücksetzen, um die Theme-Farbe wiederherzustellen.</string>
+    <string name="role_accent">Akzent</string>
+    <string name="role_surface">Hintergrund</string>
+    <string name="role_text">Text</string>
+    <string name="role_text2">Sekundärtext</string>
+    <string name="role_raised">Karten und Menüs</string>
+    <string name="role_well">Dock und Suche</string>
+    <string name="role_divider">Trennlinien</string>
+    <string name="color_from_theme">Aus dem Theme</string>
+    <string name="color_preview_title">Vorschau</string>
+    <string name="color_preview_button">Akzent</string>
+    <string name="color_preview_search">Suche</string>
+    <string name="color_contrast_ok">Textkontrast %1$s:1</string>
+    <string name="color_contrast_low">Schwer lesbar: %1$s:1</string>
+    <string name="hsv_hue">Farbton</string>
+    <string name="hsv_saturation">Sättigung</string>
+    <string name="hsv_brightness">Helligkeit</string>
+    <string name="step_less">Weniger %1$s</string>
+    <string name="step_more">Mehr %1$s</string>
+    <string name="reset_colors">Alle Farben zurücksetzen</string>
+    <string name="low_contrast">Schwer lesbar</string>
+    <string name="low_contrast_info">Mit dieser Farbe erreicht der Text nur einen Kontrast von %1$s:1 statt der für gute Lesbarkeit erforderlichen %2$s:1.</string>
+    <string name="save_anyway">Trotzdem speichern</string>
+    <string name="contrib_info">Die Menschen, die Vulcan entwickeln</string>
+    <string name="contrib_creator">Schöpfer</string>
+    <string name="contrib_translations">Übersetzungen ins Deutsche und Russische</string>
+    <string name="contrib_feedback">Feedback zur Benutzerfreundlichkeit und Ideen für neue Funktionen</string>
+    <string name="persona_architect_line">Hat Vulcan Stein für Stein aufgebaut.</string>
+    <string name="persona_polyglot_signature">Sorgt dafür, dass sich Vulcan auch in weiteren Sprachen zu Hause fühlt.</string>
+    <string name="persona_bug_hunter_line">Hat die Fehler gefunden, die sich zwischen den Gesten verstecken.</string>
+    <string name="persona_refiner">Der Perfektionist</string>
+    <string name="persona_refiner_line">Hat auch die kleinen Details stimmig gemacht.</string>
+    <string name="persona_refiner_signature">Achtet stets darauf, wie sich alles unter dem Daumen anfühlt.</string>
+    <string name="persona_card_footer">Einer der Menschen hinter deinem Startbildschirm.</string>
 </resources>
