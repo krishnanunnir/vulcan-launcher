@@ -6,7 +6,7 @@ tags: [edits]
 - runFlow: common/drawer.yaml
 - assertNotVisible: { text: "Clock", below: "Chrome" }
 - back
-- tapOn: "Launcher settings"
+- runFlow: common/settings.yaml
 - tapOn: "App drawer"
 - tapOn: "App drawer style"
 - tapOn: "List"

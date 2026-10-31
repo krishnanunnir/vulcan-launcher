@@ -3,7 +3,7 @@ appId: dev.vulcanlauncher
 tags: [edits]
 ---
 - runFlow: common/fresh.yaml
-- tapOn: "Launcher settings"
+- runFlow: common/settings.yaml
 - tapOn: "Dock"
 - tapOn: "Dock icons"
 - tapOn: "3"
