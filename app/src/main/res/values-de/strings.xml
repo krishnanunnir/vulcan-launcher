@@ -43,7 +43,6 @@
     <string name="backup_restore">Sichern &amp; Wiederherstellen</string>
     <string name="backup_restore_info">"Exportiere, importiere oder übernimm das Layout eines anderen Launchers"</string>
     <string name="backup_saved">Sicherung gespeichert</string>
-    <string name="backup_to_file">In Datei sichern…</string>
     <string name="badgePos_bottomleft">Unten links</string>
     <string name="badgePos_bottomright">Unten rechts</string>
     <string name="badgePos_topleft">Oben links</string>
@@ -190,7 +189,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="icon_saved">Symbol gespeichert</string>
     <string name="import_">Importieren</string>
     <string name="import_failed">Import fehlgeschlagen: %1$s</string>
-    <string name="import_launcher_backup">Launcher-Sicherung importieren (.novabackup)…</string>
     <string name="import_message">%1$s und %2$s ersetzen dein aktuelles Layout.</string>
     <string name="import_title">Dieses Layout importieren?</string>
     <string name="indicator_dots">Punkte</string>
@@ -241,7 +239,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="night_schedule">Zeitplan</string>
     <string name="night_sun">Sonnenuntergang bis Sonnenaufgang (Standort)</string>
     <string name="night_system">System folgen</string>
-    <string name="no">nein</string>
     <string name="no_app_handles">Keine App verarbeitet dies</string>
     <string name="no_apps_match">Keine Apps passen zu „%1$s“</string>
     <string name="settings_search">Einstellungen durchsuchen</string>
@@ -289,12 +286,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="panel_interaction">Bedienung</string>
     <string name="panel_launcher">Launcher</string>
     <string name="panel_layout">Layout</string>
-    <string name="perm_accessibility">"Bedienungshilfen-Dienst: %1$s
-   Bildschirmsperre, zuletzt verwendete Apps, Power-Menü"</string>
-    <string name="perm_default">"Standard-Launcher: %1$s
-   Für App-Verknüpfungen erforderlich"</string>
-    <string name="perm_notifications">"Benachrichtigungszugriff: %1$s
-   Badges und Benachrichtigungen im Langdruck-Menü"</string>
     <string name="permissions">Berechtigungen</string>
     <string name="permissions_info">Worauf der Launcher zugreifen kann</string>
     <string name="picker_restarted">Vulcan wurde neu gestartet, während die Auswahl geöffnet war. Bitte versuche es erneut</string>
@@ -315,10 +306,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="resize">Größe ändern</string>
     <string name="resize_current">%1$s (aktuell)</string>
     <string name="restart">Launcher neu starten</string>
-    <string name="restore_auto">Automatische Sicherung wiederherstellen (%1$s)</string>
-    <string name="restore_auto_none">Automatische Sicherung wiederherstellen (noch nicht erstellt)</string>
     <string name="restore_failed">Wiederherstellung fehlgeschlagen: %1$s</string>
-    <string name="restore_from_file">Aus Datei wiederherstellen…</string>
     <string name="save">Speichern</string>
     <string name="save_apk">APK speichern</string>
     <string name="search">Suchen</string>
@@ -471,8 +459,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="sort_installed">Neueste zuerst</string>
     <string name="sort_used">Meistgenutzt</string>
     <string name="sort_za">Titel (Z–A)</string>
-    <string name="state_off">aus</string>
-    <string name="state_on">an</string>
     <string name="statusBar_hide">Ausblenden</string>
     <string name="statusBar_show">Anzeigen</string>
     <string name="swipe_up_action">Aktion beim Hochwischen</string>
@@ -495,7 +481,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="wallpaperScroll_reverse">Umgekehrt</string>
     <string name="widgets">Widgets</string>
     <string name="work_app">%1$s (Arbeit)</string>
-    <string name="yes">ja</string>
     <plurals name="filter_icons">
         <item quantity="one">%1$d Symbol filtern</item>
         <item quantity="other">%1$d Symbole filtern</item>
@@ -526,4 +511,33 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="settingsAnim_fade">Überblenden</string>
     <string name="settingsAnim_none">Keine</string>
     <string name="name">Name</string>
+    <string name="backup_panel_save">Sichern</string>
+    <string name="backup_panel_restore">Wiederherstellen</string>
+    <string name="backup_panel_other">Andere Launcher</string>
+    <string name="backup_panel_reset">Neu beginnen</string>
+    <string name="backup_to_file">Sicherung speichern</string>
+    <string name="backup_to_file_info">Dein Layout und alle Einstellungen in einer Datei deiner Wahl</string>
+    <string name="restore_from_file">Aus Datei wiederherstellen</string>
+    <string name="restore_from_file_info">Ersetzt Layout und Einstellungen durch die der Sicherung</string>
+    <string name="restore_auto">Automatische Sicherung</string>
+    <string name="restore_auto_info">Gespeichert %1$s</string>
+    <string name="restore_auto_none">Noch keine automatischen Sicherungen</string>
+    <string name="restore_auto_none_info">Vulcan speichert täglich eine auf diesem Gerät und behält die letzten drei</string>
+    <string name="restore_auto_confirm">Layout und Einstellungen durch die automatische Sicherung vom %1$s ersetzen?</string>
+    <string name="restore">Wiederherstellen</string>
+    <string name="import_launcher_backup">Aus anderem Launcher importieren</string>
+    <string name="import_launcher_backup_info">Übernimmt einen Startbildschirm aus einer .novabackup-Datei</string>
+    <string name="reset_defaults_info">Entfernt alle Einstellungen und das gesamte Startbildschirm-Layout</string>
+    <string name="perm_intro">Vulcan geht nie online. Diese Zugriffe erweitern, was es kann; jeder wirkt erst, wenn du ihn in den Android-Einstellungen erlaubst.</string>
+    <string name="perm_count">%1$d von %2$d erlaubt</string>
+    <string name="perm_notifications">Benachrichtigungszugriff</string>
+    <string name="perm_notifications_info">Badges und Benachrichtigungen im Lange-drücken-Menü</string>
+    <string name="perm_accessibility">Bedienungshilfen-Dienst</string>
+    <string name="perm_accessibility_info">Bildschirmsperre, letzte Apps und Ein/Aus-Menü per Geste</string>
+    <string name="perm_default">Standard-Startbildschirm</string>
+    <string name="perm_default_info">Nötig für App-Verknüpfungen</string>
+    <string name="perm_allowed">Erlaubt</string>
+    <string name="perm_allow">Erlauben</string>
+    <string name="perm_is_default">Standard</string>
+    <string name="perm_set_default">Festlegen</string>
 </resources>

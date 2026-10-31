@@ -43,7 +43,6 @@
     <string name="backup_restore">Резервное копирование и восстановление</string>
     <string name="backup_restore_info">"Экспорт, импорт или перенос раскладки другого лаунчера"</string>
     <string name="backup_saved">Резервная копия сохранена</string>
-    <string name="backup_to_file">Сохранить в файл…</string>
     <string name="badgePos_bottomleft">Снизу слева</string>
     <string name="badgePos_bottomright">Снизу справа</string>
     <string name="badgePos_topleft">Сверху слева</string>
@@ -190,7 +189,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="icon_saved">Значок сохранён</string>
     <string name="import_">Импортировать</string>
     <string name="import_failed">Не удалось импортировать: %1$s</string>
-    <string name="import_launcher_backup">Импортировать резервную копию лаунчера (.novabackup)…</string>
     <string name="import_message">%1$s и %2$s заменят вашу текущую раскладку.</string>
     <string name="import_title">Импортировать эту раскладку?</string>
     <string name="indicator_dots">Точки</string>
@@ -241,7 +239,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="night_schedule">По расписанию</string>
     <string name="night_sun">От заката до рассвета (по местоположению)</string>
     <string name="night_system">Как в системе</string>
-    <string name="no">нет</string>
     <string name="no_app_handles">Нет приложения для обработки этого действия</string>
     <string name="no_apps_match">Нет приложений по запросу «%1$s»</string>
     <string name="settings_search">Поиск настроек</string>
@@ -289,12 +286,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="panel_interaction">Взаимодействие</string>
     <string name="panel_launcher">Лаунчер</string>
     <string name="panel_layout">Раскладка</string>
-    <string name="perm_accessibility">"Служба специальных возможностей: %1$s
- Блокировка экрана, недавние приложения, меню питания"</string>
-    <string name="perm_default">"Лаунчер по умолчанию: %1$s
- Требуется для ярлыков приложений"</string>
-    <string name="perm_notifications">"Доступ к уведомлениям: %1$s
- Значки и уведомления в меню долгого нажатия"</string>
     <string name="permissions">Разрешения</string>
     <string name="permissions_info">К чему у лаунчера есть доступ</string>
     <string name="picker_restarted">Vulcan перезапустился, пока был открыт выбор. Попробуйте ещё раз</string>
@@ -315,10 +306,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="resize">Изменить размер</string>
     <string name="resize_current">%1$s (текущее)</string>
     <string name="restart">Перезапустить лаунчер</string>
-    <string name="restore_auto">Восстановить автоматическую копию (%1$s)</string>
-    <string name="restore_auto_none">Восстановить автоматическую копию (ещё не создана)</string>
     <string name="restore_failed">Не удалось восстановить: %1$s</string>
-    <string name="restore_from_file">Восстановить из файла…</string>
     <string name="save">Сохранить</string>
     <string name="save_apk">Сохранить APK</string>
     <string name="search">Поиск</string>
@@ -471,8 +459,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="sort_installed">Сначала недавно установленные</string>
     <string name="sort_used">Чаще используемые</string>
     <string name="sort_za">По названию (Я–А)</string>
-    <string name="state_off">выкл.</string>
-    <string name="state_on">вкл.</string>
     <string name="statusBar_hide">Скрыть</string>
     <string name="statusBar_show">Показать</string>
     <string name="swipe_up_action">Действие свайпа вверх</string>
@@ -495,7 +481,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="wallpaperScroll_reverse">В обратную сторону</string>
     <string name="widgets">Виджеты</string>
     <string name="work_app">%1$s (рабочий профиль)</string>
-    <string name="yes">да</string>
     <plurals name="filter_icons">
         <item quantity="one">Фильтр: %1$d значок</item>
         <item quantity="few">Фильтр: %1$d значка</item>
@@ -536,4 +521,33 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="settingsAnim_fade">Затухание</string>
     <string name="settingsAnim_none">Нет</string>
     <string name="name">Название</string>
+    <string name="backup_panel_save">Сохранение</string>
+    <string name="backup_panel_restore">Восстановление</string>
+    <string name="backup_panel_other">Другие лаунчеры</string>
+    <string name="backup_panel_reset">С чистого листа</string>
+    <string name="backup_to_file">Сохранить копию</string>
+    <string name="backup_to_file_info">Раскладка и все настройки в одном файле, который вы выберете</string>
+    <string name="restore_from_file">Восстановить из файла</string>
+    <string name="restore_from_file_info">Заменяет раскладку и настройки сохранёнными в копии</string>
+    <string name="restore_auto">Автоматическая копия</string>
+    <string name="restore_auto_info">Сохранена %1$s</string>
+    <string name="restore_auto_none">Автоматических копий пока нет</string>
+    <string name="restore_auto_none_info">Vulcan сохраняет одну в день на этом телефоне и хранит последние три</string>
+    <string name="restore_auto_confirm">Заменить раскладку и настройки автоматической копией от %1$s?</string>
+    <string name="restore">Восстановить</string>
+    <string name="import_launcher_backup">Импорт из другого лаунчера</string>
+    <string name="import_launcher_backup_info">Переносит главный экран из файла .novabackup</string>
+    <string name="reset_defaults_info">Удаляет все настройки и всю раскладку главного экрана</string>
+    <string name="perm_intro">Vulcan никогда не выходит в интернет. Эти разрешения дают ему больше возможностей, и каждое работает, только когда вы включите его в настройках Android.</string>
+    <string name="perm_count">Разрешено: %1$d из %2$d</string>
+    <string name="perm_notifications">Доступ к уведомлениям</string>
+    <string name="perm_notifications_info">Значки и уведомления в меню долгого нажатия</string>
+    <string name="perm_accessibility">Служба специальных возможностей</string>
+    <string name="perm_accessibility_info">Блокировка экрана, недавние приложения и меню питания жестами</string>
+    <string name="perm_default">Главный экран по умолчанию</string>
+    <string name="perm_default_info">Нужен для ярлыков приложений</string>
+    <string name="perm_allowed">Разрешено</string>
+    <string name="perm_allow">Разрешить</string>
+    <string name="perm_is_default">Выбран</string>
+    <string name="perm_set_default">Выбрать</string>
 </resources>

@@ -477,6 +477,8 @@ class MainActivity : Activity() {
         updateGlance()
         // PinActivity may have added an item while we were in the background.
         reloadItems()
+        // Back from the Android page that grants one: show its new state.
+        if (settingsPage == PERMISSIONS) showSettings(PERMISSIONS, settingsScroll?.scrollY ?: 0)
     }
 
     /** Takes [items] from the store, where PinActivity may have added something meanwhile. */

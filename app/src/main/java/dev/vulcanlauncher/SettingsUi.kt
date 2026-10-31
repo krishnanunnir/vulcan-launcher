@@ -38,6 +38,10 @@ private val CATEGORY_INFO = mapOf(
     NOW to ("sun" to R.string.cat_now),
 )
 
+// Launcher pages under settings home, beside the categories.
+const val BACKUP = "Backup"
+const val PERMISSIONS = "Permissions"
+
 private fun depth(page: String) = when (page) { "" -> 0; COLORS -> 2; else -> 1 }
 
 /** Where each settings page was scrolled when it was left for a deeper one, so back returns to the same spot. */
@@ -54,9 +58,9 @@ fun MainActivity.showSettings(page: String = "", scroll: Int = 0, restoring: Boo
         setPadding(0, 0, 0, insets.bottom + (16 * dp).toInt())
     }
     var search: ((String) -> Unit)? = null
-    when (page) { "" -> search = settingsHome(list); COLORS -> colorsPage(list); else -> settingsCategory(page, list) }
+    when (page) { "" -> search = settingsHome(list); COLORS -> colorsPage(list); BACKUP -> backupPage(list); PERMISSIONS -> permissionsPage(list); else -> settingsCategory(page, list) }
     val scrollView = ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(list) }
-    val title = text(getString(when (page) { "" -> R.string.settings; COLORS -> R.string.custom_colors; else -> GROUP_TITLES.getValue(page) }), 22f).apply { setPadding((8 * dp).toInt(), 0, 0, 0); maxLines = 1 }
+    val title = text(getString(when (page) { "" -> R.string.settings; COLORS -> R.string.custom_colors; BACKUP -> R.string.backup_restore; PERMISSIONS -> R.string.permissions; else -> GROUP_TITLES.getValue(page) }), 22f).apply { setPadding((8 * dp).toInt(), 0, 0, 0); maxLines = 1 }
     // Settings home, as One UI: a search button in the bar turns the title into the search field.
     val field = search?.let { onQuery -> EditText(this).apply {
         visibility = View.GONE
@@ -160,8 +164,8 @@ private fun MainActivity.settingsHome(page: LinearLayout): (String) -> Unit {
         listItem(symbol("tabs", m3.onPrimaryContainer), getString(R.string.drawer_groups), getString(R.string.drawer_groups_info), tonalIcon = true) { groupsMenu() },
     ))
     panel(list, getString(R.string.panel_launcher), listOf(
-        listItem(symbol("archive", m3.onPrimaryContainer), getString(R.string.backup_restore), getString(R.string.backup_restore_info), tonalIcon = true) { backupMenu() },
-        listItem(symbol("shield", m3.onPrimaryContainer), getString(R.string.permissions), getString(R.string.permissions_info), tonalIcon = true) { permissionsMenu() },
+        listItem(symbol("archive", m3.onPrimaryContainer), getString(R.string.backup_restore), getString(R.string.backup_restore_info), tonalIcon = true) { showSettings(BACKUP) },
+        listItem(symbol("shield", m3.onPrimaryContainer), getString(R.string.permissions), getString(R.string.permissions_info), tonalIcon = true) { showSettings(PERMISSIONS) },
         listItem(symbol("home", m3.onPrimaryContainer), getString(R.string.default_home), getString(R.string.default_home_info), tonalIcon = true) {
             startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
         },
@@ -572,34 +576,41 @@ private fun MainActivity.smartFolders() {
 // ---- Backup, permissions ----
 
 @Suppress("DEPRECATION")
-private fun MainActivity.backupMenu() {
+private fun MainActivity.backupPage(list: LinearLayout) {
+    fun row(icon: String, title: Int, info: CharSequence, onClick: ((View) -> Unit)?) =
+        listItem(symbol(icon, m3.onPrimaryContainer), getString(title), info, tonalIcon = true, onClick = onClick)
+    fun pickFile(req: Int) = startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"), req)
+    panel(list, getString(R.string.backup_panel_save), listOf(row("download", R.string.backup_to_file, getString(R.string.backup_to_file_info)) {
+        startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/json")
+            .putExtra(Intent.EXTRA_TITLE, "vulcan-backup-${SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())}.json"), MainActivity.REQ_BACKUP)
+    }))
     val autos = store.autoBackups.filter { it.exists() }
-    val autoNames = autos.map { getString(R.string.restore_auto, SimpleDateFormat("d MMM HH:mm", Locale.getDefault()).format(Date(it.lastModified()))) }
-        .ifEmpty { listOf(getString(R.string.restore_auto_none)) }
-    dialog().setTitle(R.string.backup_restore).setItems((listOf(R.string.backup_to_file, R.string.restore_from_file, R.string.reset_defaults,
-        R.string.import_launcher_backup).map(::getString) + autoNames).toTypedArray()) { _, i ->
-        when (i) {
-            0 -> startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/json")
-                .putExtra(Intent.EXTRA_TITLE, "vulcan-backup-${SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())}.json"), MainActivity.REQ_BACKUP)
-            1 -> startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"), MainActivity.REQ_RESTORE)
-            3 -> {
-                onDocument = { uri -> importBackup(uri) }
-                startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"), MainActivity.REQ_DOC)
-            }
-            in 4 until 4 + autos.size -> runCatching { store.import(autos[i - 4].readText(), ::mainActivity) }
-                .onSuccess {
-                    dropForeignWidgets()
-                    recreate()
-                }.onFailure { toast(getString(R.string.restore_failed, it.message)) }
-            2 -> dialog().setMessage(R.string.reset_confirm)
-                .setPositiveButton(R.string.reset) { _, _ ->
-                    items.filter { it.isWidget }.forEach { host.deleteAppWidgetId(it.widgetId) }
-                    store.reset()
-                    recreate()
+    val autoRows = autos.map { f ->
+        val saved = SimpleDateFormat("d MMM, HH:mm", Locale.getDefault()).format(Date(f.lastModified()))
+        row("clock", R.string.restore_auto, getString(R.string.restore_auto_info, saved)) {
+            dialog().setMessage(getString(R.string.restore_auto_confirm, saved))
+                .setPositiveButton(R.string.restore) { _, _ ->
+                    runCatching { store.import(f.readText(), ::mainActivity) }
+                        .onSuccess { dropForeignWidgets(); recreate() }
+                        .onFailure { toast(getString(R.string.restore_failed, it.message)) }
                 }.setNegativeButton(R.string.cancel, null).show()
-            else -> {} // "none yet"
         }
-    }.show()
+    }.ifEmpty { listOf(row("clock", R.string.restore_auto_none, getString(R.string.restore_auto_none_info), null)) }
+    panel(list, getString(R.string.backup_panel_restore), listOf(row("refresh", R.string.restore_from_file, getString(R.string.restore_from_file_info)) {
+        pickFile(MainActivity.REQ_RESTORE)
+    }) + autoRows)
+    panel(list, getString(R.string.backup_panel_other), listOf(row("archive", R.string.import_launcher_backup, getString(R.string.import_launcher_backup_info)) {
+        onDocument = { uri -> importBackup(uri) }
+        pickFile(MainActivity.REQ_DOC)
+    }))
+    panel(list, getString(R.string.backup_panel_reset), listOf(row("delete", R.string.reset_defaults, getString(R.string.reset_defaults_info)) {
+        dialog().setMessage(R.string.reset_confirm)
+            .setPositiveButton(R.string.reset) { _, _ ->
+                items.filter { it.isWidget }.forEach { host.deleteAppWidgetId(it.widgetId) }
+                store.reset()
+                recreate()
+            }.setNegativeButton(R.string.cancel, null).show()
+    }))
 }
 
 /** Replaces the home layout (and grid settings) with an imported launcher backup's, after confirming. */
@@ -623,22 +634,28 @@ private fun MainActivity.importBackup(uri: android.net.Uri) {
         }.setNegativeButton(R.string.cancel, null).show()
 }
 
-private fun MainActivity.permissionsMenu() {
+/** What Vulcan may reach outside itself, each with its state; a row opens the Android page that changes it. */
+private fun MainActivity.permissionsPage(list: LinearLayout) {
     val listeners = Settings.Secure.getString(contentResolver, "enabled_notification_listeners").orEmpty()
-    val badges = ComponentName(this, BadgeService::class.java).flattenToString() in listeners
-    val actions = ActionService.instance != null
     val home = runCatching { launcherApps.hasShortcutHostPermission() }.getOrDefault(false)
-    fun state(on: Boolean) = getString(if (on) R.string.state_on else R.string.state_off)
-    val rows = arrayOf(
-        getString(R.string.perm_notifications, state(badges)),
-        getString(R.string.perm_accessibility, state(actions)),
-        getString(R.string.perm_default, getString(if (home) R.string.yes else R.string.no)),
+    data class Perm(val icon: String, val title: Int, val info: Int, val on: Boolean, val action: String, val onText: Int = R.string.perm_allowed, val offText: Int = R.string.perm_allow)
+    val perms = listOf(
+        Perm("notifications", R.string.perm_notifications, R.string.perm_notifications_info,
+            ComponentName(this, BadgeService::class.java).flattenToString() in listeners, Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS),
+        Perm("lock", R.string.perm_accessibility, R.string.perm_accessibility_info, ActionService.instance != null, Settings.ACTION_ACCESSIBILITY_SETTINGS),
+        Perm("home", R.string.perm_default, R.string.perm_default_info, home, Settings.ACTION_HOME_SETTINGS, R.string.perm_is_default, R.string.perm_set_default),
     )
-    dialog().setTitle(R.string.permissions).setItems(rows) { _, i ->
-        startActivity(Intent(when (i) {
-            0 -> Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS
-            1 -> Settings.ACTION_ACCESSIBILITY_SETTINGS
-            else -> Settings.ACTION_HOME_SETTINGS
-        }))
-    }.show()
+    list.addView(text(getString(R.string.perm_intro), 14f, m3.onSurfaceVariant).apply {
+        setPadding((32 * dp).toInt(), (8 * dp).toInt(), (32 * dp).toInt(), 0)
+    })
+    panel(list, getString(R.string.perm_count, perms.count { it.on }, perms.size), perms.map { p ->
+        val open = { startActivity(Intent(p.action)) }
+        // Granted: a quiet check and a word. Not granted: the one button on the row.
+        val state = if (p.on) LinearLayout(this).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            addView(ImageView(context).apply { setImageDrawable(symbol("check", m3.onSurfaceVariant, 18f)) })
+            addView(text(getString(p.onText), 14f, m3.onSurfaceVariant).apply { setPadding((4 * dp).toInt(), 0, 0, 0) })
+        } else tonalButton(getString(p.offText), open)
+        listItem(symbol(p.icon, m3.onPrimaryContainer), getString(p.title), getString(p.info), trailing = state, tonalIcon = true) { open() }
+    })
 }
