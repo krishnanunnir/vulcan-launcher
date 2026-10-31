@@ -277,15 +277,13 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="orientation_portrait">Портретная</string>
     <string name="page">Страница</string>
     <string name="page_last">Главному экрану нужна хотя бы одна страница</string>
-    <string name="page_move_left">Переместить влево</string>
-    <string name="page_move_right">Переместить вправо</string>
     <string name="page_n">Страница %1$d</string>
     <string name="page_of">Страница %1$d из %2$d</string>
     <string name="page_remove">Удалить страницу</string>
     <string name="page_remove_confirm">Удалить страницу %1$d и всё на ней?</string>
     <string name="page_set_default">Сделать страницей по умолчанию</string>
     <string name="pages">Страницы</string>
-    <string name="pages_hint">Коснитесь, чтобы открыть · удерживайте для параметров</string>
+    <string name="pages_hint">Коснитесь, чтобы открыть · удерживайте и перетащите, чтобы переместить или удалить</string>
     <string name="panel_appearance">Внешний вид</string>
     <string name="panel_apps">Приложения</string>
     <string name="panel_interaction">Взаимодействие</string>

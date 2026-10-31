@@ -461,10 +461,8 @@
     <string name="charged">Charged</string>
     <string name="search">Search</string>
     <string name="voice_search">Voice search</string>
-    <string name="pages_hint">Tap to open · long-press for options</string>
+    <string name="pages_hint">Tap to open · hold and drag to move or remove</string>
     <string name="page_set_default">Set as default page</string>
-    <string name="page_move_left">Move left</string>
-    <string name="page_move_right">Move right</string>
     <string name="page_remove">Remove page</string>
     <string name="page_last">The home screen needs at least one page</string>
     <string name="page_remove_confirm">Remove page %1$d and everything on it?</string>

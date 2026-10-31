@@ -8,7 +8,9 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
+import android.view.DragEvent
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.widget.FrameLayout
@@ -133,7 +135,13 @@ fun MainActivity.closeOverlay() {
     overlayClosed().also { overlayClosed = {} }
 }
 
-/** Desktop previews: every page as a thumbnail. Tap to go there; long-press to set default, move or remove; "+" adds a page. */
+/** What a page tile carries while it is dragged in the overview. */
+private class PageDrag(val index: Int)
+
+/**
+ * Desktop previews: every page as a thumbnail. Tap to go there; hold and drag onto another page to move it, or onto
+ * Remove; tap a page's name to make it the default; "+" adds a page.
+ */
 @SuppressLint("SetTextI18n")
 fun MainActivity.showOverview() {
     drawer.hide()
@@ -148,32 +156,74 @@ fun MainActivity.showOverview() {
         row.addView(v, LinearLayout.LayoutParams(w, h + (24 * dp).toInt()).apply { setMargins((6 * dp).toInt(), (6 * dp).toInt(), (6 * dp).toInt(), (6 * dp).toInt()) })
         if (row.childCount == 3) row = LinearLayout(this)
     }
+    val hint = text(getString(R.string.pages_hint), 14f, m3.onSurfaceVariant).apply { gravity = Gravity.CENTER }
+    val remove = text(getString(R.string.page_remove), 14f, medium = true).apply {
+        gravity = Gravity.CENTER
+        val p = (16 * dp).toInt()
+        setPadding(p, 0, p, 0)
+        compoundDrawablePadding = p / 2
+        visibility = View.INVISIBLE
+        fun look(hover: Boolean) {
+            val fg = if (hover) m3.onPrimaryContainer else m3.onSurface
+            background = if (hover) rounded(m3.primaryContainer, 24 * dp) else rounded(0, 24 * dp, m3.onSurface, 1.5f * dp)
+            setTextColor(fg)
+            setCompoundDrawablesRelative(symbol("delete", fg, 20f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
+        }
+        look(false)
+        setOnDragListener { _, e ->
+            when (e.action) {
+                DragEvent.ACTION_DRAG_ENTERED -> { look(true); performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) }
+                DragEvent.ACTION_DRAG_EXITED -> look(false)
+                DragEvent.ACTION_DROP -> (e.localState as? PageDrag)?.let { root.post { removePageAt(it.index) } }
+            }
+            true
+        }
+    }
     pages.forEachIndexed { i, page ->
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         // Some widgets hold hardware bitmaps, which a software canvas can't draw; the thumbnail is then left blank.
         runCatching { Canvas(bmp).apply { scale(w / maxOf(1f, page.width.toFloat()), h / maxOf(1f, page.height.toFloat())); page.draw(this) } }
+        val current = i == workspace.current
+        val thumb = ImageView(this).apply {
+            setImageBitmap(bmp)
+            clipToOutline = true
+            val p = (if (current) 3 * dp else dp).toInt()
+            setPadding(p, p, p, p)
+            foreground = pressable(null, 16 * dp)
+            isDuplicateParentStateEnabled = true
+        }
+        fun outline(hover: Boolean) {
+            thumb.background = rounded(m3.onSurface and 0xFFFFFF or 0x14000000, 16 * dp,
+                if (current || hover) m3.primary else m3.outlineVariant, (if (current || hover) 3 else 1) * dp)
+        }
+        outline(false)
         add(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            addView(ImageView(context).apply {
-                setImageBitmap(bmp)
-                val current = i == workspace.current
-                background = rounded(m3.onSurface and 0xFFFFFF or 0x14000000, 16 * dp, if (current) m3.primary else m3.outlineVariant, (if (current) 3 else 1) * dp)
-                clipToOutline = true
-                val p = (if (current) 3 * dp else dp).toInt()
-                setPadding(p, p, p, p)
-                foreground = pressable(null, 16 * dp)
-                isDuplicateParentStateEnabled = true
-            }, LinearLayout.LayoutParams(w, h))
-            addView(text(getString(R.string.page_n, i + 1), 12f, m3.onSurface, medium = i == default).apply {
+            addView(thumb, LinearLayout.LayoutParams(w, h))
+            addView(text(getString(R.string.page_n, i + 1), 12f, if (i == default) m3.onSurface else m3.onSurfaceVariant, medium = i == default).apply {
                 gravity = Gravity.CENTER
-                setPadding(0, (6 * dp).toInt(), 0, 0)
-                if (i == default) {
-                    compoundDrawablePadding = (4 * dp).toInt()
-                    setCompoundDrawablesRelative(symbol("home", m3.primary, 14f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
-                }
+                setPadding((8 * dp).toInt(), (6 * dp).toInt(), (8 * dp).toInt(), 0)
+                compoundDrawablePadding = (4 * dp).toInt()
+                setCompoundDrawablesRelative(symbol("home", if (i == default) m3.primary else m3.outlineVariant, 14f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
+                contentDescription = getString(R.string.page_set_default)
+                setOnClickListener { looks["defaultPage"] = i.toString(); showOverview() }
             }, LinearLayout.LayoutParams(-2, -2).apply { gravity = Gravity.CENTER_HORIZONTAL })
             setOnClickListener { workspace.snapTo(i, animate = false); closeOverlay() }
-            setOnLongClickListener { pageMenu(i); true }
+            setOnLongClickListener { v ->
+                performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                v.startDragAndDrop(null, View.DragShadowBuilder(v), PageDrag(i), View.DRAG_FLAG_OPAQUE)
+            }
+            setOnDragListener { v, e ->
+                val from = (e.localState as? PageDrag)?.index ?: return@setOnDragListener false
+                when (e.action) {
+                    DragEvent.ACTION_DRAG_STARTED -> if (from == i) v.alpha = 0.3f
+                    DragEvent.ACTION_DRAG_ENTERED -> if (from != i) { outline(true); performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) }
+                    DragEvent.ACTION_DRAG_EXITED -> outline(false)
+                    DragEvent.ACTION_DROP -> if (from != i) root.post { movePageTo(from, i) }
+                    DragEvent.ACTION_DRAG_ENDED -> { v.alpha = 1f; outline(false) }
+                }
+                true
+            }
         })
     }
     if (pages.size < 9) add(LinearLayout(this).apply {
@@ -188,48 +238,54 @@ fun MainActivity.showOverview() {
     showOverlay(FrameLayout(this).apply {
         setBackgroundColor(m3.surface and 0xFFFFFF or 0xD9000000.toInt())
         setOnClickListener { closeOverlay() }
+        // Takes every page drag and its stray drops, so they never reach the home screen's drop targets underneath.
+        setOnDragListener { _, e ->
+            if (e.localState !is PageDrag) return@setOnDragListener false
+            when (e.action) {
+                DragEvent.ACTION_DRAG_STARTED -> { hint.visibility = View.INVISIBLE; remove.visibility = View.VISIBLE }
+                DragEvent.ACTION_DRAG_ENDED -> { hint.visibility = View.VISIBLE; remove.visibility = View.INVISIBLE }
+            }
+            true
+        }
         addView(LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(0, insets.top + (24 * dp).toInt(), 0, insets.bottom)
             addView(text(getString(R.string.pages), 28f).apply { gravity = Gravity.CENTER })
-            addView(text(getString(R.string.pages_hint), 14f, m3.onSurfaceVariant).apply { gravity = Gravity.CENTER; setPadding(0, (4 * dp).toInt(), 0, (16 * dp).toInt()) })
+            // The hint and the Remove target share one slot: Remove shows only while a page is held.
+            addView(FrameLayout(context).apply {
+                addView(hint, FrameLayout.LayoutParams(-1, -1))
+                addView(remove, FrameLayout.LayoutParams(-2, -1, Gravity.CENTER))
+            }, LinearLayout.LayoutParams(-1, (48 * dp).toInt()).apply { setMargins(0, (4 * dp).toInt(), 0, (8 * dp).toInt()) })
             addView(ScrollView(context).apply { addView(grid) }, LinearLayout.LayoutParams(-1, -2))
         }, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
     })
 }
 
-private fun MainActivity.pageMenu(i: Int) {
+private fun MainActivity.movePageTo(from: Int, to: Int) {
+    val default = looks.int("defaultPage")
+    items = movePage(items, from, to).toMutableList()
+    // The default page follows its contents, like every other page.
+    looks["defaultPage"] = (0 until pages.size).toMutableList().apply { add(to, removeAt(from)) }.indexOf(default).toString()
+    save(); render(); showOverview()
+}
+
+private fun MainActivity.removePageAt(i: Int) {
     val n = pages.size
-    val options = listOf(R.string.page_set_default, R.string.page_move_left, R.string.page_move_right, R.string.page_remove).map(::getString)
-    dialog().setTitle(getString(R.string.page_n, i + 1)).setItems(options.toTypedArray()) { _, which ->
-        val default = looks.int("defaultPage")
-        when (which) {
-            0 -> { looks["defaultPage"] = i.toString(); showOverview() }
-            1, 2 -> {
-                val to = if (which == 1) i - 1 else i + 1
-                if (to !in 0 until n) return@setItems
-                items = movePage(items, i, to).toMutableList()
-                if (default == i) looks["defaultPage"] = to.toString() else if (default == to) looks["defaultPage"] = i.toString()
-                save(); render(); showOverview()
-            }
-            3 -> {
-                if (n == 1) { toast(R.string.page_last); return@setItems }
-                val doRemove = {
-                    val (kept, gone) = removePage(items, i)
-                    gone.filter { it.isWidget }.forEach { host.deleteAppWidgetId(it.widgetId) }
-                    items = kept.toMutableList()
-                    gone.filter { it.isShortcut }.forEach { syncPins(it.pkg, it.user) }
-                    save()
-                    looks["pages"] = (n - 1).toString()
-                    looks["defaultPage"] = (if (default > i) default - 1 else default).coerceAtMost(n - 2).toString()
-                    rebuild()
-                }
-                if (items.none { it.page == i }) doRemove()
-                else dialog().setMessage(getString(R.string.page_remove_confirm, i + 1))
-                    .setPositiveButton(R.string.remove) { _, _ -> doRemove() }.setNegativeButton(R.string.cancel, null).show()
-            }
-        }
-    }.show()
+    if (n == 1) { toast(R.string.page_last); return }
+    val default = looks.int("defaultPage")
+    val doRemove = {
+        val (kept, gone) = removePage(items, i)
+        gone.filter { it.isWidget }.forEach { host.deleteAppWidgetId(it.widgetId) }
+        items = kept.toMutableList()
+        gone.filter { it.isShortcut }.forEach { syncPins(it.pkg, it.user) }
+        save()
+        looks["pages"] = (n - 1).toString()
+        looks["defaultPage"] = (if (default > i) default - 1 else default).coerceAtMost(n - 2).toString()
+        rebuild()
+    }
+    if (items.none { it.page == i }) doRemove()
+    else dialog().setMessage(getString(R.string.page_remove_confirm, i + 1))
+        .setPositiveButton(R.string.remove) { _, _ -> doRemove() }.setNegativeButton(R.string.cancel, null).show()
 }
 
 /** Drag handles on a widget's edges; tapping outside applies the new size. */

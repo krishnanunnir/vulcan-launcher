@@ -40,11 +40,15 @@ private val CATEGORY_INFO = mapOf(
 
 private fun depth(page: String) = when (page) { "" -> 0; COLORS -> 2; else -> 1 }
 
+/** Where each settings page was scrolled when it was left for a deeper one, so back returns to the same spot. */
+private val leftAt = mutableMapOf<String, Int>()
+
 fun MainActivity.showSettings(page: String = "", scroll: Int = 0, restoring: Boolean = false) {
     // Page to page, the old page stays until the new one covers it, so home never shows through between them.
     val old = overlay?.takeIf { settingsPage != null && !restoring }
     val backward = old != null && depth(page) < depth(settingsPage!!)
     val samePage = old != null && page == settingsPage
+    if (old != null && !backward && !samePage) settingsScroll?.let { leftAt[settingsPage!!] = it.scrollY }
     val list = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(0, 0, 0, insets.bottom + (16 * dp).toInt())
@@ -80,7 +84,7 @@ fun MainActivity.showSettings(page: String = "", scroll: Int = 0, restoring: Boo
         if (field?.visibility == View.VISIBLE) {
             ime.hideSoftInputFromWindow(field.windowToken, 0)
             field.setText(""); field.visibility = View.GONE; title.visibility = View.VISIBLE; searchButton?.visibility = View.VISIBLE
-        } else when (page) { "" -> closeOverlay(); COLORS -> showSettings(LOOK); else -> showSettings() }
+        } else when (page) { "" -> closeOverlay(); COLORS -> showSettings(LOOK, leftAt[LOOK] ?: 0); else -> showSettings(scroll = leftAt[""] ?: 0) }
     }
     val panel = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL

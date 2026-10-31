@@ -277,15 +277,13 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="orientation_portrait">Hochformat</string>
     <string name="page">Seite</string>
     <string name="page_last">Der Startbildschirm benötigt mindestens eine Seite</string>
-    <string name="page_move_left">Nach links verschieben</string>
-    <string name="page_move_right">Nach rechts verschieben</string>
     <string name="page_n">Seite %1$d</string>
     <string name="page_of">Seite %1$d von %2$d</string>
     <string name="page_remove">Seite entfernen</string>
     <string name="page_remove_confirm">Seite %1$d und alles darauf entfernen?</string>
     <string name="page_set_default">Als Standardseite festlegen</string>
     <string name="pages">Seiten</string>
-    <string name="pages_hint">Tippen zum Öffnen · Langdruck für Optionen</string>
+    <string name="pages_hint">Tippen zum Öffnen · halten und ziehen zum Verschieben oder Entfernen</string>
     <string name="panel_appearance">Darstellung</string>
     <string name="panel_apps">Apps</string>
     <string name="panel_interaction">Bedienung</string>
