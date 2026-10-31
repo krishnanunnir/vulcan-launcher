@@ -1,0 +1,8 @@
+# Start from a fresh install's layout (Gmail, Photos, Launcher settings; Phone, Messages, Maps, Chrome, Camera dock).
+# Wipes Vulcan's data: only for flows tagged "edits", which run on the emulators, where Vulcan is the home app.
+# Home restarts it; launchApp would go through the hand-off to home, which on Android 11 leaves the last app in front.
+appId: dev.vulcanlauncher
+---
+- clearState
+- pressKey: Home
+- waitForAnimationToEnd

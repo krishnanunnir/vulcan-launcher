@@ -1,0 +1,12 @@
+# Hide an app from the drawer; "Show hidden apps" brings it back to view.
+appId: dev.vulcanlauncher
+tags: [edits]
+---
+- runFlow: common/fresh.yaml
+- runFlow: common/drawer.yaml
+- longPressOn: "YouTube"
+- tapOn: "(?i)hide"
+- assertNotVisible: "YouTube"
+- tapOn: "More options"
+- tapOn: "Show hidden apps"
+- assertVisible: "YouTube"

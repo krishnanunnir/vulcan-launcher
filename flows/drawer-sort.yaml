@@ -1,0 +1,14 @@
+# Sorting Z–A puts YouTube above Camera; A–Z puts it back. (Not the first app, which is missing from the accessibility tree.)
+appId: dev.vulcanlauncher
+tags: [edits]
+---
+- runFlow: common/fresh.yaml
+- runFlow: common/drawer.yaml
+- tapOn: "More options"
+- tapOn: "Sort apps"
+- tapOn: "Title \\(Z–A\\)"
+- assertVisible: { text: "Camera", below: "YouTube" }
+- tapOn: "More options"
+- tapOn: "Sort apps"
+- tapOn: "Title \\(A–Z\\)"
+- assertVisible: { text: "YouTube", below: "Camera" }

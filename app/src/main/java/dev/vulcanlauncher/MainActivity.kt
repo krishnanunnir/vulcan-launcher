@@ -500,6 +500,7 @@ class MainActivity : Activity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        if (!::drawer.isInitialized) return // handed off to home in onCreate; Android 11 still delivers that home intent here
         // Without focus an app was in front: coming home only closes what was open, the action is for a second press.
         val onHome = hasWindowFocus()
         when {

@@ -1,0 +1,26 @@
+# Add a second home page from the page previews, then swipe to it and back.
+appId: dev.vulcanlauncher
+tags: [edits]
+---
+- runFlow: common/fresh.yaml
+- runFlow: common/home-menu.yaml
+- tapOn: "(?i)pages"
+- assertVisible: "Page 1"
+- tapOn: { point: "48%,55%" }   # the "+" tile has no label to match
+- waitForAnimationToEnd
+- repeat:   # a swipe right after the previews close can go unnoticed
+    times: 3
+    while:
+      visible: "Gmail"
+    commands:
+      - swipe: { direction: LEFT }
+      - waitForAnimationToEnd
+- assertNotVisible: "Gmail"
+- repeat:
+    times: 3
+    while:
+      notVisible: "Gmail"
+    commands:
+      - swipe: { direction: RIGHT }
+      - waitForAnimationToEnd
+- assertVisible: "Gmail"

@@ -1,0 +1,10 @@
+# A drawer app's App info opens Android's app details page.
+appId: dev.vulcanlauncher
+tags: [edits]
+---
+- runFlow: common/fresh.yaml
+- runFlow: common/drawer.yaml
+- longPressOn: "YouTube"
+- tapOn: "(?i)app info"
+- assertVisible: "(?i)(force stop|uninstall|disable)"
+- pressKey: Home

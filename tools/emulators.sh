@@ -6,6 +6,8 @@
 #   tools/emulators.sh start NAME      boot one in a window, e.g. vulcan-35-phone
 #   tools/emulators.sh check [NAME…]   boot each (default: all) without a window, install the debug APK, make it the home
 #                                      app, go home and open the drawer, screenshot to build/emulators/, report crashes
+#   tools/emulators.sh flows [--show] [NAME…]  boot each (default: all), install the debug APK and run the Maestro
+#                                      flows in flows/ on it (see docs/BUILDING.md); --show opens the emulator window
 set -eu
 
 export JAVA_HOME=${JAVA_HOME:-/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home}
@@ -83,10 +85,36 @@ check() {
     [ "$bad" = 0 ]
 }
 
+flows_one() { # name [extra emulator flags…]
+    local name=$1 port=5560 s=emulator-5560 failed=0; shift
+    echo "== $name"
+    boot "$name" "$port" "$@" || { adb -s "$s" emu kill >/dev/null 2>&1; return 1; }
+    adb -s "$s" install -r "$APK" >/dev/null
+    adb -s "$s" shell cmd package set-home-activity dev.vulcanlauncher/.MainActivity >/dev/null
+    adb -s "$s" shell input keyevent KEYCODE_WAKEUP
+    adb -s "$s" shell wm dismiss-keyguard 2>/dev/null || true
+    MAESTRO_CLI_NO_ANALYTICS=1 maestro --device "$s" test -e VULCAN_HOME=true "$ROOT/flows" || failed=1
+    adb -s "$s" emu kill >/dev/null 2>&1 || true
+    sleep 3
+    return "$failed"
+}
+
+flows() {
+    [ -f "$APK" ] || { echo "No debug APK; run ./gradlew assembleDebug first" >&2; exit 1; }
+    local flags=(-no-window) names=() bad=0
+    [ "${1:-}" = --show ] && { flags=(); shift; }
+    names=("$@")
+    [ ${#names[@]} -gt 0 ] || read -r -a names <<<"$(echo "$AVDS" | awk 'NF {print $1}' | tr '\n' ' ')"
+    for n in "${names[@]}"; do flows_one "$n" ${flags[@]+"${flags[@]}"} || bad=$((bad + 1)); done
+    echo "$((${#names[@]} - bad))/${#names[@]} emulators passed"
+    [ "$bad" = 0 ]
+}
+
 mkdir -p "$OUT"
 case "${1:-}" in
     setup) setup ;;
     start) [ -n "${2:-}" ] || { echo "usage: $0 start NAME" >&2; exit 2; }; "$EMULATOR" -avd "$2" -no-snapshot-save & ;;
     check) shift; check "$@" ;;
+    flows) shift; flows "$@" ;;
     *) sed -n '2,9p' "$0"; exit 2 ;;
 esac

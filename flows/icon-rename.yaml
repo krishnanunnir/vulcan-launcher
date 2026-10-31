@@ -1,0 +1,13 @@
+# Rename a home icon through Edit; the new label shows on home.
+appId: dev.vulcanlauncher
+tags: [edits]
+---
+- runFlow: common/fresh.yaml
+- longPressOn: "Gmail"
+- tapOn: "(?i)edit"
+- tapOn: { text: "Gmail", below: "Edit" }
+- eraseText
+- inputText: "Mail"
+- tapOn: "Save"
+- assertVisible: "Mail"
+- assertNotVisible: "Gmail"

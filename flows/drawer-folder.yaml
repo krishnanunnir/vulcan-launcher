@@ -1,0 +1,13 @@
+# Put a drawer app into a new folder; the folder shows in the drawer and opens to the app.
+appId: dev.vulcanlauncher
+tags: [edits]
+---
+- runFlow: common/fresh.yaml
+- runFlow: common/drawer.yaml
+- longPressOn: "YouTube"
+- tapOn: "(?i)group"
+- tapOn: "＋ New folder"
+- inputText: "Media"
+- tapOn: "(?i)ok|create|save|add"
+- tapOn: "Media"
+- assertVisible: "YouTube"

@@ -1,0 +1,11 @@
+# A search that matches no app says so and still offers the web search row.
+appId: dev.vulcanlauncher
+---
+- runFlow: common/start.yaml
+- runFlow: common/drawer.yaml
+- tapOn: "Search apps"
+- inputText: "zzqx"
+- assertVisible: "No apps match “zzqx”"
+- assertVisible: "Search “zzqx”"
+- back
+- back

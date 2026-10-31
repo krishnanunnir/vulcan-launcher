@@ -32,6 +32,19 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell am instrument -w dev.vulcanlauncher.test/dev.vulcanlauncher.DeviceCheck
 ```
 
+Scenario flows in `flows/`, run with [Maestro](https://maestro.mobile.dev) (`brew install mobile-dev-inc/tap/maestro`). Install the debug APK first. The flows match English labels. Maestro sends analytics unless the variable below is set.
+
+Flows tagged `edits` (removing and renaming icons, lock layout, pages, widget picker, hiding, sorting, folders, tabs, drawer style, dock settings, app info) start from a wiped, fresh-install layout. They run on the emulators; on a phone you use, leave them out with `--exclude-tags edits`. The others never stop or wipe Vulcan.
+
+```sh
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17 MAESTRO_CLI_NO_ANALYTICS=1
+maestro test --exclude-tags edits flows/  # on your phone; add --device <serial> when several are connected
+```
+
+On the emulators instead (boots each in turn, installs the debug APK, runs the flows, shuts it down): `tools/emulators.sh flows [--show] [NAME…]`. `--show` opens the emulator window so you can watch.
+
+Each flow in `flows/` is one scenario; shared steps live in `flows/common/` (not run on their own). Maestro can't drag (long-press then move) or send multi-touch, so moving icons, making folders by dropping and gestures stay manual or in DeviceCheck.
+
 ## Release build
 
 `./gradlew assembleRelease` signs the APK when a git-ignored `keystore.properties` sits in the repo root:

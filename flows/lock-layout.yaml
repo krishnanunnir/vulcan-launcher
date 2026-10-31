@@ -1,0 +1,15 @@
+# Locked layout: long-press on an icon offers no Remove; unlocking brings it back.
+appId: dev.vulcanlauncher
+tags: [edits]
+---
+- runFlow: common/fresh.yaml
+- runFlow: common/home-menu.yaml
+- tapOn: "(?i)lock"
+- longPressOn: "Gmail"
+- assertNotVisible: "(?i)remove"
+- back
+- runFlow: common/home-menu.yaml
+- tapOn: "(?i)unlock"
+- longPressOn: "Gmail"
+- assertVisible: "(?i)remove"
+- back

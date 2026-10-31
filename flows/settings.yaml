@@ -1,0 +1,10 @@
+# Launcher settings open from the drawer's ⋮ menu.
+appId: dev.vulcanlauncher
+---
+- runFlow: common/start.yaml
+- runFlow: common/drawer.yaml
+- tapOn: "More options"
+- tapOn: { text: "Launcher settings", below: "Hidden apps" }
+- assertVisible: "NO INTERNET PERMISSION"
+- assertVisible: "Home screen"
+- back

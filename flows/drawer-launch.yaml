@@ -1,0 +1,10 @@
+# Swipe up opens the drawer; tapping an app launches it; launcher comes back.
+appId: dev.vulcanlauncher
+---
+- runFlow: common/start.yaml
+- runFlow: common/drawer.yaml
+- assertVisible: "Search apps"
+- tapOn: "Clock"
+- assertNotVisible: "Search apps"
+- runFlow: common/start.yaml
+- assertVisible: "Search"

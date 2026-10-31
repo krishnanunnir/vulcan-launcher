@@ -1,0 +1,10 @@
+# The home menu's Widgets opens the picker with sized entries; nothing is added.
+appId: dev.vulcanlauncher
+tags: [edits]
+---
+- runFlow: common/fresh.yaml
+- runFlow: common/home-menu.yaml
+- tapOn: "(?i)widgets"
+- assertVisible: "Widgets"
+- assertVisible: "(?s).*\\(\\d+×\\d+\\).*"   # "Analog  (2×1)\nClock"
+- back

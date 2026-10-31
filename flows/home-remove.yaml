@@ -1,0 +1,13 @@
+# Remove an icon from home, then add it back from the drawer.
+appId: dev.vulcanlauncher
+tags: [edits]
+---
+- runFlow: common/fresh.yaml
+- longPressOn: "Gmail"
+- tapOn: "(?i)remove"
+- assertNotVisible: "Gmail"
+- runFlow: common/drawer.yaml
+- longPressOn: "Gmail"
+- tapOn: "(?i)add"
+- back
+- assertVisible: "Gmail"

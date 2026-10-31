@@ -1,0 +1,11 @@
+# Typing in the drawer search shows matching apps and a web-search row.
+appId: dev.vulcanlauncher
+---
+- runFlow: common/start.yaml
+- runFlow: common/drawer.yaml
+- tapOn: "Search apps"
+- inputText: "cloc"
+- assertVisible: "Search “cloc”"
+- assertVisible: "Clock"
+- back
+- back

@@ -11,7 +11,7 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
 
 - APK: `app/build/outputs/apk/debug/app-debug.apk`. Install it with `adb install -r <apk>`.
 - The first build downloads Gradle, AGP and Kotlin (versions in `gradle/wrapper/gradle-wrapper.properties` and the build files). In the Claude Code sandbox, Java's network access times out (even though curl works), so run Gradle with the sandbox disabled when dependencies must be fetched.
-- Emulators: `tools/emulators.sh setup` once, then `tools/emulators.sh check` after `assembleDebug`. Run with the sandbox disabled.
+- Emulators: `tools/emulators.sh setup` once, then `tools/emulators.sh check` after `assembleDebug`. `tools/emulators.sh flows` runs the Maestro scenarios in `flows/`. Run with the sandbox disabled.
 - To check permissions after a build: `/opt/homebrew/share/android-commandlinetools/build-tools/35.0.0/aapt2 dump permissions <apk>`.
 
 ## Hard rules

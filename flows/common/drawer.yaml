@@ -1,0 +1,11 @@
+# Open the drawer. Right after a (re)start a swipe can go unnoticed, so swipe again until it shows (3 tries).
+appId: dev.vulcanlauncher
+---
+- repeat:
+    times: 3
+    while:
+      notVisible: "Search apps"
+    commands:
+      - swipe: { direction: UP }
+      - waitForAnimationToEnd
+- assertVisible: "Search apps"

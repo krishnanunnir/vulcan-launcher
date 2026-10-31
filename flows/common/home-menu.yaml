@@ -1,0 +1,10 @@
+# Long-press empty home space for the home menu (Widgets, Wallpaper, Pages, Lock…). Retried: see drawer.yaml.
+appId: dev.vulcanlauncher
+---
+- repeat:
+    times: 3
+    while:
+      notVisible: "(?i)wallpaper"
+    commands:
+      - longPressOn: { point: "50%,40%" }
+      - waitForAnimationToEnd

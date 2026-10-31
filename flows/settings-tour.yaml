@@ -1,0 +1,21 @@
+# Every settings section opens and comes back; Backup & restore opens its dialog.
+appId: dev.vulcanlauncher
+---
+- runFlow: common/start.yaml
+- runFlow: common/drawer.yaml
+- tapOn: "More options"
+- tapOn: { text: "Launcher settings", below: "Hidden apps" }
+- evalScript: ${output.sections = ["Home screen", "Dock", "App drawer", "Folders", "Look & feel", "Night mode", "Notification badges", "Gestures & inputs", "Now page"]}
+- repeat:
+    times: 9
+    commands:
+      - evalScript: ${output.s = output.sections.shift()}
+      - scrollUntilVisible: { element: { text: "${output.s}" }, direction: DOWN }
+      - tapOn: "${output.s}"
+      - assertVisible: { text: "${output.s}", below: "Back" }
+      - back
+- scrollUntilVisible: { element: { text: "Backup & restore" }, direction: DOWN }
+- tapOn: "Backup & restore"
+- assertVisible: "Back up to a file…"
+- back
+- back

@@ -1,0 +1,13 @@
+# Dock settings change the home screen: with 3 dock icons, Camera moves up onto the home grid.
+appId: dev.vulcanlauncher
+tags: [edits]
+---
+- runFlow: common/fresh.yaml
+- tapOn: "Launcher settings"
+- tapOn: "Dock"
+- tapOn: "Dock icons"
+- tapOn: "3"
+- back
+- back
+- assertVisible: { text: "Camera", above: "Gmail" }
+- assertVisible: { text: "Phone", below: "Gmail" }

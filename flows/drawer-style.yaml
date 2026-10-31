@@ -1,0 +1,16 @@
+# Drawer style "List" puts one app per row: Clock sits below Chrome instead of beside it.
+appId: dev.vulcanlauncher
+tags: [edits]
+---
+- runFlow: common/fresh.yaml
+- runFlow: common/drawer.yaml
+- assertNotVisible: { text: "Clock", below: "Chrome" }
+- back
+- tapOn: "Launcher settings"
+- tapOn: "App drawer"
+- tapOn: "App drawer style"
+- tapOn: "List"
+- back
+- back
+- runFlow: common/drawer.yaml
+- assertVisible: { text: "Clock", below: "Chrome" }

@@ -1,0 +1,19 @@
+# Make a drawer tab holding Maps and YouTube; the tab shows only its apps.
+# (Two apps: the first one in a drawer is missing from the accessibility tree, so it can't be asserted.)
+appId: dev.vulcanlauncher
+tags: [edits]
+---
+- runFlow: common/fresh.yaml
+- runFlow: common/drawer.yaml
+- tapOn: "More options"
+- tapOn: "Drawer groups"
+- tapOn: "＋ New tab"
+- inputText: "Fun"
+- tapOn: "OK"
+- tapOn: "Maps"   # the tab's app checklist
+- scrollUntilVisible: { element: { text: "YouTube" }, direction: DOWN }
+- tapOn: "YouTube"
+- tapOn: "Save"
+- tapOn: "Fun"
+- assertVisible: "YouTube"
+- assertNotVisible: "Contacts"   # not on home, so not seen behind the drawer either

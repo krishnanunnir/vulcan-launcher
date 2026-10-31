@@ -1,0 +1,6 @@
+# Home screen comes up with its dock and search bar.
+appId: dev.vulcanlauncher
+---
+- runFlow: common/start.yaml
+- assertVisible: "Search"
+- assertVisible: "Phone"
