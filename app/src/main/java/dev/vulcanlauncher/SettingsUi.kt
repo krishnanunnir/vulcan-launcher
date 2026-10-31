@@ -49,9 +49,39 @@ fun MainActivity.showSettings(page: String = "", scroll: Int = 0, restoring: Boo
         orientation = LinearLayout.VERTICAL
         setPadding(0, 0, 0, insets.bottom + (16 * dp).toInt())
     }
-    when (page) { "" -> settingsHome(list); COLORS -> colorsPage(list); else -> settingsCategory(page, list) }
+    var search: ((String) -> Unit)? = null
+    when (page) { "" -> search = settingsHome(list); COLORS -> colorsPage(list); else -> settingsCategory(page, list) }
     val scrollView = ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(list) }
-    val back = Runnable { when (page) { "" -> closeOverlay(); COLORS -> showSettings(LOOK); else -> showSettings() } }
+    val title = text(getString(when (page) { "" -> R.string.settings; COLORS -> R.string.custom_colors; else -> GROUP_TITLES.getValue(page) }), 22f).apply { setPadding((8 * dp).toInt(), 0, 0, 0); maxLines = 1 }
+    // Settings home, as One UI: a search button in the bar turns the title into the search field.
+    val field = search?.let { onQuery -> EditText(this).apply {
+        visibility = View.GONE
+        hint = getString(R.string.settings_search)
+        setSingleLine()
+        textSize = 18f
+        setTextColor(m3.onSurface)
+        setHintTextColor(m3.onSurfaceVariant)
+        background = null
+        setPadding((8 * dp).toInt(), 0, 0, 0)
+        imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
+        addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) { onQuery(s.toString()); scrollView.scrollTo(0, 0) }
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+        })
+    } }
+    val ime = getSystemService(android.view.inputmethod.InputMethodManager::class.java)
+    val searchButton = field?.let { f -> iconButton("search", getString(R.string.settings_search), m3.onSurface) { v ->
+        v.visibility = View.GONE; title.visibility = View.GONE; f.visibility = View.VISIBLE
+        f.requestFocus(); ime.showSoftInput(f, 0)
+    } }
+    // Back closes an open search before it leaves the page.
+    val back = Runnable {
+        if (field?.visibility == View.VISIBLE) {
+            ime.hideSoftInputFromWindow(field.windowToken, 0)
+            field.setText(""); field.visibility = View.GONE; title.visibility = View.VISIBLE; searchButton?.visibility = View.VISIBLE
+        } else when (page) { "" -> closeOverlay(); COLORS -> showSettings(LOOK); else -> showSettings() }
+    }
     val panel = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setBackgroundColor(m3.surface)
@@ -59,10 +89,11 @@ fun MainActivity.showSettings(page: String = "", scroll: Int = 0, restoring: Boo
         setPadding(insets.left, insets.top, insets.right, 0)
         addView(LinearLayout(context).apply {
             gravity = Gravity.CENTER_VERTICAL
-            setPadding((4 * dp).toInt(), 0, (16 * dp).toInt(), 0)
+            setPadding((4 * dp).toInt(), 0, (4 * dp).toInt(), 0)
             addView(iconButton("back", getString(R.string.back), m3.onSurface) { back.run() })
-            addView(text(getString(when (page) { "" -> R.string.settings; COLORS -> R.string.custom_colors; else -> GROUP_TITLES.getValue(page) }), 22f).apply { setPadding((8 * dp).toInt(), 0, 0, 0); maxLines = 1 },
-                LinearLayout.LayoutParams(0, -2, 1f))
+            addView(title, LinearLayout.LayoutParams(0, -2, 1f))
+            field?.let { addView(it, LinearLayout.LayoutParams(0, -1, 1f)) }
+            searchButton?.let { addView(it) }
         }, LinearLayout.LayoutParams(-1, (64 * dp).toInt()))
         addView(scrollView, LinearLayout.LayoutParams(-1, 0, 1f))
         tag = back
@@ -94,25 +125,26 @@ fun MainActivity.showSettings(page: String = "", scroll: Int = 0, restoring: Boo
     }
 }
 
-private fun MainActivity.settingsHome(page: LinearLayout) {
-    page.addView(nameplate())
-    // While a search is typed, its matches replace the categories.
+/** Builds the settings home into [page]; returns the search: given a query, its matches replace the page. */
+private fun MainActivity.settingsHome(page: LinearLayout): (String) -> Unit {
     val results = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
     val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-    page.addView(settingsSearch { q ->
-        results.removeAllViews()
-        list.visibility = if (q.isBlank()) View.VISIBLE else View.GONE
-        if (q.isBlank()) return@settingsSearch
-        val hits = LOOKS.filter { c ->
-            c.group in GROUP_TITLES && listOf(c.title, c.info, GROUP_TITLES.getValue(c.group)).any { it != 0 && getString(it).contains(q.trim(), true) }
-        }
-        if (hits.isEmpty()) results.addView(text(getString(R.string.settings_no_match), 15f, m3.onSurfaceVariant).apply {
-            gravity = Gravity.CENTER; setPadding(0, (32 * dp).toInt(), 0, 0)
-        })
-        else panel(results, null, hits.map { c -> listItem(null, getString(c.title), getString(GROUP_TITLES.getValue(c.group))) { showSettings(c.group) } })
-    })
+    list.addView(nameplate())
     page.addView(results)
     page.addView(list)
+    val search = { q: String ->
+        results.removeAllViews()
+        list.visibility = if (q.isBlank()) View.VISIBLE else View.GONE
+        if (q.isNotBlank()) {
+            val hits = LOOKS.filter { c ->
+                c.group in GROUP_TITLES && listOf(c.title, c.info, GROUP_TITLES.getValue(c.group)).any { it != 0 && getString(it).contains(q.trim(), true) }
+            }
+            if (hits.isEmpty()) results.addView(text(getString(R.string.settings_no_match), 15f, m3.onSurfaceVariant).apply {
+                gravity = Gravity.CENTER; setPadding(0, (32 * dp).toInt(), 0, 0)
+            })
+            else panel(results, null, hits.map { c -> listItem(null, getString(c.title), getString(GROUP_TITLES.getValue(c.group))) { showSettings(c.group) } })
+        }
+    }
     fun category(name: String) = CATEGORY_INFO.getValue(name).let { (icon, info) ->
         listItem(symbol(icon, m3.onPrimaryContainer), getString(GROUP_TITLES.getValue(name)), getString(info), tonalIcon = true) { showSettings(name) }
     }
@@ -136,6 +168,7 @@ private fun MainActivity.settingsHome(page: LinearLayout) {
                 .setPositiveButton(R.string.ok, null).show()
         },
     ))
+    return search
 }
 
 private val MainActivity.versionName get() = packageManager.getPackageInfo(packageName, 0).versionName
@@ -158,30 +191,6 @@ private fun MainActivity.panel(list: LinearLayout, title: String?, rows: List<Vi
             addView(row)
         }
     }, LinearLayout.LayoutParams(-1, -2).apply { setMargins((16 * dp).toInt(), if (title == null) (8 * dp).toInt() else 0, (16 * dp).toInt(), (8 * dp).toInt()) })
-}
-
-/** M3 search bar for settings; [onQuery] runs on every change. */
-private fun MainActivity.settingsSearch(onQuery: (String) -> Unit) = LinearLayout(this).apply {
-    gravity = Gravity.CENTER_VERTICAL
-    background = rounded(m3.surfaceHighest, 28 * dp)
-    setPadding((16 * dp).toInt(), 0, (16 * dp).toInt(), 0)
-    addView(ImageView(context).apply { setImageDrawable(symbol("search")) }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = (12 * dp).toInt() })
-    addView(EditText(context).apply {
-        hint = getString(R.string.settings_search)
-        setSingleLine()
-        textSize = 16f
-        setTextColor(m3.onSurface)
-        setHintTextColor(m3.onSurfaceVariant)
-        background = null
-        addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) { onQuery(s.toString()) }
-            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-        })
-    }, LinearLayout.LayoutParams(0, -1, 1f))
-    // The whole bar is the target, not just the text.
-    setOnClickListener { getChildAt(1).requestFocus(); getSystemService(android.view.inputmethod.InputMethodManager::class.java).showSoftInput(getChildAt(1), 0) }
-    layoutParams = LinearLayout.LayoutParams(-1, (56 * dp).toInt()).apply { setMargins((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), (4 * dp).toInt()) }
 }
 
 /** The rating plate at the top of settings: the name and version, printed on a raised face. */

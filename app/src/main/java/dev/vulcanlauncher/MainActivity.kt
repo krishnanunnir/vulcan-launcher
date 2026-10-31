@@ -415,7 +415,10 @@ class MainActivity : Activity() {
                 dropBar.setPadding(dropBar.paddingLeft, top + dropBar.paddingBottom, dropBar.paddingRight, dropBar.paddingBottom)
                 val old = Rect(insets)
                 insets.set(ins.systemWindowInsetLeft, top, ins.systemWindowInsetRight, ins.systemWindowInsetBottom)
-                settingsPage?.let { if (insets != old) showSettings(it, settingsScroll?.scrollY ?: 0, restoring = true) }
+                // Not on a bottom-only change: that's the keyboard (settings search), and rebuilding would drop the field.
+                // The list makes room for the keyboard instead.
+                settingsPage?.let { if (insets.left != old.left || insets.top != old.top || insets.right != old.right) showSettings(it, settingsScroll?.scrollY ?: 0, restoring = true) }
+                if (android.os.Build.VERSION.SDK_INT >= 30) settingsScroll?.setPadding(0, 0, 0, ins.getInsets(android.view.WindowInsets.Type.ime()).bottom)
                 ins
             }
         }
