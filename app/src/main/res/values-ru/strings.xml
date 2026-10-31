@@ -244,7 +244,8 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="no">нет</string>
     <string name="no_app_handles">Нет приложения для обработки этого действия</string>
     <string name="no_apps_match">Нет приложений по запросу «%1$s»</string>
-    <string name="no_internet">Без доступа к интернету</string>
+    <string name="settings_search">Поиск настроек</string>
+    <string name="settings_no_match">Нет подходящих настроек</string>
     <string name="no_new_categories">Нет новых категорий для группировки</string>
     <string name="no_room">На главном экране нет места</string>
     <string name="no_web_search_app">Нет приложения для веб-поиска</string>

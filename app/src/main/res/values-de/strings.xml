@@ -244,7 +244,8 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="no">nein</string>
     <string name="no_app_handles">Keine App verarbeitet dies</string>
     <string name="no_apps_match">Keine Apps passen zu „%1$s“</string>
-    <string name="no_internet">Kein Internetzugriff</string>
+    <string name="settings_search">Einstellungen durchsuchen</string>
+    <string name="settings_no_match">Keine passenden Einstellungen</string>
     <string name="no_new_categories">Keine neuen Kategorien zum Gruppieren</string>
     <string name="no_room">Kein Platz auf dem Startbildschirm</string>
     <string name="no_web_search_app">Keine App verarbeitet Websuche</string>

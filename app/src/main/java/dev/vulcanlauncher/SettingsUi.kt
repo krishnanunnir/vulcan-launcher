@@ -94,8 +94,25 @@ fun MainActivity.showSettings(page: String = "", scroll: Int = 0, restoring: Boo
     }
 }
 
-private fun MainActivity.settingsHome(list: LinearLayout) {
-    list.addView(nameplate())
+private fun MainActivity.settingsHome(page: LinearLayout) {
+    page.addView(nameplate())
+    // While a search is typed, its matches replace the categories.
+    val results = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+    val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+    page.addView(settingsSearch { q ->
+        results.removeAllViews()
+        list.visibility = if (q.isBlank()) View.VISIBLE else View.GONE
+        if (q.isBlank()) return@settingsSearch
+        val hits = LOOKS.filter { c ->
+            c.group in GROUP_TITLES && listOf(c.title, c.info, GROUP_TITLES.getValue(c.group)).any { it != 0 && getString(it).contains(q.trim(), true) }
+        }
+        if (hits.isEmpty()) results.addView(text(getString(R.string.settings_no_match), 15f, m3.onSurfaceVariant).apply {
+            gravity = Gravity.CENTER; setPadding(0, (32 * dp).toInt(), 0, 0)
+        })
+        else panel(results, null, hits.map { c -> listItem(null, getString(c.title), getString(GROUP_TITLES.getValue(c.group))) { showSettings(c.group) } })
+    })
+    page.addView(results)
+    page.addView(list)
     fun category(name: String) = CATEGORY_INFO.getValue(name).let { (icon, info) ->
         listItem(symbol(icon, m3.onPrimaryContainer), getString(GROUP_TITLES.getValue(name)), getString(info), tonalIcon = true) { showSettings(name) }
     }
@@ -143,7 +160,31 @@ private fun MainActivity.panel(list: LinearLayout, title: String?, rows: List<Vi
     }, LinearLayout.LayoutParams(-1, -2).apply { setMargins((16 * dp).toInt(), if (title == null) (8 * dp).toInt() else 0, (16 * dp).toInt(), (8 * dp).toInt()) })
 }
 
-/** The rating plate at the top of settings: the name, and what the launcher can't do, printed on a raised face. */
+/** M3 search bar for settings; [onQuery] runs on every change. */
+private fun MainActivity.settingsSearch(onQuery: (String) -> Unit) = LinearLayout(this).apply {
+    gravity = Gravity.CENTER_VERTICAL
+    background = rounded(m3.surfaceHighest, 28 * dp)
+    setPadding((16 * dp).toInt(), 0, (16 * dp).toInt(), 0)
+    addView(ImageView(context).apply { setImageDrawable(symbol("search")) }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = (12 * dp).toInt() })
+    addView(EditText(context).apply {
+        hint = getString(R.string.settings_search)
+        setSingleLine()
+        textSize = 16f
+        setTextColor(m3.onSurface)
+        setHintTextColor(m3.onSurfaceVariant)
+        background = null
+        addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) { onQuery(s.toString()) }
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+        })
+    }, LinearLayout.LayoutParams(0, -1, 1f))
+    // The whole bar is the target, not just the text.
+    setOnClickListener { getChildAt(1).requestFocus(); getSystemService(android.view.inputmethod.InputMethodManager::class.java).showSoftInput(getChildAt(1), 0) }
+    layoutParams = LinearLayout.LayoutParams(-1, (56 * dp).toInt()).apply { setMargins((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), (4 * dp).toInt()) }
+}
+
+/** The rating plate at the top of settings: the name and version, printed on a raised face. */
 private fun MainActivity.nameplate() = LinearLayout(this).apply {
     gravity = Gravity.CENTER_VERTICAL
     housing(this, 24 * dp)
@@ -155,8 +196,7 @@ private fun MainActivity.nameplate() = LinearLayout(this).apply {
             typeface = android.graphics.Typeface.create("sans-serif-light", android.graphics.Typeface.NORMAL)
             letterSpacing = -0.02f
         })
-        addView(legend(getString(R.string.no_internet), 11f).apply { setPadding(0, (6 * dp).toInt(), 0, 0) })
-        addView(legend(getString(R.string.version, versionName), 11f, m3.outline).apply { setPadding(0, (2 * dp).toInt(), 0, 0) })
+        addView(legend(getString(R.string.version, versionName), 11f, m3.outline).apply { setPadding(0, (6 * dp).toInt(), 0, 0) })
     }, LinearLayout.LayoutParams(0, -2, 1f))
     addView(ImageView(context).apply {
         setImageResource(R.mipmap.ic_launcher)

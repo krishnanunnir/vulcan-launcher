@@ -330,7 +330,8 @@
     <string name="about">About</string>
     <string name="version">Version %1$s</string>
     <string name="about_text">A home screen with no network access: no ads, analytics or tracking. Everything stays on this device.</string>
-    <string name="no_internet">No internet permission</string>
+    <string name="settings_search">Search settings</string>
+    <string name="settings_no_match">No matching settings</string>
     <string name="dock_shadow_no_bg">Not used without a dock background</string>
     <string name="dock_shadow_housing">The Housing dock has its own shadow</string>
     <string name="not_used_by_bg">Not used by the %1$s background</string>
