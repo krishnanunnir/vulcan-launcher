@@ -165,6 +165,13 @@ class IconView(context: Context, label: CharSequence, icon: Drawable, style: Ico
         super.onMeasure(widthSpec, heightSpec)
     }
 
+    /** Launcher3's press feedback: the icon grows to 1.1× while held, so a long-press visibly lifts it. */
+    override fun dispatchSetPressed(pressed: Boolean) {
+        super.dispatchSetPressed(pressed)
+        val s = if (pressed) 1.1f else 1f
+        image.animate().scaleX(s).scaleY(s).setDuration(200).setInterpolator(android.view.animation.DecelerateInterpolator()).start()
+    }
+
     override fun onInterceptTouchEvent(ev: MotionEvent) = false
 
     override fun onTouchEvent(ev: MotionEvent): Boolean {

@@ -22,6 +22,7 @@ import android.content.pm.PackageManager
 import android.content.pm.ShortcutInfo
 import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.Point
 import android.graphics.PointF
 import android.graphics.Rect
 import android.graphics.drawable.Drawable
@@ -900,8 +901,14 @@ class MainActivity : Activity() {
         (dropBar.getChildAt(0) as TextView).text = getString(if (payload is Item || payload is FolderChild) R.string.remove else R.string.cancel)
         val system = appOf(payload)?.info?.applicationInfo?.let { it.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0 }
         dropBar.getChildAt(1).visibility = if (system == false) View.VISIBLE else View.GONE
-        v.startDragAndDrop(ClipData.newPlainText("", ""), View.DragShadowBuilder(v), payload, 0)
-        if (payload is Item) v.alpha = 0.3f
+        // As Launcher3: the lifted icon stays where it was under the finger (the default shadow centres on it), and
+        // its cell is left empty.
+        val at = IntArray(2).also { v.getLocationInWindow(it) }
+        val touch = Point((lastDown.x - at[0]).toInt().coerceIn(0, v.width), (lastDown.y - at[1]).toInt().coerceIn(0, v.height))
+        v.startDragAndDrop(ClipData.newPlainText("", ""), object : View.DragShadowBuilder(v) {
+            override fun onProvideShadowMetrics(size: Point, touchPoint: Point) { super.onProvideShadowMetrics(size, touchPoint); touchPoint.set(touch.x, touch.y) }
+        }, payload, View.DRAG_FLAG_OPAQUE)
+        if (payload is Item) v.alpha = 0f
         // The menu shows the moment the long-press registers, as on the wallpaper; moving the drag closes it (trackDrag).
         // Not for a drag out of a menu row (a shortcut): that menu stays until the drag moves.
         if (menu == null) root.post { if (dragSource === v && !dragMoved) showPopup(v, payload) }
