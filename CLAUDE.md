@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-A from-scratch Android launcher aiming at Nova Launcher feature parity with **no network access**. Read `ROADMAP.md` for current stage and parity status, and `docs/ARCHITECTURE.md` before changing structure.
+A from-scratch Android launcher aiming at Nova Launcher feature parity with **no network access**. Read `docs/ARCHITECTURE.md` before changing structure.
 
 ## Build and test
 
@@ -10,7 +10,7 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
 ```
 
 - APK: `app/build/outputs/apk/debug/app-debug.apk`. Install it with `adb install -r <apk>`.
-- The first build downloads Gradle 8.14.3, AGP 8.12.3 and Kotlin 2.1.21. In the Claude Code sandbox, Java's network access times out (even though curl works), so run Gradle with the sandbox disabled when dependencies must be fetched.
+- The first build downloads Gradle, AGP and Kotlin (versions in `gradle/wrapper/gradle-wrapper.properties` and the build files). In the Claude Code sandbox, Java's network access times out (even though curl works), so run Gradle with the sandbox disabled when dependencies must be fetched.
 - Emulators: `tools/emulators.sh setup` once, then `tools/emulators.sh check` after `assembleDebug`. Run with the sandbox disabled.
 - To check permissions after a build: `/opt/homebrew/share/android-commandlinetools/build-tools/35.0.0/aapt2 dump permissions <apk>`.
 
@@ -28,5 +28,5 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
 - User-facing text goes in `res/values/strings.xml` (English) and is read with `getString(R.string.…)`; counts use `<plurals>`. Settings keep English keys and values in `LOOKS` (stored, backed up) and take their titles and names from resources. Debug builds have the `en-XA` pseudo-locale (`adb shell cmd locale set-app-locales dev.vulcanlauncher --locales en-XA`): text that isn't accented is hardcoded.
 - Mark deliberate shortcuts with a `// ponytail:` comment that names the limit and the upgrade path.
 - Pure logic (geometry, parsing, settings mapping) goes in top-level functions with a JUnit test in `app/src/test`. View code isn't unit-tested.
-- When finishing a feature, update its row in `ROADMAP.md` and the parity percentage.
+- When finishing a user-visible feature, update the README if it changes what Vulcan does, won't do or asks permission for.
 - `minSdk 26`, `targetSdk 35`, Java/Kotlin target 17.

@@ -215,64 +215,20 @@ Round wells and pill slots. Anything that holds a single row (search slot, toggl
 
 ## Components
 
-### Sunset logo
-Character: one opaque half-sun above a separate round-ended horizon, on charcoal; the user-approved Vulcan identity within the Appliance world.
-- **Color:** sun in Signal Orange (`signal`), horizon in warm-white night Legend Ink (`legend-ink-night`), background in charcoal night Housing Grey (`housing-night`). These colors stay fixed across light and dark themes; the native monochrome layer remains available for Android's themed-icon treatment.
-- **Geometry and mask:** use `app/src/main/res/drawable/ic_launcher_foreground.xml` and `ic_launcher_background.xml` as the source, preserving the two paths and their 108-unit viewport. The exports use the central 72/108 adaptive-layer crop; both paths fit the 66-unit safe circle. Android controls the native outer mask, the web and store exports use the matching rounded-square crop, and Apple receives an opaque square for its own mask.
-- **Optical alignment:** the approved pair is uniformly scaled to 92% about (54,54) and lifted 2 foreground units for balance inside circular masks, preserving its relative proportions and colors.
-- **Placement:** the Settings nameplate uses the native mipmap at 64dp with a 16dp start gap; About uses the native dialog icon. The home Launcher settings action uses the application's icon after any custom user icon override. Generic settings gears remain functional symbols. The website header uses the SVG at 32px; the README uses it at 96px.
-- **Exports:** run `python3 tools/export-logo.py` (Pillow required) to regenerate `docs/icon.svg`, `docs/icon.png` (512px), `fastlane/metadata/android/en-US/images/icon.png` (the same bytes), `docs/favicon.ico` (16/32/48px), and `docs/apple-touch-icon.png` (180px, opaque). Open Graph and Twitter metadata point to the public HTTPS `icon.png`. Regeneration details also live in `docs/BUILDING.md`.
+Exact sizes live in the front matter and in `Theme.kt`; this is what each part is.
 
-### Dock (default: no background)
-Character: the icons alone. By default the dock has no body at all; its icons sit directly on the wallpaper in one row under the page grille, without labels, as on One UI Home.
-
-### Housing dock (optional)
-Character: a moulded body standing off the wallpaper, with a channel the icons sit in. Offered as the "Housing" dock background; not the default.
-- **Shape:** full pill, 14dp in from each screen edge.
-- **Face:** housing colour (or the user's chosen dock colour) with the raised rim and housing lift.
-- **Channel:** a well inset 5dp, in the face colour taken 6% (light) or 30% (night) toward black.
-
-### Search well
-- **Style:** 48dp pill well at the bottom of the drawer; search glyph leading, 15sp field, more-options icon button trailing.
-- **Focus:** the glyph lights in signal ink and the letter index drops its dot; the caret is a 2dp bar in legend ink, so the glyph stays the only signal.
-
-### Home search bar
-- **Style:** a raised 52dp housing pill (machined rim, 6dp lift) 16dp from the screen edges; search glyph and "Search" printed on it in legend ink and secondary ink at 15sp; the mic is a 40dp key sunk in a round well at the trailing end. Its colour and the rounded/rect styles follow the Search bar settings.
-- **No signal:** nothing is live on it until it opens drawer search, so it carries no orange.
-
-### Chips (drawer tabs)
-- **Selected:** a raised key (raised colour, 16dp radius, half-dp hairline edge of black 8% light / white 12% night), legend ink, 14sp medium. The raised key alone marks selection: no dot, because the signal belongs to the index or search.
-- **Unselected:** plain legend in secondary ink, no container. 32dp tall, 8dp apart.
-
-### Lists (settings and sheets)
-- **Panels:** settings rows sit on raised faces (24dp radius, 16dp in from the screen edges, 2dp lift), one face per group under a printed legend; rows inside are divided by half-dp hairlines that start under the text. The settings home opens with a nameplate: "Vulcan" in light 34sp over "No internet permission" and the version as legends, beside the native sunset logo at 64dp with a 16dp start gap.
-- **Row:** 16dp start padding, 24dp end, title 16sp over a 14sp summary.
-- **Icon:** a 24dp glyph centred in a 40dp round well.
-- **Section header:** a 12sp printed legend, 24dp above and 8dp below.
-- **Press:** a ripple in legend ink at 12%.
-
-### Menus
-- **Style:** raised face, 24dp radius, 264dp wide, 6dp vertical padding; action tiles show a 22dp glyph over a 10sp legend; sections divided by a half-dp hairline of legend ink at 12%.
-- **Motion:** scales from 0.8 at the anchor with a 1.1 overshoot over 220ms.
-
-### Toggle
-- **Off:** 52 x 32dp key-grey track with a 2dp outline stroke and an 8dp outline-grey thumb.
-- **On:** switch-green track, 12dp thumb in the housing tone, sliding over 180ms.
-
-### Page indicator (grille)
-A row of equal 6dp dots on a 14dp pitch, like a speaker grille, in the label colour at 50%; the current page's dot blends to the full label colour as the page settles, without changing size. The home screen stays free of orange; the "Signal dot" style, which lights the current page in signal orange, is an option. Every dot has a soft shadow (0.75dp down, 2dp blur, black 30%) so the row holds on any wallpaper.
-
-### Drawer letter index
-Letters 11sp medium in secondary ink down the right edge, at most 20dp apart; the letter in view turns legend ink with a 5dp signal dot to its left.
-
-### Glance
-The 64sp light clock over one tracked legend line, both in the label colour (white by default) with the legend lift, so it reads over any wallpaper.
-
-### Dialogs
-Housing-tone surface at 28dp radius inset 24dp, 32% dim; buttons in legend ink, sentence case, medium weight; checked radios and boxes in switch green.
-
-### Modal sheets
-Same form as the drawer sheet: housing colour, 22dp top corners, over a 40% dim.
+- **Sunset logo:** a half-sun in signal orange above a warm-white horizon on charcoal, in fixed colours in both themes. The native vectors in `res/drawable/ic_launcher_*.xml` are the source; every other copy is an export (see `docs/BUILDING.md`).
+- **Dock:** by default no body at all, just icons on the wallpaper. The optional housing dock is a raised pill with a well channel the icons sit in.
+- **Search well:** a pill well at the bottom of the drawer, under the thumb. On focus its glyph takes the signal and the letter index gives up its dot.
+- **Home search bar:** a raised housing pill with no orange, since nothing on it is live.
+- **Drawer tabs:** the selected tab is a raised key; the others are plain legends. No dot, because the signal belongs to the index or search.
+- **Settings lists:** rows grouped on raised faces under printed legends, icons in round wells, opening with a nameplate beside the logo.
+- **Menus:** raised faces at the finger, with rows for content and icon tiles for actions.
+- **Toggle:** a key-grey track when off, switch green when on.
+- **Page indicator:** a speaker-grille row of equal dots; the current one darkens without changing size. No orange on home by default.
+- **Drawer letter index:** secondary-ink letters down the right edge; the one in view gets legend ink and a signal dot.
+- **Glance:** one large light clock over one tracked legend line, shadowed to read over any wallpaper.
+- **Dialogs and sheets:** housing-tone surfaces over a dim; buttons in legend ink, checked controls in switch green.
 
 ## Do's and Don'ts
 

@@ -22,25 +22,19 @@ It has no `INTERNET` permission, and the README's Permissions table justifies ev
 - Runs on stock Android and OEM skins. Samsung One UI is the primary test device, and some platform features (cross-window blur) behave differently there.
 
 ## Capabilities and Constraints
-- The full feature list and Nova parity status live in `ROADMAP.md`. Architecture is in `docs/ARCHITECTURE.md`.
-- No `INTERNET` permission, and no networking, analytics, ads or crash-reporting libraries. Ever.
-- Optional permissions stay off until the user turns on the feature that needs them (accessibility, notification access, contacts, calendar, location).
-- No runtime dependencies (no AndroidX, no Compose). Plain Views built in Kotlin code. minSdk 26, targetSdk 35.
-- No Nova code, resources or assets. Nova is used as a feature reference only.
-- Features that need the network (weather, cloud backup, etc.) are out of scope.
+- The hard rules (no network, justified permissions, no runtime dependencies, no Nova code) are in `CLAUDE.md`. Architecture is in `docs/ARCHITECTURE.md`; what's out of scope is in the README.
+- Optional permissions stay off until the user turns on the feature that needs them.
 
 ## Brand Commitments
 - Name: Vulcan (never "Vulcan Launcher"). Package `dev.vulcanlauncher`.
-- Logo: the user-approved two-shape sunset, an orange half-sun above a separate warm-white horizon on charcoal. Use it consistently for Vulcan's identity across the app, Settings and About, its own Launcher settings shortcut, README, website, browser and Apple shortcuts, shared-link previews, and store metadata. Keep its brand colors in light and dark themes, with Android's system mask and themed-icon support and any user-selected shortcut icon preserved.
+- Logo: the user-approved two-shape sunset, an orange half-sun above a separate warm-white horizon on charcoal. Use it everywhere Vulcan's identity appears, in its fixed brand colours in both themes.
 - The native foreground and background vectors in `app/src/main/res/drawable/ic_launcher_foreground.xml` and `ic_launcher_background.xml` are the logo source. `docs/icon.svg` and the other public assets are exports regenerated together by `python3 tools/export-logo.py`; see `docs/BUILDING.md`.
 - Voice: plain and factual, especially about permissions and privacy. It says what the launcher does and doesn't do, without marketing.
 - The Vulcan look is the default. Every Nova-style option stays available in settings.
 
 ## Evidence on Hand
-- The "no INTERNET permission" claim can be checked with `aapt2 dump permissions` on the built APK.
-- The parity checklist in `ROADMAP.md` is mapped against Nova 8.9.4's settings screens.
-- Nova backup import (`BackupImport.kt`) and the on-device gesture check (`DeviceCheck`).
-- No user count, testimonials, store listing or press yet. Don't invent any.
+- The "no INTERNET permission" claim can be checked with `aapt2 dump permissions` on any release APK.
+- Don't invent user counts, testimonials or press.
 
 ## Product Principles
 1. **Calm by default, power on demand.** Opinionated defaults that work out of the box. Nova-level depth is in settings, never in the way.

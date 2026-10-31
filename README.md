@@ -10,21 +10,20 @@ A home screen for Android that does what Nova Launcher does, without ads, tracke
   <img src="docs/screenshots/home.jpg" width="19%" alt="Home screen: the sunset launcher shortcut, mail and photos, five dock apps, and the search bar over the dusk wallpaper">
   <img src="docs/screenshots/menu.jpg" width="19%" alt="Long-press menu on the home screen: widgets, shortcuts, wallpaper, pages, lock and settings">
   <img src="docs/screenshots/drawer.jpg" width="19%" alt="App drawer: an alphabetical app grid and search field on a warm-grey background">
-  <img src="docs/screenshots/settings.jpg" width="19%" alt="Settings: the new sunset logo beside Vulcan 0.18 and No internet permission, above grouped layout and appearance options">
+  <img src="docs/screenshots/settings.jpg" width="19%" alt="Settings: the new sunset logo beside the No internet permission legend, above grouped layout and appearance options">
   <img src="docs/screenshots/look.jpg" width="19%" alt="Look and feel settings: icon pack, shapes, toggles and the theme color">
 </p>
 
 It looks like a well-made appliance rather than a phone skin: warm-grey panels (light or night), small printed labels, and one orange dot for whatever is live (the current page, the letter you're on). Your wallpaper and your apps' own icons are left alone. Every Nova-style option (icon packs, shapes, glass panels, wallpaper colours, AMOLED black, your own colours) is still in settings when you want it.
 
-These screenshots were captured from Vulcan 0.18 on a Pixel 8 emulator running Android 15. The wallpaper is [docs/wallpaper-dusk.jpg](docs/wallpaper-dusk.jpg), made for Vulcan. Use it freely.
+The wallpaper in the screenshots is [docs/wallpaper-dusk.jpg](docs/wallpaper-dusk.jpg), made for Vulcan. Use it freely.
 
-**New in 0.18:** a simpler sunset logo, better balance in circular icons, consistent branding throughout the app, and updated German and Russian translations. [Release notes](https://github.com/krishnanunnir/vulcan-launcher/releases/tag/v0.18).
 
 ## Install
 
 Vulcan needs Android 8 or newer.
 
-**[Download Vulcan 0.22](https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk)** (about 0.25 MB), or see [all releases](https://github.com/krishnanunnir/vulcan-launcher/releases). [Submitted to F-Droid](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/54678); awaiting review.
+**[Download the latest Vulcan](https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk)**, or see [all releases](https://github.com/krishnanunnir/vulcan-launcher/releases).
 
 1. Open it on your phone and tap **Install**. Android may first ask you to allow installs from your browser or file manager.
 2. Press the **Home** button. Android asks which home app to use: pick **Vulcan**, then **Always**.
@@ -59,23 +58,25 @@ The file starts with `howTo` (how the grid, dock and folders work), and `referen
 - **Swipe right on the first page** for the Now page: the date, music controls, upcoming events and favourite contacts.
 - **Back up** your whole setup to a file and restore it later.
 
-Long-press an empty spot on the home screen to open **Settings**. The full feature list, compared with Nova's, is in [ROADMAP.md](ROADMAP.md).
+Long-press an empty spot on the home screen to open **Settings**.
 
 ## Compared with Nova
 
-Nova Launcher changed owners in 2022 and again in January 2026, and picked up ads and trackers along the way. This is what the current version contains:
+Nova Launcher changed owners in 2022 and again in 2026, and picked up ads, trackers and an activity log that uploads the networks, devices and apps you use. Vulcan covers the same features with no internet access, nothing recorded and public source code. [docs/nova-reference.md](docs/nova-reference.md) has what a static analysis of Nova found.
 
-| | Nova Launcher 8.9.4 | Vulcan |
-|---|---|---|
-| **Internet access** | Yes | None. It can't send anything. |
-| **Activity log** | Records the Wi-Fi networks you join, Bluetooth devices (name and hardware address), every app you open from the home screen, app usage, and apps you install or remove. Uploaded to Nova's server every 8 hours. | Nothing is recorded or sent. |
-| **Opting out of the log** | No setting for it was found. | Nothing to opt out of. |
-| **Analytics and tracking** | Firebase, Sentry, Amplitude, TikTok and Branch. | None. |
-| **Ads** | Six ad networks (Pangle, Vungle, Moloco, Fyber, Meta, AdMob), chosen by Nova's server. Not shown to Prime users. | None. |
-| **AI features** | Instabridge AI can collect contacts, calendar, location, apps, Wi-Fi and Bluetooth and sync them to its server, if you agree. | None. Contacts and calendar are only read on the phone, and only if you turn those cards on. |
-| **Source code** | Closed. | Public, under the MIT license. |
+## What it won't do
 
-The Nova column comes from reading the code of the Nova Launcher 8.9.4 app (October 2026) without running it, so it shows what the app contains, not what it sent from any one phone. [docs/nova-reference.md](docs/nova-reference.md) has the details.
+Anything that needs the network: weather, news, Google Discover, web search suggestions, cloud backup, self-update. Searching the web hands your query to your browser instead. Importing from launchers other than Nova isn't possible either, since their layout databases aren't readable by other apps.
+
+## Known limitations
+
+- Changing a setting restarts the launcher screen.
+- App shortcuts only work while Vulcan is the default home app (an Android rule).
+- "Close app" can only stop an app's background work (also an Android rule).
+- Widgets whose setup screen hands off to another screen (Samsung's clock widgets) report "cancelled" at once, so Vulcan can't add them.
+- A paused work profile hides its apps; the Private tab shows even when Android's "hide when locked" is on, since launchers can't read that setting.
+- Items that have no room after the grid shrinks stay hidden until it grows again.
+- In right-to-left languages, grids, menus and settings are mirrored, but pages still run left to right.
 
 ## Privacy and permissions
 

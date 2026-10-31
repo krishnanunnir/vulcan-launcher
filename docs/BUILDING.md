@@ -49,14 +49,17 @@ Commit the version bump and changelog, tag that commit, and then run `./gradlew 
 
 Keep both dependenciesInfo options disabled in app/build.gradle.kts. AGP otherwise adds encrypted dependency metadata to the APK signing block, which F-Droid rejects. Run `fdroid scanner --exit-code <signed-apk>` before publishing.
 
+## F-Droid
+
+F-Droid builds each version tag itself and checks it against the published APK, so a release is only accepted if the steps above reproduce it. The recipe is [docs/fdroid/dev.vulcanlauncher.yml](fdroid/dev.vulcanlauncher.yml), and changes go through the fork [bizzaretor/fdroiddata](https://gitlab.com/bizzaretor/fdroiddata) (branch dev.vulcanlauncher): update the existing merge request rather than opening a new one. IzzyOnDroid isn't an option while its inclusion policy rejects AI-written app code.
+
 ## Logo exports
 
 The approved sunset is shared by the app, settings and About, README, website, browser and Apple shortcuts, and store metadata. Its source is `app/src/main/res/drawable/ic_launcher_foreground.xml` with `ic_launcher_background.xml`. After editing those vectors, run `python3 tools/export-logo.py` (requires Pillow) to regenerate `docs/icon.svg`, `docs/icon.png`, `docs/favicon.ico`, `docs/apple-touch-icon.png`, and the Fastlane store icon together. The exports use the same central 72/108 crop as Android's adaptive icon; Android controls its native outer mask.
 
 ## Project docs
 
-- [ROADMAP.md](../ROADMAP.md): stages and the Nova feature-parity checklist.
 - [docs/ARCHITECTURE.md](ARCHITECTURE.md): how the code fits together.
-- [docs/nova-reference.md](nova-reference.md): what we learned from analysing Nova Launcher 8.9.4. Used as a feature reference only; no Nova code is used here.
+- [docs/nova-reference.md](nova-reference.md): a snapshot of what static analysis of Nova Launcher 8.9.4 found, including its backup format. Used as a reference only; no Nova code is used here.
 
 The contributor rules (no network, every permission justified in the README) are in [CLAUDE.md](../CLAUDE.md).
