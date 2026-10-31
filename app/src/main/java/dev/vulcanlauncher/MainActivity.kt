@@ -102,8 +102,11 @@ class MainActivity : Activity() {
     /** The open folder window, desktop previews or resize frame, and what to do when it closes. */
     var overlay: View? = null
     var overlayClosed: () -> Unit = {}
+    /** Plays the open overlay's exit animation, then calls its argument; null: the overlay just goes. */
+    var overlayExit: ((done: () -> Unit) -> Unit)? = null
     val views = HashMap<Item, View>()
     val viewItems = HashMap<View, Item>()
+    val folderFx = FolderFx(this)
     private val iconViews = ArrayList<IconView>()
     var apps = mapOf<String, App>()
     var customs = JSONObject()
@@ -758,6 +761,7 @@ class MainActivity : Activity() {
         }
         widgetFrames.keys.retainAll(items.filter { it.isWidget }.map { it.widgetId }.toSet())
         updateBadges()
+        folderFx.settle()
     }
 
     /** Label and icon for any non-widget item, or null when its app is gone. */
@@ -778,11 +782,6 @@ class MainActivity : Activity() {
         }
         else -> apps[item.appKey]?.let { a -> item.label.ifEmpty { label(a) } to (icons.custom(item.icon) ?: icon(a)) }
     }
-
-    fun folderIcon(children: List<Item>) = FolderIcon(children.take(6).mapNotNull { resolve(it)?.second },
-        looks.str("folderPreview"), looks.str("folderBg"), folderTint(), looks.on("folderClip"), looks.on("folderFirstBig"))
-
-    private fun folderTint() = if (looks.str("folderColor") == "system") m3.surfaceHigh and 0xFFFFFF or 0xE6000000.toInt() else looks.color("folderColor") and 0xFFFFFF or 0x99000000.toInt()
 
     fun itemView(item: Item, style: IconStyle): View? {
         if (item.isWidget) return widgetView(item)
@@ -922,10 +921,10 @@ class MainActivity : Activity() {
         when (e.action) {
             DragEvent.ACTION_DRAG_LOCATION -> {
                 edgeFlip(if (isDock(cell.page)) dock else workspace, e.x, cell.width)
-                hoverMerge(cell, mergeTarget(cell, e.x, e.y, e.localState))
+                folderFx.hover(cell, mergeTarget(cell, e.x, e.y, e.localState))
             }
-            DragEvent.ACTION_DRAG_EXITED -> hoverMerge(cell, null)
-            DragEvent.ACTION_DROP -> { clearHover(); return@OnDragListener drop(cell, e.x, e.y, e.localState) }
+            DragEvent.ACTION_DRAG_EXITED -> folderFx.hover(cell, null)
+            DragEvent.ACTION_DROP -> { folderFx.clearHover(); return@OnDragListener drop(cell, e.x, e.y, e.localState) }
             // An accepted drop's ENDED goes to the accepting view only, so every cell must clean up too.
             DragEvent.ACTION_DRAG_ENDED -> dragEnded()
         }
@@ -973,48 +972,8 @@ class MainActivity : Activity() {
         }
     }
 
-    private var hover: Item? = null
-    private var hoverCell: CellLayout? = null
-    private var ringAnim: android.animation.ValueAnimator? = null
-
-    /**
-     * Folder-create feedback, as in Launcher3: while a drag rests on an icon it can merge with, a folder-coloured
-     * disc grows behind that icon and the icon sinks a little into it; moving off shrinks the disc away.
-     */
-    private fun hoverMerge(cell: CellLayout, target: Item?) {
-        if (target == hover && (target == null || cell === hoverCell)) return
-        hover?.let { views[it] }?.let { (it as? IconView)?.image?.animate()?.scaleX(1f)?.scaleY(1f)?.setDuration(150)?.start() }
-        ringAnim?.cancel()
-        hoverCell?.takeIf { it !== cell }?.ringR = 0f
-        hover = target
-        hoverCell = cell
-        val image = target?.let { views[it] as? IconView }?.image
-        val to = if (image != null) {
-            val v = image.parent as View
-            cell.ringX = v.left + image.left + image.width / 2f
-            cell.ringY = v.top + image.top + image.height / 2f
-            cell.ringPaint.color = folderTint()
-            image.animate().scaleX(0.88f).scaleY(0.88f).setDuration(200).start()
-            cell.tick()
-            image.width * 0.75f
-        } else 0f
-        ringAnim = android.animation.ValueAnimator.ofFloat(cell.ringR, to).apply {
-            duration = if (to > 0) 220 else 150
-            interpolator = if (to > 0) android.view.animation.OvershootInterpolator(1.6f) else android.view.animation.DecelerateInterpolator()
-            addUpdateListener { cell.ringR = it.animatedValue as Float }
-            start()
-        }
-    }
-
-    private fun clearHover() {
-        ringAnim?.cancel()
-        hoverCell?.ringR = 0f
-        hover = null
-        hoverCell = null
-    }
-
     fun dragEnded() {
-        clearHover()
+        folderFx.clearHover()
         val src = dragSource ?: return // ENDED can fan out to several listeners; first one wins
         dragSource = null
         wiggles.forEach { it.cancel() }
@@ -1049,21 +1008,12 @@ class MainActivity : Activity() {
     }
 
     /** The payload as a 1×1 item that can live in a folder, or null (widgets, folders). */
-    private fun asChild(p: Any?): Item? = when (p) {
+    fun asChild(p: Any?): Item? = when (p) {
         is Item -> if (p.isWidget || p.folder) null else p.copy(page = 0, x = 0, y = 0, w = 1, h = 1)
         is App -> Item(0, 0, 0, pkg = p.pkg, cls = p.cls, user = p.serial)
         is FolderChild -> p.folder.children.getOrNull(p.index)
         is ShortcutInfo -> Item(0, 0, 0, pkg = p.`package`, shortcutId = p.id, user = serial(p.userHandle), label = p.shortLabel?.toString() ?: "")
         else -> null
-    }
-
-    /** The icon or folder under ([px], [py]) that dropping [payload] there would merge into, or null. */
-    private fun mergeTarget(cell: CellLayout, px: Float, py: Float, payload: Any?): Item? {
-        if (!dragMoved || asChild(payload) == null) return null
-        val (fx, fy) = cell.cellAt(px, py)
-        val target = cell.viewAt(fx, fy)?.let { viewItems[it] } ?: return null
-        return target.takeIf { it != payload && !(payload is FolderChild && payload.folder == it) &&
-            (it.isApp || it.folder || it.isShortcut || it.isAction) }
     }
 
     private fun drop(cell: CellLayout, px: Float, py: Float, payload: Any?): Boolean {
@@ -1078,21 +1028,7 @@ class MainActivity : Activity() {
         val y = (gy - h / 2f + 0.5f).toInt().coerceIn(0, maxOf(0, cell.rows - h))
         val child = asChild(payload)
         val target = mergeTarget(cell, px, py, payload)
-        if (child != null && target != null) {
-            val merged = if (target.folder) target.copy(children = target.children + child)
-                else Item(target.page, target.x, target.y, target.w, target.h, folder = true, label = getString(R.string.folder), children = listOf(asChild(target)!!, child))
-            detach(payload)
-            items[items.indexOf(target)] = merged
-            root.confirm()
-            save()
-            render()
-            // The new folder settles out of the hover disc's size.
-            (views[merged] as? IconView)?.image?.apply {
-                scaleX = 1.3f; scaleY = 1.3f
-                animate().scaleX(1f).scaleY(1f).setDuration(260).setInterpolator(android.view.animation.OvershootInterpolator(2f)).start()
-            }
-            return true
-        }
+        if (child != null && target != null) { mergeIntoFolder(target, child, payload); return true }
         val overlap = looks.on("widgetOverlap") && moving?.isWidget == true
         if (!overlap && !cell.isFree(x, y, w, h, ignore = moving?.let { views[it] })) return false
         val placed = (if (moving != null) moving else child ?: return false).copy(page = cell.page, x = x, y = y, w = w, h = h)
@@ -1105,23 +1041,10 @@ class MainActivity : Activity() {
         return true
     }
 
-    private fun detach(p: Any?) {
+    fun detach(p: Any?) {
         when (p) {
             is Item -> items.remove(p)
             is FolderChild -> removeFromFolder(p)
-        }
-    }
-
-    /** Takes one item out of a folder; a folder left with one item turns back into that item. */
-    fun removeFromFolder(fc: FolderChild) {
-        val f = fc.folder
-        val i = items.indexOf(f)
-        if (i < 0) return
-        val rest = f.children.filterIndexed { j, _ -> j != fc.index }
-        when (rest.size) {
-            0 -> items.removeAt(i)
-            1 -> items[i] = rest[0].copy(page = f.page, x = f.x, y = f.y, w = f.w, h = f.h)
-            else -> items[i] = f.copy(children = rest)
         }
     }
 

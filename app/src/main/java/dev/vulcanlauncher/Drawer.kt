@@ -575,7 +575,7 @@ class Drawer(private val a: MainActivity) {
             is Entry.AppE -> a.launch(e.app, v)
             is Entry.FolderE -> {
                 val apps = e.group.apps.mapNotNull { a.apps[it] }
-                a.openFolderWindow(e.group.name, folderItems(e.group), null) { i -> apps[i] }
+                a.openFolderWindow(e.group.name, folderItems(e.group), null, anchor = v?.let { a.screenRect((it as? IconView)?.image ?: it) }) { i -> apps[i] }
             }
             is Entry.WebE -> a.webSearch(e.query)
             is Entry.ContactE -> runCatching { a.startActivity(Intent(Intent.ACTION_VIEW, e.uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }

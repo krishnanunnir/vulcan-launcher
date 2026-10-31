@@ -6,24 +6,17 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Point
-import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
-import android.view.DragEvent
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
-import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import android.widget.TextView
-import kotlin.math.ceil
 import kotlin.math.hypot
 import kotlin.math.roundToInt
-import kotlin.math.sqrt
 
 /** Page indicator under the home pages: signal dots, dots or a sliding line. */
 class Indicator(context: Context, private val count: Int, private val style: String, private val color: Int, private val signal: Int = color) : View(context) {
@@ -132,141 +125,11 @@ fun MainActivity.closeOverlay() {
     settingsPage = null
     settingsScroll = null
     root.removeView(v)
+    // An exit animation plays in the root's overlay layer: drawn, but already gone for touch, drags and Back.
+    overlayExit?.let { exit -> root.overlay.add(v); exit { root.overlay.remove(v) } }
+    overlayExit = null
     if (!drawer.visible) blurHome(false)
     overlayClosed().also { overlayClosed = {} }
-}
-
-/** Opens a home-screen folder; its name is editable in the window. */
-fun MainActivity.openFolder(item: Item) {
-    drawer.hide()
-    var folder = item
-    openFolderWindow(item.label, item.children, { name ->
-        val i = items.indexOf(folder)
-        if (i >= 0 && name != folder.label) { items[i] = folder.copy(label = name.ifEmpty { getString(R.string.folder) }); save(); render() }
-    }, reorder = { from, to ->
-        val i = items.indexOf(folder)
-        if (i >= 0) {
-            folder = folder.copy(children = folder.children.toMutableList().apply { add(to, removeAt(from)) })
-            items[i] = folder
-            save()
-        }
-        folder.children
-    }, anchor = views[item]?.let(::screenRect)) { FolderChild(folder, it) }
-}
-
-/** Start of a [size] span centred on [center], kept within [min]..[max] (or at [min] if it doesn't fit). */
-fun spanAround(center: Int, size: Int, min: Int, max: Int) = (center - size / 2).coerceIn(min, maxOf(min, max - size))
-
-/**
- * Shows [children] in a pop-up or full-screen folder window. [payload] makes the drag payload for child [i].
- * With [reorder], an icon dropped on the grid moves there (it returns the new order); dragged off the grid, it leaves the window.
- * With [anchor] (the folder icon, window coordinates), the pop-up opens over it, under the thumb, instead of mid-screen.
- * It opens over whatever is showing: from the drawer, Back closes it back to the drawer.
- */
-fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename: ((String) -> Unit)?,
-                                  reorder: ((from: Int, to: Int) -> List<Item>)? = null, anchor: Rect? = null, payload: (Int) -> Any) {
-    val full = looks.str("folderWindow") == "fullscreen"
-    val base = style("")
-    val style = IconStyle(base.sizePx, true, looks.labelSize("folderLabelSize"), panelText, false, base.iconShadow, font = base.font, lines = base.lines)
-    val cols = minOf(4, maxOf(3, ceil(sqrt(children.size.toDouble())).toInt()))
-    val rows = maxOf(1, ceil(children.size / cols.toDouble()).toInt())
-    val cellH = base.sizePx + (44 * dp).toInt()
-    val cellW = base.sizePx + (36 * dp).toInt()
-    val cell = CellLayout(this, cols, rows, 0)
-    fun fill(list: List<Item>) {
-        cell.removeAllViews()
-        list.forEachIndexed { i, c ->
-            val (label, icon) = resolve(c) ?: return@forEachIndexed
-            cell.addView(IconView(this, label, icon, style, badgeStyle(), c.pkg).apply {
-                layoutParams = CellLayout.CellParams(i % cols, i / cols, 1, 1)
-                if (looks.str("badges") != "off") badge(image, c.pkg)
-                setOnClickListener { v -> closeOverlay(); open(c, v) }
-                setOnLongClickListener { v -> startDrag(v, payload(i)); true }
-            })
-        }
-    }
-    fill(children)
-    // ponytail: the icon lands where it's dropped, with no live shuffle of the others while dragging (Nova shows one).
-    if (reorder != null) cell.setOnDragListener { v, e ->
-        trackDrag(v, e, keepOverlay = true)
-        when (e.action) {
-            DragEvent.ACTION_DROP -> {
-                val from = (e.localState as? FolderChild)?.index ?: return@setOnDragListener false
-                if (!dragMoved) return@setOnDragListener false
-                val (x, y) = cell.cellAt(e.x, e.y)
-                fill(reorder(from, minOf(y * cols + x, children.size - 1)))
-                root.tick()
-            }
-            // Only the view that took the drop hears ENDED.
-            DragEvent.ACTION_DRAG_ENDED -> dragEnded()
-        }
-        true
-    }
-    val name: TextView = (if (onRename != null) EditText(this) else TextView(this)).apply {
-        text = title
-        textSize = 22f
-        gravity = Gravity.CENTER
-        setTextColor(m3.onSurface)
-        background = null
-        setSingleLine()
-        setPadding(0, (4 * dp).toInt(), 0, (12 * dp).toInt())
-    }
-    val card = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        if (full) background = panelBg(100, 0f, m3.surfaceHigh) else frost(this, looks.int("folderRadius") * dp)
-        isClickable = true
-        // Full screen: name and icons centred, within reach of the thumb as in the pop-up; a long folder scrolls.
-        if (full) gravity = Gravity.CENTER_VERTICAL
-        val p = (16 * dp).toInt()
-        setPadding(p, p + if (full) insets.top else 0, p, p + if (full) insets.bottom else 0)
-        addView(name)
-        addView(ScrollView(context).apply {
-            addView(cell, FrameLayout.LayoutParams(cols * cellW, rows * cellH))
-        }, LinearLayout.LayoutParams(-2, if (full) -2 else minOf(rows, 4) * cellH).apply { gravity = Gravity.CENTER_HORIZONTAL })
-    }
-    val w = cols * cellW + (32 * dp).toInt()
-    val margin = (16 * dp).toInt()
-    // The pop-up stays clear of the dock: above it, or left of it in landscape where it's a column on the right.
-    val dockR = if (dockBox.visibility == View.VISIBLE && dockBox.isLaidOut) screenRect(dockBox) else null
-    val bottom = if (dockR != null && dockR.width() > dockR.height()) dockR.top else root.height - insets.bottom
-    val right = if (dockR != null && dockR.width() <= dockR.height()) dockR.left else root.width
-    val spot = if (full || anchor == null) null else {
-        card.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED)
-        Point(spanAround(anchor.centerX(), w, margin, right - margin),
-            spanAround(anchor.centerY(), card.measuredHeight, insets.top + margin, bottom - margin))
-    }
-    val dim = FrameLayout(this).apply {
-        setBackgroundColor(0x52000000)
-        setOnClickListener { closeOverlay() }
-        // Off the folder's grid, a reorderable icon leaves the window for the home screen.
-        setOnDragListener { v, e ->
-            if (reorder != null && dragMoved && e.action == DragEvent.ACTION_DRAG_LOCATION) closeOverlay()
-            passDrag.onDrag(v, e)
-        }
-        addView(card, when {
-            full -> FrameLayout.LayoutParams(-1, -1)
-            // LEFT, not START: x is measured from the left edge in right-to-left languages too.
-            spot != null -> FrameLayout.LayoutParams(w, -2, Gravity.TOP or Gravity.LEFT).apply { leftMargin = spot.x; topMargin = spot.y }
-            else -> FrameLayout.LayoutParams(w, -2, Gravity.CENTER)
-        })
-    }
-    if (spot != null) {
-        // Renaming opens the keyboard, which raises the bottom inset: lift the card above it, and back down after.
-        val lift = android.view.ViewTreeObserver.OnGlobalLayoutListener {
-            card.translationY = minOf(0, minOf(bottom, root.height - insets.bottom) - margin - spot.y - card.height).coerceAtLeast(insets.top - spot.y).toFloat()
-        }
-        dim.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
-            override fun onViewAttachedToWindow(v: View) = v.viewTreeObserver.addOnGlobalLayoutListener(lift)
-            override fun onViewDetachedFromWindow(v: View) = v.viewTreeObserver.removeOnGlobalLayoutListener(lift)
-        })
-    }
-    showOverlay(dim) { onRename?.invoke(name.text.toString().trim()) }
-    if (!full) {
-        // Grows out of the folder icon.
-        if (spot != null && anchor != null) { card.pivotX = (anchor.centerX() - spot.x).toFloat(); card.pivotY = (anchor.centerY() - spot.y).toFloat() }
-        card.scaleX = 0.9f; card.scaleY = 0.9f; card.alpha = 0f
-        card.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(200).setInterpolator(android.view.animation.DecelerateInterpolator()).start()
-    }
 }
 
 /** Desktop previews: every page as a thumbnail. Tap to go there; long-press to set default, move or remove; "+" adds a page. */
