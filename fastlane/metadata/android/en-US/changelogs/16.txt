@@ -1,0 +1,9 @@
+- The clock is a home item you can move, resize or remove.
+- Page swiping, dragging and icon pick-up feel like Launcher3.
+- Folders grow from their icon, open faster, fit small screens.
+- The Now page and the drawer follow your finger.
+- Drawer: fill from the bottom, swipe sideways to switch tabs.
+- Shorter long-press menu.
+- Settings is its own screen with search, no flicker.
+- Backup, Permissions and Drawer groups are full settings pages.
+- Hold a page in the overview to move or remove it.
