@@ -221,27 +221,27 @@ fun palette(c: Context, dark: Boolean, accent: String, ov: Map<String, Int> = em
 
 // ---- Components ----
 
-fun MainActivity.rounded(color: Int, radius: Float, stroke: Int = 0, strokeWidth: Float = dp) = GradientDrawable().apply {
+fun VulcanActivity.rounded(color: Int, radius: Float, stroke: Int = 0, strokeWidth: Float = dp) = GradientDrawable().apply {
     setColor(color)
     cornerRadius = radius
     if (stroke != 0) setStroke(strokeWidth.roundToInt(), stroke)
 }
 
 /** M3 state layer: a ripple in the content colour, over [bg] and clipped to [radius]. */
-fun MainActivity.pressable(bg: Drawable?, radius: Float = 0f, content: Int = m3.onSurface) =
+fun VulcanActivity.pressable(bg: Drawable?, radius: Float = 0f, content: Int = m3.onSurface) =
     RippleDrawable(ColorStateList.valueOf(content and 0xFFFFFF or 0x1F000000), bg, rounded(Color.WHITE, radius))
 
-fun MainActivity.text(s: CharSequence, sp: Float, color: Int = m3.onSurface, medium: Boolean = false) = TextView(this).apply {
+fun VulcanActivity.text(s: CharSequence, sp: Float, color: Int = m3.onSurface, medium: Boolean = false) = TextView(this).apply {
     text = s
     textSize = sp
     setTextColor(color)
     if (medium) typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
 }
 
-fun MainActivity.symbol(name: String, color: Int = m3.onSurfaceVariant, size: Float = 24f) = Symbol(name, color, (size * dp).roundToInt())
+fun VulcanActivity.symbol(name: String, color: Int = m3.onSurfaceVariant, size: Float = 24f) = Symbol(name, color, (size * dp).roundToInt())
 
 /** 48 dp round icon button; [label] is what TalkBack says. */
-fun MainActivity.iconButton(name: String, label: String, color: Int = m3.onSurfaceVariant, onClick: (View) -> Unit) = ImageView(this).apply {
+fun VulcanActivity.iconButton(name: String, label: String, color: Int = m3.onSurfaceVariant, onClick: (View) -> Unit) = ImageView(this).apply {
     setImageDrawable(symbol(name, color))
     contentDescription = label
     scaleType = ImageView.ScaleType.CENTER
@@ -251,7 +251,7 @@ fun MainActivity.iconButton(name: String, label: String, color: Int = m3.onSurfa
 }
 
 /** Filled tonal button. */
-fun MainActivity.tonalButton(label: String, onClick: () -> Unit) = text(label, 14f, m3.onSecondaryContainer, medium = true).apply {
+fun VulcanActivity.tonalButton(label: String, onClick: () -> Unit) = text(label, 14f, m3.onSecondaryContainer, medium = true).apply {
     gravity = Gravity.CENTER
     minHeight = (40 * dp).toInt()
     setPadding((24 * dp).toInt(), 0, (24 * dp).toInt(), 0)
@@ -263,7 +263,7 @@ fun MainActivity.tonalButton(label: String, onClick: () -> Unit) = text(label, 1
  * M3 list item: leading icon, headline, optional supporting text and trailing view. [dense] is the 48 dp menu item.
  * [tonalIcon] puts the icon in a primary-container circle, as on a settings home page.
  */
-fun MainActivity.listItem(icon: Drawable?, title: CharSequence, summary: CharSequence? = null, trailing: View? = null,
+fun VulcanActivity.listItem(icon: Drawable?, title: CharSequence, summary: CharSequence? = null, trailing: View? = null,
                           dense: Boolean = false, tonalIcon: Boolean = false, appIcon: Boolean = false, summaryLines: Int = 10, onClick: ((View) -> Unit)?) = LinearLayout(this).apply {
     gravity = Gravity.CENTER_VERTICAL
     minimumHeight = ((if (dense) 48 else if (summary == null) 56 else 72) * dp).toInt()
@@ -290,7 +290,7 @@ fun MainActivity.listItem(icon: Drawable?, title: CharSequence, summary: CharSeq
 }
 
 /** M3 outlined text field: 56 dp tall, a 4 dp corner, the outline turning primary while focused. */
-fun MainActivity.field(value: String, hintText: String) = android.widget.EditText(this).apply {
+fun VulcanActivity.field(value: String, hintText: String) = android.widget.EditText(this).apply {
     setText(value)
     hint = hintText
     setSingleLine()
@@ -308,7 +308,7 @@ fun MainActivity.field(value: String, hintText: String) = android.widget.EditTex
  * An M3 dialog list: a row per entry with its leading icon ([appIcon]: 40 dp app icons) and optional supporting text
  * ([summaries]). Picking one closes it.
  */
-fun MainActivity.pickList(title: CharSequence, rows: List<Pair<Drawable?, CharSequence>>, appIcon: Boolean = false,
+fun VulcanActivity.pickList(title: CharSequence, rows: List<Pair<Drawable?, CharSequence>>, appIcon: Boolean = false,
                           summaries: List<CharSequence>? = null, onPick: (Int) -> Unit) {
     val adapter = object : android.widget.BaseAdapter() {
         override fun getCount() = rows.size
@@ -320,18 +320,18 @@ fun MainActivity.pickList(title: CharSequence, rows: List<Pair<Drawable?, CharSe
     dialog().setTitle(title).setAdapter(adapter) { _, i -> onPick(i) }.setNegativeButton(R.string.cancel, null).show()
 }
 
-fun MainActivity.divider() = View(this).apply {
+fun VulcanActivity.divider() = View(this).apply {
     setBackgroundColor(m3.outlineVariant)
     layoutParams = LinearLayout.LayoutParams(-1, maxOf(1, dp.toInt())).apply { setMargins(0, (8 * dp).toInt(), 0, (8 * dp).toInt()) }
 }
 
 /** M3 section header in a list. */
-fun MainActivity.sectionHeader(title: String) = (if (m3.housing) legend(title, 12f) else text(title, 14f, m3.primary, medium = true)).apply {
+fun VulcanActivity.sectionHeader(title: String) = (if (m3.housing) legend(title, 12f) else text(title, 14f, m3.primary, medium = true)).apply {
     setPadding((16 * dp).toInt(), (24 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt())
 }
 
 /** A printed legend, Appliance style: small tracked capitals in the secondary ink. */
-fun MainActivity.legend(s: String, sp: Float = 11f, color: Int = m3.onSurfaceVariant) = text(s.uppercase(), sp, color, medium = true).apply {
+fun VulcanActivity.legend(s: String, sp: Float = 11f, color: Int = m3.onSurfaceVariant) = text(s.uppercase(), sp, color, medium = true).apply {
     letterSpacing = 0.1f
 }
 
@@ -339,7 +339,7 @@ fun MainActivity.legend(s: String, sp: Float = 11f, color: Int = m3.onSurfaceVar
  * A machined housing face in [color]: a 1 dp rim that catches light along the top and falls into shade along the
  * bottom, the way a moulded edge does.
  */
-fun MainActivity.housingFace(color: Int, radius: Float): Drawable = android.graphics.drawable.LayerDrawable(arrayOf(
+fun VulcanActivity.housingFace(color: Int, radius: Float): Drawable = android.graphics.drawable.LayerDrawable(arrayOf(
     GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(
         blend(color, Color.WHITE, if (m3.dark) 0.14f else 0.6f), color, blend(color, Color.BLACK, if (m3.dark) 0.35f else 0.12f),
     )).apply { cornerRadius = radius },
@@ -347,7 +347,7 @@ fun MainActivity.housingFace(color: Int, radius: Float): Drawable = android.grap
 )).apply { val i = dp.roundToInt(); setLayerInset(1, i, i, i, i) }
 
 /** Raised housing (dock, menus, folder windows): a machined face and a soft shadow under it. */
-fun MainActivity.housing(v: View, radius: Float, color: Int = m3.raised) {
+fun VulcanActivity.housing(v: View, radius: Float, color: Int = m3.raised) {
     v.background = housingFace(color, radius)
     v.elevation = 8 * dp
     v.outlineProvider = object : android.view.ViewOutlineProvider() {
@@ -359,7 +359,7 @@ fun MainActivity.housing(v: View, radius: Float, color: Int = m3.raised) {
  * A recessed well: darker than the housing, in shade under its top edge and catching light on its lower lip,
  * as if pressed into the face around it.
  */
-fun MainActivity.well(radius: Float, color: Int = m3.well): Drawable = android.graphics.drawable.LayerDrawable(arrayOf(
+fun VulcanActivity.well(radius: Float, color: Int = m3.well): Drawable = android.graphics.drawable.LayerDrawable(arrayOf(
     GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(
         blend(color, Color.BLACK, if (m3.dark) 0.45f else 0.18f), color, blend(color, Color.WHITE, if (m3.dark) 0.08f else 0.5f),
     )).apply { cornerRadius = radius },
@@ -503,8 +503,8 @@ fun MainActivity.showSheet(title: String?, build: LinearLayout.() -> Unit) {
     body.animate().translationY(0f).setDuration(300).setInterpolator(DecelerateInterpolator(2f)).start()
 }
 
-/** Dialogs: M3 surface, 28 dp corners and primary-coloured buttons. The scrim is the activity's (see MainActivity.dialog). */
-fun MainActivity.styleDialog(d: AlertDialog) {
+/** Dialogs: M3 surface, 28 dp corners and primary-coloured buttons. The scrim is the activity's (see VulcanActivity.dialog). */
+fun VulcanActivity.styleDialog(d: AlertDialog) {
     d.window?.apply {
         setBackgroundDrawable(InsetDrawable(rounded(m3.surfaceHigh, 28 * dp), (24 * dp).toInt(), (24 * dp).toInt(), (24 * dp).toInt(), (24 * dp).toInt()))
     }
@@ -518,7 +518,7 @@ fun MainActivity.styleDialog(d: AlertDialog) {
 
 /** M3 switch: 52×32 dp track, thumb that grows when on. The row around it handles taps. */
 @SuppressLint("ViewConstructor")
-class Toggle(private val a: MainActivity, on: Boolean) : View(a) {
+class Toggle(private val a: VulcanActivity, on: Boolean) : View(a) {
     private var pos = if (on) 1f else 0f
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val track = RectF()

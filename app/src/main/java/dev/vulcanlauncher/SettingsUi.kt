@@ -23,8 +23,8 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
 
-// Settings: a full-screen M3 page (categories, then one page per category). Picking a value opens a dialog;
-// saving a setting rebuilds home in place, and the page reopens where it was (see MainActivity.rebuild).
+// Settings: a screen of its own (SettingsActivity), as Launcher3's: categories, then one page per category. Picking a
+// value opens a dialog; a change only marks home stale, and home is built again once, when it shows (MainActivity.onStart).
 
 private val CATEGORY_INFO = mapOf(
     HOME to ("home" to R.string.cat_home),
@@ -48,15 +48,119 @@ private fun depth(page: String) = when (page) { "" -> 0; COLORS -> 2; else -> 1 
 /** Where each settings page was scrolled when it was left for a deeper one, so back returns to the same spot. */
 private val leftAt = mutableMapOf<String, Int>()
 
-fun MainActivity.showSettings(page: String = "", scroll: Int = 0, restoring: Boolean = false) {
-    // Page to page, the old page stays until the new one covers it, so home never shows through between them.
-    val old = overlay?.takeIf { settingsPage != null && !restoring }
-    val backward = old != null && depth(page) < depth(settingsPage!!)
-    val samePage = old != null && page == settingsPage
-    if (old != null && !backward && !samePage) settingsScroll?.let { leftAt[settingsPage!!] = it.scrollY }
+/** Opens settings at [page] ("" for settings home). */
+fun MainActivity.showSettings(page: String = "") {
+    startActivity(Intent(this, SettingsActivity::class.java).putExtra("page", page))
+    SettingsActivity.transition(this)
+}
+
+class SettingsActivity : VulcanActivity() {
+    companion object {
+        /** Settings fades over home and back, or just appears ("Settings animation" none). */
+        @Suppress("DEPRECATION")
+        fun transition(a: VulcanActivity) =
+            if (a.looks.str("settingsAnim") == "none") a.overridePendingTransition(0, 0) else a.overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+    }
+
+    // ponytail: reads the launcher's live state (apps, drawer, widgets) from the activity under it. Brought back alone
+    // after the process died, settings just closes (onCreate); a store-backed app model would let it stand alone.
+    override val home get() = checkNotNull(MainActivity.running?.get())
+    /** The page showing ("" for settings home), its panel and its scroll. */
+    var page: String? = null
+    var panel: View? = null
+    var scroll: ScrollView? = null
+    /** Holds the page panels, inside the system bars. */
+    lateinit var pages: android.widget.FrameLayout
+
+    override fun onCreate(state: android.os.Bundle?) {
+        super.onCreate(state)
+        val h = MainActivity.running?.get()
+        if (h == null || h.isDestroyed) { finish(); return }
+        store = h.store
+        looks = h.looks
+        applyOrientation()
+        recolor()
+        bars()
+        // The system bars and the keyboard pad the pages; the window's surface colour runs on under them. Dialogs dim
+        // the whole window (root), bars included.
+        pages = android.widget.FrameLayout(this).apply { fitsSystemWindows = true }
+        root = android.widget.FrameLayout(this).apply { addView(pages) }
+        setContentView(root)
+        showPage(state?.getString("page") ?: intent.getStringExtra("page").orEmpty(), state?.getInt("scroll") ?: 0)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun bars() {
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(m3.surface))
+        window.statusBarColor = m3.surface
+        window.navigationBarColor = m3.surface
+        window.decorView.systemUiVisibility = if (m3.dark) 0 else View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+    }
+
+    /** A setting changed: home is built again when it shows, and this page now, in the new colours and where it was. */
+    fun changed() {
+        home.stale = true
+        applyOrientation()
+        recolor()
+        bars()
+        refresh()
+    }
+
+    fun refresh() = page?.let { showPage(it, scroll?.scrollY ?: 0, restoring = true) }
+
+    override fun onResume() {
+        super.onResume()
+        // Back from the Android page that grants one: show its new state. (Not on the first resume: it was just built.)
+        if (page == PERMISSIONS && panel?.isAttachedToWindow == true) refresh()
+    }
+
+    override fun onSaveInstanceState(out: android.os.Bundle) {
+        super.onSaveInstanceState(out)
+        page?.let { out.putString("page", it); out.putInt("scroll", scroll?.scrollY ?: 0) }
+    }
+
+    @Deprecated("Back closes an open search, then goes up a page")
+    override fun onBackPressed() { (panel?.tag as? Runnable)?.run() ?: finish() }
+
+    override fun finish() {
+        super.finish()
+        if (page != null) transition(this) // null: closed in onCreate, before settings loaded
+    }
+
+    /** After a restore, an import or a reset: home starts again from what was stored, and settings closes. */
+    fun restartHome() {
+        home.recreate()
+        finish()
+    }
+
+    @Deprecated("Plain Activity result API is fine without androidx")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        val uri = data?.data?.takeIf { resultCode == RESULT_OK } ?: return
+        when (requestCode) {
+            MainActivity.REQ_BACKUP -> runCatching { contentResolver.openOutputStream(uri, "wt")!!.use { it.write(store.export(home.apps.values.toList()).toByteArray()) } }
+                .onSuccess { toast(R.string.backup_saved) }.onFailure { toast(R.string.backup_failed, it.message) }
+            MainActivity.REQ_RESTORE -> runCatching { store.import(contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() }, home::mainActivity) }
+                .onSuccess { rejected ->
+                    if (rejected.isNotEmpty()) toast(R.string.skipped_settings, rejected.joinToString())
+                    // Widget IDs belong to the install that made them; drop the ones this install doesn't own.
+                    home.dropForeignWidgets()
+                    restartHome()
+                }.onFailure { toast(R.string.restore_failed, it.message) }
+            MainActivity.REQ_DOC -> importBackup(uri)
+        }
+    }
+}
+
+/** [focus]: a setting's key (from a search); the page opens with that row centred and briefly highlighted. */
+fun SettingsActivity.showPage(page: String, scroll: Int = 0, restoring: Boolean = false, focus: String? = null) {
+    // Page to page, the old page stays until the new one covers it.
+    val old = panel
+    val backward = old != null && !restoring && depth(page) < depth(this.page!!)
+    val samePage = old != null && page == this.page
+    if (old != null && !restoring && !backward && !samePage) this.scroll?.let { leftAt[this.page!!] = it.scrollY }
     val list = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(0, 0, 0, insets.bottom + (16 * dp).toInt())
+        setPadding(0, 0, 0, (16 * dp).toInt())
     }
     var search: ((String) -> Unit)? = null
     when (page) { "" -> search = settingsHome(list); COLORS -> colorsPage(list); BACKUP -> backupPage(list); PERMISSIONS -> permissionsPage(list); GROUPS -> groupsPage(list); else -> settingsCategory(page, list) }
@@ -89,13 +193,12 @@ fun MainActivity.showSettings(page: String = "", scroll: Int = 0, restoring: Boo
         if (field?.visibility == View.VISIBLE) {
             ime.hideSoftInputFromWindow(field.windowToken, 0)
             field.setText(""); field.visibility = View.GONE; title.visibility = View.VISIBLE; searchButton?.visibility = View.VISIBLE
-        } else when (page) { "" -> closeOverlay(); COLORS -> showSettings(LOOK, leftAt[LOOK] ?: 0); else -> showSettings(scroll = leftAt[""] ?: 0) }
+        } else when (page) { "" -> finish(); COLORS -> showPage(LOOK, leftAt[LOOK] ?: 0); else -> showPage("", leftAt[""] ?: 0) }
     }
     val panel = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setBackgroundColor(m3.surface)
         isClickable = true
-        setPadding(insets.left, insets.top, insets.right, 0)
         addView(LinearLayout(context).apply {
             gravity = Gravity.CENTER_VERTICAL
             setPadding((4 * dp).toInt(), 0, (4 * dp).toInt(), 0)
@@ -107,35 +210,49 @@ fun MainActivity.showSettings(page: String = "", scroll: Int = 0, restoring: Boo
         addView(scrollView, LinearLayout.LayoutParams(-1, 0, 1f))
         tag = back
     }
-    if (old == null) showOverlay(panel) else {
-        // Back: the parent page goes under the current one, which slides away to uncover it.
-        root.addView(panel, if (backward) root.indexOfChild(old) else -1)
-        overlay = panel
-    }
-    settingsPage = page
-    settingsScroll = scrollView
-    if (scroll > 0) scrollView.post { scrollView.scrollTo(0, scroll) }
+    // Back: the parent page goes under the current one, which slides away to uncover it.
+    pages.addView(panel, if (old == null) 0 else pages.indexOfChild(old) + if (backward) 0 else 1)
+    this.panel = panel
+    this.page = page
+    this.scroll = scrollView
+    // Before the first frame, not after it (post): drawn once at the top, a rebuilt page flashed other rows.
+    if (scroll > 0 || focus != null) scrollView.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
+        override fun onPreDraw(): Boolean {
+            scrollView.viewTreeObserver.removeOnPreDrawListener(this)
+            val row = focus?.let { list.findViewWithTag<View>(it) }
+            if (row == null) scrollView.scrollTo(0, scroll) else {
+                val r = android.graphics.Rect().also(row::getDrawingRect)
+                list.offsetDescendantRectToMyCoords(row, r)
+                scrollView.scrollTo(0, r.centerY() - scrollView.height / 2)
+                // As Android's settings: the found row lights up, then fades.
+                row.background?.setHotspot(row.width / 2f, row.height / 2f)
+                row.isPressed = true
+                row.postDelayed({ row.isPressed = false }, 700)
+            }
+            return true
+        }
+    })
     val anim = looks.str("settingsAnim")
     val shift = 32 * dp
     when {
-        // Reopening after a setting rebuilt home (or recreated the activity), or refreshing a page: appear at once.
-        restoring || samePage || old == null && scroll > 0 -> old?.let(root::removeView)
-        anim == "none" -> old?.let(root::removeView)
-        old == null -> { panel.alpha = 0f; if (anim == "slide") panel.translationX = shift; panel.animate().alpha(1f).translationX(0f).setDuration(150).setInterpolator(EASE).start() }
-        // The parent stays put under it: shifting it would uncover a strip of home at its edge.
+        // The first page comes with the screen (SettingsActivity.transition).
+        old == null -> {}
+        // A setting changed, or the page is refreshed: at once.
+        restoring || samePage || anim == "none" -> pages.removeView(old)
+        // The parent stays put under it.
         backward -> {
-            old.animate().alpha(0f).translationX(if (anim == "slide") shift else 0f).setDuration(150).setInterpolator(EASE).withEndAction { root.removeView(old) }.start()
+            old.animate().alpha(0f).translationX(if (anim == "slide") shift else 0f).setDuration(150).setInterpolator(EASE).withEndAction { pages.removeView(old) }.start()
         }
         else -> {
             panel.alpha = 0f
             if (anim == "slide") panel.translationX = shift
-            panel.animate().alpha(1f).translationX(0f).setDuration(150).setInterpolator(EASE).withEndAction { root.removeView(old) }.start()
+            panel.animate().alpha(1f).translationX(0f).setDuration(150).setInterpolator(EASE).withEndAction { pages.removeView(old) }.start()
         }
     }
 }
 
 /** Builds the settings home into [page]; returns the search: given a query, its matches replace the page. */
-private fun MainActivity.settingsHome(page: LinearLayout): (String) -> Unit {
+private fun SettingsActivity.settingsHome(page: LinearLayout): (String) -> Unit {
     val results = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
     val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
     list.addView(nameplate())
@@ -151,26 +268,26 @@ private fun MainActivity.settingsHome(page: LinearLayout): (String) -> Unit {
             if (hits.isEmpty()) results.addView(text(getString(R.string.settings_no_match), 15f, m3.onSurfaceVariant).apply {
                 gravity = Gravity.CENTER; setPadding(0, (32 * dp).toInt(), 0, 0)
             })
-            else panel(results, null, hits.map { c -> listItem(null, getString(c.title), getString(GROUP_TITLES.getValue(c.group))) { showSettings(c.group) } })
+            else panel(results, null, hits.map { c -> listItem(null, getString(c.title), getString(GROUP_TITLES.getValue(c.group))) { showPage(c.group, focus = c.key) } })
         }
     }
     fun category(name: String) = CATEGORY_INFO.getValue(name).let { (icon, info) ->
-        listItem(symbol(icon, m3.onPrimaryContainer), getString(GROUP_TITLES.getValue(name)), getString(info), tonalIcon = true) { showSettings(name) }
+        listItem(symbol(icon, m3.onPrimaryContainer), getString(GROUP_TITLES.getValue(name)), getString(info), tonalIcon = true) { showPage(name) }
     }
     panel(list, getString(R.string.panel_layout), listOf(HOME, DOCK_GROUP, DRAWER, FOLDERS).map(::category))
     panel(list, getString(R.string.panel_appearance), listOf(LOOK, NIGHT, BADGES).map(::category))
     panel(list, getString(R.string.panel_interaction), listOf(GESTURES, NOW).map(::category))
     panel(list, getString(R.string.panel_apps), listOf(
         listItem(symbol("hide", m3.onPrimaryContainer), getString(R.string.hidden_apps), getString(R.string.hidden_apps_info), tonalIcon = true) { hideAppsMenu() },
-        listItem(symbol("tabs", m3.onPrimaryContainer), getString(R.string.drawer_groups), getString(R.string.drawer_groups_info), tonalIcon = true) { groupsMenu() },
+        listItem(symbol("tabs", m3.onPrimaryContainer), getString(R.string.drawer_groups), getString(R.string.drawer_groups_info), tonalIcon = true) { showPage(GROUPS) },
     ))
     panel(list, getString(R.string.panel_launcher), listOf(
-        listItem(symbol("archive", m3.onPrimaryContainer), getString(R.string.backup_restore), getString(R.string.backup_restore_info), tonalIcon = true) { showSettings(BACKUP) },
-        listItem(symbol("shield", m3.onPrimaryContainer), getString(R.string.permissions), getString(R.string.permissions_info), tonalIcon = true) { showSettings(PERMISSIONS) },
+        listItem(symbol("archive", m3.onPrimaryContainer), getString(R.string.backup_restore), getString(R.string.backup_restore_info), tonalIcon = true) { showPage(BACKUP) },
+        listItem(symbol("shield", m3.onPrimaryContainer), getString(R.string.permissions), getString(R.string.permissions_info), tonalIcon = true) { showPage(PERMISSIONS) },
         listItem(symbol("home", m3.onPrimaryContainer), getString(R.string.default_home), getString(R.string.default_home_info), tonalIcon = true) {
             startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
         },
-        listItem(symbol("refresh", m3.onPrimaryContainer), getString(R.string.restart), null, tonalIcon = true) { closeOverlay(); recreate() },
+        listItem(symbol("refresh", m3.onPrimaryContainer), getString(R.string.restart), null, tonalIcon = true) { restartHome() },
         listItem(symbol("info", m3.onPrimaryContainer), getString(R.string.about), getString(R.string.version, versionName), tonalIcon = true) {
             dialog().setTitle(R.string.app_name).setIcon(R.mipmap.ic_launcher)
                 .setMessage(R.string.about_text)
@@ -180,10 +297,10 @@ private fun MainActivity.settingsHome(page: LinearLayout): (String) -> Unit {
     return search
 }
 
-private val MainActivity.versionName get() = packageManager.getPackageInfo(packageName, 0).versionName
+private val SettingsActivity.versionName get() = packageManager.getPackageInfo(packageName, 0).versionName
 
 /** Rows on one raised face, divided by hairlines, under a printed legend: one panel of the appliance. */
-private fun MainActivity.panel(list: LinearLayout, title: String?, rows: List<View>) {
+private fun SettingsActivity.panel(list: LinearLayout, title: String?, rows: List<View>) {
     if (title != null) list.addView(legend(title, 12f).apply { setPadding((32 * dp).toInt(), (20 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt()) })
     list.addView(LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
@@ -203,7 +320,7 @@ private fun MainActivity.panel(list: LinearLayout, title: String?, rows: List<Vi
 }
 
 /** The rating plate at the top of settings: the name and version, printed on a raised face. */
-private fun MainActivity.nameplate() = LinearLayout(this).apply {
+private fun SettingsActivity.nameplate() = LinearLayout(this).apply {
     gravity = Gravity.CENTER_VERTICAL
     housing(this, 24 * dp)
     elevation = 2 * dp
@@ -225,11 +342,12 @@ private fun MainActivity.nameplate() = LinearLayout(this).apply {
     layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), (4 * dp).toInt()) }
 }
 
-private fun MainActivity.settingsCategory(group: String, list: LinearLayout) {
+private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout) {
     val choices = (if (group == LOOK) listOf(iconPackChoice()) else emptyList()) + LOOKS.filter { it.group == group }
     fun pick(c: Choice) = dialog().setTitle(c.title).setSingleChoiceItems(c.values.indices.map { choiceName(c, it) }.toTypedArray(), c.values.indexOf(looks[c])) { d, j ->
         d.dismiss()
         applyChoice(c, c.values[j])
+        changed()
     }.setNegativeButton(R.string.cancel, null).show()
     panel(list, null, choices.map { c -> when {
         // The housing dock has its own shadow; no background has none to cast.
@@ -237,25 +355,24 @@ private fun MainActivity.settingsCategory(group: String, list: LinearLayout) {
             listItem(null, getString(c.title), getString(if (looks.str("dockBg") == "none") R.string.dock_shadow_no_bg else R.string.dock_shadow_housing)) {}.apply { alpha = 0.5f }
         c.values.toSet() == setOf("on", "off") -> {
             val toggle = Toggle(this, looks[c] == "on")
-            listItem(null, getString(c.title), if (c.info != 0) getString(c.info) else null, trailing = toggle) { v ->
+            listItem(null, getString(c.title), if (c.info != 0) getString(c.info) else null, trailing = toggle) {
                 toggle.checked = !toggle.checked
-                // Let the switch finish moving before home is rebuilt.
-                v.postDelayed({ applyChoice(c, if (toggle.checked) "on" else "off") }, 200)
+                applyChoice(c, if (toggle.checked) "on" else "off")
             }
         }
-        c.action -> listItem(null, getString(c.title), valueName(c)) { pickAction(getString(c.title)) { looks[c] = it; showSettings(group, settingsScroll?.scrollY ?: 0) } }
+        c.action -> listItem(null, getString(c.title), valueName(c)) { pickAction(getString(c.title)) { looks[c] = it; changed() } }
         // Settings the chosen dock background doesn't use: shown dimmed and saying so, still pickable.
         c.key == "dockAlpha" && looks.str("dockBg") in listOf("housing", "glass", "none") || c.key == "dockColor" && looks.str("dockBg") == "none" ->
             listItem(null, getString(c.title), if (looks.str("dockBg") == "none") getString(R.string.dock_shadow_no_bg)
                 else getString(R.string.not_used_by_bg, valueName(LOOKS.first { it.key == "dockBg" }))) { pick(c) }.apply { alpha = 0.5f }
         else -> listItem(null, getString(c.title), valueName(c), trailing = swatch(c)) { pick(c) }
-    } })
+    }.apply { tag = c.key } })
     if (group == LOOK) panel(list, null, listOf(listItem(null, getString(R.string.custom_colors),
-        resources.getQuantityString(R.plurals.custom_colors_set, looks.colors().size, looks.colors().size)) { showSettings(COLORS) }))
+        resources.getQuantityString(R.plurals.custom_colors_set, looks.colors().size, looks.colors().size)) { showPage(COLORS) }))
 }
 
 /** A colour setting's current colour as a small circle, or null for other settings. */
-private fun MainActivity.swatch(c: Choice): View? {
+private fun SettingsActivity.swatch(c: Choice): View? {
     if (!c.values.any { it.startsWith("#") }) return null
     return View(this).apply {
         background = GradientDrawable().apply {
@@ -273,23 +390,24 @@ private fun MainActivity.swatch(c: Choice): View? {
     }
 }
 
-private fun MainActivity.iconPackChoice(): Choice {
+private fun SettingsActivity.iconPackChoice(): Choice {
     val packs = iconPacks(this)
     return Choice(LOOK, "iconPack", R.string.set_iconPack, "", listOf("") + packs.map { it.first }, shown = listOf(getString(R.string.iconPack_system)) + packs.map { it.second })
 }
 
-private fun MainActivity.valueName(c: Choice) = when {
-    c.action -> actionName(looks[c], ::appLabel)
+private fun SettingsActivity.valueName(c: Choice) = when {
+    c.action -> actionName(looks[c], home::appLabel)
     // Under the Appliance look, "system" on a housing-coloured part draws in the housing colour.
     m3.housing && looks[c] == "system" && c.key in listOf("dockColor", "searchColor", "folderColor") -> getString(R.string.housing_follows_theme)
     else -> c.values.indexOf(looks[c]).let { i -> if (i >= 0) choiceName(c, i) else looks[c].ifEmpty { getString(R.string.none) } }
 }
 
-/** Saves a setting, asking for a permission it needs first, then rebuilds home. */
-private fun MainActivity.applyChoice(c: Choice, value: String) {
+/** Saves a setting, asking for a permission it needs first; home is built again when it shows. */
+private fun SettingsActivity.applyChoice(c: Choice, value: String) {
     val old = looks[c]
     if (value == old) return
     looks[c] = value
+    home.stale = true
     val perm = when {
         value == "on" && c.key in listOf("contactSearch", "nowContacts") -> android.Manifest.permission.READ_CONTACTS
         value == "on" && c.key == "nowCalendar" -> android.Manifest.permission.READ_CALENDAR
@@ -300,10 +418,8 @@ private fun MainActivity.applyChoice(c: Choice, value: String) {
         c.key == "hideClock" && value == "on" && !granted(android.Manifest.permission.WRITE_SECURE_SETTINGS) -> dialog()
             .setTitle(R.string.setup_needed)
             .setMessage(getString(R.string.hide_clock_help, packageName))
-            .setPositiveButton(R.string.ok) { _, _ -> rebuild() }.show()
-        // The permission result rebuilds home (onRequestPermissionsResult).
+            .setPositiveButton(R.string.ok, null).show()
         perm != null && !granted(perm) -> requestPermissions(arrayOf(perm), MainActivity.REQ_PERMISSION)
-        else -> rebuild()
     }
 }
 
@@ -474,8 +590,8 @@ private fun MainActivity.pickPackIcon(pkg: String, onPicked: (String) -> Unit) {
 }
 
 /** Every app with an M3 switch, for hiding apps or filling a drawer group; [onSave] gets the apps switched on. */
-private fun MainActivity.appSwitches(title: String, on: Collection<String>, onSave: (List<String>) -> Unit) {
-    val list = apps.values.sortedWith(compareBy(labelOrder()) { label(it) })
+private fun VulcanActivity.appSwitches(title: String, on: Collection<String>, onSave: (List<String>) -> Unit) {
+    val list = home.apps.values.sortedWith(compareBy(labelOrder()) { home.label(it) })
     val chosen = on.toMutableSet()
     val adapter = object : BaseAdapter() {
         override fun getCount() = list.size
@@ -484,7 +600,7 @@ private fun MainActivity.appSwitches(title: String, on: Collection<String>, onSa
         override fun getView(p: Int, convert: View?, parent: ViewGroup): View {
             val app = list[p]
             val toggle = Toggle(this@appSwitches, app.key in chosen)
-            return listItem(icon(app), if (isWork(app)) getString(R.string.work_app, label(app)) else label(app), trailing = toggle, appIcon = true) {
+            return listItem(home.icon(app), if (home.isWork(app)) getString(R.string.work_app, home.label(app)) else home.label(app), trailing = toggle, appIcon = true) {
                 toggle.checked = !toggle.checked
                 if (toggle.checked) chosen += app.key else chosen -= app.key
             }.apply { setPaddingRelative((24 * dp).toInt(), paddingTop, (24 * dp).toInt(), paddingBottom) } // in line with the title
@@ -496,24 +612,24 @@ private fun MainActivity.appSwitches(title: String, on: Collection<String>, onSa
         .setNegativeButton(R.string.cancel, null).show()
 }
 
-fun MainActivity.hideAppsMenu() = appSwitches(getString(R.string.hide_apps), store.strings("hidden")) {
+fun VulcanActivity.hideAppsMenu() = appSwitches(getString(R.string.hide_apps), store.strings("hidden")) {
     store.putStrings("hidden", it)
-    drawer.refresh()
+    home.drawer.refresh()
 }
 
 // ---- Drawer groups (tabs and folders) ----
 
-private fun MainActivity.saveGroups(groups: List<Group>) {
+private fun VulcanActivity.saveGroups(groups: List<Group>) {
     store.data.edit().putString("groups", groupsToJson(groups)).apply()
-    drawer.refresh()
-    if (settingsPage == GROUPS) showSettings(GROUPS, settingsScroll?.scrollY ?: 0)
+    home.drawer.refresh()
+    (this as? SettingsActivity)?.takeIf { it.page == GROUPS }?.refresh()
 }
 
 fun MainActivity.groupsMenu() = showSettings(GROUPS)
 
 /** The drawer's tabs and folders, each opening its edit menu, then the ways to add more. */
-private fun MainActivity.groupsPage(list: LinearLayout) {
-    val groups = drawer.groups()
+private fun SettingsActivity.groupsPage(list: LinearLayout) {
+    val groups = home.drawer.groups()
     fun row(icon: String, title: String, info: String, onClick: (View) -> Unit) =
         listItem(symbol(icon, m3.onPrimaryContainer), title, info, tonalIcon = true, onClick = onClick)
     fun groupRows(type: String, icon: String) = groups.filter { it.type == type }.map { g ->
@@ -533,7 +649,7 @@ private fun MainActivity.groupsPage(list: LinearLayout) {
     ))
 }
 
-private fun MainActivity.askName(title: String, current: String, onName: (String) -> Unit) {
+private fun VulcanActivity.askName(title: String, current: String, onName: (String) -> Unit) {
     val input = field(current, getString(R.string.name))
     val box = android.widget.FrameLayout(this).apply { setPadding((24 * dp).toInt(), (8 * dp).toInt(), (24 * dp).toInt(), 0); addView(input) }
     dialog().setTitle(title).setView(box)
@@ -541,16 +657,16 @@ private fun MainActivity.askName(title: String, current: String, onName: (String
         .setNegativeButton(R.string.cancel, null).show()
 }
 
-private fun MainActivity.newGroup(type: String) = askName(getString(if (type == "tab") R.string.new_tab else R.string.new_folder), "") { name ->
-    val groups = drawer.groups()
+private fun SettingsActivity.newGroup(type: String) = askName(getString(if (type == "tab") R.string.new_tab else R.string.new_folder), "") { name ->
+    val groups = home.drawer.groups()
     if (groups.any { it.name == name }) { toast(getString(R.string.group_exists)); return@askName }
     chooseApps(name, emptyList()) { saveGroups(groups + Group(name, type, it)) }
 }
 
-private fun MainActivity.chooseApps(title: String, current: List<String>, onDone: (List<String>) -> Unit) = appSwitches(title, current, onDone)
+private fun VulcanActivity.chooseApps(title: String, current: List<String>, onDone: (List<String>) -> Unit) = appSwitches(title, current, onDone)
 
-fun MainActivity.editGroup(g: Group) {
-    val groups = drawer.groups()
+fun VulcanActivity.editGroup(g: Group) {
+    val groups = home.drawer.groups()
     fun replace(n: Group?) = saveGroups(groups.mapNotNull { if (it.name == g.name) n else it })
     val other = if (g.type == "tab") "folder" else "tab"
     pickList(g.name, listOf(
@@ -568,8 +684,8 @@ fun MainActivity.editGroup(g: Group) {
     }
 }
 
-fun MainActivity.addToGroup(key: String) {
-    val groups = drawer.groups()
+fun VulcanActivity.addToGroup(key: String) {
+    val groups = home.drawer.groups()
     val names = groups.map { it.name } + getString(R.string.new_folder_item)
     dialog().setTitle(R.string.add_to_group).setItems(names.toTypedArray()) { _, i ->
         if (i == groups.size) askName(getString(R.string.new_folder), "") { saveGroups(groups + Group(it, "folder", listOf(key))) }
@@ -578,9 +694,9 @@ fun MainActivity.addToGroup(key: String) {
 }
 
 /** Groups apps into drawer folders by the category each app declares (games, social, productivity…). */
-private fun MainActivity.smartFolders() {
-    val groups = drawer.groups()
-    val byCat = apps.values.groupBy { it.info.applicationInfo.category }.filterKeys { it != ApplicationInfo.CATEGORY_UNDEFINED }
+private fun SettingsActivity.smartFolders() {
+    val groups = home.drawer.groups()
+    val byCat = home.apps.values.groupBy { it.info.applicationInfo.category }.filterKeys { it != ApplicationInfo.CATEGORY_UNDEFINED }
     val made = byCat.filterValues { it.size >= 2 }.mapNotNull { (cat, list) ->
         val name = ApplicationInfo.getCategoryTitle(this, cat)?.toString() ?: return@mapNotNull null
         if (groups.any { it.name == name }) null else Group(name, "folder", list.map { it.key })
@@ -591,7 +707,7 @@ private fun MainActivity.smartFolders() {
 // ---- Backup, permissions ----
 
 @Suppress("DEPRECATION")
-private fun MainActivity.backupPage(list: LinearLayout) {
+private fun SettingsActivity.backupPage(list: LinearLayout) {
     fun row(icon: String, title: Int, info: CharSequence, onClick: ((View) -> Unit)?) =
         listItem(symbol(icon, m3.onPrimaryContainer), getString(title), info, tonalIcon = true, onClick = onClick)
     fun pickFile(req: Int) = startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"), req)
@@ -605,8 +721,8 @@ private fun MainActivity.backupPage(list: LinearLayout) {
         row("clock", R.string.restore_auto, getString(R.string.restore_auto_info, saved)) {
             dialog().setMessage(getString(R.string.restore_auto_confirm, saved))
                 .setPositiveButton(R.string.restore) { _, _ ->
-                    runCatching { store.import(f.readText(), ::mainActivity) }
-                        .onSuccess { dropForeignWidgets(); recreate() }
+                    runCatching { store.import(f.readText(), home::mainActivity) }
+                        .onSuccess { home.dropForeignWidgets(); restartHome() }
                         .onFailure { toast(getString(R.string.restore_failed, it.message)) }
                 }.setNegativeButton(R.string.cancel, null).show()
         }
@@ -615,50 +731,49 @@ private fun MainActivity.backupPage(list: LinearLayout) {
         pickFile(MainActivity.REQ_RESTORE)
     }) + autoRows)
     panel(list, getString(R.string.backup_panel_other), listOf(row("archive", R.string.import_launcher_backup, getString(R.string.import_launcher_backup_info)) {
-        onDocument = { uri -> importBackup(uri) }
         pickFile(MainActivity.REQ_DOC)
     }))
     panel(list, getString(R.string.backup_panel_reset), listOf(row("delete", R.string.reset_defaults, getString(R.string.reset_defaults_info)) {
         dialog().setMessage(R.string.reset_confirm)
             .setPositiveButton(R.string.reset) { _, _ ->
-                items.filter { it.isWidget }.forEach { host.deleteAppWidgetId(it.widgetId) }
+                home.items.filter { it.isWidget }.forEach { home.host.deleteAppWidgetId(it.widgetId) }
                 store.reset()
-                recreate()
+                restartHome()
             }.setNegativeButton(R.string.cancel, null).show()
     }))
 }
 
 /** Replaces the home layout (and grid settings) with an imported launcher backup's, after confirming. */
-private fun MainActivity.importBackup(uri: android.net.Uri) {
+private fun SettingsActivity.importBackup(uri: android.net.Uri) {
     val (layout, settings) = runCatching { readLauncherBackup(this, uri) }.getOrElse { toast(getString(R.string.import_failed, it.message)); return }
     val note = if (layout.skipped > 0) "\n\n" + resources.getQuantityString(R.plurals.import_skipped, layout.skipped, layout.skipped) else ""
     dialog().setTitle(R.string.import_title)
         .setMessage(getString(R.string.import_message, resources.getQuantityString(R.plurals.import_items, layout.items.size, layout.items.size),
             resources.getQuantityString(R.plurals.import_settings, settings.size, settings.size)) + note)
         .setPositiveButton(R.string.import_) { _, _ ->
-            items.filter { it.isWidget }.forEach { host.deleteAppWidgetId(it.widgetId) }
+            home.items.filter { it.isWidget }.forEach { home.host.deleteAppWidgetId(it.widgetId) }
             settings.forEach { (k, v) -> looks[k] = v }
             looks["subgrid"] = if (layout.subgrid) "on" else "off"
             val pages = (layout.items.filter { !isDock(it.page) }.maxOfOrNull { it.page } ?: 0) + 1
             if (pages > looks.int("pages")) looks["pages"] = pages.coerceAtMost(9).toString()
             store.save(layout.items, if (layout.subgrid) 2 else 1)
             layout.items.flatMap { listOf(it) + it.children }.filter { it.isShortcut }.map { it.pkg to it.user }.distinct()
-                .forEach { (p, u) -> runCatching { launcherApps.pinShortcuts(p, layout.items.flatMap { listOf(it) + it.children }
-                    .filter { it.isShortcut && it.pkg == p && it.user == u }.map { it.shortcutId }, userOf(u)) } }
-            recreate()
+                .forEach { (p, u) -> runCatching { home.launcherApps.pinShortcuts(p, layout.items.flatMap { listOf(it) + it.children }
+                    .filter { it.isShortcut && it.pkg == p && it.user == u }.map { it.shortcutId }, home.userOf(u)) } }
+            restartHome()
         }.setNegativeButton(R.string.cancel, null).show()
 }
 
 /** What Vulcan may reach outside itself, each with its state; a row opens the Android page that changes it. */
-private fun MainActivity.permissionsPage(list: LinearLayout) {
+private fun SettingsActivity.permissionsPage(list: LinearLayout) {
     val listeners = Settings.Secure.getString(contentResolver, "enabled_notification_listeners").orEmpty()
-    val home = runCatching { launcherApps.hasShortcutHostPermission() }.getOrDefault(false)
+    val isHome = runCatching { home.launcherApps.hasShortcutHostPermission() }.getOrDefault(false)
     data class Perm(val icon: String, val title: Int, val info: Int, val on: Boolean, val action: String, val onText: Int = R.string.perm_allowed, val offText: Int = R.string.perm_allow)
     val perms = listOf(
         Perm("notifications", R.string.perm_notifications, R.string.perm_notifications_info,
             ComponentName(this, BadgeService::class.java).flattenToString() in listeners, Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS),
         Perm("lock", R.string.perm_accessibility, R.string.perm_accessibility_info, ActionService.instance != null, Settings.ACTION_ACCESSIBILITY_SETTINGS),
-        Perm("home", R.string.perm_default, R.string.perm_default_info, home, Settings.ACTION_HOME_SETTINGS, R.string.perm_is_default, R.string.perm_set_default),
+        Perm("home", R.string.perm_default, R.string.perm_default_info, isHome, Settings.ACTION_HOME_SETTINGS, R.string.perm_is_default, R.string.perm_set_default),
     )
     list.addView(text(getString(R.string.perm_intro), 14f, m3.onSurfaceVariant).apply {
         setPadding((32 * dp).toInt(), (8 * dp).toInt(), (32 * dp).toInt(), 0)

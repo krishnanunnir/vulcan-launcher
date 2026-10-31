@@ -30,7 +30,7 @@ import java.util.Locale
 // The Now page: feed cards that work offline (date, media controls, calendar, contacts, frequent apps).
 // Weather, news and Google Discover need the network and aren't here.
 
-fun MainActivity.granted(permission: String) = checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+fun VulcanActivity.granted(permission: String) = checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
 
 /** The locale's own pattern for a date skeleton ("EEEEdMMMM" is "Monday, 19 October" in English, "Montag, 19. Oktober" in German). */
 private fun datePattern(skeleton: String) = android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), skeleton)

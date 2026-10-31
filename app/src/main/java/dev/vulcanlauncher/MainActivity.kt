@@ -5,7 +5,6 @@ import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.ActivityOptions
-import android.app.AlertDialog
 import android.app.WallpaperManager
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetHostView
@@ -15,7 +14,6 @@ import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ComponentName
 import android.content.Intent
-import android.content.pm.ActivityInfo
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
@@ -45,9 +43,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import org.json.JSONObject
-import java.util.Calendar
 import kotlin.math.ceil
 import kotlin.math.hypot
 
@@ -66,7 +62,7 @@ class FolderChild(val folder: Item, val index: Int)
 /** How far the page shrinks while dragging (Launcher3's spring-loaded state is about 0.8). */
 const val SPRING_SCALE = 0.8f
 
-class MainActivity : Activity() {
+class MainActivity : VulcanActivity() {
     companion object {
         const val HOST_ID = 1024
         const val REQ_BIND = 1
@@ -82,18 +78,17 @@ class MainActivity : Activity() {
         var running: java.lang.ref.WeakReference<MainActivity>? = null
     }
 
-    lateinit var store: Store
-    lateinit var looks: Looks
+    override val home get() = this
+    /** A setting changed in SettingsActivity: home is built again before it shows (onStart). */
+    var stale = false
     lateinit var icons: Icons
     lateinit var items: MutableList<Item>
     lateinit var host: AppWidgetHost
     lateinit var awm: AppWidgetManager
     lateinit var launcherApps: LauncherApps
     lateinit var um: UserManager
-    lateinit var root: FrameLayout
     /** Home pages, indicator and dock: blurred while a panel is open. */
     lateinit var content: LinearLayout
-    var settingsScroll: android.widget.ScrollView? = null
     lateinit var workspace: Workspace
     lateinit var pages: List<CellLayout>
     lateinit var dock: Workspace
@@ -114,7 +109,6 @@ class MainActivity : Activity() {
     private val iconViews = ArrayList<IconView>()
     var apps = mapOf<String, App>()
     var customs = JSONObject()
-    var night = false
     /** The widget being bound or configured. Saved, because the launcher can be killed while the other app's screen is open. */
     var pendingWidget: Pair<Int, AppWidgetProviderInfo>? = null
         set(v) { field = v; store.data.edit().putString("pendingWidget", v?.let { "${it.first} ${it.second.provider.flattenToString()}" } ?: "").apply() }
@@ -129,64 +123,20 @@ class MainActivity : Activity() {
     private var barHidden = false
     private val iconCache = HashMap<String, Drawable>()
 
-    val dp get() = resources.displayMetrics.density
     /** Subgrid factor of the grid, set when home is built (onCreate, [rebuild]). */
     var sub = 1
         private set
-    /** Material 3 colours for this activity, from the theme colour setting and the panel theme. */
-    lateinit var m3: Palette
     val accent get() = m3.primary
     val locked get() = looks.on("lockLayout")
     val landscape get() = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     /** Housing, card and glass docks float above the bottom edge instead of running under the navigation bar. */
     val floatingDock get() = looks.str("dockBg") in listOf("housing", "card", "glass")
-    /** Text and panel colours for drawer, folders and menus. */
-    val darkPanels get() = when (looks.str("drawerTheme")) { "dark" -> true; "light" -> false; else -> night }
-    val panelText get() = m3.onSurface
-    fun panelBg(alphaPercent: Int = 100, radius: Float = 16 * dp, color: Int = m3.surfaceContainer) =
-        rounded(color and 0xFFFFFF or ((alphaPercent * 255 / 100) shl 24), radius)
-    /** A colour setting; "system" gives [fallback], a Material colour role. */
-    fun themed(key: String, fallback: Int) = if (looks.str(key) == "system") fallback else looks.color(key)
     /** How far home sits behind a panel (0–1), and its running animation (see setDepth, blurHome). */
     var depth = 0f
     var depthAnim: android.animation.ValueAnimator? = null
     /** Where the last touch went down, in window coordinates; menus opened by a long-press appear there. */
     val lastDown = PointF()
-    /** System window insets, kept for overlays that draw edge to edge. */
-    val insets = Rect()
-    /** The settings page showing ("" for the top level), kept across [rebuild] and recreate(). */
-    var settingsPage: String? = null
 
-    // Light or dark text by the dialog's own background (styleDialog), which custom colours can flip from the scheme's.
-    fun dialog(): AlertDialog.Builder = object : AlertDialog.Builder(this, (onColor(m3.surfaceHigh) == Color.WHITE).let { dark -> when {
-        m3.housing -> if (dark) R.style.VulcanDialogApplianceDark else R.style.VulcanDialogAppliance
-        else -> if (dark) R.style.VulcanDialogDark else R.style.VulcanDialog
-    } }) {
-        // Styled before the first frame: built (buttons included) without showing, so it never flashes unstyled.
-        override fun create(): AlertDialog = super.create().also { d ->
-            d.create(); styleDialog(d)
-            // The dim is this window's, not each dialog's: a dialog opened from another (a menu item, a picker's next
-            // step) then takes its place over a steady dim. With their own, the dim faded out and back in between them.
-            d.window?.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-            dialogs += d
-            d.window?.decorView?.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
-                override fun onViewAttachedToWindow(v: View) = dialogScrim(true)
-                // Posted: a dialog opened from this one is already showing by then, but not attached yet.
-                override fun onViewDetachedFromWindow(v: View) { root.post { dialogs.removeAll { !it.isShowing }; if (dialogs.isEmpty()) dialogScrim(false) } }
-            })
-        }
-    }
-    private val dialogs = mutableSetOf<AlertDialog>()
-    private var scrim: View? = null
-
-    /** The dim behind open dialogs, as the system's (styleDialog's lighter scrim), faded in and out. */
-    private fun dialogScrim(on: Boolean) {
-        val v = scrim ?: View(this).apply { setBackgroundColor(0x52000000) }.also { scrim = it }
-        if (on && v.parent !== root) { (v.parent as? ViewGroup)?.removeView(v); v.alpha = 0f; root.addView(v, FrameLayout.LayoutParams(-1, -1)) }
-        v.animate().alpha(if (on) 1f else 0f).setDuration(150).withEndAction { if (!on) root.removeView(v) }.start()
-    }
-    fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
-    fun toast(id: Int, vararg args: Any?) = toast(getString(id, *args))
 
     /** A picker's result reached a launcher that was restarted meanwhile, so what it was for is gone. */
     private fun restarted() = toast(R.string.picker_restarted)
@@ -226,32 +176,24 @@ class MainActivity : Activity() {
         BadgeService.onChange = { pkgs -> runOnUiThread { if (pkgs.isNotEmpty()) { updateBadges(pkgs); drawer.refreshBadges() }; updateGlance() } }
         // Rotation recreates the activity: stay on the page the user was on.
         savedInstanceState?.getInt("page", -1)?.takeIf { it in 0 until looks.pages }?.let { workspace.snapTo(it, animate = false) }
-        // Reopen settings before the first frame, or home flashes between the old activity and the page. The page is
-        // padded with the old insets; the insets listener rebuilds it if they turn out different (rotation).
-        savedInstanceState?.getString("settings")?.let { page ->
-            savedInstanceState.getIntArray("insets")?.let { insets.set(it[0], it[1], it[2], it[3]) }
-            showSettings(page, savedInstanceState.getInt("settingsScroll"), restoring = true)
-        }
     }
+
 
     /**
      * Applies changed settings by building home again in this window, as Launcher3 does for a grid change (onIdpChanged).
-     * recreate() tears the window down, and on older Android versions the wallpaper or a blank frame showed in between: a
-     * flicker on every change. The settings page reopens where it was.
+     * recreate() tears the window down, and on older Android versions the wallpaper or a blank frame showed in between.
+     * Settings changed in SettingsActivity only mark home [stale]; it's built once, before it shows again.
      */
     fun rebuild() {
         val page = workspace.current
-        val settings = settingsPage
-        val scroll = settingsScroll?.scrollY ?: 0
         depthAnim?.cancel()
         wiggles.forEach { it.cancel() }
         wiggles = emptyList()
         // Everything below belongs to the old views; none of it is shown again.
-        overlay = null; overlayClosed = {}; menu = null; settingsPage = null; settingsScroll = null; dragSource = null
+        overlay = null; overlayClosed = {}; menu = null; dragSource = null
         iconCache.clear(); badgeIcons.clear(); widgetFrames.clear()
         build()
         workspace.snapTo(page.coerceAtMost(looks.pages - 1), animate = false)
-        settings?.let { showSettings(it, scroll, restoring = true) }
         if (dialogs.any { it.isShowing }) dialogScrim(true)
     }
 
@@ -260,13 +202,8 @@ class MainActivity : Activity() {
     private fun build() {
         sub = looks.sub
         icons = Icons(this, looks)
-        night = computeNight()
-        m3 = palette(this, darkPanels, looks.str("accent"), looks.colors())
-        requestedOrientation = when (looks.str("orientation")) {
-            "portrait" -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-            "landscape" -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-            else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        }
+        recolor()
+        applyOrientation()
         loadApps()
         // Items of apps uninstalled while the launcher wasn't running (no callback came) would hold their cells unseen.
         items = fit(if (store.isNew) defaultLayout() else removeApps(store.load(sub), ::uninstalled))
@@ -413,12 +350,7 @@ class MainActivity : Activity() {
                 dockBox.setPadding(0, 0, 0, if (behind) ins.systemWindowInsetBottom else 0)
                 drawer.applyInsets(ins.systemWindowInsetLeft, top, ins.systemWindowInsetRight, ins.systemWindowInsetBottom)
                 dropBar.setPadding(dropBar.paddingLeft, top + dropBar.paddingBottom, dropBar.paddingRight, dropBar.paddingBottom)
-                val old = Rect(insets)
                 insets.set(ins.systemWindowInsetLeft, top, ins.systemWindowInsetRight, ins.systemWindowInsetBottom)
-                // Not on a bottom-only change: that's the keyboard (settings search), and rebuilding would drop the field.
-                // The list makes room for the keyboard instead.
-                settingsPage?.let { if (insets.left != old.left || insets.top != old.top || insets.right != old.right) showSettings(it, settingsScroll?.scrollY ?: 0, restoring = true) }
-                if (android.os.Build.VERSION.SDK_INT >= 30) settingsScroll?.setPadding(0, 0, 0, ins.getInsets(android.view.WindowInsets.Type.ime()).bottom)
                 ins
             }
         }
@@ -435,10 +367,6 @@ class MainActivity : Activity() {
         super.onSaveInstanceState(outState)
         outState.putInt("page", workspace.current)
         outState.putIntArray("insets", intArrayOf(insets.left, insets.top, insets.right, insets.bottom))
-        settingsPage?.let {
-            outState.putString("settings", it)
-            outState.putInt("settingsScroll", settingsScroll?.scrollY ?: 0)
-        }
     }
 
     /** Back inside an overlay: its own back handler (a view tag) if it has one, else close it. */
@@ -455,6 +383,7 @@ class MainActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
+        if (stale) { stale = false; rebuild() }
         host.startListening()
     }
 
@@ -472,13 +401,11 @@ class MainActivity : Activity() {
         // A copy opened from another launcher before Vulcan became the default one.
         if (handOffToHome()) return
         updateLocation()
-        if (computeNight() != night) rebuild()
+        if (nightChanged()) rebuild()
         setClockHidden(true)
         updateGlance()
         // PinActivity may have added an item while we were in the background.
         reloadItems()
-        // Back from the Android page that grants one: show its new state.
-        if (settingsPage == PERMISSIONS) showSettings(PERMISSIONS, settingsScroll?.scrollY ?: 0)
     }
 
     /** Takes [items] from the store, where PinActivity may have added something meanwhile. */
@@ -574,21 +501,6 @@ class MainActivity : Activity() {
             overlay != null -> backInOverlay()
             else -> drawer.hide()
         }
-    }
-
-    private fun computeNight(): Boolean {
-        val sys = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
-        val cal = Calendar.getInstance()
-        if (looks.str("nightMode") == "sun") {
-            val lat = looks.raw("lat")?.toDoubleOrNull()
-            val lon = looks.raw("lon")?.toDoubleOrNull()
-            val offset = cal.timeZone.getOffset(cal.timeInMillis) / 3_600_000.0
-            val sun = if (lat != null && lon != null) sunTimes(lat, lon, cal.get(Calendar.DAY_OF_YEAR), offset) else null
-            // Without a location yet, fall back to the manual schedule.
-            if (sun != null) return isNightSun(cal.get(Calendar.HOUR_OF_DAY) + cal.get(Calendar.MINUTE) / 60.0, sun)
-            return isNight("schedule", cal.get(Calendar.HOUR_OF_DAY), looks.int("nightStart"), looks.int("nightEnd"), sys)
-        }
-        return isNight(looks.str("nightMode"), cal.get(Calendar.HOUR_OF_DAY), looks.int("nightStart"), looks.int("nightEnd"), sys)
     }
 
     fun fit(list: List<Item>) = fitItems(list, looks.pages, looks.cols * sub, looks.rows * sub, looks.dockCols, looks.dockPages).toMutableList()
@@ -1523,23 +1435,6 @@ class MainActivity : Activity() {
         }.show()
     }
 
-    fun pickApp(title: String, onPicked: (App) -> Unit) {
-        val list = apps.values.sortedWith(compareBy(labelOrder()) { label(it) })
-        pickList(title, list.map { icon(it) to if (isWork(it)) getString(R.string.work_app, label(it)) else label(it) }, appIcon = true) { onPicked(list[it]) }
-    }
-
-    fun pickAction(title: String, onPicked: (String) -> Unit) {
-        val rows = ACTIONS.zip(ACTION_NAMES).map { (a, n) -> ACTION_SYMBOLS[a]?.let { symbol(it) } to getString(n) } +
-            listOf(symbol("carousel") to getString(R.string.jump_to_page_item), symbol("apps") to getString(R.string.open_app_item))
-        pickList(title, rows) { i ->
-            when (i) {
-                ACTIONS.size -> dialog().setTitle(R.string.page).setItems(Array(looks.pages) { getString(R.string.page_n, it + 1) }) { _, p -> onPicked("page:$p") }.show()
-                ACTIONS.size + 1 -> pickApp(getString(R.string.open_app)) { onPicked("app:${it.key}") }
-                else -> onPicked(ACTIONS[i])
-            }
-        }
-    }
-
     // ---- Actions ----
 
     fun perform(action: String) {
@@ -1648,19 +1543,6 @@ class MainActivity : Activity() {
                 val req = launcherApps.getPinItemRequest(data)
                 // ponytail: pre-Android 8 style EXTRA_SHORTCUT_INTENT results aren't stored; every current app uses pin requests
                 if (req != null && addPinned(this, req)) reloadItems()
-            }
-            REQ_BACKUP -> data?.data?.takeIf { ok }?.let { uri ->
-                runCatching { contentResolver.openOutputStream(uri, "wt")!!.use { it.write(store.export(apps.values.toList()).toByteArray()) } }
-                    .onSuccess { toast(R.string.backup_saved) }.onFailure { toast(R.string.backup_failed, it.message) }
-            }
-            REQ_RESTORE -> data?.data?.takeIf { ok }?.let { uri ->
-                runCatching { store.import(contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() }, ::mainActivity) }
-                    .onSuccess { rejected ->
-                        if (rejected.isNotEmpty()) toast(R.string.skipped_settings, rejected.joinToString())
-                        // Widget IDs belong to the install that made them; drop the ones this install doesn't own.
-                        dropForeignWidgets()
-                        recreate()
-                    }.onFailure { toast(R.string.restore_failed, it.message) }
             }
             REQ_DOC -> data?.data?.takeIf { ok }?.let { onDocument?.invoke(it) ?: restarted() }.also { onDocument = null }
             REQ_ICON -> data?.data?.takeIf { ok }?.let { uri ->

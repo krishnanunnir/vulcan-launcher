@@ -71,6 +71,14 @@
             </intent-filter>
         </activity>
 
+        <!-- Settings, a screen over home. Its colours come from the palette (SettingsActivity.bars). -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- Receives "add to home screen" requests from apps (pinned shortcuts and widgets). -->
         <activity
             android:name=".PinActivity"

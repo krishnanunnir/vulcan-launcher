@@ -17,7 +17,7 @@ const val COLORS = "Colors"
 fun hex(c: Int) = String.format("#%06X", c and 0xFFFFFF)
 
 /** The custom colours page: a row per role showing its colour now, and a reset for all of them. */
-fun MainActivity.colorsPage(list: LinearLayout) {
+fun SettingsActivity.colorsPage(list: LinearLayout) {
     val set = looks.colors()
     val rows = COLOR_ROLES.map { (key, title) ->
         listItem(null, getString(title), set[key]?.let(::hex) ?: getString(R.string.color_from_theme), trailing = dot(m3.role(key))) { editColor(key, title) }
@@ -32,18 +32,18 @@ fun MainActivity.colorsPage(list: LinearLayout) {
         rows.forEach(::addView)
         if (set.isNotEmpty()) addView(listItem(null, getString(R.string.reset_colors), null) {
             looks.remove(COLOR_ROLES.map { "c_${it.first}" })
-            rebuild()
+            changed()
         })
     }, LinearLayout.LayoutParams(-1, -2).apply { setMargins((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt()) })
 }
 
-private fun MainActivity.dot(color: Int) = View(this).apply {
+private fun SettingsActivity.dot(color: Int) = View(this).apply {
     background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color); setStroke(dp.toInt(), m3.outlineVariant) }
     layoutParams = LinearLayout.LayoutParams((24 * dp).toInt(), (24 * dp).toInt())
 }
 
 /** Wallpaper tones and a few fixed hues, as Nova's swatches: rows of six from light to dark. */
-private fun MainActivity.swatches(): List<List<Int>> {
+private fun SettingsActivity.swatches(): List<List<Int>> {
     val tones = listOf(90, 80, 65, 50, 35, 20)
     val wallpaper = palette(this, darkPanels, "system").ramps.take(3)
     val hues = listOf(0xFFE53935, 0xFFFB8C00, 0xFFFDD835, 0xFF43A047, 0xFF1E88E5, 0xFF8E24AA).map { it.toInt() }
@@ -55,7 +55,7 @@ private fun MainActivity.swatches(): List<List<Int>> {
  * Picks [key]'s colour: swatches, hue/saturation/brightness sliders and a hex field, all kept in step, over a preview of
  * the scheme with the colour in it. Saving checks that text stays readable first.
  */
-private fun MainActivity.editColor(key: String, title: Int) {
+private fun SettingsActivity.editColor(key: String, title: Int) {
     val pad = (20 * dp).toInt()
     val hsv = FloatArray(3).also { Color.colorToHSV(m3.role(key), it) }
     var color = m3.role(key)
@@ -194,7 +194,7 @@ private fun MainActivity.editColor(key: String, title: Int) {
             addView(scroll)
         }
     }
-    fun save(c: Int) { looks["c_$key"] = hex(c); rebuild() }
+    fun save(c: Int) { looks["c_$key"] = hex(c); changed() }
     dialog().setTitle(title).setView(box)
         .setPositiveButton(R.string.save) { _, _ ->
             val c = color
@@ -206,7 +206,7 @@ private fun MainActivity.editColor(key: String, title: Int) {
                 .setPositiveButton(R.string.save_anyway) { _, _ -> save(c) }
                 .setNegativeButton(R.string.cancel, null).show()
         }
-        .setNeutralButton(R.string.reset) { _, _ -> looks.remove(listOf("c_$key")); rebuild() }
+        .setNeutralButton(R.string.reset) { _, _ -> looks.remove(listOf("c_$key")); changed() }
         .setNegativeButton(R.string.cancel, null).show()
         .also { saveButton = it.getButton(android.app.AlertDialog.BUTTON_POSITIVE) }
 }

@@ -28,7 +28,7 @@ Settings are declared once, as `Choice` entries in `LOOKS` (`Looks.kt`): stored 
 3. Apps that are missing for now (mid-update, disabled, on an unmounted SD card) are skipped, never deleted. Items are removed only when Android says the package or profile is gone for good.
 4. Items that no longer fit a smaller grid, dock or page count stay stored and come back when it grows.
 5. The layout file records its own format version and subgrid factor, so it reads correctly whatever the settings say. If it can't be read, the launcher falls back to the newest readable automatic backup; a single bad item is dropped on its own.
-6. Changing a setting recreates the activity and reopens the same settings page. Every colour comes from one palette built at startup from the theme setting and night mode.
+6. Settings is its own screen (`SettingsActivity`, over home in the home task, as Launcher3's). Changing a setting only marks home stale; home builds itself again once, in `onStart`, before it shows. Both activities extend `VulcanActivity` (settings, palette, dialogs). Every colour comes from one palette built at startup from the theme setting and night mode.
 
 ## Apps and profiles
 

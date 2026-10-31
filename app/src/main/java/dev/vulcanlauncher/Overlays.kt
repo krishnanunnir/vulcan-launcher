@@ -125,8 +125,6 @@ fun MainActivity.showOverlay(v: View, depth: Boolean = true, onClose: () -> Unit
 fun MainActivity.closeOverlay() {
     val v = overlay ?: return
     overlay = null
-    settingsPage = null
-    settingsScroll = null
     root.removeView(v)
     // An exit animation plays in the root's overlay layer: drawn, but already gone for touch, drags and Back.
     overlayExit?.let { exit -> root.overlay.add(v); exit { root.overlay.remove(v) } }
