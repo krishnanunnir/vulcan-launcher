@@ -1,0 +1,8 @@
+- Folders open out of their icon and close back into it, on home and in the drawer.
+- Dragging an app onto another shows where a folder will be made.
+- Back from a drawer folder returns to the drawer.
+- The long-press menu opens as soon as the press registers.
+- Icon swipe-up actions trigger reliably.
+- A sideways swipe in the drawer no longer opens an app.
+- Full-screen folders are centred, widgets are grouped by app and app shortcuts show icons.
+- No dim flash when one dialog opens another.
