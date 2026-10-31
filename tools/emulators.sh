@@ -93,7 +93,7 @@ flows_one() { # name [extra emulator flags…]
     adb -s "$s" shell cmd package set-home-activity dev.vulcanlauncher/.MainActivity >/dev/null
     adb -s "$s" shell input keyevent KEYCODE_WAKEUP
     adb -s "$s" shell wm dismiss-keyguard 2>/dev/null || true
-    MAESTRO_CLI_NO_ANALYTICS=1 maestro --device "$s" test -e VULCAN_HOME=true "$ROOT/flows" || failed=1
+    MAESTRO_CLI_NO_ANALYTICS=1 maestro --device "$s" test "$ROOT/flows" || failed=1
     adb -s "$s" emu kill >/dev/null 2>&1 || true
     sleep 3
     return "$failed"

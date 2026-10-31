@@ -1,14 +1,7 @@
 # Bring Vulcan to the front without stopping it: a force-stop drops its accessibility service.
-# Where Vulcan is the home app (the emulators pass -e VULCAN_HOME=true), Home is enough; elsewhere (Samsung stays the
-# default on the S23) it is launched. launchApp on the home app goes through the hand-off to home, which on Android 11
-# leaves the last app in front.
 appId: dev.vulcanlauncher
 ---
 - pressKey: Home
-- runFlow:
-    when:
-      true: ${typeof VULCAN_HOME == 'undefined' || VULCAN_HOME != 'true'}
-    commands:
-      - launchApp:
-          stopApp: false
+- launchApp:
+    stopApp: false
 - waitForAnimationToEnd

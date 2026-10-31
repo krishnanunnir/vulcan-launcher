@@ -446,8 +446,10 @@ class MainActivity : Activity() {
         if (intent.hasCategory(Intent.CATEGORY_HOME)) return false
         val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
         if (packageManager.resolveActivity(home, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName != packageName) return false
+        // Task removed first: on Android 11 this singleTask copy otherwise took the home intent itself and then
+        // finished, leaving the previous app in front.
+        finishAndRemoveTask()
         startActivity(home.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        finish()
         return true
     }
 

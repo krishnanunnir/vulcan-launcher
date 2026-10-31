@@ -659,7 +659,10 @@ class Drawer(private val a: MainActivity) {
         } ?: entryView(entries[0]).apply { visibility = View.INVISIBLE }).apply { // a filler as tall as a real cell, or GridView misplaces the row
             if (styleName == "list") return@apply
             if (!search.hasFocus() && parent.height > 0) cellH = (parent.height - parent.paddingTop - parent.paddingBottom) / rows
-            layoutParams = android.widget.AbsListView.LayoutParams(-1, if (cellH > 0) cellH else -2)
+            // Kept, not replaced: GridView marks the first cell it measures forceAdd, and new params lost that, so the
+            // cell was never attached to the window and accessibility skipped it.
+            (layoutParams as? android.widget.AbsListView.LayoutParams ?: android.widget.AbsListView.LayoutParams(-1, -2).also { layoutParams = it })
+                .height = if (cellH > 0) cellH else -2
         }
         override fun getSections(): Array<String> = sections
         override fun getPositionForSection(s: Int) = entries.indexOfFirst { letter(it) == sections.getOrNull(s) }.coerceAtLeast(0)
