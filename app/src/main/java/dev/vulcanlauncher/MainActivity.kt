@@ -1,6 +1,7 @@
 package dev.vulcanlauncher
 
 import android.accessibilityservice.AccessibilityService
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.ActivityOptions
@@ -60,6 +61,9 @@ class App(val info: LauncherActivityInfo, val serial: Long) {
 
 /** Drag payload for an item dragged out of a home-screen folder. */
 class FolderChild(val folder: Item, val index: Int)
+
+/** How far the page shrinks while dragging (Launcher3's spring-loaded state is about 0.8). */
+const val SPRING_SCALE = 0.8f
 
 class MainActivity : Activity() {
     companion object {
@@ -359,6 +363,16 @@ class MainActivity : Activity() {
                 if (floatingDock) setMargins((14 * dp).toInt(), (4 * dp).toInt(), (14 * dp).toInt(), (10 * dp).toInt())
             })
             if (search == "bottom") addView(searchBar())
+            // Spring-loaded, the page is a card: holding a drag beside it turns the page, as the edge of a full page does.
+            setOnDragListener { v, e ->
+                trackDrag(v, e)
+                if (e.action == DragEvent.ACTION_DRAG_LOCATION && spring > 0f) {
+                    val r = Rect().also(workspace::getHitRect)
+                    if (e.y >= r.top && e.y <= r.bottom && (e.x < r.left || e.x > r.right))
+                        edgeFlip(workspace, if (e.x < r.left) 0f else workspace.width.toFloat(), workspace.width)
+                }
+                e.action != DragEvent.ACTION_DROP
+            }
         }
         content = if (!landscape) pagesBox else LinearLayout(this).apply {
             addView(pagesBox, LinearLayout.LayoutParams(0, -1, 1f))
@@ -372,10 +386,12 @@ class MainActivity : Activity() {
         dropBar = LinearLayout(this).apply {
             visibility = View.GONE
             gravity = Gravity.CENTER
+            alpha = 0f
             val p = (12 * dp).toInt()
             setPadding(p, p, p, p)
-            listOf("remove", "info", "uninstall").forEach {
-                addView(dropTarget(it), LinearLayout.LayoutParams(0, (48 * dp).toInt(), 1f).apply { setMargins(p / 3, 0, p / 3, 0) })
+            // As in Launcher3: Remove (Cancel from the drawer), and Uninstall for apps that can be. App info is in the menu.
+            listOf("remove", "uninstall").forEach {
+                addView(dropTarget(it), LinearLayout.LayoutParams(-2, (48 * dp).toInt()).apply { setMargins(p / 2, 0, p / 2, 0) })
             }
         }
         root = FrameLayout(this).apply {
@@ -876,8 +892,8 @@ class MainActivity : Activity() {
         dragStart = null
         dragMoved = false
         (dropBar.getChildAt(0) as TextView).text = getString(if (payload is Item || payload is FolderChild) R.string.remove else R.string.cancel)
-        dropBar.getChildAt(1).visibility = if (appOf(payload) != null) View.VISIBLE else View.GONE
-        dropBar.getChildAt(2).visibility = if (appOf(payload) != null) View.VISIBLE else View.GONE
+        val system = appOf(payload)?.info?.applicationInfo?.let { it.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0 }
+        dropBar.getChildAt(1).visibility = if (system == false) View.VISIBLE else View.GONE
         v.startDragAndDrop(ClipData.newPlainText("", ""), View.DragShadowBuilder(v), payload, 0)
         if (payload is Item) v.alpha = 0.3f
         // The menu shows the moment the long-press registers, as on the wallpaper; moving the drag closes it (trackDrag).
@@ -906,6 +922,7 @@ class MainActivity : Activity() {
             dragMoved = true
             // A drag that never moves stays a long-press: no drop targets until it does.
             dropBar.visibility = View.VISIBLE
+            springLoad(true)
             root.tick()
             closeMenu()
             drawer.hide(animate = false)
@@ -931,28 +948,24 @@ class MainActivity : Activity() {
         true
     }
 
-    /** Drop target pill shown at the top while dragging; it fills with a container colour while hovered. */
-    private fun dropTarget(kind: String) = text(getString(when (kind) { "info" -> R.string.app_info; "uninstall" -> R.string.uninstall; else -> R.string.remove }), 14f, medium = true).apply {
+    /** Drop target shown at the top while dragging, as in Launcher3: an outline in the label colour, filled while hovered. */
+    private fun dropTarget(kind: String) = text(getString(if (kind == "uninstall") R.string.uninstall else R.string.remove), 14f, medium = true).apply {
         gravity = Gravity.CENTER
         maxLines = 1
         ellipsize = android.text.TextUtils.TruncateAt.END
-        val p = (8 * dp).toInt()
-        setPadding(p, 0, p, 0)
-        compoundDrawablePadding = p * 3 / 4
+        val p = (16 * dp).toInt()
+        setPadding(p, 0, p * 5 / 4, 0)
+        compoundDrawablePadding = p / 2
         fun look(hover: Boolean) {
-            val (bg, fg) = when {
-                !hover -> (m3.surfaceHigh and 0xFFFFFF or 0xF2000000.toInt()) to m3.onSurface
-                kind == "remove" -> m3.errorContainer to m3.onErrorContainer
-                else -> m3.primaryContainer to m3.onPrimaryContainer
-            }
-            background = rounded(bg, 24 * dp)
+            val line = looks.color("labelColor")
+            val fg = if (hover) m3.onPrimaryContainer else line
+            background = if (hover) rounded(m3.primaryContainer, 24 * dp) else rounded(0, 24 * dp, line, 1.5f * dp)
             setTextColor(fg)
-            setCompoundDrawablesRelative(symbol(when (kind) { "info" -> "info"; "uninstall" -> "delete"; else -> "close" }, fg, 20f).apply {
+            setCompoundDrawablesRelative(symbol(if (kind == "uninstall") "delete" else "close", fg, 20f).apply {
                 setBounds(0, 0, intrinsicWidth, intrinsicHeight)
             }, null, null, null)
         }
         look(false)
-        elevation = 3 * dp
         setOnDragListener { _, e ->
             val p = e.localState
             when (e.action) {
@@ -963,12 +976,56 @@ class MainActivity : Activity() {
                         is Item -> removeItem(p)
                         is FolderChild -> { removeFromFolder(p); save() }
                     }
-                    "info" -> appOf(p)?.let { launcherApps.startAppDetailsActivity(it.info.componentName, it.info.user, null, null) }
                     "uninstall" -> appOf(p)?.let { uninstall(it) }
                 }
                 DragEvent.ACTION_DRAG_ENDED -> { look(false); dragEnded() }
             }
             true
+        }
+    }
+
+    private var spring = 0f
+    private var springAnim: ValueAnimator? = null
+    private var springCard: View? = null
+
+    /**
+     * Launcher3's spring-loaded home while dragging: the page and its clock shrink into an outlined card, which leaves
+     * the top strip to the drop targets; the dock stays. [on] false grows it back.
+     */
+    // ponytail: one card for the current page; Launcher3 gives every page its own and lets the next one peek in.
+    private fun springLoad(on: Boolean) {
+        val block = listOfNotNull(glance, workspace)
+        val card = springCard ?: View(this).also { springCard = it; root.addView(it, 0) }
+        if (on && spring == 0f) {
+            fun rootX(v: View): Int { var x = 0; var p = v; while (p !== root) { x += p.left; p = p.parent as View }; return x }
+            fun rootY(v: View): Int { var y = 0; var p = v; while (p !== root) { y += p.top; p = p.parent as View }; return y }
+            val left = rootX(workspace)
+            val top = rootY(block.first())
+            val bottom = rootY(workspace) + workspace.height
+            // The card's top lands just under the drop targets; it scales about the point that puts it there.
+            val py = (insets.top + 76 * dp - SPRING_SCALE * top) / (1 - SPRING_SCALE)
+            val px = left + workspace.width / 2f
+            card.layoutParams = FrameLayout.LayoutParams(workspace.width, bottom - top, Gravity.TOP or Gravity.LEFT).apply { leftMargin = left; topMargin = top }
+            val line = looks.color("labelColor")
+            card.background = rounded(line and 0xFFFFFF or 0x1F000000, 28 * dp, line and 0xFFFFFF or 0x99000000.toInt(), 2 * dp)
+            for (v in block) { v.pivotX = px - rootX(v); v.pivotY = py - rootY(v) }
+            card.pivotX = px - left; card.pivotY = py - top
+        }
+        springAnim?.cancel()
+        springAnim = ValueAnimator.ofFloat(spring, if (on) 1f else 0f).apply {
+            duration = 300
+            interpolator = EASE
+            addUpdateListener {
+                spring = it.animatedValue as Float
+                val s = 1 - (1 - SPRING_SCALE) * spring
+                for (v in block + card) { v.scaleX = s; v.scaleY = s }
+                card.alpha = spring
+                dropBar.alpha = spring
+            }
+            if (!on) addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(a: android.animation.Animator) { if (spring == 0f) dropBar.visibility = View.GONE }
+            })
+            start()
         }
     }
 
@@ -979,7 +1036,7 @@ class MainActivity : Activity() {
         wiggles.forEach { it.cancel() }
         iconViews.forEach { it.image.rotation = 0f }
         wiggles = emptyList()
-        dropBar.visibility = View.GONE
+        springLoad(false)
         src.alpha = 1f
         val moved = dragMoved
         val payload = dragPayload

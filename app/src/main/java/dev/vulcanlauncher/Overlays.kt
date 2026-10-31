@@ -111,11 +111,12 @@ fun MainActivity.searchBar(): View {
     }
 }
 
-fun MainActivity.showOverlay(v: View, onClose: () -> Unit = {}) {
+/** [depth]: home recedes (blur, scale) behind it; folders keep home as it is, as in Launcher3. */
+fun MainActivity.showOverlay(v: View, depth: Boolean = true, onClose: () -> Unit = {}) {
     closeOverlay()
     root.addView(v)
     overlay = v
-    blurHome(true)
+    if (depth) blurHome(true)
     overlayClosed = onClose
 }
 

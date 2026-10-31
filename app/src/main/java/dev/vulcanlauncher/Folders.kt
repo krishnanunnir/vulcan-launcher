@@ -16,10 +16,10 @@ import android.graphics.drawable.Drawable
 import android.view.DragEvent
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.view.ViewOutlineProvider
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
-import android.view.animation.PathInterpolator
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -236,47 +236,81 @@ fun MainActivity.removeFromFolder(fc: FolderChild) {
 }
 
 /**
- * Launcher3's folder reveal: [card] grows out of the folder icon at [from] (root coordinates) into its rounded box,
- * its contents scaling up from the icon; closing ([open] false) runs it back into the icon and then calls [done].
+ * Launcher3's folder reveal. [card]'s background grows out of the folder icon's shape at [from] (root coordinates) into
+ * its rounded box, while each icon in [grid] flies from its spot in the icon's preview ([slots], fractions of the icon)
+ * to its cell; icons past the preview grow out of the icon's centre. [name] fades in last. Closing ([open] false) runs it
+ * all back into the icon, then calls [done]. It starts on the first frame after layout, so nothing flashes in place first.
  */
-private fun reveal(card: View, from: Rect, startCorner: Float, corner: Float, open: Boolean, dim: Drawable?, done: () -> Unit = {}) {
-    val s0 = 0.7f
+private fun MainActivity.reveal(card: View, grid: ViewGroup, name: View, from: Rect, slots: List<Slot>,
+                                startCorner: Float, corner: Float, open: Boolean, done: () -> Unit = {}) {
     var f = if (open) 0f else 1f
     fun lerp(x: Float, y: Float) = x + (y - x) * f
+    // The folder icon draws in the largest square of its view, centred.
+    val side = minOf(from.width(), from.height()).toFloat()
+    val sx = from.left + (from.width() - side) / 2
+    val sy = from.top + (from.height() - side) / 2
     card.outlineProvider = object : ViewOutlineProvider() {
         override fun getOutline(v: View, o: Outline) {
-            // The icon's box in the card's unscaled coordinates, grown by 1/s0 so that at scale s0 it covers the icon exactly.
-            val cx = from.exactCenterX() - v.left
-            val cy = from.exactCenterY() - v.top - v.translationY
-            val hw = from.width() / 2f / s0
-            val hh = from.height() / 2f / s0
-            o.setRoundRect(lerp(cx - hw, 0f).roundToInt(), lerp(cy - hh, 0f).roundToInt(),
-                lerp(cx + hw, v.width.toFloat()).roundToInt(), lerp(cy + hh, v.height.toFloat()).roundToInt(), lerp(startCorner / s0, corner))
+            val l = sx - v.left
+            val t = sy - v.top - v.translationY
+            o.setRoundRect(lerp(l, 0f).roundToInt(), lerp(t, 0f).roundToInt(), lerp(l + side, v.width.toFloat()).roundToInt(),
+                lerp(t + side, v.height.toFloat()).roundToInt(), lerp(startCorner, corner))
         }
     }
     card.clipToOutline = true
+    val iconFill = if (looks.str("folderBg") == "none") 0 else folderTint()
+    card.backgroundTintMode = android.graphics.PorterDuff.Mode.SRC_ATOP
+    /** Where one icon starts: offset from its cell (px), scale and rotation; [label] fades with the reveal. */
+    class Fly(val v: View, val dx: Float, val dy: Float, val s: Float, val rot: Float, val label: View?, val inPreview: Boolean)
+    var flies = emptyList<Fly>()
     fun frame() {
-        card.pivotX = from.exactCenterX() - card.left
-        card.pivotY = from.exactCenterY() - card.top - card.translationY
-        val s = lerp(s0, 1f)
-        card.scaleX = s; card.scaleY = s
-        dim?.alpha = (255 * f).roundToInt()
+        val k = 1 - f
+        for (fl in flies) fl.v.apply {
+            translationX = fl.dx * k; translationY = fl.dy * k
+            scaleX = lerp(fl.s, 1f); scaleY = scaleX
+            rotation = fl.rot * k
+            if (!fl.inPreview) alpha = f
+            fl.label?.alpha = ((f - 0.4f) / 0.6f).coerceIn(0f, 1f)
+        }
+        name.alpha = ((f - 0.5f) * 2).coerceIn(0f, 1f)
+        // The background starts in the folder icon's own colour and blends into the window's (Launcher3 does the same).
+        if (iconFill != 0) card.backgroundTintList = android.content.res.ColorStateList.valueOf(iconFill and 0xFFFFFF or ((1 - f) * 255).roundToInt().shl(24))
         card.invalidateOutline()
     }
-    frame()
-    ValueAnimator.ofFloat(f, if (open) 1f else 0f).apply {
-        duration = if (open) 380 else 240
-        // Material's emphasized decelerate in, accelerate out.
-        interpolator = if (open) PathInterpolator(0.05f, 0.7f, 0.1f, 1f) else PathInterpolator(0.3f, 0f, 0.8f, 0.15f)
-        addUpdateListener { f = it.animatedValue as Float; frame() }
-        addListener(object : AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: Animator) {
-                if (open) { card.clipToOutline = false; card.outlineProvider = ViewOutlineProvider.BACKGROUND }
-                done()
-            }
-        })
-        start()
+    fun begin() {
+        flies = (0 until grid.childCount).mapNotNull { i ->
+            val v = grid.getChildAt(i) as? IconView ?: return@mapNotNull null
+            val img = v.image
+            val r = screenRect(img)
+            val size = minOf(img.width, img.height).toFloat().coerceAtLeast(1f)
+            v.pivotX = img.left + img.width / 2f
+            v.pivotY = img.top + img.height / 2f
+            val label = if (v.childCount > 1) v.getChildAt(1) else null
+            val slot = slots.getOrNull(i)
+            if (slot != null) Fly(v, sx + slot.cx * side - r.exactCenterX(), sy + slot.cy * side - r.exactCenterY(),
+                slot.size * side / size, slot.rotation, label, true)
+            else Fly(v, sx + side / 2 - r.exactCenterX(), sy + side / 2 - r.exactCenterY(), 0.2f, 0f, label, false)
+        }
+        frame()
+        ValueAnimator.ofFloat(f, if (open) 1f else 0f).apply {
+            // Short cubic ease-out both ways: moving from the first frame and done when it looks done. Emphasized curves
+            // (a long creep in, a slow start out) measured as half a second of lag on a 120 Hz phone.
+            duration = if (open) 280 else 220
+            interpolator = DecelerateInterpolator(1.5f)
+            addUpdateListener { f = it.animatedValue as Float; frame() }
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    if (open) { card.clipToOutline = false; card.outlineProvider = ViewOutlineProvider.BACKGROUND; card.backgroundTintList = null }
+                    done()
+                }
+            })
+            start()
+        }
     }
+    if (card.isLaidOut && !card.isLayoutRequested) begin()
+    else card.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
+        override fun onPreDraw(): Boolean { card.viewTreeObserver.removeOnPreDrawListener(this); begin(); return true }
+    })
 }
 
 /** Opens a home-screen folder; its name is editable in the window. */
@@ -294,7 +328,7 @@ fun MainActivity.openFolder(item: Item) {
             save()
         }
         folder.children
-    }, anchor = views[item]?.let { screenRect((it as? IconView)?.image ?: it) }) { FolderChild(folder, it) }
+    }, icon = (views[item] as? IconView)?.image) { FolderChild(folder, it) }
 }
 
 /** Start of a [size] span centred on [center], kept within [min]..[max] (or at [min] if it doesn't fit). */
@@ -303,12 +337,13 @@ fun spanAround(center: Int, size: Int, min: Int, max: Int) = (center - size / 2)
 /**
  * Shows [children] in a pop-up or full-screen folder window. [payload] makes the drag payload for child [i].
  * With [reorder], an icon dropped on the grid moves there (it returns the new order); dragged off the grid, it leaves the window.
- * With [anchor] (the folder icon's image, window coordinates), the pop-up grows out of it and closes back into it, under
- * the thumb, instead of opening mid-screen.
+ * With [icon] (the folder icon's image), the pop-up grows out of it and closes back into it, under the thumb, instead of
+ * opening mid-screen; the icon hides while the folder is open, as in Launcher3.
  * It opens over whatever is showing: from the drawer, Back closes it back to the drawer.
  */
 fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename: ((String) -> Unit)?,
-                                  reorder: ((from: Int, to: Int) -> List<Item>)? = null, anchor: Rect? = null, payload: (Int) -> Any) {
+                                  reorder: ((from: Int, to: Int) -> List<Item>)? = null, icon: View? = null, payload: (Int) -> Any) {
+    val anchor = icon?.takeIf { it.isLaidOut }?.let(::screenRect)
     val full = looks.str("folderWindow") == "fullscreen"
     val base = style("")
     val style = IconStyle(base.sizePx, true, looks.labelSize("folderLabelSize"), panelText, false, base.iconShadow, font = base.font, lines = base.lines)
@@ -382,8 +417,8 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         Point(spanAround(anchor.centerX(), w, margin, right - margin),
             spanAround(anchor.centerY(), card.measuredHeight, insets.top + margin, bottom - margin))
     }
+    // No scrim, as in Launcher3: home stays as it is behind the folder; a tap outside still closes it.
     val dim = FrameLayout(this).apply {
-        setBackgroundColor(0x52000000)
         setOnClickListener { closeOverlay() }
         // Off the folder's grid, a reorderable icon leaves the window for the home screen.
         setOnDragListener { v, e ->
@@ -407,13 +442,16 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
             override fun onViewDetachedFromWindow(v: View) = v.viewTreeObserver.removeOnGlobalLayoutListener(lift)
         })
     }
-    showOverlay(dim) { onRename?.invoke(name.text.toString().trim()) }
+    showOverlay(dim, depth = false) { onRename?.invoke(name.text.toString().trim()) }
     if (spot != null && anchor != null) {
         val corner = looks.int("folderRadius") * dp
-        val iconCorner = anchor.width() * if (looks.str("folderBg") == "square") 0.2f else 0.5f
-        reveal(card, anchor, iconCorner, corner, open = true, dim = dim.background)
+        val iconCorner = minOf(anchor.width(), anchor.height()) * if (looks.str("folderBg") == "square") 0.2f else 0.5f
+        // The spots the first icons hold in the folder icon's preview, so each flies out of (and back into) its own.
+        val slots = folderPreview(looks.str("folderPreview"), children.take(6).count { resolve(it) != null }, looks.on("folderFirstBig"))
+        icon?.alpha = 0f
+        reveal(card, cell, name, anchor, slots, iconCorner, corner, open = true)
         // Dragging an icon out, Back, or a tap outside: the window shrinks back into its folder.
-        overlayExit = { done -> reveal(card, anchor, iconCorner, corner, open = false, dim = dim.background, done = done) }
+        overlayExit = { done -> reveal(card, cell, name, anchor, slots, iconCorner, corner, open = false) { icon?.alpha = 1f; done() } }
     } else if (!full) {
         card.scaleX = 0.9f; card.scaleY = 0.9f; card.alpha = 0f
         card.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(200).setInterpolator(DecelerateInterpolator()).start()
