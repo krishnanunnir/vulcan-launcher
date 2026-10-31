@@ -780,8 +780,9 @@ class MainActivity : Activity() {
     }
 
     fun folderIcon(children: List<Item>) = FolderIcon(children.take(6).mapNotNull { resolve(it)?.second },
-        looks.str("folderPreview"), looks.str("folderBg"),
-        if (looks.str("folderColor") == "system") m3.surfaceHigh and 0xFFFFFF or 0xE6000000.toInt() else looks.color("folderColor") and 0xFFFFFF or 0x99000000.toInt(), looks.on("folderClip"), looks.on("folderFirstBig"))
+        looks.str("folderPreview"), looks.str("folderBg"), folderTint(), looks.on("folderClip"), looks.on("folderFirstBig"))
+
+    private fun folderTint() = if (looks.str("folderColor") == "system") m3.surfaceHigh and 0xFFFFFF or 0xE6000000.toInt() else looks.color("folderColor") and 0xFFFFFF or 0x99000000.toInt()
 
     fun itemView(item: Item, style: IconStyle): View? {
         if (item.isWidget) return widgetView(item)
@@ -919,8 +920,12 @@ class MainActivity : Activity() {
     private fun dropListener(cell: CellLayout) = View.OnDragListener { v, e ->
         trackDrag(v, e)
         when (e.action) {
-            DragEvent.ACTION_DRAG_LOCATION -> edgeFlip(if (isDock(cell.page)) dock else workspace, e.x, cell.width)
-            DragEvent.ACTION_DROP -> return@OnDragListener drop(cell, e.x, e.y, e.localState)
+            DragEvent.ACTION_DRAG_LOCATION -> {
+                edgeFlip(if (isDock(cell.page)) dock else workspace, e.x, cell.width)
+                hoverMerge(cell, mergeTarget(cell, e.x, e.y, e.localState))
+            }
+            DragEvent.ACTION_DRAG_EXITED -> hoverMerge(cell, null)
+            DragEvent.ACTION_DROP -> { clearHover(); return@OnDragListener drop(cell, e.x, e.y, e.localState) }
             // An accepted drop's ENDED goes to the accepting view only, so every cell must clean up too.
             DragEvent.ACTION_DRAG_ENDED -> dragEnded()
         }
@@ -968,7 +973,48 @@ class MainActivity : Activity() {
         }
     }
 
+    private var hover: Item? = null
+    private var hoverCell: CellLayout? = null
+    private var ringAnim: android.animation.ValueAnimator? = null
+
+    /**
+     * Folder-create feedback, as in Launcher3: while a drag rests on an icon it can merge with, a folder-coloured
+     * disc grows behind that icon and the icon sinks a little into it; moving off shrinks the disc away.
+     */
+    private fun hoverMerge(cell: CellLayout, target: Item?) {
+        if (target == hover && (target == null || cell === hoverCell)) return
+        hover?.let { views[it] }?.let { (it as? IconView)?.image?.animate()?.scaleX(1f)?.scaleY(1f)?.setDuration(150)?.start() }
+        ringAnim?.cancel()
+        hoverCell?.takeIf { it !== cell }?.ringR = 0f
+        hover = target
+        hoverCell = cell
+        val image = target?.let { views[it] as? IconView }?.image
+        val to = if (image != null) {
+            val v = image.parent as View
+            cell.ringX = v.left + image.left + image.width / 2f
+            cell.ringY = v.top + image.top + image.height / 2f
+            cell.ringPaint.color = folderTint()
+            image.animate().scaleX(0.88f).scaleY(0.88f).setDuration(200).start()
+            cell.tick()
+            image.width * 0.75f
+        } else 0f
+        ringAnim = android.animation.ValueAnimator.ofFloat(cell.ringR, to).apply {
+            duration = if (to > 0) 220 else 150
+            interpolator = if (to > 0) android.view.animation.OvershootInterpolator(1.6f) else android.view.animation.DecelerateInterpolator()
+            addUpdateListener { cell.ringR = it.animatedValue as Float }
+            start()
+        }
+    }
+
+    private fun clearHover() {
+        ringAnim?.cancel()
+        hoverCell?.ringR = 0f
+        hover = null
+        hoverCell = null
+    }
+
     fun dragEnded() {
+        clearHover()
         val src = dragSource ?: return // ENDED can fan out to several listeners; first one wins
         dragSource = null
         wiggles.forEach { it.cancel() }
@@ -1011,6 +1057,15 @@ class MainActivity : Activity() {
         else -> null
     }
 
+    /** The icon or folder under ([px], [py]) that dropping [payload] there would merge into, or null. */
+    private fun mergeTarget(cell: CellLayout, px: Float, py: Float, payload: Any?): Item? {
+        if (!dragMoved || asChild(payload) == null) return null
+        val (fx, fy) = cell.cellAt(px, py)
+        val target = cell.viewAt(fx, fy)?.let { viewItems[it] } ?: return null
+        return target.takeIf { it != payload && !(payload is FolderChild && payload.folder == it) &&
+            (it.isApp || it.folder || it.isShortcut || it.isAction) }
+    }
+
     private fun drop(cell: CellLayout, px: Float, py: Float, payload: Any?): Boolean {
         if (!dragMoved) return false
         val moving = payload as? Item
@@ -1022,10 +1077,8 @@ class MainActivity : Activity() {
         val x = (gx - w / 2f + 0.5f).toInt().coerceIn(0, maxOf(0, cell.cols - w))
         val y = (gy - h / 2f + 0.5f).toInt().coerceIn(0, maxOf(0, cell.rows - h))
         val child = asChild(payload)
-        val (fx, fy) = cell.cellAt(px, py)
-        val target = cell.viewAt(fx, fy)?.let { viewItems[it] }
-        if (child != null && target != null && target != moving && !(payload is FolderChild && payload.folder == target) &&
-            (target.isApp || target.folder || target.isShortcut || target.isAction)) {
+        val target = mergeTarget(cell, px, py, payload)
+        if (child != null && target != null) {
             val merged = if (target.folder) target.copy(children = target.children + child)
                 else Item(target.page, target.x, target.y, target.w, target.h, folder = true, label = getString(R.string.folder), children = listOf(asChild(target)!!, child))
             detach(payload)
@@ -1033,6 +1086,11 @@ class MainActivity : Activity() {
             root.confirm()
             save()
             render()
+            // The new folder settles out of the hover disc's size.
+            (views[merged] as? IconView)?.image?.apply {
+                scaleX = 1.3f; scaleY = 1.3f
+                animate().scaleX(1f).scaleY(1f).setDuration(260).setInterpolator(android.view.animation.OvershootInterpolator(2f)).start()
+            }
             return true
         }
         val overlap = looks.on("widgetOverlap") && moving?.isWidget == true

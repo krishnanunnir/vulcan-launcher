@@ -1,6 +1,8 @@
 package dev.vulcanlauncher
 
 import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.view.View
 import android.view.ViewGroup
 
@@ -88,6 +90,18 @@ fun scaleItems(items: List<Item>, factor: Int): List<Item> = items.map {
 class CellLayout(context: Context, val cols: Int, val rows: Int, val page: Int, val transposed: Boolean = false) : ViewGroup(context) {
 
     class CellParams(val x: Int, val y: Int, val w: Int, val h: Int) : LayoutParams(0, 0)
+
+    /** Folder-create disc drawn behind the icons while a drag hovers on one: centre and radius (px); radius 0 hides it. */
+    var ringX = 0f
+    var ringY = 0f
+    var ringR = 0f
+        set(v) { field = v; invalidate() }
+    val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    override fun dispatchDraw(canvas: Canvas) {
+        if (ringR > 0) canvas.drawCircle(ringX, ringY, ringR, ringPaint)
+        super.dispatchDraw(canvas)
+    }
 
     val cellW get() = (if (transposed) height else width) / cols
     val cellH get() = (if (transposed) width else height) / rows
