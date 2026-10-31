@@ -264,7 +264,7 @@ fun MainActivity.tonalButton(label: String, onClick: () -> Unit) = text(label, 1
  * [tonalIcon] puts the icon in a primary-container circle, as on a settings home page.
  */
 fun MainActivity.listItem(icon: Drawable?, title: CharSequence, summary: CharSequence? = null, trailing: View? = null,
-                          dense: Boolean = false, tonalIcon: Boolean = false, appIcon: Boolean = false, onClick: ((View) -> Unit)?) = LinearLayout(this).apply {
+                          dense: Boolean = false, tonalIcon: Boolean = false, appIcon: Boolean = false, summaryLines: Int = 10, onClick: ((View) -> Unit)?) = LinearLayout(this).apply {
     gravity = Gravity.CENTER_VERTICAL
     minimumHeight = ((if (dense) 48 else if (summary == null) 56 else 72) * dp).toInt()
     val h = ((if (dense) 12 else 16) * dp).toInt()
@@ -284,7 +284,7 @@ fun MainActivity.listItem(icon: Drawable?, title: CharSequence, summary: CharSeq
         orientation = LinearLayout.VERTICAL
         // Short titles, explanations go in the summary; two lines so longer ones (and translations) aren't cut.
         addView(text(title, if (dense) 14f else 16f).apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END })
-        if (!summary.isNullOrEmpty()) addView(text(summary, 14f, m3.onSurfaceVariant).apply { maxLines = 10; ellipsize = android.text.TextUtils.TruncateAt.END })
+        if (!summary.isNullOrEmpty()) addView(text(summary, 14f, m3.onSurfaceVariant).apply { maxLines = summaryLines; ellipsize = android.text.TextUtils.TruncateAt.END })
     }, LinearLayout.LayoutParams(0, -2, 1f))
     trailing?.let { addView(it, ((it.layoutParams as? LinearLayout.LayoutParams) ?: LinearLayout.LayoutParams(-2, -2)).apply { marginStart = (16 * dp).toInt() }) }
 }

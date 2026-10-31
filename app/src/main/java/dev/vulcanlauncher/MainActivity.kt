@@ -724,7 +724,7 @@ class MainActivity : Activity() {
     fun shortcutsFor(a: App): List<ShortcutInfo> = runCatching {
         launcherApps.getShortcuts(LauncherApps.ShortcutQuery().setPackage(a.pkg).setActivity(a.info.componentName)
             .setQueryFlags(LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST), a.info.user)
-            .orEmpty().sortedBy { it.rank }.take(5)
+            .orEmpty().sortedBy { it.rank }.take(4) // Launcher3's MAX_SHORTCUTS
     }.getOrDefault(emptyList())
 
     private fun pinnedShortcut(item: Item): ShortcutInfo? = runCatching {
@@ -1156,7 +1156,7 @@ class MainActivity : Activity() {
         val rows = ArrayList<View>()
         val tiles = ArrayList<Triple<String, String, () -> Unit>>()
         fun row(icon: Drawable, text: String, summary: String? = null, long: ((View) -> Unit)? = null, click: () -> Unit) {
-            rows += listItem(icon, text, summary, dense = true) { closeMenu(); click() }.apply {
+            rows += listItem(icon, text, summary, dense = true, summaryLines = 2) { closeMenu(); click() }.apply {
                 // A drag that starts here closes the menu once it moves (see trackDrag).
                 if (long != null) setOnLongClickListener { v -> long(v); if (dragSource !== v) closeMenu(); true }
             }
@@ -1169,7 +1169,8 @@ class MainActivity : Activity() {
                 startShortcut(s.`package`, s.id, s.userHandle, anchor)
             }
         }
-        if (app != null && looks.on("popupNotifications")) BadgeService.byPackage[app.pkg].orEmpty().take(3).forEach { n ->
+        if (app != null && looks.on("popupNotifications")) // The newest only, as Launcher3 shows one notification at a time; long texts (promo SMS) filled the screen.
+        BadgeService.byPackage[app.pkg].orEmpty().sortedByDescending { it.postTime }.take(1).forEach { n ->
             val title = n.notification.extras.getCharSequence("android.title") ?: ""
             val body = n.notification.extras.getCharSequence("android.text") ?: ""
             row(symbol("notifications"), title.toString(), body.toString(), long = { BadgeService.instance?.cancelNotification(n.key) }) {
