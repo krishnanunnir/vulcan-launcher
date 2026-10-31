@@ -159,14 +159,12 @@
     <string name="group_dock">Док</string>
     <string name="group_drawer">Меню приложений</string>
     <string name="group_exists">Группа с таким именем уже существует</string>
-    <string name="group_folder">Папка: %1$s</string>
     <string name="group_folders">Папки</string>
     <string name="group_gestures">Жесты и ввод</string>
     <string name="group_home">Главный экран</string>
     <string name="group_look">Внешний вид</string>
     <string name="group_night">Ночной режим</string>
     <string name="group_now">Страница «Сейчас»</string>
-    <string name="group_tab">Вкладка: %1$s</string>
     <string name="hidden_apps">Скрытые приложения</string>
     <string name="hidden_apps_info">Не показывайте приложения в меню</string>
     <string name="hidden_hide">"Не показывать скрытые приложения"</string>
@@ -233,7 +231,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="new_folder">Новая папка</string>
     <string name="new_folder_item">＋ Новая папка</string>
     <string name="new_tab">Новая вкладка</string>
-    <string name="new_tab_item">＋ Новая вкладка</string>
     <string name="night_off">Выкл.</string>
     <string name="night_on">Всегда включён</string>
     <string name="night_schedule">По расписанию</string>
@@ -454,7 +451,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="shortcut_unavailable">"Ярлык недоступен (назначьте Vulcan лаунчером по умолчанию)"</string>
     <string name="shortcuts">Ярлыки</string>
     <string name="skipped_settings">"Пропущены настройки со значениями, которые Vulcan не может использовать: %1$s"</string>
-    <string name="smart_folders_item">✦ Создать умные папки</string>
     <string name="sort_az">По названию (А–Я)</string>
     <string name="sort_installed">Сначала недавно установленные</string>
     <string name="sort_used">Чаще используемые</string>
@@ -550,4 +546,18 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="perm_allow">Разрешить</string>
     <string name="perm_is_default">Выбран</string>
     <string name="perm_set_default">Выбрать</string>
+    <string name="groups_panel_tabs">Вкладки</string>
+    <string name="groups_panel_folders">Папки</string>
+    <string name="groups_panel_add">Добавить</string>
+    <string name="groups_empty">Вкладок и папок пока нет. Вкладки делят меню приложений на страницы, папки собирают приложения под одним значком.</string>
+    <string name="new_tab_info">Страница меню приложений только с выбранными приложениями</string>
+    <string name="new_folder_info">Выбранные приложения под одним значком в меню приложений</string>
+    <string name="smart_folders">Умные папки</string>
+    <string name="smart_folders_info">Папка для каждой категории приложений, например игры или соцсети</string>
+    <plurals name="group_apps">
+        <item quantity="one">%1$d приложение</item>
+        <item quantity="few">%1$d приложения</item>
+        <item quantity="many">%1$d приложений</item>
+        <item quantity="other">%1$d приложения</item>
+    </plurals>
 </resources>

@@ -634,7 +634,7 @@ class Drawer(private val a: MainActivity) {
                     a.looks["drawerSort"] = SORTS[i]; d.dismiss(); refresh()
                 }.show()
             }
-            row("tabs", a.getString(R.string.drawer_groups)) { a.groupsMenu() }
+            row("tabs", a.getString(R.string.drawer_groups)) { hide(); a.groupsMenu() }
             row("hide", a.getString(R.string.hidden_apps)) { a.hideAppsMenu() }
             row("settings", a.getString(R.string.launcher_settings)) { hide(); a.showSettings() }
         }

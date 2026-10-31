@@ -354,11 +354,7 @@
     <string name="icon_pack_unreadable">Can\'t read this icon pack</string>
     <string name="choose_icon">Choose icon</string>
     <string name="hide_apps">Hide apps</string>
-    <string name="group_tab">Tab: %1$s</string>
-    <string name="group_folder">Folder: %1$s</string>
-    <string name="new_tab_item">＋ New tab</string>
     <string name="new_folder_item">＋ New folder</string>
-    <string name="smart_folders_item">✦ Create smart folders</string>
     <string name="new_tab">New tab</string>
     <string name="new_folder">New folder</string>
     <string name="group_exists">A group with that name exists</string>
@@ -566,4 +562,16 @@
     <string name="perm_allow">Allow</string>
     <string name="perm_is_default">Default</string>
     <string name="perm_set_default">Set</string>
+    <string name="groups_panel_tabs">Tabs</string>
+    <string name="groups_panel_folders">Folders</string>
+    <string name="groups_panel_add">Add</string>
+    <string name="groups_empty">No tabs or folders yet. Tabs split the drawer into pages; folders gather apps under one icon.</string>
+    <string name="new_tab_info">A drawer page with only the apps you pick</string>
+    <string name="new_folder_info">Apps you pick, under one icon in the drawer</string>
+    <string name="smart_folders">Smart folders</string>
+    <string name="smart_folders_info">A folder for each app category, such as games or social</string>
+    <plurals name="group_apps">
+        <item quantity="one">%1$d app</item>
+        <item quantity="other">%1$d apps</item>
+    </plurals>
 </resources>

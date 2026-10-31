@@ -159,14 +159,12 @@
     <string name="group_dock">Dock</string>
     <string name="group_drawer">App-Übersicht</string>
     <string name="group_exists">Eine Gruppe mit diesem Namen existiert bereits</string>
-    <string name="group_folder">Ordner: %1$s</string>
     <string name="group_folders">Ordner</string>
     <string name="group_gestures">Gesten &amp; Eingaben</string>
     <string name="group_home">Startbildschirm</string>
     <string name="group_look">Aussehen &amp; Bedienung</string>
     <string name="group_night">Nachtmodus</string>
     <string name="group_now">Jetzt-Seite</string>
-    <string name="group_tab">Tab: %1$s</string>
     <string name="hidden_apps">Versteckte Apps</string>
     <string name="hidden_apps_info">Blende Apps aus der Übersicht aus</string>
     <string name="hidden_hide">"Versteckte Apps nicht anzeigen"</string>
@@ -233,7 +231,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="new_folder">Neuer Ordner</string>
     <string name="new_folder_item">＋ Neuer Ordner</string>
     <string name="new_tab">Neuer Tab</string>
-    <string name="new_tab_item">＋ Neuer Tab</string>
     <string name="night_off">Aus</string>
     <string name="night_on">Immer an</string>
     <string name="night_schedule">Zeitplan</string>
@@ -454,7 +451,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="shortcut_unavailable">"Verknüpfung ist nicht verfügbar (lege Vulcan als Standard-Launcher fest)"</string>
     <string name="shortcuts">Verknüpfungen</string>
     <string name="skipped_settings">"Übersprungene Einstellungen mit Werten, die Vulcan nicht nutzen kann: %1$s"</string>
-    <string name="smart_folders_item">✦ Smarte Ordner erstellen</string>
     <string name="sort_az">Titel (A–Z)</string>
     <string name="sort_installed">Neueste zuerst</string>
     <string name="sort_used">Meistgenutzt</string>
@@ -540,4 +536,16 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="perm_allow">Erlauben</string>
     <string name="perm_is_default">Standard</string>
     <string name="perm_set_default">Festlegen</string>
+    <string name="groups_panel_tabs">Tabs</string>
+    <string name="groups_panel_folders">Ordner</string>
+    <string name="groups_panel_add">Hinzufügen</string>
+    <string name="groups_empty">Noch keine Tabs oder Ordner. Tabs teilen die App-Übersicht in Seiten; Ordner fassen Apps unter einem Symbol zusammen.</string>
+    <string name="new_tab_info">Eine Seite der App-Übersicht nur mit den Apps deiner Wahl</string>
+    <string name="new_folder_info">Apps deiner Wahl unter einem Symbol in der App-Übersicht</string>
+    <string name="smart_folders">Intelligente Ordner</string>
+    <string name="smart_folders_info">Ein Ordner pro App-Kategorie, etwa Spiele oder Soziales</string>
+    <plurals name="group_apps">
+        <item quantity="one">%1$d App</item>
+        <item quantity="other">%1$d Apps</item>
+    </plurals>
 </resources>

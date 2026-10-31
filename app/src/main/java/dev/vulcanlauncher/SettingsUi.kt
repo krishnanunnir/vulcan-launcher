@@ -41,6 +41,7 @@ private val CATEGORY_INFO = mapOf(
 // Launcher pages under settings home, beside the categories.
 const val BACKUP = "Backup"
 const val PERMISSIONS = "Permissions"
+const val GROUPS = "Groups"
 
 private fun depth(page: String) = when (page) { "" -> 0; COLORS -> 2; else -> 1 }
 
@@ -58,9 +59,9 @@ fun MainActivity.showSettings(page: String = "", scroll: Int = 0, restoring: Boo
         setPadding(0, 0, 0, insets.bottom + (16 * dp).toInt())
     }
     var search: ((String) -> Unit)? = null
-    when (page) { "" -> search = settingsHome(list); COLORS -> colorsPage(list); BACKUP -> backupPage(list); PERMISSIONS -> permissionsPage(list); else -> settingsCategory(page, list) }
+    when (page) { "" -> search = settingsHome(list); COLORS -> colorsPage(list); BACKUP -> backupPage(list); PERMISSIONS -> permissionsPage(list); GROUPS -> groupsPage(list); else -> settingsCategory(page, list) }
     val scrollView = ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(list) }
-    val title = text(getString(when (page) { "" -> R.string.settings; COLORS -> R.string.custom_colors; BACKUP -> R.string.backup_restore; PERMISSIONS -> R.string.permissions; else -> GROUP_TITLES.getValue(page) }), 22f).apply { setPadding((8 * dp).toInt(), 0, 0, 0); maxLines = 1 }
+    val title = text(getString(when (page) { "" -> R.string.settings; COLORS -> R.string.custom_colors; BACKUP -> R.string.backup_restore; PERMISSIONS -> R.string.permissions; GROUPS -> R.string.drawer_groups; else -> GROUP_TITLES.getValue(page) }), 22f).apply { setPadding((8 * dp).toInt(), 0, 0, 0); maxLines = 1 }
     // Settings home, as One UI: a search button in the bar turns the title into the search field.
     val field = search?.let { onQuery -> EditText(this).apply {
         visibility = View.GONE
@@ -505,20 +506,31 @@ fun MainActivity.hideAppsMenu() = appSwitches(getString(R.string.hide_apps), sto
 private fun MainActivity.saveGroups(groups: List<Group>) {
     store.data.edit().putString("groups", groupsToJson(groups)).apply()
     drawer.refresh()
+    if (settingsPage == GROUPS) showSettings(GROUPS, settingsScroll?.scrollY ?: 0)
 }
 
-fun MainActivity.groupsMenu() {
+fun MainActivity.groupsMenu() = showSettings(GROUPS)
+
+/** The drawer's tabs and folders, each opening its edit menu, then the ways to add more. */
+private fun MainActivity.groupsPage(list: LinearLayout) {
     val groups = drawer.groups()
-    val names = groups.map { getString(if (it.type == "tab") R.string.group_tab else R.string.group_folder, it.name) } +
-        listOf(R.string.new_tab_item, R.string.new_folder_item, R.string.smart_folders_item).map(::getString)
-    dialog().setTitle(R.string.drawer_groups).setItems(names.toTypedArray()) { _, i ->
-        when (i - groups.size) {
-            0 -> newGroup("tab")
-            1 -> newGroup("folder")
-            2 -> smartFolders()
-            else -> editGroup(groups[i])
-        }
-    }.show()
+    fun row(icon: String, title: String, info: String, onClick: (View) -> Unit) =
+        listItem(symbol(icon, m3.onPrimaryContainer), title, info, tonalIcon = true, onClick = onClick)
+    fun groupRows(type: String, icon: String) = groups.filter { it.type == type }.map { g ->
+        row(icon, g.name, resources.getQuantityString(R.plurals.group_apps, g.apps.size, g.apps.size)) { editGroup(g) }
+    }
+    val tabs = groupRows("tab", "tabs")
+    val folders = groupRows("folder", "folder")
+    if (tabs.isNotEmpty()) panel(list, getString(R.string.groups_panel_tabs), tabs)
+    if (folders.isNotEmpty()) panel(list, getString(R.string.groups_panel_folders), folders)
+    if (groups.isEmpty()) list.addView(text(getString(R.string.groups_empty), 14f, m3.onSurfaceVariant).apply {
+        setPadding((32 * dp).toInt(), (8 * dp).toInt(), (32 * dp).toInt(), 0)
+    })
+    panel(list, getString(R.string.groups_panel_add), listOf(
+        row("tabs", getString(R.string.new_tab), getString(R.string.new_tab_info)) { newGroup("tab") },
+        row("folder", getString(R.string.new_folder), getString(R.string.new_folder_info)) { newGroup("folder") },
+        row("sparkle", getString(R.string.smart_folders), getString(R.string.smart_folders_info)) { smartFolders() },
+    ))
 }
 
 private fun MainActivity.askName(title: String, current: String, onName: (String) -> Unit) {
@@ -541,16 +553,19 @@ fun MainActivity.editGroup(g: Group) {
     val groups = drawer.groups()
     fun replace(n: Group?) = saveGroups(groups.mapNotNull { if (it.name == g.name) n else it })
     val other = if (g.type == "tab") "folder" else "tab"
-    val options = listOf(R.string.rename, R.string.choose_apps, if (other == "tab") R.string.convert_to_tab else R.string.convert_to_folder, R.string.delete)
-        .map(::getString).toTypedArray()
-    dialog().setTitle(g.name).setItems(options) { _, i ->
+    pickList(g.name, listOf(
+        symbol("edit") to getString(R.string.rename),
+        symbol("apps") to getString(R.string.choose_apps),
+        symbol(other.replace("tab", "tabs")) to getString(if (other == "tab") R.string.convert_to_tab else R.string.convert_to_folder),
+        symbol("delete") to getString(R.string.delete),
+    )) { i ->
         when (i) {
             0 -> askName(getString(R.string.rename), g.name) { replace(g.copy(name = it)) }
             1 -> chooseApps(g.name, g.apps) { replace(g.copy(apps = it)) }
             2 -> replace(g.copy(type = other))
             else -> replace(null)
         }
-    }.show()
+    }
 }
 
 fun MainActivity.addToGroup(key: String) {
