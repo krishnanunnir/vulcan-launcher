@@ -53,3 +53,14 @@ class PagingTest {
         assertEquals(-rubberBand(50f, 100f), rubberBand(-50f, 100f), 0f)
     }
 }
+
+class SwipedTabTest {
+    @org.junit.Test fun neighbours() {
+        val keys = listOf("", "work", "Games")
+        org.junit.Assert.assertEquals("work", swipedTab(keys, "", true))
+        org.junit.Assert.assertEquals("", swipedTab(keys, "work", false))
+        org.junit.Assert.assertNull(swipedTab(keys, "Games", true))
+        org.junit.Assert.assertNull(swipedTab(keys, "", false))
+        org.junit.Assert.assertNull(swipedTab(emptyList(), "", true))
+    }
+}

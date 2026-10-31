@@ -72,6 +72,10 @@ private val SCROLL_CUBIC = android.view.animation.Interpolator { t -> val u = t 
 /** [from]..[to] of [p] as 0..1, clamped (Launcher3's clampToProgress over a linear curve). */
 private fun span(p: Float, from: Float, to: Float) = ((p - from) / (to - from)).coerceIn(0f, 1f)
 
+/** The tab a sideways swipe lands on: the one after [current] in [keys] if [forward], else before; null at either end. */
+fun swipedTab(keys: List<String>, current: String, forward: Boolean): String? =
+    keys.getOrNull(keys.indexOf(current) + if (forward) 1 else -1)
+
 /** Tag on a drawer view that shows an app, so GridView can hand it back for another app. */
 private const val APP_VIEW = "app"
 
@@ -305,8 +309,12 @@ class Drawer(private val a: MainActivity) {
             setOnTouchListener { _, ev ->
                 // GridView keeps a tap alive until the finger leaves the whole list, so a sideways swipe that started on
                 // an icon would open it on release. Sideways is no tap: cancel it, and ignore the rest of that touch.
+                // A sideways swipe moves to the next or previous tab.
                 if (ev.actionMasked == MotionEvent.ACTION_DOWN) sideways = false
-                else if (sideways) return@setOnTouchListener true
+                else if (sideways) {
+                    if (ev.actionMasked == MotionEvent.ACTION_UP) swipeTab(ev.x - startX)
+                    return@setOnTouchListener true
+                }
                 if (ev.actionMasked == MotionEvent.ACTION_MOVE && !closing && abs(ev.x - startX) > touchSlop && abs(ev.x - startX) > abs(ev.y - startY)) {
                     sideways = true
                     MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; onTouchEvent(it); it.recycle() }
@@ -531,12 +539,25 @@ class Drawer(private val a: MainActivity) {
 
     fun refreshBadges() { if (visible) grid.invalidateViews() }
 
+    /** The tab keys in chip order, as [buildTabs] last laid them out; empty while the chips are hidden. */
+    private var tabKeys = listOf<String>()
+
+    /** A sideways swipe of [dx] px over the list: a finger moving left goes to the next tab (right in right-to-left). */
+    private fun swipeTab(dx: Float) {
+        if (abs(dx) < 48 * a.dp) return
+        val rtl = root.layoutDirection == View.LAYOUT_DIRECTION_RTL
+        swipedTab(tabKeys, tab, (dx < 0) != rtl)?.let { tab = it; refresh() }
+    }
+
     private fun buildTabs(groups: List<Group>, workTab: Boolean, privateTab: Boolean, show: Boolean) {
         tabs.removeAllViews()
         val names = listOf("" to a.getString(R.string.tab_all)) + (if (workTab) listOf("work" to a.getString(R.string.tab_work)) else emptyList()) +
             (if (privateTab) listOf("private" to a.getString(R.string.tab_private)) else emptyList()) +
             groups.filter { it.type == "tab" }.map { it.name to it.name }
         tabScroll.visibility = if (show && names.size > 1) View.VISIBLE else View.GONE
+        tabKeys = if (tabScroll.visibility == View.VISIBLE) names.map { it.first } else emptyList()
+        // Keep the selected chip on screen when a swipe lands on one scrolled out of view.
+        tabs.post { tabs.getChildAt(tabKeys.indexOf(tab).coerceAtLeast(0))?.let { it.requestRectangleOnScreen(android.graphics.Rect(0, 0, it.width, it.height)) } }
         // M3 filter chips: the selected one filled with the secondary container and a check mark. Housing: a raised
         // key; the others are plain legends.
         for ((key, title) in names) tabs.addView(a.text(title, 14f, if (key == tab) a.m3.onSecondaryContainer else a.m3.onSurfaceVariant, medium = true).apply {
