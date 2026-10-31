@@ -335,6 +335,15 @@ fun MainActivity.openFolder(item: Item) {
 fun spanAround(center: Int, size: Int, min: Int, max: Int) = (center - size / 2).coerceIn(min, maxOf(min, max - size))
 
 /**
+ * A folder window's columns and cell width for [n] items. Sized to its contents, as in Launcher3: 2 items 2×1, 4 are 2×2,
+ * 6 are 3×2, up to four columns. Cells narrow from [cellW] to fit [avail] px; a column goes only when they'd be under [minW].
+ */
+fun folderGrid(n: Int, cellW: Int, minW: Int, avail: Int): Pair<Int, Int> {
+    val cols = ceil(sqrt(n.toDouble())).toInt().coerceIn(1, 4).coerceAtMost(maxOf(1, avail / minW))
+    return cols to minOf(cellW, avail / cols)
+}
+
+/**
  * Shows [children] in a pop-up or full-screen folder window. [payload] makes the drag payload for child [i].
  * With [reorder], an icon dropped on the grid moves there (it returns the new order); dragged off the grid, it leaves the window.
  * With [icon] (the folder icon's image), the pop-up grows out of it and closes back into it, under the thumb, instead of
@@ -347,11 +356,10 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
     val full = looks.str("folderWindow") == "fullscreen"
     val base = style("")
     val style = IconStyle(base.sizePx, true, looks.labelSize("folderLabelSize"), panelText, false, base.iconShadow, font = base.font, lines = base.lines)
-    // Sized to its contents, as in Launcher3: 2 items 2×1, 4 are 2×2, 6 are 3×2, up to four columns.
-    val cols = ceil(sqrt(children.size.toDouble())).toInt().coerceIn(1, 4)
+    // Within the screen, less the window's margins and padding (16 dp each side).
+    val (cols, cellW) = folderGrid(children.size, base.sizePx + (36 * dp).toInt(), base.sizePx + (8 * dp).toInt(), root.width - (64 * dp).toInt())
     val rows = maxOf(1, ceil(children.size / cols.toDouble()).toInt())
     val cellH = base.sizePx + (44 * dp).toInt()
-    val cellW = base.sizePx + (36 * dp).toInt()
     val cell = CellLayout(this, cols, rows, 0)
     fun fill(list: List<Item>) {
         cell.removeAllViews()
