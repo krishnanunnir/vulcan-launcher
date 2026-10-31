@@ -2,12 +2,16 @@ package dev.vulcanlauncher
 
 import android.animation.ValueAnimator
 import android.content.Context
+import android.graphics.Canvas
+import android.os.Build
 import android.os.Bundle
 import android.view.MotionEvent
 import android.view.VelocityTracker
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
+import android.view.animation.Interpolator
+import android.widget.EdgeEffect
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction
 import kotlin.math.abs
@@ -15,15 +19,43 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
-/** The page a released swipe settles on, from the scroll position [pos] (in pages): flung pages move one step that way, else the nearest. */
-fun flingPage(pos: Float, vx: Float, minFling: Float) = when {
-    vx < -minFling -> floor(pos).toInt() + 1
-    vx > minFling -> ceil(pos).toInt() - 1
-    else -> pos.roundToInt()
+/**
+ * The page a released swipe settles on, by Launcher3's rule. [pos]: scroll position in pages; [from]: the page the swipe
+ * started on; [vx]: release velocity (px/s, negative toward the next page). A fling faster than [flingV], or a drag past
+ * 40% of a page, moves one page on (a fling's direction wins); flung back against a long drag, it returns. Else the nearest.
+ */
+fun releasePage(from: Int, pos: Float, vx: Float, flingV: Float): Int {
+    val base = if (pos >= from) floor(pos).toInt() else ceil(pos).toInt() // the page being left
+    val delta = pos - base
+    val fling = abs(vx) > flingV
+    val significant = abs(delta) > 0.4f
+    if (!fling && !significant) return pos.roundToInt()
+    val forward = if (fling) vx < 0 else delta > 0
+    return when {
+        fling && significant && forward != (delta > 0) -> base
+        forward -> if (delta < 0) base else base + 1
+        else -> if (delta > 0) base else base - 1
+    }
 }
 
-/** Overscroll past an edge by [over] px, damped so it resists more the further it goes and never passes [limit]. */
+/**
+ * Launcher3's page-snap duration (ms) for [dist] px on [width]-px pages: 750 ms after a slow release, else timed from
+ * the release [velocity] (px/s, at least [minSnapV]) over a distance eased toward half a page.
+ */
+fun snapDuration(dist: Int, width: Int, velocity: Float, minFlingV: Float, minSnapV: Float): Long {
+    if (abs(velocity) < minFlingV || width == 0) return 750
+    val half = width / 2f
+    val ratio = minOf(1f, dist / width.toFloat())
+    val distance = half + half * sin((ratio - 0.5f) * 0.3f * Math.PI.toFloat() / 2)
+    return 4 * (1000 * distance / maxOf(minSnapV, abs(velocity))).roundToInt().toLong()
+}
+
+/** Launcher3's SCROLL curve: quintic ease-out, so a snapped page lands softly. */
+val SCROLL = Interpolator { t -> val u = t - 1; u * u * u * u * u + 1 }
+
+/** Before Android 12 (no stretch overscroll): overscroll past an edge by [over] px, damped so it resists more the further it goes and never passes [limit]. */
 fun rubberBand(over: Float, limit: Float) = if (limit <= 0f) 0f else Math.copySign(limit * (1 - 1 / (abs(over) * 0.55f / limit + 1)), over)
 
 /**
@@ -46,7 +78,19 @@ class Workspace(context: Context) : ViewGroup(context) {
     var current = 0
         private set
     private val slop = ViewConfiguration.get(context).scaledTouchSlop
-    private val minFling = ViewConfiguration.get(context).scaledMinimumFlingVelocity * 4
+    // Launcher3's paging thresholds: twice the touch slop to start, 500 dp/s to fling, 250 dp/s to time a snap by speed.
+    private val pageSlop = ViewConfiguration.get(context).scaledPagingTouchSlop
+    private val density = context.resources.displayMetrics.density
+    private val flingV = 500 * density
+    private val minFling = 250 * density
+    private val minSnapV = 1500 * density
+    private var fromPage = 0
+    // Android 12+: Launcher3's stretch at the first and last page. Earlier versions keep the rubber band.
+    private val stretch = Build.VERSION.SDK_INT >= 31
+    private val edgeLeft = EdgeEffect(context)
+    private val edgeRight = EdgeEffect(context)
+    private var pulledLeft = 0f
+    private var pulledRight = 0f
     private val doubleTapTimeout = ViewConfiguration.getDoubleTapTimeout()
     private var downX = 0f
     private var downY = 0f
@@ -86,12 +130,8 @@ class Workspace(context: Context) : ViewGroup(context) {
         anim?.cancel()
         if (!animate || width == 0 || scrollX == current * width) { scrollTo(current * width, 0); return }
         anim = ValueAnimator.ofInt(scrollX, current * width).apply {
-            // Flung: a decelerate curve starts at twice its average speed, so this duration matches the finger.
-            // Released slowly (or no finger): ease out from rest instead, so the page doesn't lurch off at speed.
-            val dist = abs(current * width - scrollX)
-            val flung = abs(velocity) >= minFling
-            duration = if (flung) (2000 * dist / abs(velocity)).toLong().coerceIn(120, 300) else (220 * maxOf(0.5f, dist / width.toFloat())).toLong()
-            interpolator = if (flung) android.view.animation.DecelerateInterpolator() else EASE
+            duration = snapDuration(abs(current * width - scrollX), width, velocity, minFling, minSnapV)
+            interpolator = SCROLL
             addUpdateListener { scrollTo(it.animatedValue as Int, 0) }
             start()
         }
@@ -156,7 +196,7 @@ class Workspace(context: Context) : ViewGroup(context) {
                     val dx = abs(ev.x - downX)
                     val dy = abs(ev.y - downY)
                     // The page starts moving from where the finger is now, not jumping the slop it took to decide.
-                    if (dx > slop && dx > dy) { mode = HORIZONTAL; startScroll += (ev.x - downX).toInt() }
+                    if (dx > pageSlop && dx > dy) { mode = HORIZONTAL; fromPage = current; startScroll += (ev.x - downX).toInt() }
                     // Up from an icon with its own swipe action: left to the icon, even when the first move is a long one.
                     else if (dy > slop && dy > dx) mode = if (ev.y < downY && swipesItself(downX, downY)) CHILD else VERTICAL
                 }
@@ -190,13 +230,45 @@ class Workspace(context: Context) : ViewGroup(context) {
         when {
             mode == HORIZONTAL && current == 0 && dx > slop * 6 && !infinite && scrollX <= 0 -> { snapTo(0); onGesture("swipeRight") }
             mode == HORIZONTAL && current == last && dx < -slop * 6 && !infinite && scrollX >= last * width -> { snapTo(last); onGesture("swipeLeft") }
-            mode == HORIZONTAL -> snapTo(flingPage(scrollX / maxOf(1, width).toFloat(), vx, minFling.toFloat()), velocity = vx)
+            mode == HORIZONTAL -> snapTo(releasePage(fromPage, scrollX / maxOf(1, width).toFloat(), vx, flingV), velocity = vx)
             mode == VERTICAL && pulling -> onPull?.invoke(-dy - slop, -vy, true)
             mode == VERTICAL && dy < -slop * 3 -> onGesture(if (doubleTapDown) "doubleTapUp" else "swipeUp")
             mode == VERTICAL && dy > slop * 3 -> onGesture(if (doubleTapDown) "doubleTapDown" else "swipeDown")
         }
         if (mode != NONE) lastTapUp = 0
         velocity?.recycle(); velocity = null; mode = NONE; doubleTapDown = false; pulling = false
+        if (pulledLeft != 0f || pulledRight != 0f) { edgeLeft.onRelease(); edgeRight.onRelease(); pulledLeft = 0f; pulledRight = 0f; postInvalidateOnAnimation() }
+    }
+
+    /** Stretches the edge being pulled past by [over] px (negative: before the first page), as a share of the page. */
+    private fun pull(over: Float, y: Float) {
+        if (Build.VERSION.SDK_INT < 31 || width == 0) return
+        val left = maxOf(0f, -over) / width
+        val right = maxOf(0f, over) / width
+        if (left != pulledLeft) { edgeLeft.onPullDistance(left - pulledLeft, 1 - y / height); pulledLeft = left }
+        if (right != pulledRight) { edgeRight.onPullDistance(right - pulledRight, y / height); pulledRight = right }
+        postInvalidateOnAnimation()
+    }
+
+    override fun dispatchDraw(canvas: Canvas) {
+        super.dispatchDraw(canvas)
+        // The edges draw as HorizontalScrollView's do; on Android 12+ drawing one stretches this whole view.
+        if (!edgeLeft.isFinished) {
+            val s = canvas.save()
+            canvas.rotate(270f)
+            canvas.translate(-height.toFloat(), scrollX.toFloat())
+            edgeLeft.setSize(height, width)
+            if (edgeLeft.draw(canvas)) postInvalidateOnAnimation()
+            canvas.restoreToCount(s)
+        }
+        if (!edgeRight.isFinished) {
+            val s = canvas.save()
+            canvas.rotate(90f)
+            canvas.translate(0f, -(scrollX + width).toFloat())
+            edgeRight.setSize(height, width)
+            if (edgeRight.draw(canvas)) postInvalidateOnAnimation()
+            canvas.restoreToCount(s)
+        }
     }
 
     override fun onInterceptTouchEvent(ev: MotionEvent) = track(ev)
@@ -207,7 +279,11 @@ class Workspace(context: Context) : ViewGroup(context) {
             val max = (childCount - 1) * width
             val x = (startScroll - (ev.x - downX)).toInt()
             val inside = x.coerceIn(0, max)
-            scrollTo(if (infinite) inside else inside + rubberBand((x - inside).toFloat(), width / 8f).toInt(), 0)
+            when {
+                infinite -> scrollTo(inside, 0)
+                stretch -> { scrollTo(inside, 0); pull((x - inside).toFloat(), ev.y) }
+                else -> scrollTo(inside + rubberBand((x - inside).toFloat(), width / 8f).toInt(), 0)
+            }
         }
         return true
     }
