@@ -54,8 +54,23 @@ fun tabApps(ordered: List<String>, groups: List<Group>, tab: String, hidden: Set
     }
 }
 
-/** Whether a released drawer pull ends open: flung up faster than [fling] (px/s, upward positive), or past halfway unless flung down. */
-fun drawerOpens(progress: Float, vy: Float, fling: Float) = vy > fling || vy > -fling && progress > 0.5f
+/**
+ * Whether a released drawer pull ends open: flung up faster than [fling] (px/s, upward positive), or past [threshold]
+ * unless flung down. A pull up commits at 30% (Launcher3: 40%), a pull down closes below 70%.
+ */
+fun drawerOpens(progress: Float, vy: Float, fling: Float, threshold: Float = 0.5f) = vy > fling || vy > -fling && progress > threshold
+
+/**
+ * Launcher3's swipe-release duration (BaseSwipeDetector.calculateDuration), on an 800 ms base instead of its 1200 for a
+ * quicker finish: [v] release speed in px/ms, [remaining] progress left.
+ */
+fun swipeDuration(v: Float, remaining: Float) = maxOf(80L, (800f / maxOf(2f, abs(0.5f * v)) * maxOf(0.2f, remaining)).toLong())
+
+/** Launcher3's release curve (scrollInterpolatorForVelocity): quintic ease-out after a fast fling, else cubic. */
+private val SCROLL_CUBIC = android.view.animation.Interpolator { t -> val u = t - 1; u * u * u + 1 }
+
+/** [from]..[to] of [p] as 0..1, clamped (Launcher3's clampToProgress over a linear curve). */
+private fun span(p: Float, from: Float, to: Float) = ((p - from) / (to - from)).coerceIn(0f, 1f)
 
 /** Tag on a drawer view that shows an app, so GridView can hand it back for another app. */
 private const val APP_VIEW = "app"
@@ -295,27 +310,30 @@ class Drawer(private val a: MainActivity) {
                     return@setOnTouchListener true
                 }
                 // Pull down from the top of the list: the drawer follows the finger and closes on release (or searches).
-                velocity?.addMovement(ev)
+                // In screen coordinates too, so a flick's speed isn't halved by the moving list.
+                fun track(t: android.view.VelocityTracker?) = t?.let { v -> MotionEvent.obtain(ev).also { it.setLocation(ev.rawX, ev.rawY); v.addMovement(it); it.recycle() } }
+                track(velocity)
                 when (ev.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
-                        downY = ev.y; closing = false
+                        // Screen coordinates: the list moves with the sheet, so its own would halve the pull.
+                        downY = ev.rawY; closing = false
                         startX = ev.x; startY = ev.y
-                        velocity?.recycle(); velocity = android.view.VelocityTracker.obtain().apply { addMovement(ev) }
+                        velocity?.recycle(); velocity = android.view.VelocityTracker.obtain().also { track(it) }
                     }
-                    MotionEvent.ACTION_MOVE -> if (!closing && ev.y - downY > 24 * a.dp && !canScrollVertically(-1)) {
+                    MotionEvent.ACTION_MOVE -> if (!closing && ev.rawY - downY > 24 * a.dp && !canScrollVertically(-1)) {
                         if (a.looks.on("pullToSearch")) {
-                            if (ev.y - downY > 96 * a.dp) {
+                            if (ev.rawY - downY > 96 * a.dp) {
                                 downY = Float.MAX_VALUE
                                 focusSearch()
                             }
-                        } else { closing = true; downY = ev.y; stop() }
+                        } else { closing = true; downY = ev.rawY; stop() }
                     }
                 }
                 if (!closing) return@setOnTouchListener false
-                if (ev.actionMasked == MotionEvent.ACTION_MOVE) setProgress(1 - (ev.y - downY) / travel())
+                if (ev.actionMasked == MotionEvent.ACTION_MOVE) setProgress(1 - (ev.rawY - downY) / travel())
                 if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
                     velocity?.computeCurrentVelocity(1000)
-                    release(-(velocity?.yVelocity ?: 0f))
+                    release(-(velocity?.yVelocity ?: 0f), 0.7f)
                     closing = false
                 }
                 true
@@ -329,33 +347,46 @@ class Drawer(private val a: MainActivity) {
     private var anim: android.animation.ValueAnimator? = null
     private var keyboardOnOpen = false
 
-    /** Finger travel that fully opens or closes the drawer. */
-    private fun travel() = maxOf(1f, a.root.height * 0.35f)
+    /** Finger travel that fully opens or closes the drawer (Launcher3's phones: 300 dp; shorter here, so it's quicker). */
+    private fun travel() = 220 * a.dp
 
-    /** The drawer at [p]: it fades in while rising [travel]/4, as home blurs and recedes behind it. Linear, so it stays under the finger. */
+    /**
+     * Opaque panels hand home over, as One UI does: home lifts and fades out as the drawer covers it, so it isn't
+     * blurred every frame. Glass and housing keep home showing (blurred or dimmed) behind them.
+     */
+    private val handover = !housing && !glass
+
+    /**
+     * The drawer at [p], staged as Launcher3's swipe to all apps on phones but earlier: the sheet rises [travel] with the
+     * finger, its background fading in over 5–30% and the apps over 25–60%, while home sinks back and is gone by 30%.
+     */
     private fun setProgress(p: Float) {
         progress = p.coerceIn(0f, 1f)
         root.visibility = View.VISIBLE
-        root.alpha = minOf(1f, progress * 2)
-        root.translationY = (1 - progress) * travel() / 4
-        if (glass && a.glassBlur) root.semBlur((40 * a.dp * progress).toInt(), a.glassTint(true), 0f)
-        if (a.overlay == null) a.setDepth(progress)
+        root.alpha = span(progress, 0.05f, 0.3f)
+        val apps = span(progress, 0.25f, 0.6f)
+        for (i in 0 until root.childCount) root.getChildAt(i).alpha = apps
+        root.translationY = (1 - progress) * travel()
+        val home = span(progress, 0f, 0.3f)
+        if (glass && a.glassBlur) root.semBlur((40 * a.dp * home).toInt(), a.glassTint(true), 0f)
+        if (a.overlay == null) a.setDepth(home, blur = !handover)
+        if (handover) { a.content.alpha = 1 - home; a.content.translationY = -home * 48 * a.dp }
     }
 
-    /** Animates to open or closed from wherever the drawer is; [speed] (px/s, upward positive) shortens a flung finish. */
-    private fun settle(open: Boolean, speed: Float = 0f) {
+    /**
+     * Animates to open or closed from wherever the drawer is. [speed]: the release speed (px/s, upward positive) after a
+     * finger pull, timed as Launcher3 does; null for a button or Back.
+     */
+    private fun settle(open: Boolean, speed: Float? = null) {
         stop()
         val to = if (open) 1f else 0f
         val left = kotlin.math.abs(to - progress)
         // Already there: finish now, so the keyboard isn't held back by an animation that moves nothing.
         if (left == 0f) { setProgress(to); if (!open) gone() else opened(); return }
-        // ponytail: duration from remaining distance and fling speed, not a real spring; good enough at 60–120 Hz.
-        // DecelerateInterpolator(1.6) starts at 3.2× its average speed, so this duration starts at the finger's speed.
-        val ms = if (kotlin.math.abs(speed) > 0f) (left * travel() / kotlin.math.abs(speed) * 1000 * 3.2f).toLong().coerceIn(140, 320)
-            else ((if (open) 240 else 170) * maxOf(0.4f, left)).toLong()
+        val pxMs = (speed ?: 0f) / 1000
         anim = android.animation.ValueAnimator.ofFloat(progress, to).apply {
-            duration = ms
-            interpolator = android.view.animation.DecelerateInterpolator(1.6f)
+            duration = if (speed != null) swipeDuration(pxMs, left) else ((if (open) 260 else 200) * maxOf(0.4f, left)).toLong()
+            interpolator = if (speed == null) android.view.animation.DecelerateInterpolator(1.6f) else if (abs(pxMs) > 10) SCROLL else SCROLL_CUBIC
             addUpdateListener { setProgress(it.animatedValue as Float) }
             addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(x: android.animation.Animator) { if (anim === x) { anim = null; if (!open) gone() else opened() } }
@@ -382,8 +413,11 @@ class Drawer(private val a: MainActivity) {
 
     private fun gone() {
         root.alpha = 1f
+        for (i in 0 until root.childCount) root.getChildAt(i).alpha = 1f
         root.visibility = View.GONE
         root.semBlur(0, 0, 0f)
+        a.content.alpha = 1f
+        a.content.translationY = 0f
         // A drag in progress still routes events to a GONE view by its bounds, so move it off-screen too.
         root.translationY = root.height.toFloat()
         progress = 0f
@@ -397,22 +431,23 @@ class Drawer(private val a: MainActivity) {
 
     /**
      * Home's swipe up, while the finger is still down: [up] px pulled so far. On release ([end]) the drawer opens
-     * if flung up ([vy] px/s, upward positive) or pulled past halfway. Returns false for a pull that starts downward.
+     * if flung up ([vy] px/s, upward positive) or pulled past 30% of [travel]. Returns false for a pull that starts downward.
      */
     fun pull(up: Float, vy: Float, end: Boolean): Boolean {
         if (!end && !visible && up <= 0f) return false
         if (!visible) prepare()
         stop()
         if (end) {
-            val open = release(vy)
+            val open = release(vy, 0.3f)
             if (open) root.tick()
         } else setProgress(up / travel())
         return true
     }
 
-    /** Ends a finger-driven pull: opens if flung up or past halfway, unless flung down. Returns whether it opens. */
-    private fun release(vy: Float): Boolean {
-        val open = drawerOpens(progress, vy, 600 * a.dp)
+    /** Ends a finger-driven pull: opens if flung up or past [threshold], unless flung down. Returns whether it opens. */
+    private fun release(vy: Float, threshold: Float): Boolean {
+        // Launcher3 counts anything over 1 dp/ms as a fling.
+        val open = drawerOpens(progress, vy, 1000 * a.dp, threshold)
         settle(open, vy)
         return open
     }

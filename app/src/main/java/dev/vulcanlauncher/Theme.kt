@@ -408,7 +408,7 @@ fun View.semBlur(radius: Int, tint: Int, corner: Float) {
  * How far the home screen sits behind a panel: 0 at rest, 1 under an open panel. It sinks back slightly and blurs:
  * the icons through a RenderEffect, the wallpaper (drawn by the system behind this window) through window blur.
  */
-fun MainActivity.setDepth(p: Float) {
+fun MainActivity.setDepth(p: Float, blur: Boolean = true) {
     depth = p
     // Dark status bar icons while a light panel covers home.
     @Suppress("DEPRECATION") window.decorView.apply {
@@ -423,7 +423,8 @@ fun MainActivity.setDepth(p: Float) {
     // being resized: the frame is around it.
     clocks.forEach { it.alpha = if (overlay is ResizeFrame) 1f else 1 - p }
     if (Build.VERSION.SDK_INT < 31) return
-    val r = if (looks.on("blur")) 24 * dp * p else 0f
+    // [blur] false: home is fading out under the drawer, so blurring it each frame would be wasted work.
+    val r = if (blur && looks.on("blur")) 24 * dp * p else 0f
     content.setRenderEffect(if (r > 0.5f) android.graphics.RenderEffect.createBlurEffect(r, r, android.graphics.Shader.TileMode.CLAMP) else null)
     window.setBackgroundBlurRadius(if (windowBlur) (40 * dp * p).roundToInt() else 0)
 }

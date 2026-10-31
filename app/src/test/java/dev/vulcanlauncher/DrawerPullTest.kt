@@ -12,6 +12,16 @@ class DrawerPullTest {
         assertFalse(drawerOpens(0.4f, 0f, 1000f))      // short of halfway
         assertTrue(drawerOpens(0.1f, 1500f, 1000f))    // short pull, flung up
         assertFalse(drawerOpens(0.9f, -1500f, 1000f))  // nearly open, flung down
+        assertTrue(drawerOpens(0.35f, 0f, 1000f, 0.3f))  // pulled up past 30%: opens
+        assertFalse(drawerOpens(0.65f, 0f, 1000f, 0.7f)) // pulled down below 70%: closes
+    }
+
+    @Test
+    fun releaseIsQuickerWhenFlungFaster() {
+        assertEquals(200L, swipeDuration(0f, 0.5f))   // slow release: 400 ms per whole travel
+        assertEquals(80L, swipeDuration(10f, 0.5f))   // 10 px/ms: five times quicker
+        assertEquals(80L, swipeDuration(50f, 0.5f))   // never under 80 ms
+        assertEquals(80L, swipeDuration(0f, 0f))      // a tiny remainder still counts as a fifth
     }
 }
 
