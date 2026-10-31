@@ -382,7 +382,11 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="set_folderWindow">Стиль окна</string>
     <string name="set_foldersFirst">Папки сначала</string>
     <string name="set_frequent">Строка часто используемых приложений</string>
-    <string name="set_glance">Дата и статус над страницей</string>
+    <string name="set_glanceStyle">Стиль часов</string>
+    <string name="glanceStyle_clock">Большие часы и дата</string>
+    <string name="glanceStyle_date">Только дата</string>
+    <string name="clock">Часы</string>
+    
     <string name="set_hideClock">Скрыть часы в строке состояния</string>
     <string name="set_hideClock_info">На главном экране. Нужно однократное разрешение через adb</string>
     <string name="set_homeButton">Кнопка «Домой»</string>

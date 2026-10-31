@@ -104,6 +104,7 @@ class Symbol(private val name: String, private val color: Int, private val size:
                 path { moveTo(6f, 17f); lineTo(6f, 11f); arcTo(RectF(6f, 5f, 18f, 17f), 180f, 180f); lineTo(18f, 17f) }
                 line(4f, 17f, 20f, 17f); line(10.5f, 20.5f, 13.5f, 20.5f); line(12f, 3f, 12f, 5f)
             }
+            "clock" -> { circle(12f, 12f, 9f); poly(12f, 7f, 12f, 12f, 15.5f, 14f) }
             "home" -> { poly(4f, 10.5f, 12f, 4f, 20f, 10.5f, 20f, 20f, 4f, 20f, close = true); poly(10f, 20f, 10f, 14.5f, 14f, 14.5f, 14f, 20f) }
             "dock" -> { rect(5.5f, 2.5f, 18.5f, 21.5f, 3f); line(9f, 18f, 15f, 18f) }
             "palette" -> { circle(12f, 12f, 9f); dot(7.5f, 11f); dot(10f, 7f); dot(14.5f, 7f); dot(17f, 11f) }

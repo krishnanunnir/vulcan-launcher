@@ -101,7 +101,6 @@ class MainActivity : Activity() {
     lateinit var indicator: Indicator
     lateinit var drawer: Drawer
     /** The date and status strip above the first page, when on (see Now.kt). */
-    var glance: LinearLayout? = null
     private lateinit var dropBar: LinearLayout
     /** The open folder window, desktop previews or resize frame, and what to do when it closes. */
     var overlay: View? = null
@@ -247,7 +246,7 @@ class MainActivity : Activity() {
         wiggles.forEach { it.cancel() }
         wiggles = emptyList()
         // Everything below belongs to the old views; none of it is shown again.
-        overlay = null; overlayClosed = {}; menu = null; settingsPage = null; settingsScroll = null; glance = null; dragSource = null
+        overlay = null; overlayClosed = {}; menu = null; settingsPage = null; settingsScroll = null; dragSource = null
         iconCache.clear(); badgeIcons.clear(); widgetFrames.clear()
         build()
         workspace.snapTo(page.coerceAtMost(looks.pages - 1), animate = false)
@@ -270,6 +269,12 @@ class MainActivity : Activity() {
         loadApps()
         // Items of apps uninstalled while the launcher wasn't running (no callback came) would hold their cells unseen.
         items = fit(if (store.isNew) defaultLayout() else removeApps(store.load(sub), ::uninstalled))
+        // Before 0.24 the clock was a strip fixed above the first page ("glance"); now it's an item on the first free row.
+        if (looks.raw("glance") == "on") {
+            looks["glance"] = "item"
+            firstFreeSpot(items.filter { !isDock(it.page) }, looks.pages, looks.cols * sub, looks.rows * sub, looks.cols * sub, sub)
+                ?.let { items += it.copy(action = "clock") }
+        }
         save()
 
         window.statusBarColor = Color.TRANSPARENT
@@ -299,8 +304,7 @@ class MainActivity : Activity() {
             onGesture = gesture
             effect = looks.str("scrollEffect")
             infinite = looks.on("infiniteScroll")
-            // The glance strip belongs to the first page: it scrolls away with it.
-            onScroll = { indicator.position = it; wallpaperScroll(it); glance?.translationX = -it * width }
+            onScroll = { indicator.position = it; wallpaperScroll(it) }
             snapTo(looks.int("defaultPage").coerceAtMost(looks.pages - 1), animate = false)
         }
         dockPages = List(looks.dockPages) { CellLayout(this, looks.dockCols, 1, -1 - it, landscape).apply { setOnDragListener(dropListener(this)) } }
@@ -346,8 +350,6 @@ class MainActivity : Activity() {
         val pagesBox = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             if (search == "top") addView(searchBar())
-            // Not in landscape: the screen is short, and every row it takes shrinks the home icons (the status bar keeps the time).
-            if (looks.on("glance") && !landscape) glance = glanceView().also { addView(it) }
             // As an overlay, later children (indicator, dock) are pulled up over the bottom of the pages.
             val overlay = looks.on("dockOverlay") && looks.dockOn && !landscape
             addView(workspace, LinearLayout.LayoutParams(-1, 0, 1f).apply { if (overlay) bottomMargin = -dockHeight })
@@ -777,6 +779,7 @@ class MainActivity : Activity() {
         }
         widgetFrames.keys.retainAll(items.filter { it.isWidget }.map { it.widgetId }.toSet())
         updateBadges()
+        updateGlance()
         folderFx.settle()
     }
 
@@ -801,6 +804,7 @@ class MainActivity : Activity() {
 
     fun itemView(item: Item, style: IconStyle): View? {
         if (item.isWidget) return widgetView(item)
+        if (item.isClock) return clockView()
         val (label, icon) = resolve(item) ?: return null
         val shown = if (item.folder && !looks.on("folderNames")) "" else label
         val key = if (item.folder) item.children.joinToString("|") { it.pkg } else item.pkg
@@ -938,9 +942,11 @@ class MainActivity : Activity() {
         when (e.action) {
             DragEvent.ACTION_DRAG_LOCATION -> {
                 edgeFlip(if (isDock(cell.page)) dock else workspace, e.x, cell.width)
-                folderFx.hover(cell, mergeTarget(cell, e.x, e.y, e.localState))
+                val merge = mergeTarget(cell, e.x, e.y, e.localState)
+                folderFx.hover(cell, merge)
+                cell.landing = if (merge != null || !dragMoved) null else landing(cell, e.x, e.y, e.localState)
             }
-            DragEvent.ACTION_DRAG_EXITED -> folderFx.hover(cell, null)
+            DragEvent.ACTION_DRAG_EXITED -> { folderFx.hover(cell, null); cell.landing = null }
             DragEvent.ACTION_DROP -> { folderFx.clearHover(); return@OnDragListener drop(cell, e.x, e.y, e.localState) }
             // An accepted drop's ENDED goes to the accepting view only, so every cell must clean up too.
             DragEvent.ACTION_DRAG_ENDED -> dragEnded()
@@ -994,7 +1000,12 @@ class MainActivity : Activity() {
      */
     // ponytail: one card for the current page; Launcher3 gives every page its own and lets the next one peek in.
     private fun springLoad(on: Boolean) {
-        val block = listOfNotNull(glance, workspace)
+        // Launcher3's workspace accent: its light tone over a dark wallpaper (light labels), its dark tone otherwise.
+        // The Appliance look keeps to its legends' colour.
+        val label = looks.color("labelColor")
+        val accent = if (m3.housing) label else m3.ramps[0](if (luminance(label) > 0.5) 90 else 10)
+        (pages + dockPages).forEach { it.outlineColor = accent; if (!on) it.landing = null }
+        val block = listOf(workspace)
         val card = springCard ?: View(this).also { springCard = it; root.addView(it, 0) }
         if (on && spring == 0f) {
             fun rootX(v: View): Int { var x = 0; var p = v; while (p !== root) { x += p.left; p = p.parent as View }; return x }
@@ -1006,8 +1017,7 @@ class MainActivity : Activity() {
             val py = (insets.top + 76 * dp - SPRING_SCALE * top) / (1 - SPRING_SCALE)
             val px = left + workspace.width / 2f
             card.layoutParams = FrameLayout.LayoutParams(workspace.width, bottom - top, Gravity.TOP or Gravity.LEFT).apply { leftMargin = left; topMargin = top }
-            val line = looks.color("labelColor")
-            card.background = rounded(line and 0xFFFFFF or 0x1F000000, 28 * dp, line and 0xFFFFFF or 0x99000000.toInt(), 2 * dp)
+            card.background = rounded(label and 0xFFFFFF or 0x1F000000, 28 * dp, accent and 0xFFFFFF or 0x99000000.toInt(), 2 * dp)
             for (v in block) { v.pivotX = px - rootX(v); v.pivotY = py - rootY(v) }
             card.pivotX = px - left; card.pivotY = py - top
         }
@@ -1066,29 +1076,36 @@ class MainActivity : Activity() {
 
     /** The payload as a 1×1 item that can live in a folder, or null (widgets, folders). */
     fun asChild(p: Any?): Item? = when (p) {
-        is Item -> if (p.isWidget || p.folder) null else p.copy(page = 0, x = 0, y = 0, w = 1, h = 1)
+        is Item -> if (p.isBlock || p.folder) null else p.copy(page = 0, x = 0, y = 0, w = 1, h = 1)
         is App -> Item(0, 0, 0, pkg = p.pkg, cls = p.cls, user = p.serial)
         is FolderChild -> p.folder.children.getOrNull(p.index)
         is ShortcutInfo -> Item(0, 0, 0, pkg = p.`package`, shortcutId = p.id, user = serial(p.userHandle), label = p.shortLabel?.toString() ?: "")
         else -> null
     }
 
-    private fun drop(cell: CellLayout, px: Float, py: Float, payload: Any?): Boolean {
-        if (!dragMoved) return false
+    /** Where dropping [payload] at ([px], [py]) would place it (grid units), or null when it can't go there. */
+    private fun landing(cell: CellLayout, px: Float, py: Float, payload: Any?): Rect? {
         val moving = payload as? Item
-        if (isDock(cell.page) && moving?.isWidget == true) return false
+        if (moving == null && asChild(payload) == null) return null
+        if (isDock(cell.page) && moving?.isBlock == true) return null
         val unit = if (isDock(cell.page)) 1 else sub
-        val w = if (moving?.isWidget == true) moving.w else unit
-        val h = if (moving?.isWidget == true) moving.h else unit
+        val w = if (moving?.isBlock == true) moving.w else unit
+        val h = if (moving?.isBlock == true) moving.h else unit
         val (gx, gy) = cell.toGrid(px, py)
         val x = (gx - w / 2f + 0.5f).toInt().coerceIn(0, maxOf(0, cell.cols - w))
         val y = (gy - h / 2f + 0.5f).toInt().coerceIn(0, maxOf(0, cell.rows - h))
+        val overlap = looks.on("widgetOverlap") && moving?.isBlock == true
+        if (!overlap && !cell.isFree(x, y, w, h, ignore = moving?.let { views[it] })) return null
+        return Rect(x, y, x + w, y + h)
+    }
+
+    private fun drop(cell: CellLayout, px: Float, py: Float, payload: Any?): Boolean {
+        if (!dragMoved) return false
         val child = asChild(payload)
         val target = mergeTarget(cell, px, py, payload)
         if (child != null && target != null) { mergeIntoFolder(target, child, payload); return true }
-        val overlap = looks.on("widgetOverlap") && moving?.isWidget == true
-        if (!overlap && !cell.isFree(x, y, w, h, ignore = moving?.let { views[it] })) return false
-        val placed = (if (moving != null) moving else child ?: return false).copy(page = cell.page, x = x, y = y, w = w, h = h)
+        val spot = landing(cell, px, py, payload) ?: return false
+        val placed = ((payload as? Item) ?: child ?: return false).copy(page = cell.page, x = spot.left, y = spot.top, w = spot.width(), h = spot.height())
         detach(payload)
         items += placed
         root.tick()
@@ -1168,8 +1185,14 @@ class MainActivity : Activity() {
                 tile("tabs", getString(R.string.menu_group)) { addToGroup(payload.key) }
             }
             item != null && !locked -> {
-                if (!item.isWidget) tile("edit", getString(R.string.edit)) { editItem(item) }
-                if (item.isWidget) tile("resize", getString(R.string.resize)) { resizeWidget(item) }
+                if (!item.isBlock) tile("edit", getString(R.string.edit)) { editItem(item) }
+                if (item.isBlock) tile("resize", getString(R.string.resize)) { resizeWidget(item) }
+                if (item.isClock) {
+                    val big = views[item]?.tag == true
+                    tile("clock", getString(if (big) R.string.glanceStyle_date else R.string.glanceStyle_clock)) {
+                        looks["glanceStyle"] = if (big) "date" else "clock"; rebuild()
+                    }
+                }
                 if (item.isWidget && awm.getAppWidgetInfo(item.widgetId)?.configure != null) tile("settings", getString(R.string.settings)) {
                     runCatching { host.startAppWidgetConfigureActivityForResult(this, item.widgetId, 0, REQ_RECONFIG, null) }
                 }
@@ -1331,11 +1354,13 @@ class MainActivity : Activity() {
             Triple("bolt", getString(R.string.shortcuts)) { addShortcutMenu() },
             Triple("image", getString(R.string.wallpaper)) { perform("wallpaper") },
             Triple("carousel", getString(R.string.pages)) { showOverview() },
+            // As a clock widget: one row across the page, sized and moved like one.
+            Triple("clock", getString(R.string.clock)) { addItem(Item(0, 0, 0, looks.cols * sub, sub, action = "clock")); Unit },
             Triple(if (locked) "unlock" else "lock", getString(if (locked) R.string.unlock else R.string.lock)) {
                 looks["lockLayout"] = if (locked) "off" else "on"; toast(if (locked) R.string.layout_locked else R.string.layout_unlocked)
             },
             Triple("settings", getString(R.string.settings)) { showSettings() },
-        ).filter { !locked || it.first !in listOf("widgets", "bolt") }
+        ).filter { !locked || it.first !in listOf("widgets", "bolt", "clock") }
         val at = Rect(lastDown.x.toInt(), lastDown.y.toInt(), lastDown.x.toInt(), lastDown.y.toInt())
         showMenu(at) { addTiles(entries, 3) }
     }
@@ -1429,13 +1454,14 @@ class MainActivity : Activity() {
     fun resizeWidget(item: Item) {
         val v = views[item] ?: return
         val cell = v.parent as? CellLayout ?: return
-        val info = awm.getAppWidgetInfo(item.widgetId) ?: return
-        val minW = if (info.resizeMode and AppWidgetProviderInfo.RESIZE_HORIZONTAL == 0) item.w
+        // The clock: any size from two cells wide and one tall.
+        val info = if (item.isClock) null else awm.getAppWidgetInfo(item.widgetId) ?: return
+        val canW = info == null || info.resizeMode and AppWidgetProviderInfo.RESIZE_HORIZONTAL != 0
+        val canH = info == null || info.resizeMode and AppWidgetProviderInfo.RESIZE_VERTICAL != 0
+        val minW = if (!canW) item.w else if (info == null) minOf(2 * sub, item.w)
             else ceil(info.minResizeWidth.coerceAtLeast(1) / cell.cellW.toFloat()).toInt().coerceIn(1, item.w)
-        val minH = if (info.resizeMode and AppWidgetProviderInfo.RESIZE_VERTICAL == 0) item.h
+        val minH = if (!canH) item.h else if (info == null) minOf(sub, item.h)
             else ceil(info.minResizeHeight.coerceAtLeast(1) / cell.cellH.toFloat()).toInt().coerceIn(1, item.h)
-        val canW = info.resizeMode and AppWidgetProviderInfo.RESIZE_HORIZONTAL != 0
-        val canH = info.resizeMode and AppWidgetProviderInfo.RESIZE_VERTICAL != 0
         if (getSystemService(android.view.accessibility.AccessibilityManager::class.java).isTouchExplorationEnabled) resizeByList(cell, item, v, minW, minH, canW, canH)
         else showResize(cell, item, v, minW, minH, canW, canH)
     }

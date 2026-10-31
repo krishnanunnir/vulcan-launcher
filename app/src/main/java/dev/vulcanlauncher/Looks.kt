@@ -75,7 +75,8 @@ val LOOKS = listOf(
     Choice(HOME, "searchBar", R.string.set_searchBar, "dockBelow", listOf("off", "top", "bottom", "dockAbove", "dockBelow"), listOf(R.string.searchBar_off, R.string.searchBar_top, R.string.searchBar_bottom, R.string.searchBar_dockabove, R.string.searchBar_dockbelow)),
     Choice(HOME, "searchStyle", R.string.set_searchStyle, "pill", listOf("rect", "rounded", "pill"), listOf(R.string.searchStyle_rect, R.string.searchStyle_rounded, R.string.searchStyle_pill)),
     color(HOME, "searchColor", R.string.set_searchColor, "system", themed = true),
-    onOff(HOME, "glance", R.string.set_glance, false),
+    // The clock item (long-press home → Clock). "style": a big clock with the Appliance look, the date alone otherwise.
+    Choice(HOME, "glanceStyle", R.string.set_glanceStyle, "style", listOf("style", "clock", "date"), listOf(R.string.drawerSearch_style, R.string.glanceStyle_clock, R.string.glanceStyle_date)),
     onOff(HOME, "lockLayout", R.string.set_lockLayout, false),
     onOff(HOME, "widgetOverlap", R.string.set_widgetOverlap, false),
     // 0: the widget keeps its own corners.
@@ -171,7 +172,7 @@ val LOOKS = listOf(
     onOff(GESTURES, "homeFirst", R.string.set_homeFirst, true),
 )
 
-/** Defaults before 0.16, for settings whose default changed then. */
+/** Defaults before 0.16, for settings whose default changed then. "glance" on becomes a clock item ([MainActivity.build]). */
 val PRE_NOVA_DEFAULTS = mapOf("cols" to "4", "pages" to "3", "searchBar" to "off", "glance" to "on", "dockCols" to "4", "drawerStyle" to "housing")
 
 /** Settings in their own SharedPreferences. Changing one rebuilds home (MainActivity.rebuild). */

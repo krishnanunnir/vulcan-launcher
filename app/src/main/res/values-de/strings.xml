@@ -382,7 +382,11 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="set_folderWindow">Fensterstil</string>
     <string name="set_foldersFirst">Ordner zuerst</string>
     <string name="set_frequent">Zeile häufig genutzter Apps</string>
-    <string name="set_glance">Datum und Status über der ersten Seite</string>
+    <string name="set_glanceStyle">Uhrstil</string>
+    <string name="glanceStyle_clock">Große Uhr und Datum</string>
+    <string name="glanceStyle_date">Nur Datum</string>
+    <string name="clock">Uhr</string>
+    
     <string name="set_hideClock">Statusleisten-Uhr ausblenden</string>
     <string name="set_hideClock_info">Auf dem Startbildschirm. Erfordert einmalige adb-Freigabe</string>
     <string name="set_homeButton">Home-Taste</string>

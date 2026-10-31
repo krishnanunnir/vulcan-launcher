@@ -14,7 +14,7 @@ fun dockIndex(page: Int) = -1 - page
 /**
  * One thing placed on a home page, the dock or inside a folder:
  * an app (pkg/cls/user), a widget (widgetId), a pinned shortcut (pkg + shortcutId),
- * a launcher action (action), an activity shortcut (pkg/cls + action "activity") or a folder (children).
+ * a launcher action (action), an activity shortcut (pkg/cls + action "activity"), the clock (action "clock") or a folder (children).
  */
 data class Item(
     val page: Int,
@@ -36,7 +36,10 @@ data class Item(
 ) {
     val isWidget get() = widgetId != -1
     val isShortcut get() = shortcutId.isNotEmpty()
-    val isAction get() = action.isNotEmpty() && action != "activity"
+    val isClock get() = action == "clock"
+    val isAction get() = action.isNotEmpty() && action != "activity" && !isClock
+    /** Keeps its own size when moved, and never goes in the dock or a folder. */
+    val isBlock get() = isWidget || isClock
     /** A plain app icon: can be merged into folders. */
     val isApp get() = pkg.isNotEmpty() && !isShortcut && !isWidget && !folder && action.isEmpty()
     val appKey get() = appKey(pkg, cls, user)

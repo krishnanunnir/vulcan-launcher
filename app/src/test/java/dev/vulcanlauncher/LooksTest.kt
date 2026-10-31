@@ -60,7 +60,8 @@ class LooksTest {
 
     @Test
     fun preNovaDefaultsAreChangedValidChoices() {
-        for ((k, v) in PRE_NOVA_DEFAULTS) {
+        // "glance" is no longer a setting: it turns into a clock item.
+        for ((k, v) in PRE_NOVA_DEFAULTS - "glance") {
             val c = LOOKS.first { it.key == k }
             assertTrue(k, v in c.values && v != c.default)
         }

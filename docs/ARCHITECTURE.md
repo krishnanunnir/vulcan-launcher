@@ -6,7 +6,6 @@ Plain Android Views plus the Kotlin standard library. No AndroidX, no Compose, n
 MainActivity root (FrameLayout, handles window insets itself)
 ├── content (LinearLayout, vertical)
 │   ├── search bar (optional, top)
-│   ├── glance strip (date and status, scrolls with the first page)
 │   ├── Workspace ─ CellLayout × pages        home pages, paged sideways with a transition effect
 │   ├── Indicator                              page dots / line
 │   ├── dockBox ─ Workspace ─ CellLayout × dock pages (one row each)

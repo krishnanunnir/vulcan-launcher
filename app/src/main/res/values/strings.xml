@@ -42,7 +42,11 @@
     <string name="searchStyle_rounded">Rounded</string>
     <string name="searchStyle_pill">Pill</string>
     <string name="set_searchColor">Search bar color</string>
-    <string name="set_glance">Date and status above the first page</string>
+    <string name="set_glanceStyle">Clock style</string>
+    <string name="glanceStyle_clock">Big clock and date</string>
+    <string name="glanceStyle_date">Date only</string>
+    <string name="clock">Clock</string>
+    
     <string name="set_lockLayout">Lock layout</string>
     <string name="set_widgetOverlap">Widget overlap when placing</string>
     <string name="set_widgetRadius">Widget corner radius</string>

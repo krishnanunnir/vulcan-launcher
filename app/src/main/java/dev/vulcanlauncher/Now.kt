@@ -249,36 +249,44 @@ private fun MainActivity.contactView(name: String, photo: String?, onClick: () -
     setOnClickListener { onClick() }
 }
 
-// ---- Glance: the date and one line of status above the first home page ----
+// ---- Clock: a home item showing the time, date and one line of status ----
 
 /**
- * The glance strip. Appliance: a large light clock over a printed legend (date · status); otherwise the date over a
- * status line. The date or clock opens the calendar or clock; the status line is filled by [updateGlance].
- * Long-press is the home menu.
+ * The clock item's view. Appliance: a large light clock over a printed legend (date · status); otherwise the date over
+ * a status line ("glanceStyle" picks either). The big clock grows with the item, like a clock widget. The date or
+ * clock opens the calendar or clock; the status line is filled by [updateGlance]. A long-press anywhere on it is the
+ * item's own (move, resize, remove).
  */
-fun MainActivity.glanceView() = LinearLayout(this).apply {
+fun MainActivity.clockView() = LinearLayout(this).apply {
     orientation = LinearLayout.VERTICAL
-    setPadding((24 * dp).toInt(), (20 * dp).toInt(), (24 * dp).toInt(), (4 * dp).toInt())
+    gravity = Gravity.BOTTOM
+    val big = when (looks.str("glanceStyle")) { "clock" -> true; "date" -> false; else -> m3.housing }
+    tag = big
+    val box = this
+    val hold = View.OnLongClickListener { box.performLongClick() }
+    setPadding((16 * dp).toInt(), (4 * dp).toInt(), (16 * dp).toInt(), (4 * dp).toInt())
     val color = looks.color("labelColor")
     fun TextView.look() = apply { if (looks.on("labelShadow")) setShadowLayer(4 * dp, 0f, dp, 0x66000000) }
     val calendar = { runCatching { startActivity(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CALENDAR).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }; Unit }
-    if (m3.housing) {
+    if (big) {
         addView(TextClock(context).apply {
             format12Hour = "h:mm"; format24Hour = "HH:mm"
-            textSize = 64f
+            setAutoSizeTextTypeUniformWithConfiguration(20, 200, 2, android.util.TypedValue.COMPLEX_UNIT_SP)
+            gravity = Gravity.START or Gravity.BOTTOM
+            maxLines = 1
             letterSpacing = -0.02f
             includeFontPadding = false
             setTextColor(color)
             typeface = android.graphics.Typeface.create("sans-serif-light", android.graphics.Typeface.NORMAL)
             look()
             setOnClickListener { runCatching { startActivity(Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
-            setOnLongClickListener { homeMenu(); true }
-        }, LinearLayout.LayoutParams(-2, -2))
+            setOnLongClickListener(hold)
+        }, LinearLayout.LayoutParams(-1, 0, 1f))
     }
     // Appliance: date and status on one printed legend line ("MON 19 OCT · CHARGED"); otherwise two lines.
     val legend = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
     legend.addView(TextClock(context).apply {
-        if (m3.housing) {
+        if (big) {
             format12Hour = datePattern("EEEdMMM"); format24Hour = format12Hour
             textSize = 13f
             letterSpacing = 0.12f
@@ -288,36 +296,43 @@ fun MainActivity.glanceView() = LinearLayout(this).apply {
             format12Hour = datePattern("EEEEdMMMM"); format24Hour = format12Hour
             textSize = 22f
         }
+        maxLines = 1
         setTextColor(color)
         typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
         look()
         setOnClickListener { calendar() }
-        setOnLongClickListener { homeMenu(); true }
+        setOnLongClickListener(hold)
     }, LinearLayout.LayoutParams(-2, -2))
-    if (m3.housing) addView(legend, LinearLayout.LayoutParams(-2, -2)) else addView(legend.getChildAt(0).also { legend.removeAllViews() })
-    (if (m3.housing) legend else this).addView(TextView(context).apply {
+    if (big) addView(legend, LinearLayout.LayoutParams(-2, -2)) else addView(legend.getChildAt(0).also { legend.removeAllViews() })
+    (if (big) legend else this).addView(TextView(context).apply {
         tag = "status"
-        textSize = if (m3.housing) 13f else 15f
-        if (m3.housing) {
+        textSize = if (big) 13f else 15f
+        if (big) {
             letterSpacing = 0.12f; isAllCaps = true
             typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
             setPadding(0, (6 * dp).toInt(), 0, 0)
         } else setPadding(0, (2 * dp).toInt(), 0, 0)
-        setTextColor(if (m3.housing) color else color and 0xFFFFFF or 0xD9000000.toInt())
+        setTextColor(if (big) color else color and 0xFFFFFF or 0xD9000000.toInt())
         maxLines = 1
         ellipsize = android.text.TextUtils.TruncateAt.END
         look()
-        setOnLongClickListener { homeMenu(); true }
+        setOnLongClickListener(hold)
     }, LinearLayout.LayoutParams(-2, -2))
 }
 
+/** The clock views on home, from [MainActivity.views]. */
+val MainActivity.clocks get() = views.filterKeys { it.isClock }.values
+
 /** Refreshes the glance status line: what's playing, else the next event today, else charging, else nothing. */
 fun MainActivity.updateGlance() {
-    val line = glance?.findViewWithTag<TextView>("status") ?: return
+    if (clocks.isEmpty()) return
     val (text, tap) = glanceStatus() ?: (null to null)
-    line.text = if (text != null && m3.housing) " · $text" else text
-    line.visibility = if (text == null) View.GONE else View.VISIBLE
-    line.setOnClickListener(tap?.let { f -> View.OnClickListener { f() } })
+    for (c in clocks) {
+        val line = c.findViewWithTag<TextView>("status") ?: continue
+        line.text = if (text != null && c.tag == true) " · $text" else text
+        line.visibility = if (text == null) View.GONE else View.VISIBLE
+        line.setOnClickListener(tap?.let { f -> View.OnClickListener { f() } })
+    }
 }
 
 private fun MainActivity.glanceStatus(): Pair<String, (() -> Unit)?>? {

@@ -1,10 +1,14 @@
 package dev.vulcanlauncher
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Rect
+import android.graphics.RectF
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.DecelerateInterpolator
 
 /** Do two cell rectangles share at least one cell? Edges touching is not overlap. */
 fun overlaps(ax: Int, ay: Int, aw: Int, ah: Int, bx: Int, by: Int, bw: Int, bh: Int) =
@@ -98,7 +102,46 @@ class CellLayout(context: Context, val cols: Int, val rows: Int, val page: Int, 
         set(v) { field = v; invalidate() }
     val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
+    /**
+     * Launcher3's drop outline: where a drop would land (grid units, null for nowhere), stroked in [outlineColor].
+     * Each new spot fades in over 500 ms while the last one fades out, so a moving drag leaves a short trail.
+     */
+    var landing: Rect? = null
+        set(v) {
+            if (field == v) return
+            field = v
+            outlines.lastOrNull()?.let { o -> if (o.r != v) o.fade(0f) }
+            if (v != null) outlines += Outline(Rect(v)).also { it.fade(1f) }
+        }
+    var outlineColor = 0
+    private val outlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 8f }
+    private val outlines = ArrayList<Outline>()
+
+    private inner class Outline(val r: Rect) {
+        var alpha = 0f
+        private var anim: ValueAnimator? = null
+        fun fade(to: Float) {
+            anim?.cancel()
+            anim = ValueAnimator.ofFloat(alpha, to).apply {
+                duration = 500
+                interpolator = DecelerateInterpolator()
+                addUpdateListener { alpha = it.animatedValue as Float; if (alpha == 0f && to == 0f) outlines.remove(this@Outline); invalidate() }
+                start()
+            }
+        }
+    }
+
+    private fun cellRect(x: Int, y: Int, w: Int, h: Int, inset: Float) = (if (transposed)
+        RectF((y * cellH).toFloat(), (x * cellW).toFloat(), ((y + h) * cellH).toFloat(), ((x + w) * cellW).toFloat())
+        else RectF(spanLeft(x, w).toFloat(), (y * cellH).toFloat(), (spanLeft(x, w) + w * cellW).toFloat(), ((y + h) * cellH).toFloat()))
+        .apply { inset(inset, inset) }
+
     override fun dispatchDraw(canvas: Canvas) {
+        val d = resources.displayMetrics.density
+        for (o in outlines) {
+            outlinePaint.color = outlineColor and 0xFFFFFF or ((o.alpha * 255).toInt() shl 24)
+            canvas.drawRoundRect(cellRect(o.r.left, o.r.top, o.r.width(), o.r.height(), 6 * d), 16 * d, 16 * d, outlinePaint)
+        }
         if (ringR > 0) canvas.drawCircle(ringX, ringY, ringR, ringPaint)
         super.dispatchDraw(canvas)
     }
