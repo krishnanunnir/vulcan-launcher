@@ -122,6 +122,16 @@ class Workspace(context: Context) : ViewGroup(context) {
         return false
     }
 
+    /** True when the point is on an icon of the current page that takes its own swipe up (icon swipe actions). */
+    private fun swipesItself(x: Float, y: Float): Boolean {
+        val page = getChildAt(current) as? ViewGroup ?: return false
+        for (i in 0 until page.childCount) {
+            val c = page.getChildAt(i)
+            if (c is IconView && c.onSwipe != null && c.visibility == View.VISIBLE && x >= c.left && x < c.right && y >= c.top && y < c.bottom) return true
+        }
+        return false
+    }
+
     /** Shared by intercept and touch handling; returns true once the gesture belongs to the pager. */
     private fun track(ev: MotionEvent): Boolean {
         if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
@@ -147,7 +157,8 @@ class Workspace(context: Context) : ViewGroup(context) {
                     val dy = abs(ev.y - downY)
                     // The page starts moving from where the finger is now, not jumping the slop it took to decide.
                     if (dx > slop && dx > dy) { mode = HORIZONTAL; startScroll += (ev.x - downX).toInt() }
-                    else if (dy > slop && dy > dx) mode = VERTICAL
+                    // Up from an icon with its own swipe action: left to the icon, even when the first move is a long one.
+                    else if (dy > slop && dy > dx) mode = if (ev.y < downY && swipesItself(downX, downY)) CHILD else VERTICAL
                 }
                 MULTI -> if (ev.pointerCount >= 2) for (i in 0..1) { end[i * 2] = ev.getX(i); end[i * 2 + 1] = ev.getY(i) }
                 VERTICAL -> if (!doubleTapDown) pulling = onPull?.invoke(downY - ev.y - slop, 0f, false) == true || pulling
@@ -165,7 +176,7 @@ class Workspace(context: Context) : ViewGroup(context) {
             }
             MotionEvent.ACTION_CANCEL -> finish(ev)
         }
-        return mode != NONE
+        return mode != NONE && mode != CHILD
     }
 
     private fun finish(ev: MotionEvent) {
@@ -223,5 +234,5 @@ class Workspace(context: Context) : ViewGroup(context) {
         return true
     }
 
-    private companion object { const val NONE = 0; const val HORIZONTAL = 1; const val VERTICAL = 2; const val MULTI = 3; const val DONE = 4 }
+    private companion object { const val NONE = 0; const val HORIZONTAL = 1; const val VERTICAL = 2; const val MULTI = 3; const val DONE = 4; const val CHILD = 5 }
 }

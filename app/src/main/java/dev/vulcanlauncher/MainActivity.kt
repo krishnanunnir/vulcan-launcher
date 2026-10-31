@@ -156,7 +156,27 @@ class MainActivity : Activity() {
         else -> if (dark) R.style.VulcanDialogDark else R.style.VulcanDialog
     } }) {
         // Styled before the first frame: built (buttons included) without showing, so it never flashes unstyled.
-        override fun create(): AlertDialog = super.create().also { d -> d.create(); styleDialog(d) }
+        override fun create(): AlertDialog = super.create().also { d ->
+            d.create(); styleDialog(d)
+            // The dim is this window's, not each dialog's: a dialog opened from another (a menu item, a picker's next
+            // step) then takes its place over a steady dim. With their own, the dim faded out and back in between them.
+            d.window?.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            dialogs += d
+            d.window?.decorView?.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+                override fun onViewAttachedToWindow(v: View) = dialogScrim(true)
+                // Posted: a dialog opened from this one is already showing by then, but not attached yet.
+                override fun onViewDetachedFromWindow(v: View) { root.post { dialogs.removeAll { !it.isShowing }; if (dialogs.isEmpty()) dialogScrim(false) } }
+            })
+        }
+    }
+    private val dialogs = mutableSetOf<AlertDialog>()
+    private var scrim: View? = null
+
+    /** The dim behind open dialogs, as the system's (styleDialog's lighter scrim), faded in and out. */
+    private fun dialogScrim(on: Boolean) {
+        val v = scrim ?: View(this).apply { setBackgroundColor(0x52000000) }.also { scrim = it }
+        if (on && v.parent !== root) { (v.parent as? ViewGroup)?.removeView(v); v.alpha = 0f; root.addView(v, FrameLayout.LayoutParams(-1, -1)) }
+        v.animate().alpha(if (on) 1f else 0f).setDuration(150).withEndAction { if (!on) root.removeView(v) }.start()
     }
     fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
     fun toast(id: Int, vararg args: Any?) = toast(getString(id, *args))
@@ -225,6 +245,7 @@ class MainActivity : Activity() {
         build()
         workspace.snapTo(page.coerceAtMost(looks.pages - 1), animate = false)
         settings?.let { showSettings(it, scroll, restoring = true) }
+        if (dialogs.any { it.isShowing }) dialogScrim(true)
     }
 
     /** Everything the settings shape: palette, icons, layout and the views. At creation, and again in [rebuild]. */
@@ -859,6 +880,9 @@ class MainActivity : Activity() {
         dropBar.getChildAt(2).visibility = if (appOf(payload) != null) View.VISIBLE else View.GONE
         v.startDragAndDrop(ClipData.newPlainText("", ""), View.DragShadowBuilder(v), payload, 0)
         if (payload is Item) v.alpha = 0.3f
+        // The menu shows the moment the long-press registers, as on the wallpaper; moving the drag closes it (trackDrag).
+        // Not for a drag out of a menu row (a shortcut): that menu stays until the drag moves.
+        if (menu == null) root.post { if (dragSource === v && !dragMoved) showPopup(v, payload) }
         if (looks.on("wiggle")) wiggles = iconViews.map { iv ->
             android.animation.ObjectAnimator.ofFloat(iv.image, "rotation", -4f, 4f).apply {
                 duration = 140
@@ -871,7 +895,7 @@ class MainActivity : Activity() {
 
     private var wiggles = listOf<android.animation.Animator>()
 
-    /** A drag that never moves is a long-press: it shows the item's menu instead. [keepOverlay]: a folder window reordering its icons. */
+    /** A drag that never moves is a long-press: its menu stays. [keepOverlay]: a folder window reordering its icons. */
     fun trackDrag(v: View, e: DragEvent, keepOverlay: Boolean = false) {
         if (e.action != DragEvent.ACTION_DRAG_LOCATION || dragMoved) return
         val loc = IntArray(2).also { v.getLocationOnScreen(it) }
@@ -956,7 +980,8 @@ class MainActivity : Activity() {
         val payload = dragPayload
         // Posted: adding or removing views while ENDED is still being dispatched throws
         // ConcurrentModificationException in ViewGroup.dispatchDragEvent.
-        root.post { if (!moved && src.isAttachedToWindow) showPopup(src, payload) else render() }
+        // A drag that never moved already shows its menu (startDrag); it stays open.
+        root.post { if (!moved && src.isAttachedToWindow) { if (menu == null) showPopup(src, payload) } else render() }
     }
 
     /** Holding a drag near the left/right edge flips to the neighbouring page. */
@@ -1278,14 +1303,18 @@ class MainActivity : Activity() {
     }
 
     fun pickWidget(pkg: String? = null) {
-        val providers = awm.installedProviders.filter { pkg == null || it.provider.packageName == pkg }
-            .sortedWith(compareBy(labelOrder()) { it.loadLabel(packageManager).toString() })
+        // Grouped by app, then by widget name, so one app's widgets sit together.
+        val order = labelOrder()
+        val labelled = awm.installedProviders.filter { pkg == null || it.provider.packageName == pkg }.map {
+            Triple(it, runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(it.provider.packageName, 0)).toString() }.getOrDefault(""),
+                it.loadLabel(packageManager).toString())
+        }.sortedWith(compareBy<Triple<AppWidgetProviderInfo, String, String>, String>(order) { it.second }.thenBy(order) { it.third })
+        val providers = labelled.map { it.first }
         val page = pages[workspace.current]
-        val names = providers.map {
-            val app = runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(it.provider.packageName, 0)) }.getOrDefault("")
-            val w = ceil(it.minWidth / page.cellW.toFloat() / sub).toInt().coerceAtLeast(1)
-            val h = ceil(it.minHeight / page.cellH.toFloat() / sub).toInt().coerceAtLeast(1)
-            "${it.loadLabel(packageManager)}  ($w×$h)\n$app"
+        val names = labelled.map { (p, app, label) ->
+            val w = ceil(p.minWidth / page.cellW.toFloat() / sub).toInt().coerceAtLeast(1)
+            val h = ceil(p.minHeight / page.cellH.toFloat() / sub).toInt().coerceAtLeast(1)
+            "$label  ($w×$h)\n$app"
         }
         val previewH = (120 * dp).toInt()
         // ponytail: a widget with only a previewLayout (Android 12+, no preview image) shows its app icon; inflating the
@@ -1397,10 +1426,12 @@ class MainActivity : Activity() {
                 1 -> {
                     val list = packageManager.queryIntentActivities(Intent(Intent.ACTION_CREATE_SHORTCUT), 0)
                         .sortedWith(compareBy(labelOrder()) { it.loadLabel(packageManager).toString() })
-                    dialog().setTitle(R.string.app_shortcut).setItems(list.map { it.loadLabel(packageManager) }.toTypedArray()) { _, i ->
+                    // Each with its app's icon and name: shortcut names alone ("Contact", "Direct dial") don't say whose they are.
+                    pickList(getString(R.string.app_shortcut), list.map { it.loadIcon(packageManager) to it.loadLabel(packageManager) }, appIcon = true,
+                        summaries = list.map { it.activityInfo.applicationInfo.loadLabel(packageManager) }) { i ->
                         val a = list[i].activityInfo
                         runCatching { startActivityForResult(Intent(Intent.ACTION_CREATE_SHORTCUT).setComponent(ComponentName(a.packageName, a.name)), REQ_SHORTCUT) }
-                    }.show()
+                    }
                 }
                 else -> pickApp(getString(R.string.activity)) { app ->
                     val acts = runCatching { packageManager.getPackageInfo(app.pkg, PackageManager.GET_ACTIVITIES).activities }

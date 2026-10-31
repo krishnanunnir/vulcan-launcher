@@ -114,7 +114,7 @@ class IconView(context: Context, label: CharSequence, icon: Drawable, style: Ico
         private set
     val image = IconImage(context, icon, style.iconShadow, badge)
     var onSwipe: (() -> Unit)? = null
-    private val slop = ViewConfiguration.get(context).scaledTouchSlop * 3
+    private val slop = ViewConfiguration.get(context).scaledTouchSlop
     private var downY = 0f
     private var downX = 0f
     private val sizePx = style.sizePx

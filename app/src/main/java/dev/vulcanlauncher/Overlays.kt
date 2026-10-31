@@ -138,6 +138,7 @@ fun MainActivity.closeOverlay() {
 
 /** Opens a home-screen folder; its name is editable in the window. */
 fun MainActivity.openFolder(item: Item) {
+    drawer.hide()
     var folder = item
     openFolderWindow(item.label, item.children, { name ->
         val i = items.indexOf(folder)
@@ -160,10 +161,10 @@ fun spanAround(center: Int, size: Int, min: Int, max: Int) = (center - size / 2)
  * Shows [children] in a pop-up or full-screen folder window. [payload] makes the drag payload for child [i].
  * With [reorder], an icon dropped on the grid moves there (it returns the new order); dragged off the grid, it leaves the window.
  * With [anchor] (the folder icon, window coordinates), the pop-up opens over it, under the thumb, instead of mid-screen.
+ * It opens over whatever is showing: from the drawer, Back closes it back to the drawer.
  */
 fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename: ((String) -> Unit)?,
                                   reorder: ((from: Int, to: Int) -> List<Item>)? = null, anchor: Rect? = null, payload: (Int) -> Any) {
-    drawer.hide()
     val full = looks.str("folderWindow") == "fullscreen"
     val base = style("")
     val style = IconStyle(base.sizePx, true, looks.labelSize("folderLabelSize"), panelText, false, base.iconShadow, font = base.font, lines = base.lines)
@@ -214,12 +215,14 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         orientation = LinearLayout.VERTICAL
         if (full) background = panelBg(100, 0f, m3.surfaceHigh) else frost(this, looks.int("folderRadius") * dp)
         isClickable = true
+        // Full screen: name and icons centred, within reach of the thumb as in the pop-up; a long folder scrolls.
+        if (full) gravity = Gravity.CENTER_VERTICAL
         val p = (16 * dp).toInt()
-        setPadding(p, p + if (full) insets.top else 0, p, p)
+        setPadding(p, p + if (full) insets.top else 0, p, p + if (full) insets.bottom else 0)
         addView(name)
         addView(ScrollView(context).apply {
             addView(cell, FrameLayout.LayoutParams(cols * cellW, rows * cellH))
-        }, LinearLayout.LayoutParams(-2, if (full) 0 else minOf(rows, 4) * cellH, if (full) 1f else 0f).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        }, LinearLayout.LayoutParams(-2, if (full) -2 else minOf(rows, 4) * cellH).apply { gravity = Gravity.CENTER_HORIZONTAL })
     }
     val w = cols * cellW + (32 * dp).toInt()
     val margin = (16 * dp).toInt()

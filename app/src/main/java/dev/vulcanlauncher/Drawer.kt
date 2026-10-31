@@ -18,6 +18,7 @@ import android.widget.SectionIndexer
 import android.widget.TextView
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlin.math.abs
 
 /** A drawer tab or drawer folder: [type] is "tab" or "folder"; [apps] are app keys. */
 data class Group(val name: String, val type: String, val apps: List<String>)
@@ -279,12 +280,26 @@ class Drawer(private val a: MainActivity) {
             var downY = 0f
             var closing = false
             var velocity: android.view.VelocityTracker? = null
+            val touchSlop = android.view.ViewConfiguration.get(a).scaledTouchSlop
+            var startX = 0f
+            var startY = 0f
+            var sideways = false
             setOnTouchListener { _, ev ->
+                // GridView keeps a tap alive until the finger leaves the whole list, so a sideways swipe that started on
+                // an icon would open it on release. Sideways is no tap: cancel it, and ignore the rest of that touch.
+                if (ev.actionMasked == MotionEvent.ACTION_DOWN) sideways = false
+                else if (sideways) return@setOnTouchListener true
+                if (ev.actionMasked == MotionEvent.ACTION_MOVE && !closing && abs(ev.x - startX) > touchSlop && abs(ev.x - startX) > abs(ev.y - startY)) {
+                    sideways = true
+                    MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; onTouchEvent(it); it.recycle() }
+                    return@setOnTouchListener true
+                }
                 // Pull down from the top of the list: the drawer follows the finger and closes on release (or searches).
                 velocity?.addMovement(ev)
                 when (ev.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         downY = ev.y; closing = false
+                        startX = ev.x; startY = ev.y
                         velocity?.recycle(); velocity = android.view.VelocityTracker.obtain().apply { addMovement(ev) }
                     }
                     MotionEvent.ACTION_MOVE -> if (!closing && ev.y - downY > 24 * a.dp && !canScrollVertically(-1)) {

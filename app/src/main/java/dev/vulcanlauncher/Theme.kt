@@ -304,14 +304,18 @@ fun MainActivity.field(value: String, hintText: String) = android.widget.EditTex
     setOnFocusChangeListener { _, f -> outline(f) }
 }
 
-/** An M3 dialog list: a row per entry with its leading icon ([appIcon]: 40 dp app icons). Picking one closes it. */
-fun MainActivity.pickList(title: CharSequence, rows: List<Pair<Drawable?, CharSequence>>, appIcon: Boolean = false, onPick: (Int) -> Unit) {
+/**
+ * An M3 dialog list: a row per entry with its leading icon ([appIcon]: 40 dp app icons) and optional supporting text
+ * ([summaries]). Picking one closes it.
+ */
+fun MainActivity.pickList(title: CharSequence, rows: List<Pair<Drawable?, CharSequence>>, appIcon: Boolean = false,
+                          summaries: List<CharSequence>? = null, onPick: (Int) -> Unit) {
     val adapter = object : android.widget.BaseAdapter() {
         override fun getCount() = rows.size
         override fun getItem(p: Int) = rows[p]
         override fun getItemId(p: Int) = p.toLong()
         override fun getView(p: Int, convert: View?, parent: android.view.ViewGroup) =
-            listItem(rows[p].first, rows[p].second, appIcon = appIcon, dense = !appIcon, onClick = null).apply { setPadding((24 * dp).toInt(), paddingTop, (24 * dp).toInt(), paddingBottom) }
+            listItem(rows[p].first, rows[p].second, summaries?.get(p), appIcon = appIcon, dense = !appIcon, onClick = null).apply { setPadding((24 * dp).toInt(), paddingTop, (24 * dp).toInt(), paddingBottom) }
     }
     dialog().setTitle(title).setAdapter(adapter) { _, i -> onPick(i) }.setNegativeButton(R.string.cancel, null).show()
 }
@@ -497,11 +501,10 @@ fun MainActivity.showSheet(title: String?, build: LinearLayout.() -> Unit) {
     body.animate().translationY(0f).setDuration(300).setInterpolator(DecelerateInterpolator(2f)).start()
 }
 
-/** Dialogs: M3 surface, 28 dp corners, primary-coloured buttons and a lighter scrim. */
+/** Dialogs: M3 surface, 28 dp corners and primary-coloured buttons. The scrim is the activity's (see MainActivity.dialog). */
 fun MainActivity.styleDialog(d: AlertDialog) {
     d.window?.apply {
         setBackgroundDrawable(InsetDrawable(rounded(m3.surfaceHigh, 28 * dp), (24 * dp).toInt(), (24 * dp).toInt(), (24 * dp).toInt(), (24 * dp).toInt()))
-        setDimAmount(0.32f)
     }
     for (b in listOf(AlertDialog.BUTTON_POSITIVE, AlertDialog.BUTTON_NEGATIVE, AlertDialog.BUTTON_NEUTRAL)) d.getButton(b)?.apply {
         // An accent the user made unreadable here must not hide the way back (Reset, Cancel).
