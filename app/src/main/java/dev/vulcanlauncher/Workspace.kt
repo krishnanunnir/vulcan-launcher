@@ -72,6 +72,13 @@ class Workspace(context: Context) : ViewGroup(context) {
      */
     var onPull: ((up: Float, vy: Float, end: Boolean) -> Boolean)? = null
     private var pulling = false
+    /**
+     * Optional live swipe right past the first page: called with px pulled so far while the finger moves, then once
+     * more with [end] and the release velocity (px/s). Returning true takes the gesture over (no stretch, no "swipeRight").
+     */
+    var onEdgePull: ((px: Float, vx: Float, end: Boolean) -> Boolean)? = null
+    private var edgePulling = false
+    private var edgePx = 0f
     var effect = "simple"
     var infinite = false
 
@@ -228,6 +235,7 @@ class Workspace(context: Context) : ViewGroup(context) {
         val dy = ev.y - downY
         val last = childCount - 1
         when {
+            mode == HORIZONTAL && edgePulling -> { snapTo(0); onEdgePull?.invoke(if (ev.actionMasked == MotionEvent.ACTION_UP) edgePx else 0f, vx, true) }
             mode == HORIZONTAL && current == 0 && dx > slop * 6 && !infinite && scrollX <= 0 -> { snapTo(0); onGesture("swipeRight") }
             mode == HORIZONTAL && current == last && dx < -slop * 6 && !infinite && scrollX >= last * width -> { snapTo(last); onGesture("swipeLeft") }
             mode == HORIZONTAL -> snapTo(releasePage(fromPage, scrollX / maxOf(1, width).toFloat(), vx, flingV), velocity = vx)
@@ -236,7 +244,7 @@ class Workspace(context: Context) : ViewGroup(context) {
             mode == VERTICAL && dy > slop * 3 -> onGesture(if (doubleTapDown) "doubleTapDown" else "swipeDown")
         }
         if (mode != NONE) lastTapUp = 0
-        velocity?.recycle(); velocity = null; mode = NONE; doubleTapDown = false; pulling = false
+        velocity?.recycle(); velocity = null; mode = NONE; doubleTapDown = false; pulling = false; edgePulling = false
         if (pulledLeft != 0f || pulledRight != 0f) { edgeLeft.onRelease(); edgeRight.onRelease(); pulledLeft = 0f; pulledRight = 0f; postInvalidateOnAnimation() }
     }
 
@@ -279,7 +287,9 @@ class Workspace(context: Context) : ViewGroup(context) {
             val max = (childCount - 1) * width
             val x = (startScroll - (ev.x - downX)).toInt()
             val inside = x.coerceIn(0, max)
-            when {
+            edgePx = maxOf(0, -x).toFloat()
+            if (!infinite && (edgePulling || edgePx > 0) && onEdgePull?.invoke(edgePx, 0f, false) == true) { edgePulling = true; scrollTo(0, 0) }
+            else when {
                 infinite -> scrollTo(inside, 0)
                 stretch -> { scrollTo(inside, 0); pull((x - inside).toFloat(), ev.y) }
                 else -> scrollTo(inside + rubberBand((x - inside).toFloat(), width / 8f).toInt(), 0)

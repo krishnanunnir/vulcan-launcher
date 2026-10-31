@@ -385,6 +385,8 @@ class MainActivity : Activity() {
         drawer = Drawer(this)
         // Swipe up opens the drawer under the finger instead of after the gesture ends.
         if (looks.str("g_swipeUp") == "drawer") { workspace.onPull = drawer::pull; dock.onPull = drawer::pull }
+        // Likewise swipe right on the first page pulls the Now page in under the finger.
+        if (looks.str("g_swipeRight") == "now") workspace.onEdgePull = ::pullNow
         dropBar = LinearLayout(this).apply {
             visibility = View.GONE
             gravity = Gravity.CENTER

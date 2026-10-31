@@ -36,7 +36,7 @@ fun MainActivity.granted(permission: String) = checkSelfPermission(permission) =
 private fun datePattern(skeleton: String) = android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), skeleton)
 
 @SuppressLint("SetTextI18n", "ClickableViewAccessibility")
-fun MainActivity.showNow() {
+fun MainActivity.showNow(slide: Boolean = true) {
     drawer.hide()
     val pad = (16 * dp).toInt()
     val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, insets.top + pad, pad, insets.bottom + pad) }
@@ -95,7 +95,7 @@ fun MainActivity.showNow() {
                     contentDescription = getString(if (playing) R.string.media_pause else R.string.media_play)
                     scaleType = ImageView.ScaleType.CENTER
                     background = pressable(rounded(m3.primary, 24 * dp), 24 * dp, m3.onPrimary)
-                    setOnClickListener { if (playing) c.transportControls.pause() else c.transportControls.play(); closeOverlay(); showNow() }
+                    setOnClickListener { if (playing) c.transportControls.pause() else c.transportControls.play(); overlayExit = null; closeOverlay(); showNow(slide = false) }
                 }, LinearLayout.LayoutParams((48 * dp).toInt(), (48 * dp).toInt()))
                 addView(iconButton("next", getString(R.string.media_next), m3.onSurfaceVariant) { c.transportControls.skipToNext() })
                 setOnClickListener { c.sessionActivity?.let { runCatching { it.send() } } }
@@ -173,14 +173,31 @@ fun MainActivity.showNow() {
     }
 
     val panel = NowPanel(this).apply {
-        setBackgroundColor(m3.surface and 0xFFFFFF or 0xE0000000.toInt())
+        // Nearly opaque: home's icons showing through made the cards hard to read.
+        setBackgroundColor(m3.surface and 0xFFFFFF or 0xF5000000.toInt())
         isClickable = true
         addView(ScrollView(context).apply { addView(list) })
     }
-    showOverlay(panel)
-    // Slides in from the left, the way the swipe right that opened it points.
-    panel.translationX = -root.width.toFloat()
-    panel.animate().translationX(0f).setDuration(260).setInterpolator(EASE).start()
+    showOverlay(panel) { content.translationX = 0f }
+    // Back slides it out the way it came.
+    overlayExit = { done -> panel.settle(false, done) }
+    // Slides in from the left, the way the swipe right that opened it points; a live pull (pullNow) moves it itself.
+    panel.progress = 0f
+    if (slide) panel.settle(true)
+}
+
+/**
+ * Swipe right on the first page: the Now page follows the finger in, as Launcher3's -1 screen does. [px]: pulled so
+ * far; on [end] it opens when flung right, or let go past a quarter of the width without a fling back.
+ */
+fun MainActivity.pullNow(px: Float, vx: Float, end: Boolean): Boolean {
+    if (!looks.on("nowPage")) return false
+    val panel = overlay as? NowPanel ?: if (end) return true else { showNow(slide = false); overlay as NowPanel }
+    val w = maxOf(1, root.width).toFloat()
+    val fling = 500 * dp
+    if (!end) panel.progress = minOf(1f, px / w)
+    else panel.settle(vx > fling || vx > -fling && px > w / 4)
+    return true
 }
 
 /**
@@ -189,6 +206,37 @@ fun MainActivity.showNow() {
  */
 @SuppressLint("ViewConstructor")
 private class NowPanel(private val a: MainActivity) : FrameLayout(a) {
+    private var anim: android.animation.ValueAnimator? = null
+
+    /** 0: off to the left, 1: open. Home sinks back and shifts a little right with it. */
+    var progress = 1f
+        set(p) {
+            field = p
+            val w = a.root.width
+            translationX = (p - 1) * w
+            a.setDepth(p)
+            a.content.translationX = p * w * 0.2f
+        }
+
+    /** Animates to open or closed (then removes the page, or calls [done] when it's already leaving through Back). */
+    fun settle(open: Boolean, done: (() -> Unit)? = null) {
+        anim?.cancel()
+        anim = android.animation.ValueAnimator.ofFloat(progress, if (open) 1f else 0f).apply {
+            duration = (120 + 200 * kotlin.math.abs((if (open) 1f else 0f) - progress)).toLong()
+            interpolator = EASE
+            addUpdateListener { progress = it.animatedValue as Float }
+            if (!open) addListener(object : android.animation.AnimatorListenerAdapter() {
+                var cancelled = false
+                override fun onAnimationCancel(animation: android.animation.Animator) { cancelled = true }
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    if (cancelled) return
+                    if (done != null) done() else if (a.overlay === this@NowPanel) { a.overlayExit = null; a.closeOverlay() }
+                }
+            })
+            start()
+        }
+    }
+
     private val slop = android.view.ViewConfiguration.get(a).scaledTouchSlop
     private var downX = 0f
     private var downY = 0f
@@ -196,7 +244,7 @@ private class NowPanel(private val a: MainActivity) : FrameLayout(a) {
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         when (ev.actionMasked) {
-            MotionEvent.ACTION_DOWN -> { downX = ev.rawX; downY = ev.rawY }
+            MotionEvent.ACTION_DOWN -> { downX = ev.rawX; downY = ev.rawY; anim?.cancel() }
             MotionEvent.ACTION_MOVE -> {
                 val dx = downX - ev.rawX
                 if (dx > slop && dx > 2 * kotlin.math.abs(ev.rawY - downY)) {
@@ -214,15 +262,13 @@ private class NowPanel(private val a: MainActivity) : FrameLayout(a) {
         v.addMovement(ev)
         val x = minOf(0f, ev.rawX - downX)
         when (ev.actionMasked) {
-            MotionEvent.ACTION_MOVE -> { translationX = x; a.setDepth(1 + x / width) }
+            MotionEvent.ACTION_MOVE -> progress = 1 + x / maxOf(1, width)
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 v.computeCurrentVelocity(1000)
                 val fling = 1000 * a.dp
                 val close = ev.actionMasked == MotionEvent.ACTION_UP && (v.xVelocity < -fling || v.xVelocity < fling && -x > width / 3f)
                 v.recycle(); velocity = null
-                animate().translationX(if (close) -width.toFloat() else 0f).setDuration(200).setInterpolator(EASE)
-                    .setUpdateListener { a.setDepth(1 + translationX / width) }
-                    .withEndAction { if (close) a.closeOverlay() }.start()
+                settle(!close)
             }
         }
         return true
