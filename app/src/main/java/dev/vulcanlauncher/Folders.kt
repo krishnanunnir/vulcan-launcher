@@ -295,7 +295,7 @@ private fun MainActivity.reveal(card: View, grid: ViewGroup, name: View, from: R
         ValueAnimator.ofFloat(f, if (open) 1f else 0f).apply {
             // Short cubic ease-out both ways: moving from the first frame and done when it looks done. Emphasized curves
             // (a long creep in, a slow start out) measured as half a second of lag on a 120 Hz phone.
-            duration = if (open) 280 else 220
+            duration = if (open) 200 else 160
             interpolator = DecelerateInterpolator(1.5f)
             addUpdateListener { f = it.animatedValue as Float; frame() }
             addListener(object : AnimatorListenerAdapter() {
@@ -462,6 +462,6 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         overlayExit = { done -> reveal(card, cell, name, anchor, slots, iconCorner, corner, open = false) { icon?.alpha = 1f; done() } }
     } else if (!full) {
         card.scaleX = 0.9f; card.scaleY = 0.9f; card.alpha = 0f
-        card.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(200).setInterpolator(DecelerateInterpolator()).start()
+        card.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(150).setInterpolator(DecelerateInterpolator()).start()
     }
 }
