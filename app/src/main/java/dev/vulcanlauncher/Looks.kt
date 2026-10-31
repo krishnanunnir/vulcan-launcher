@@ -113,6 +113,7 @@ val LOOKS = listOf(
     Choice(DRAWER, "drawerTheme", R.string.set_drawerTheme, "auto", listOf("auto", "dark", "light"), listOf(R.string.drawerTheme_auto, R.string.drawerTheme_dark, R.string.drawerTheme_light)),
     percent(DRAWER, "drawerAlpha", R.string.set_drawerAlpha, "100"),
     Choice(DRAWER, "drawerSort", R.string.set_drawerSort, "az", SORTS, SORT_NAMES),
+    onOff(DRAWER, "fillFromBottom", R.string.set_fillFromBottom, false, R.string.set_fillFromBottom_info),
     onOff(DRAWER, "frequent", R.string.set_frequent, true),
     onOff(DRAWER, "showKeyboard", R.string.set_showKeyboard, false),
     onOff(DRAWER, "pullToSearch", R.string.set_pullToSearch, false, R.string.set_pullToSearch_info),

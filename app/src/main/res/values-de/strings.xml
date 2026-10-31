@@ -364,6 +364,8 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="set_folderSwipe">Zum Öffnen wischen</string>
     <string name="set_folderSwipe_info">Tippen startet das erste Element</string>
     <string name="set_folderWindow">Fensterstil</string>
+    <string name="set_fillFromBottom">Von unten füllen</string>
+    <string name="set_fillFromBottom_info">Apps und Tabs beginnen unten am Bildschirm, unter dem Daumen</string>
     <string name="set_foldersFirst">Ordner zuerst</string>
     <string name="set_frequent">Zeile häufig genutzter Apps</string>
     <string name="set_glanceStyle">Uhrstil</string>

@@ -364,6 +364,8 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="set_folderSwipe">Свайп для открытия</string>
     <string name="set_folderSwipe_info">Касание запускает первый элемент</string>
     <string name="set_folderWindow">Стиль окна</string>
+    <string name="set_fillFromBottom">Заполнять снизу</string>
+    <string name="set_fillFromBottom_info">Приложения и вкладки начинаются внизу экрана, под большим пальцем</string>
     <string name="set_foldersFirst">Папки сначала</string>
     <string name="set_frequent">Строка часто используемых приложений</string>
     <string name="set_glanceStyle">Стиль часов</string>

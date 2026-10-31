@@ -103,6 +103,8 @@
     <string name="set_rememberPosition">Remember tab and scroll position</string>
     <string name="set_closeAfterLaunch">Close after launching an app</string>
     <string name="set_fastScroll">Fast scrollbar</string>
+    <string name="set_fillFromBottom">Fill from the bottom</string>
+    <string name="set_fillFromBottom_info">Apps and tabs start at the bottom of the screen, under your thumb</string>
     <string name="set_foldersFirst">Folders first</string>
     <string name="set_keepInAll">Keep grouped apps in the main tab</string>
     <string name="set_workTab">Work apps in their own tab</string>

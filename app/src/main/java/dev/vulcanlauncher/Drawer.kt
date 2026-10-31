@@ -124,6 +124,8 @@ class Drawer(private val a: MainActivity) {
     private val bottomBar = if (searchPlace == "style") glass || housing else searchPlace == "bottom"
     /** As Nova's "None": no search bar, except while searching (pull to search, show keyboard). */
     private val barOff = searchPlace == "off"
+    /** One-handed: apps fill from the bottom up and the tabs sit under them, near the thumb. Not for horizontal pages. */
+    private val fromBottom = a.looks.on("fillFromBottom") && styleName != "pages"
     /** As Nova: the grid's height holds this many rows; the icons shrink to fit if they must. */
     private val rows = scaleSpan(a.looks.int("drawerRows"), long, screen.heightPixels)
     /** A grid row's height, measured while the keyboard is down so searching doesn't squash it. 0 until known. */
@@ -220,17 +222,18 @@ class Drawer(private val a: MainActivity) {
         searchBar = bar
         val barParams = LinearLayout.LayoutParams(-1, ((if (bottomBar) 48 else 56) * a.dp).toInt()).apply { setMargins(pad, pad / 2, pad, pad / 2) }
         if (!bottomBar) addView(bar, barParams)
-        tabs.setPadding(pad - (4 * a.dp).toInt(), if (bottomBar) pad / 2 else 0, pad, (8 * a.dp).toInt())
+        tabs.setPadding(pad - (4 * a.dp).toInt(), if (bottomBar || fromBottom) pad / 2 else 0, pad, (8 * a.dp).toInt())
+        val content = FrameLayout(a)
+        if (styleName == "pages") content.addView(pager) else content.addView(grid)
+        content.addView(empty, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER).apply { setMargins(pad * 2, 0, pad * 2, 0) })
+        if (housing && a.looks.on("fastScroll")) content.addView(index, FrameLayout.LayoutParams((28 * a.dp).toInt(), -1, Gravity.END))
+        if (fromBottom) addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
         // Nova: above the tabs, except horizontal pages, where it sits under them. A divider closes it off.
         if (styleName != "pages") addView(frequentRow, LinearLayout.LayoutParams(-1, -2))
         addView(tabScroll, LinearLayout.LayoutParams(-1, -2))
         if (styleName == "pages") addView(frequentRow, LinearLayout.LayoutParams(-1, -2))
         addView(privateBar, LinearLayout.LayoutParams(-1, -2).apply { setMargins(pad, 0, pad / 2, 0) })
-        val content = FrameLayout(a)
-        if (styleName == "pages") content.addView(pager) else content.addView(grid)
-        content.addView(empty, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER).apply { setMargins(pad * 2, 0, pad * 2, 0) })
-        if (housing && a.looks.on("fastScroll")) content.addView(index, FrameLayout.LayoutParams((28 * a.dp).toInt(), -1, Gravity.END))
-        addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
+        if (!fromBottom) addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
         if (bottomBar) addView(bar, barParams)
     }
 
@@ -402,8 +405,10 @@ class Drawer(private val a: MainActivity) {
     private fun prepare() {
         if (visible) return
         if (search.text.isNotEmpty()) search.text.clear()
-        if (!a.looks.on("rememberPosition")) { tab = ""; grid.setSelection(0); if (styleName == "pages") pager.snapTo(0, animate = false) }
+        val reset = !a.looks.on("rememberPosition")
+        if (reset) { tab = ""; if (styleName == "pages") pager.snapTo(0, animate = false) }
         if (inputs() != shown) refresh()
+        if (reset) grid.setSelection(if (fromBottom) adapter.count - 1 else 0)
     }
 
     private fun opened() {
@@ -497,7 +502,7 @@ class Drawer(private val a: MainActivity) {
             a.apps.values.filter { launches.optInt(it.key) > 0 && it.key !in hidden && it.key !in private }.sortedByDescending { launches.optInt(it.key) }
                 .take(gridCols) else emptyList())
         // Glass and housing: search results sit just above the bottom search bar, under the thumb.
-        grid.isStackFromBottom = bottomBar && q.isNotEmpty()
+        grid.isStackFromBottom = fromBottom || bottomBar && q.isNotEmpty()
         index.visibility = if (q.isEmpty() && entries.isNotEmpty()) View.VISIBLE else View.GONE
         empty.text = a.getString(R.string.no_apps_match, q)
         empty.visibility = if (q.isNotEmpty() && entries.none { it is Entry.AppE || it is Entry.ContactE }) View.VISIBLE else View.GONE
