@@ -37,7 +37,9 @@ class OverviewCheck(private val test: Instrumentation) {
     private fun tile(page: Int): View = text(a.getString(R.string.page_n, page + 1)).parent as View
     private fun center(v: View): Pair<Float, Float> {
         val r = Rect()
-        ui { check(v.getGlobalVisibleRect(r)) { "View is off screen" } }
+        var visible = false
+        ui { visible = v.getGlobalVisibleRect(r) }
+        check(visible) { "View is off screen" }
         return r.exactCenterX() to r.exactCenterY()
     }
     private fun input(down: Long, action: Int, p: Pair<Float, Float>) {
@@ -179,12 +181,17 @@ class OverviewCheck(private val test: Instrumentation) {
             failures++
             log.append("ERROR ${e.stackTraceToString()}\n")
         } finally {
-            dialogButton("button2") // Cancel any removal prompt left by an interrupted check before restoring.
+            // UI automation itself may have failed; cleanup still needs to restore the saved layout.
+            runCatching { dialogButton("button2") }
             ui {
                 a.closeOverlay()
                 prefs.edit().clear().apply { savedLooks.forEach { (key, value) -> putString(key, value.toString()) } }.commit()
                 a.items = savedItems.toMutableList(); a.save(); a.rebuild()
             }
+            // Instrumentation can kill the process before SharedPreferences.apply() reaches disk.
+            // An empty commit waits for pending writes, including save() calls made by rebuild().
+            test.targetContext.getSharedPreferences("layout", Context.MODE_PRIVATE).edit().commit()
+            prefs.edit().commit()
         }
         log.append(if (failures == 0) "ALL PAGES CHECKS PASSED\n" else "$failures FAILED\n")
         test.finish(if (failures == 0) Activity.RESULT_OK else Activity.RESULT_CANCELED, Bundle().apply { putString("stream", log.toString()) })
