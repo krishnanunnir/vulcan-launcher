@@ -90,6 +90,13 @@
             </intent-filter>
         </activity>
 
+        <!-- Contributor persona cards: only the share target receives temporary read access. -->
+        <provider
+            android:name=".PersonaCardProvider"
+            android:authorities="${applicationId}.persona-cards"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
         <!-- Notification badges. Off until the user grants notification access. -->
         <service
             android:name=".BadgeService"

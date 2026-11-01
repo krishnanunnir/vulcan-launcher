@@ -39,6 +39,7 @@ The wallpaper in the screenshots is [docs/wallpaper-dusk.jpg](docs/wallpaper-dus
 - **Long-press an app** for its shortcuts, notifications, app info or uninstall.
 - **Swipe right on the first page** for the Now page: the date, music controls, upcoming events and favourite contacts.
 - **Back up** your whole setup to a file and restore it later.
+- **Meet the contributors:** tap someone in Settings → Contributors to see their illustrated persona, contribution and personality. Share their character card through Android’s share sheet. Everything is generated on your device and needs no new permission.
 
 In **Pages**, tap **+** to add screens while keeping the previews open. Hold a preview and drag it onto **Remove page**;
 the target and the dragged preview turn red before you release.

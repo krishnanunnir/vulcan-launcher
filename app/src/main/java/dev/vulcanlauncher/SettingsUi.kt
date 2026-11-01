@@ -163,9 +163,9 @@ fun SettingsActivity.showPage(page: String, scroll: Int = 0, restoring: Boolean 
         setPadding(0, 0, 0, (16 * dp).toInt())
     }
     var search: ((String) -> Unit)? = null
-    when (page) { "" -> search = settingsHome(list); COLORS -> colorsPage(list); BACKUP -> backupPage(list); PERMISSIONS -> permissionsPage(list); GROUPS -> groupsPage(list); else -> settingsCategory(page, list) }
+    when (page) { "" -> search = settingsHome(list); COLORS -> colorsPage(list); BACKUP -> backupPage(list); PERMISSIONS -> permissionsPage(list); GROUPS -> groupsPage(list); CONTRIBUTORS_PAGE -> contributorsPage(list); else -> settingsCategory(page, list) }
     val scrollView = ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(list) }
-    val title = text(getString(when (page) { "" -> R.string.settings; COLORS -> R.string.custom_colors; BACKUP -> R.string.backup_restore; PERMISSIONS -> R.string.permissions; GROUPS -> R.string.drawer_groups; else -> GROUP_TITLES.getValue(page) }), 22f).apply { setPadding((8 * dp).toInt(), 0, 0, 0); maxLines = 1 }
+    val title = text(getString(when (page) { "" -> R.string.settings; COLORS -> R.string.custom_colors; BACKUP -> R.string.backup_restore; PERMISSIONS -> R.string.permissions; GROUPS -> R.string.drawer_groups; CONTRIBUTORS_PAGE -> R.string.contributors; else -> GROUP_TITLES.getValue(page) }), 22f).apply { setPadding((8 * dp).toInt(), 0, 0, 0); maxLines = 1 }
     // Settings home, as One UI: a search button in the bar turns the title into the search field.
     val field = search?.let { onQuery -> EditText(this).apply {
         visibility = View.GONE
@@ -288,6 +288,7 @@ private fun SettingsActivity.settingsHome(page: LinearLayout): (String) -> Unit 
             startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
         },
         listItem(symbol("refresh", m3.onPrimaryContainer), getString(R.string.restart), null, tonalIcon = true) { restartHome() },
+        listItem(symbol("person", m3.onPrimaryContainer), getString(R.string.contributors), getString(R.string.contrib_info), tonalIcon = true) { showPage(CONTRIBUTORS_PAGE) },
         listItem(symbol("info", m3.onPrimaryContainer), getString(R.string.about), getString(R.string.version, versionName), tonalIcon = true) {
             dialog().setTitle(R.string.app_name).setIcon(R.mipmap.ic_launcher)
                 .setMessage(R.string.about_text)
@@ -300,7 +301,7 @@ private fun SettingsActivity.settingsHome(page: LinearLayout): (String) -> Unit 
 private val SettingsActivity.versionName get() = packageManager.getPackageInfo(packageName, 0).versionName
 
 /** Rows on one raised face, divided by hairlines, under a printed legend: one panel of the appliance. */
-private fun SettingsActivity.panel(list: LinearLayout, title: String?, rows: List<View>) {
+fun SettingsActivity.panel(list: LinearLayout, title: String?, rows: List<View>) {
     if (title != null) list.addView(legend(title, 12f).apply { setPadding((32 * dp).toInt(), (20 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt()) })
     list.addView(LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL

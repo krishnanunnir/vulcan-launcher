@@ -97,6 +97,7 @@ class DeviceCheck : Instrumentation() {
     private var failures = 0
 
     override fun onStart() {
+        if (mode == "persona") return PersonaCheck(this).run()
         if (mode == "import") return importCheck()
         if (mode == "readable") return readableCheck()
         if (mode == "pages") return OverviewCheck(this).run()
