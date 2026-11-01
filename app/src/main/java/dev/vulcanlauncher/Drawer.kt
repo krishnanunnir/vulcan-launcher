@@ -297,8 +297,8 @@ class Drawer(private val a: MainActivity) {
                     if (!index.dragging) index.current = this@Drawer.adapter.getSectionForPosition(first)
                 }
             })
-            setOnItemClickListener { _, v, pos, _ -> entries.getOrNull(pos)?.let { open(it, v) } }
-            setOnItemLongClickListener { _, v, pos, _ -> entries.getOrNull(pos)?.let { longPress(it, v) }; true }
+            setOnItemClickListener { _, v, pos, _ -> this@Drawer.adapter.getItem(pos)?.let { open(it, v) } }
+            setOnItemLongClickListener { _, v, pos, _ -> this@Drawer.adapter.getItem(pos)?.let { longPress(it, v) }; true }
             var downY = 0f
             var closing = false
             var velocity: android.view.VelocityTracker? = null
@@ -727,10 +727,12 @@ class Drawer(private val a: MainActivity) {
         }
         // Stacked from the bottom, GridView right-aligns the short row; padding to whole rows keeps results reading left to right.
         override fun getCount() = if (grid.isStackFromBottom) (entries.size + cols - 1) / cols * cols else entries.size
-        override fun getItem(pos: Int) = entries.getOrNull(pos)
+        /** Fill from bottom pads before the apps, so the short row is the top one and the bottom row is full (#33). */
+        private val lead get() = if (fromBottom) count - entries.size else 0
+        override fun getItem(pos: Int) = entries.getOrNull(pos - lead)
         override fun getItemId(pos: Int) = pos.toLong()
-        override fun isEnabled(pos: Int) = pos < entries.size
-        override fun getView(pos: Int, convert: View?, parent: ViewGroup): View = (entries.getOrNull(pos)?.let { entryView(it, convert) }?.apply {
+        override fun isEnabled(pos: Int) = getItem(pos) != null
+        override fun getView(pos: Int, convert: View?, parent: ViewGroup): View = (getItem(pos)?.let { entryView(it, convert) }?.apply {
             if (styleName == "list") setPadding((8 * a.dp).toInt(), 0, 0, 0)
         } ?: entryView(entries[0]).apply { visibility = View.INVISIBLE }).apply { // a filler as tall as a real cell, or GridView misplaces the row
             if (styleName == "list") return@apply
@@ -741,8 +743,8 @@ class Drawer(private val a: MainActivity) {
                 .height = if (cellH > 0) cellH else -2
         }
         override fun getSections(): Array<String> = sections
-        override fun getPositionForSection(s: Int) = entries.indexOfFirst { letter(it) == sections.getOrNull(s) }.coerceAtLeast(0)
-        override fun getSectionForPosition(p: Int) = sections.indexOf(entries.getOrNull(p)?.let(::letter)).coerceAtLeast(0)
+        override fun getPositionForSection(s: Int) = entries.indexOfFirst { letter(it) == sections.getOrNull(s) }.coerceAtLeast(0) + lead
+        override fun getSectionForPosition(p: Int) = sections.indexOf(getItem(p)?.let(::letter)).coerceAtLeast(0)
     }
 }
 

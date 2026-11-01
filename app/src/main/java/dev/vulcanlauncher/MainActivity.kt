@@ -1191,7 +1191,8 @@ class MainActivity : VulcanActivity() {
             else maxOf(insets.top, anchor.top - box.measuredHeight - margin)
         val shade = FrameLayout(this).apply {
             setOnClickListener { closeMenu() }
-            setOnDragListener(passDrag)
+            // No drag listener: a drag goes to the view under the finger, so a folder window reordering its icons keeps
+            // itself open (trackDrag's keepOverlay) instead of this full-screen shade closing it on the first move (#1).
             // LEFT, not the default START: x is measured from the left edge in right-to-left languages too.
             addView(box, FrameLayout.LayoutParams(w, -2, Gravity.TOP or Gravity.LEFT).apply { leftMargin = x; topMargin = y })
         }
