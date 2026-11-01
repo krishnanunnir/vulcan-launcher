@@ -1,0 +1,9 @@
+- Thanks SadieVane, HatsyRei and PierBez (see Settings → Contributors).
+- Drawer ignores taps until fully open; no stray app menus.
+- Swipe up on the search bar opens the drawer.
+- Icon picker shows every icon in a pack.
+- Number settings are sliders; Hide apps uses checkboxes.
+- Folder Columns and Rows; Launcher3-style reordering.
+- Bottom-up drawer fills from a full row.
+- Widgets grouped by app.
+- Swipeable hold-home overview; page removal fixed.
