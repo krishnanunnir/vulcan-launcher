@@ -1,4 +1,4 @@
-# Long-press empty home space for the home menu (Widgets, Wallpaper, Pages, Lock…). Retried: see drawer.yaml.
+# Long-press empty home space for the home menu (Wallpaper, Widgets, Settings, Pages). Retried: see drawer.yaml.
 appId: dev.vulcanlauncher
 ---
 - repeat:

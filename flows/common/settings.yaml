@@ -1,11 +1,11 @@
-# Opens settings from the home icon, retrying: a tap right after a (re)start can be ignored.
+# Opens settings from the home icon (waits for its first section), retrying: a tap right after a (re)start can be ignored.
 appId: dev.vulcanlauncher
 ---
 - repeat:
     times: 3
     while:
-      notVisible: "NO INTERNET PERMISSION"
+      notVisible: "Home screen"
     commands:
       - tapOn: "Launcher settings"
       - waitForAnimationToEnd
-- assertVisible: "NO INTERNET PERMISSION"
+- assertVisible: "Home screen"

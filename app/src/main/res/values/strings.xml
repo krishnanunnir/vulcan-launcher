@@ -401,6 +401,7 @@
     <string name="pages">Pages</string>
     <string name="unlock">Unlock</string>
     <string name="lock">Lock</string>
+    <string name="home_options">Options</string>
     <string name="layout_locked">Layout locked</string>
     <string name="layout_unlocked">Layout unlocked</string>
     <string name="resize_current">%1$s (current)</string>

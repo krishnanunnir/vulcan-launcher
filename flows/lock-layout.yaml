@@ -3,13 +3,21 @@ appId: dev.vulcanlauncher
 tags: [edits]
 ---
 - runFlow: common/fresh.yaml
-- runFlow: common/home-menu.yaml
-- tapOn: "(?i)lock"
+- runFlow: common/settings.yaml
+- tapOn: "Home screen"
+- scrollUntilVisible: { element: { text: "Lock layout" }, direction: DOWN }
+- tapOn: "Lock layout"
+- back
+- back
 - longPressOn: "Gmail"
 - assertNotVisible: "(?i)remove"
 - back
-- runFlow: common/home-menu.yaml
-- tapOn: "(?i)unlock"
+- runFlow: common/settings.yaml
+- tapOn: "Home screen"
+- scrollUntilVisible: { element: { text: "Lock layout" }, direction: DOWN }
+- tapOn: "Lock layout"
+- back
+- back
 - longPressOn: "Gmail"
 - assertVisible: "(?i)remove"
 - back

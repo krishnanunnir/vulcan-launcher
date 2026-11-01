@@ -1182,7 +1182,7 @@ class MainActivity : VulcanActivity() {
     fun closeMenu() {
         val m = menu ?: return
         menu = null
-        if (homeMode) { homeMode = false; springLoad(false); dockBox.animate().alpha(1f).setDuration(200).start() }
+        if (homeMode) { homeMode = false; springLoad(false); listOf(dockBox, indicator).forEach { it.animate().alpha(1f).setDuration(200).start() } }
         // Let touches through at once; it only fades out.
         m.setOnClickListener(null); m.isClickable = false
         m.animate().alpha(0f).setDuration(120).withEndAction { root.removeView(m) }.start()
@@ -1342,16 +1342,18 @@ class MainActivity : VulcanActivity() {
 
     /**
      * Nova's hold on empty space: the page shrinks into its outline (as while dragging), the dock steps aside, and the
-     * main home actions sit at the bottom as large buttons; "more" has the rest ([homeMenu]). Tap anywhere or Back to leave.
+     * main home actions sit at the bottom as large buttons; Options has the rest ([homeOptions]). Tap anywhere or Back to leave.
      */
     fun homeOverview() {
         val ink = looks.color("labelColor")
+        lateinit var options: TextView
         val buttons = LinearLayout(this).apply {
             listOf(
                 Triple("image", getString(R.string.wallpaper)) { perform("wallpaper") },
                 Triple("widgets", getString(R.string.widgets)) { pickWidget() },
                 Triple("settings", getString(R.string.settings)) { showSettings() },
-                Triple("more", getString(R.string.more_options)) { homeMenu() },
+                Triple("carousel", getString(R.string.pages)) { showOverview() },
+                Triple("more", getString(R.string.home_options)) { homeOptions(options) },
             ).filter { !locked || it.first != "widgets" }.forEach { (sym, title, click) ->
                 addView(text(title, 13f, ink).apply {
                     gravity = Gravity.CENTER
@@ -1361,7 +1363,8 @@ class MainActivity : VulcanActivity() {
                     setCompoundDrawablesWithIntrinsicBounds(null, symbol(sym, ink, 32f), null, null)
                     setPadding(0, (12 * dp).toInt(), 0, (12 * dp).toInt())
                     background = pressable(null, 16 * dp, ink)
-                    setOnClickListener { closeMenu(); click() }
+                    setOnClickListener { if (sym != "more") closeMenu(); click() }
+                    if (sym == "more") options = this
                 }, LinearLayout.LayoutParams(0, -2, 1f))
             }
             alpha = 0f
@@ -1380,7 +1383,39 @@ class MainActivity : VulcanActivity() {
         homeMode = true
         root.tick()
         springLoad(true)
-        dockBox.animate().alpha(0f).setDuration(200).start()
+        // The page dots too: with a large font they sat on the buttons.
+        listOf(dockBox, indicator).forEach { it.animate().alpha(0f).setDuration(200).start() }
+    }
+
+    /**
+     * Options' menu, over [homeOverview]: it opens above its [button], which stays lit, and the buttons stay where they
+     * are. Tapping outside goes back to the buttons alone; an action, or Back, closes it all.
+     */
+    private fun homeOptions(button: TextView) {
+        // Tapped again while open: back to the buttons alone.
+        if (button.isActivated) { homeMode = false; homeOverview(); return }
+        val entries = listOf(
+            Triple("bolt", getString(R.string.shortcuts)) { addShortcutMenu() },
+            // As a clock widget: one row across the page, sized and moved like one.
+            Triple("clock", getString(R.string.clock)) { addItem(Item(0, 0, 0, looks.cols * sub, sub, action = "clock")); Unit },
+            Triple(if (locked) "unlock" else "lock", getString(if (locked) R.string.unlock else R.string.lock)) {
+                looks["lockLayout"] = if (locked) "off" else "on"; toast(if (locked) R.string.layout_locked else R.string.layout_unlocked)
+            },
+        ).filter { !locked || it.first !in listOf("bolt", "clock") }
+        val at = screenRect(button)
+        val row = button.parent as LinearLayout
+        val lp = row.layoutParams
+        (row.parent as ViewGroup).removeView(row)
+        // showMenu closes the overview first; the page stays shrunk and the dock hidden under the menu.
+        homeMode = false
+        showMenu(at, narrow = true) { addActions(entries, 4, lead = emptySet()) }
+        homeMode = true
+        val shade = menu as FrameLayout
+        shade.setOnClickListener { homeMode = false; homeOverview() }
+        shade.addView(row, lp)
+        button.isActivated = true
+        val ink = looks.color("labelColor")
+        button.background = pressable(rounded(ink and 0xFFFFFF or 0x26000000, 16 * dp), 16 * dp, ink)
     }
 
     fun homeMenu() {

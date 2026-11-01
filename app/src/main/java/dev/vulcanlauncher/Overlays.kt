@@ -303,7 +303,10 @@ fun MainActivity.showOverview() {
             }, LinearLayout.LayoutParams(-1, (48 * dp).toInt()).apply { setMargins(0, (4 * dp).toInt(), 0, (8 * dp).toInt()) })
             addView(ScrollView(context).apply { addView(grid) }, LinearLayout.LayoutParams(-1, -2))
         }, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
-    })
+    }) { content.alpha = 1f }
+    // The wallpaper alone behind it: home's icons read through the scrim and crowded the previews. Set after
+    // showOverlay, whose closing of an earlier overview (reopened after "+") brings home back.
+    content.alpha = 0f
 }
 
 private fun MainActivity.movePageTo(from: Int, to: Int) {

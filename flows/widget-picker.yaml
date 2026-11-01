@@ -1,4 +1,4 @@
-# The home menu's Widgets opens the picker with sized entries; nothing is added.
+# The home menu's Widgets opens the picker; an app opens to sized entries. Nothing is added.
 appId: dev.vulcanlauncher
 tags: [edits]
 ---
@@ -6,5 +6,6 @@ tags: [edits]
 - runFlow: common/home-menu.yaml
 - tapOn: "(?i)widgets"
 - assertVisible: "Widgets"
+- tapOn: "Calendar"
 - assertVisible: "(?s).*\\(\\d+×\\d+\\).*"   # "Analog  (2×1)\nClock"
 - back
