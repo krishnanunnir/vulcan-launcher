@@ -164,15 +164,29 @@ class IconPack(val pkg: String, val res: Resources, val map: Map<String, String>
         val id = res.getIdentifier(name, "drawable", pkg)
         return if (id == 0) null else runCatching { res.getDrawable(id, null) }.getOrNull()
     }
-    /** All drawable names the pack maps to, for the "choose icon" picker. */
-    val names get() = map.values.distinct().sorted()
+    /**
+     * Every icon for the "choose icon" picker: the pack's drawable.xml catalogue, all its categories, plus whatever
+     * appfilter maps. Icons the pack offers but maps to no app are only in the catalogue.
+     */
+    val names by lazy {
+        val listed = runCatching {
+            val p = packXml(res, pkg, "drawable")
+            buildList { while (p.next() != XmlPullParser.END_DOCUMENT) if (p.eventType == XmlPullParser.START_TAG && p.name == "item") p.getAttributeValue(null, "drawable")?.let(::add) }
+        }.getOrDefault(emptyList())
+        (map.values + listed).distinct().sorted()
+    }
+}
+
+/** An icon pack's res/xml/[name].xml, or assets/[name].xml for packs that ship it there. */
+private fun packXml(res: Resources, pkg: String, name: String): XmlPullParser {
+    val id = res.getIdentifier(name, "xml", pkg)
+    return if (id != 0) res.getXml(id)
+    else XmlPullParserFactory.newInstance().newPullParser().apply { setInput(res.assets.open("$name.xml"), null) }
 }
 
 fun loadIconPack(context: Context, pkg: String): IconPack? = runCatching {
     val res = context.packageManager.getResourcesForApplication(pkg)
-    val id = res.getIdentifier("appfilter", "xml", pkg)
-    val parser = if (id != 0) res.getXml(id)
-    else XmlPullParserFactory.newInstance().newPullParser().apply { setInput(res.assets.open("appfilter.xml"), null) }
+    val parser = packXml(res, pkg, "appfilter")
     val map = HashMap<String, String>()
     val back = ArrayList<String>()
     var mask: String? = null

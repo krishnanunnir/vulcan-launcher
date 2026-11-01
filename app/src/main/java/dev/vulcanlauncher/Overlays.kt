@@ -114,7 +114,34 @@ fun MainActivity.searchBar(): View {
         setOnClickListener { perform("search") }
         setOnLongClickListener { homeMenu(); true }
     }
-    return FrameLayout(this).apply {
+    val slop = android.view.ViewConfiguration.get(this).scaledTouchSlop
+    // Swipe up from the bar does what it does from the rest of home (pulls the drawer up); a tap or hold stays the pill's.
+    return object : FrameLayout(this) {
+        private var downY = 0f
+        private var velocity: android.view.VelocityTracker? = null
+
+        override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+            if (ev.actionMasked == MotionEvent.ACTION_DOWN) { downY = ev.y; velocity?.recycle(); velocity = android.view.VelocityTracker.obtain() }
+            velocity?.addMovement(ev)
+            return ev.actionMasked == MotionEvent.ACTION_MOVE && menu == null && downY - ev.y > slop
+        }
+
+        override fun onTouchEvent(ev: MotionEvent): Boolean {
+            val v = velocity ?: return false
+            v.addMovement(ev)
+            val up = downY - ev.y - slop
+            when (ev.actionMasked) {
+                MotionEvent.ACTION_MOVE -> workspace.onPull?.invoke(up, 0f, false)
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    v.computeCurrentVelocity(1000)
+                    val pull = workspace.onPull
+                    if (pull != null) pull(up, -v.yVelocity, true) else if (up > slop * 2) perform(looks.str("g_swipeUp"))
+                    v.recycle(); velocity = null
+                }
+            }
+            return true
+        }
+    }.apply {
         val p = (16 * dp).toInt()
         // Room under the pill for its shadow.
         setPadding(p, p / 2, p, (10 * dp).toInt())

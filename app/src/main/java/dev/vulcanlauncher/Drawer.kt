@@ -198,7 +198,18 @@ class Drawer(private val a: MainActivity) {
         })
     }
 
-    val root = LinearLayout(a).apply {
+    val root = object : LinearLayout(a) {
+        private var ignoring = false
+        // Only a drawer that's fully open takes a new touch, so no app opens or lifts mid-animation. While it closes the
+        // touch goes to home underneath; while it opens or follows a finger, it's dropped.
+        override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+            if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
+                ignoring = progress < 1f
+                if (ignoring && anim != null && !settlingOpen) return false
+            }
+            return ignoring || super.dispatchTouchEvent(ev)
+        }
+    }.apply {
         orientation = LinearLayout.VERTICAL
         // Glass: a tint over the blurred home screen, lighter where the system really blurs what's behind.
         background = if (housing) Sheet()
@@ -356,6 +367,8 @@ class Drawer(private val a: MainActivity) {
     /** How open the drawer is: 0 closed, 1 open. Follows the finger while it's pulled, then animates the rest. */
     private var progress = 0f
     private var anim: android.animation.ValueAnimator? = null
+    /** Where a running [anim] is heading: true for open. */
+    private var settlingOpen = false
     private var keyboardOnOpen = false
 
     /** Finger travel that fully opens or closes the drawer (Launcher3's phones: 300 dp; shorter here, so it's quicker). */
@@ -395,7 +408,8 @@ class Drawer(private val a: MainActivity) {
         // Already there: finish now, so the keyboard isn't held back by an animation that moves nothing.
         if (left == 0f) { setProgress(to); if (!open) gone() else opened(); return }
         val pxMs = (speed ?: 0f) / 1000
-        anim = android.animation.ValueAnimator.ofFloat(progress, to).apply {
+        settlingOpen = open
+        anim =android.animation.ValueAnimator.ofFloat(progress, to).apply {
             duration = if (speed != null) swipeDuration(pxMs, left) else ((if (open) 260 else 200) * maxOf(0.4f, left)).toLong()
             interpolator = if (speed == null) android.view.animation.DecelerateInterpolator(1.6f) else if (abs(pxMs) > 10) SCROLL else SCROLL_CUBIC
             addUpdateListener { setProgress(it.animatedValue as Float) }
@@ -447,6 +461,8 @@ class Drawer(private val a: MainActivity) {
      * if flung up ([vy] px/s, upward positive) or pulled past 30% of [travel]. Returns false for a pull that starts downward.
      */
     fun pull(up: Float, vy: Float, end: Boolean): Boolean {
+        // A menu or overlay held open by this same finger: the swipe is swallowed, not opening the drawer over it.
+        if (!visible && (a.menu != null || a.overlay != null)) return true
         if (!end && !visible && up <= 0f) return false
         if (!visible) prepare()
         stop()
