@@ -565,4 +565,10 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
         <item quantity="many">%1$d приложений</item>
         <item quantity="other">%1$d приложения</item>
     </plurals>
+    <plurals name="widget_count">
+        <item quantity="one">%1$d виджет</item>
+        <item quantity="few">%1$d виджета</item>
+        <item quantity="many">%1$d виджетов</item>
+        <item quantity="other">%1$d виджета</item>
+    </plurals>
 </resources>

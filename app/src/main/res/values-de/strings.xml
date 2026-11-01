@@ -553,4 +553,8 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
         <item quantity="one">%1$d App</item>
         <item quantity="other">%1$d Apps</item>
     </plurals>
+    <plurals name="widget_count">
+        <item quantity="one">%1$d Widget</item>
+        <item quantity="other">%1$d Widgets</item>
+    </plurals>
 </resources>

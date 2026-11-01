@@ -857,8 +857,9 @@ class MainActivity : VulcanActivity() {
         val s = dragStart ?: PointF(x, y).also { dragStart = it }
         if (hypot(x - s.x, y - s.y) > 16 * dp) {
             dragMoved = true
-            // A drag that never moves stays a long-press: no drop targets until it does.
-            dropBar.visibility = View.VISIBLE
+            // A drag that never moves stays a long-press: no drop targets until it does. A drawer folder's app has none:
+            // it only reorders or copies to home.
+            if (dragPayload !is GroupChild) dropBar.visibility = View.VISIBLE
             springLoad(true)
             root.tick()
             closeMenu()
@@ -1307,48 +1308,65 @@ class MainActivity : VulcanActivity() {
         showMenu(at) { addTiles(entries, 3) }
     }
 
+    /**
+     * The widget picker, as Launcher3's: a row per app (icon, name, how many widgets), A to Z; tapping one opens its
+     * widgets under it, A to Z, and closes the last one opened (#18). For one app ([pkg], or only one has widgets), its
+     * widgets alone.
+     */
     fun pickWidget(pkg: String? = null) {
-        // Grouped by app, then by widget name, so one app's widgets sit together.
         val order = labelOrder()
-        val labelled = awm.installedProviders.filter { pkg == null || it.provider.packageName == pkg }.map {
-            Triple(it, runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(it.provider.packageName, 0)).toString() }.getOrDefault(""),
-                it.loadLabel(packageManager).toString())
-        }.sortedWith(compareBy<Triple<AppWidgetProviderInfo, String, String>, String>(order) { it.second }.thenBy(order) { it.third })
-        val providers = labelled.map { it.first }
         val page = pages[workspace.current]
-        val names = labelled.map { (p, app, label) ->
-            val w = ceil(p.minWidth / page.cellW.toFloat() / sub).toInt().coerceAtLeast(1)
-            val h = ceil(p.minHeight / page.cellH.toFloat() / sub).toInt().coerceAtLeast(1)
-            "$label  ($w×$h)\n$app"
-        }
+        val groups = awm.installedProviders.filter { pkg == null || it.provider.packageName == pkg }.groupBy { it.provider.packageName }
+            .map { (p, list) ->
+                Triple(p, runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(p, 0)).toString() }.getOrDefault(p),
+                    list.map { it to it.loadLabel(packageManager).toString() }.sortedWith(compareBy(order) { it.second }))
+            }.sortedWith(compareBy(order) { it.second })
+        val flat = groups.size <= 1
         val previewH = (120 * dp).toInt()
+        lateinit var d: android.app.AlertDialog
         // ponytail: a widget with only a previewLayout (Android 12+, no preview image) shows its app icon; inflating the
         // layout through an AppWidgetHostView would show the real thing.
-        val adapter = object : android.widget.BaseAdapter() {
-            override fun getCount() = providers.size
-            override fun getItem(p: Int) = providers[p]
-            override fun getItemId(p: Int) = p.toLong()
-            override fun getView(p: Int, convert: View?, parent: ViewGroup): View {
-                val row = convert as? LinearLayout ?: LinearLayout(parent.context).apply {
-                    orientation = LinearLayout.VERTICAL
-                    val pad = (16 * dp).toInt()
-                    setPadding(pad * 3 / 2, pad / 2, pad * 3 / 2, pad / 2)
-                    addView(ImageView(context).apply {
-                        adjustViewBounds = true
-                        scaleType = ImageView.ScaleType.FIT_START
-                        maxHeight = previewH
-                    }, LinearLayout.LayoutParams(-2, -2))
-                    addView(TextView(context).apply { setTextColor(m3.onSurface); textSize = 14f; setPadding(0, pad / 4, 0, 0) })
-                }
-                val info = providers[p]
-                val img = info.loadPreviewImage(this@MainActivity, 0) ?: info.loadIcon(this@MainActivity, 0)
-                (row.getChildAt(0) as ImageView).setImageDrawable(img)
-                (row.getChildAt(1) as TextView).text = names[p]
-                row.contentDescription = names[p]
-                return row
-            }
+        fun widgetRow(info: AppWidgetProviderInfo, label: String) = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val pad = (16 * dp).toInt()
+            setPadding(pad * 3 / 2, pad / 2, pad * 3 / 2, pad / 2)
+            background = pressable(null)
+            addView(ImageView(context).apply {
+                adjustViewBounds = true
+                scaleType = ImageView.ScaleType.FIT_START
+                maxHeight = previewH
+                setImageDrawable(info.loadPreviewImage(this@MainActivity, 0) ?: info.loadIcon(this@MainActivity, 0))
+            }, LinearLayout.LayoutParams(-2, -2))
+            val w = ceil(info.minWidth / page.cellW.toFloat() / sub).toInt().coerceAtLeast(1)
+            val h = ceil(info.minHeight / page.cellH.toFloat() / sub).toInt().coerceAtLeast(1)
+            addView(TextView(context).apply { setTextColor(m3.onSurface); textSize = 14f; setPadding(0, pad / 4, 0, 0); text = "$label  ($w×$h)" })
+            contentDescription = "$label  ($w×$h)"
+            setOnClickListener { d.dismiss(); addWidget(info) }
         }
-        dialog().setTitle(R.string.widgets).setAdapter(adapter) { _, i -> addWidget(providers[i]) }.show()
+        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val scroll = android.widget.ScrollView(this).apply { addView(list) }
+        var close = {}
+        for ((p, app, widgets) in groups) {
+            if (flat) { widgets.forEach { (info, label) -> list.addView(widgetRow(info, label)) }; continue }
+            val rows by lazy { widgets.map { (info, label) -> widgetRow(info, label) } }
+            val chevron = ImageView(this).apply { setImageDrawable(symbol("right")); if (layoutDirection == View.LAYOUT_DIRECTION_RTL) scaleX = -1f }
+            val icon = apps.values.firstOrNull { it.pkg == p }?.let(::icon) ?: runCatching { packageManager.getApplicationIcon(p) }.getOrNull()
+            lateinit var header: View
+            var open = false
+            header = listItem(icon, app, resources.getQuantityString(R.plurals.widget_count, widgets.size, widgets.size), chevron, appIcon = true) {
+                val opening = !open
+                close()
+                if (!opening) return@listItem
+                open = true
+                chevron.animate().rotation(90f * chevron.scaleX).setDuration(150).start()
+                val at = list.indexOfChild(header) + 1
+                rows.forEachIndexed { i, r -> list.addView(r, at + i) }
+                close = { rows.forEach(list::removeView); chevron.animate().rotation(0f).setDuration(150).start(); open = false; close = {} }
+                header.post { scroll.smoothScrollTo(0, header.top) }
+            }
+            list.addView(header)
+        }
+        d = dialog().setTitle(R.string.widgets).setView(scroll).create().also { it.show() }
     }
 
     private fun addWidget(info: AppWidgetProviderInfo) {
