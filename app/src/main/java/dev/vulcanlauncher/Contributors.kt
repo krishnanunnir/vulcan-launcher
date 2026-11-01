@@ -1,6 +1,9 @@
 package dev.vulcanlauncher
 
 import android.app.Dialog
+import android.view.Gravity
+import android.view.View
+import android.widget.ImageView
 import android.widget.LinearLayout
 
 /** What makes each contributor's illustrated persona recognisable. */
@@ -20,15 +23,43 @@ const val CONTRIBUTORS_PAGE = "Contributors"
 fun initials(name: String) = name.split(' ').filter { it.isNotEmpty() }.take(2).joinToString("") { it.take(1).uppercase() }
 
 fun SettingsActivity.contributorsPage(list: LinearLayout) {
-    list.addView(text(getString(R.string.contrib_thanks), 14f, m3.onSurfaceVariant).apply {
-        setPadding((32 * dp).toInt(), (8 * dp).toInt(), (32 * dp).toInt(), (8 * dp).toInt())
+    list.addView(text(getString(R.string.contrib_thanks), 16f, m3.onSurfaceVariant).apply {
+        setLineSpacing(2 * dp, 1f)
+        setPadding((32 * dp).toInt(), (12 * dp).toInt(), (32 * dp).toInt(), (16 * dp).toInt())
     })
     panel(list, null, CONTRIBUTORS.map { p ->
-        listItem(symbol("person", m3.onPrimaryContainer), p.name, getString(p.role), tonalIcon = true) { showPersona(p) }
+        LinearLayout(this).apply {
+            tag = "contributor/${p.name}"
+            gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = (104 * dp).toInt()
+            setPadding((16 * dp).toInt(), (16 * dp).toInt(), (16 * dp).toInt(), (16 * dp).toInt())
+            background = pressable(null)
+            isFocusable = true
+            setOnClickListener { showPersona(p) }
+            addView(personaFace(p, 56), LinearLayout.LayoutParams((56 * dp).toInt(), (56 * dp).toInt()).apply { marginEnd = (16 * dp).toInt() })
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(text(p.name, 16f, medium = true))
+                addView(text(getString(p.title), 14f).apply { setPadding(0, (3 * dp).toInt(), 0, 0) })
+                addView(text(getString(p.role), 13f, m3.onSurfaceVariant).apply { setPadding(0, (5 * dp).toInt(), 0, 0); setLineSpacing(dp, 1f) })
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(ImageView(context).apply {
+                setImageDrawable(symbol("back", m3.onSurfaceVariant, 18f)); rotation = 180f
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }, LinearLayout.LayoutParams((18 * dp).toInt(), (24 * dp).toInt()).apply { marginStart = (12 * dp).toInt() })
+            if (android.os.Build.VERSION.SDK_INT >= 28) isScreenReaderFocusable = true
+        }
     })
     list.addView(text(getString(R.string.persona_hint), 13f, m3.onSurfaceVariant).apply {
-        setPadding((32 * dp).toInt(), (24 * dp).toInt(), (32 * dp).toInt(), (12 * dp).toInt())
+        setLineSpacing(dp, 1f)
+        setPadding((32 * dp).toInt(), (16 * dp).toInt(), (32 * dp).toInt(), (12 * dp).toInt())
     })
+}
+
+internal fun VulcanActivity.personaFace(persona: Persona, size: Int) = ImageView(this).apply {
+    setImageDrawable(PersonaFace(persona, m3.dark, (size * dp).toInt()))
+    background = well(size * dp / 2)
+    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
 }
 
 internal fun SettingsActivity.showPersona(p: Persona): PersonaProfile {

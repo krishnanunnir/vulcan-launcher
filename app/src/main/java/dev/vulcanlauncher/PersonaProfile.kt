@@ -4,43 +4,45 @@ import android.content.ClipData
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Typeface
 import android.view.Gravity
+import android.view.ViewGroup
 import android.widget.*
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-/** A contributor's character card, with the same artwork on screen and in the shared image. */
-internal class PersonaProfile(private val activity: SettingsActivity, val persona: Persona, close: () -> Unit) : FrameLayout(activity) {
+/** Native, scalable biography around the artwork; the share control stays under the thumb. */
+internal class PersonaProfile(private val activity: SettingsActivity, val persona: Persona, close: () -> Unit) : LinearLayout(activity) {
     private val dp = activity.dp
     internal val card = PersonaCard(activity, persona)
     private fun px(value: Int) = (value * dp).roundToInt()
     init {
+        orientation = VERTICAL
         setBackgroundColor(activity.m3.surface)
         val header = LinearLayout(activity).apply {
-            gravity = Gravity.CENTER_VERTICAL; setPadding(px(16), 0, px(16), 0)
-            addView(TextView(activity).apply {
-                setText(R.string.contributors); textSize = 18f; setTextColor(activity.m3.onSurface)
-            }, LinearLayout.LayoutParams(0, -2, 1f))
-            addView(button(R.string.persona_close) { close() }, LinearLayout.LayoutParams(px(88), px(48)))
+            gravity = Gravity.CENTER_VERTICAL; setPadding(px(4), 0, px(16), 0)
+            addView(activity.iconButton("back", activity.getString(R.string.persona_close), activity.m3.onSurface) { close() })
+            addView(activity.text(activity.getString(R.string.contributors), 22f).apply { setPadding(px(8), 0, 0, 0) }, LayoutParams(0, -2, 1f))
         }
-        addView(header, LayoutParams(-1, px(64), Gravity.TOP))
-        val content = LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(px(24), px(12), px(24), px(24))
-            addView(card, LinearLayout.LayoutParams(-1, px(430)))
-            addView(TextView(activity).apply {
-                text = activity.getString(persona.signature); textSize = 17f; setTextColor(activity.m3.onSurface)
-                gravity = Gravity.CENTER; setPadding(0, px(24), 0, px(24)); typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-            }, LinearLayout.LayoutParams(-1, -2))
-            addView(button(R.string.persona_share) { share() }, LinearLayout.LayoutParams(-1, px(56)))
-        }
+        addView(header, LayoutParams(-1, px(64)))
         val scroll = ScrollView(activity).apply {
-            isFillViewport = true; addView(content, LayoutParams(-1, -2))
+            isFillViewport = true; isVerticalScrollBarEnabled = false
+            addView(ProfileContent(), FrameLayout.LayoutParams(-1, -2))
         }
-        val wrapper = FrameLayout(activity).apply {
-            addView(scroll, LayoutParams(minOf(resources.displayMetrics.widthPixels, px(460)), -1, Gravity.CENTER_HORIZONTAL))
-        }
-        addView(wrapper, LayoutParams(-1, -1).apply { topMargin = px(64) })
+        addView(FrameLayout(activity).apply {
+            addView(scroll, FrameLayout.LayoutParams(minOf(resources.displayMetrics.widthPixels, px(640)), -1, Gravity.CENTER_HORIZONTAL))
+        }, LayoutParams(-1, 0, 1f))
+        addView(LinearLayout(activity).apply {
+            orientation = VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(px(24), px(12), px(24), px(16))
+            addView(Button(activity).apply {
+                tag = "persona/share"
+                setText(R.string.persona_share); textSize = 16f; isAllCaps = false
+                setTextColor(activity.m3.surface); minimumHeight = px(56)
+                setPadding(px(24), px(12), px(24), px(12))
+                background = activity.pressable(activity.rounded(activity.m3.onSurface, 16 * dp), 16 * dp, activity.m3.surface)
+                setOnClickListener { share() }
+            }, LayoutParams(minOf(resources.displayMetrics.widthPixels - px(48), px(592)), -2))
+        }, LayoutParams(-1, -2))
         @Suppress("DEPRECATION")
         setOnApplyWindowInsetsListener { _, insets ->
             val cutout = if (android.os.Build.VERSION.SDK_INT >= 28) insets.displayCutout else null
@@ -49,12 +51,51 @@ internal class PersonaProfile(private val activity: SettingsActivity, val person
             insets
         }
     }
-    private fun button(title: Int, click: () -> Unit) = Button(activity).apply {
-        setText(title); textSize = 15f; isAllCaps = false; setTextColor(activity.m3.onSurface)
-        background = activity.rounded(activity.m3.surfaceContainer, 16 * dp)
-        setOnClickListener { click() }
-        foreground = android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x24000000), null, activity.rounded(-1, 16 * dp))
+
+    private inner class ProfileContent : LinearLayout(activity) {
+        private var wide: Boolean? = null
+        private val identity = LinearLayout(activity).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            addView(activity.personaFace(persona, 64), LayoutParams(px(64), px(64)).apply { marginEnd = px(16) })
+            addView(LinearLayout(activity).apply {
+                orientation = VERTICAL
+                addView(activity.text(persona.name, 22f))
+                addView(activity.text(activity.getString(persona.title), 16f).apply { setPadding(0, px(4), 0, 0) })
+                addView(activity.text(activity.getString(persona.role), 14f, activity.m3.onSurfaceVariant).apply { setPadding(0, px(8), 0, 0); setLineSpacing(dp, 1f) })
+            }, LayoutParams(0, -2, 1f))
+        }
+        private val scene = PersonaScene(activity, persona)
+        private val description = LinearLayout(activity).apply {
+            orientation = VERTICAL
+            addView(activity.text(activity.getString(persona.tagline), 22f).apply { setLineSpacing(2 * dp, 1f) })
+            addView(activity.text(activity.getString(persona.signature), 14f, activity.m3.onSurfaceVariant).apply { setPadding(0, px(12), 0, 0); setLineSpacing(2 * dp, 1f) })
+        }
+        init { setPadding(px(24), px(16), px(24), px(24)) }
+        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+            val expanded = MeasureSpec.getSize(widthMeasureSpec) / dp >= 600
+            if (expanded != wide) {
+                wide = expanded
+                listOf(identity, scene, description).forEach { (it.parent as? ViewGroup)?.removeView(it) }
+                removeAllViews()
+                if (expanded) {
+                    orientation = HORIZONTAL; gravity = Gravity.TOP
+                    addView(LinearLayout(activity).apply {
+                        orientation = VERTICAL
+                        addView(identity, LayoutParams(-1, -2))
+                        addView(description, LayoutParams(-1, -2).apply { topMargin = px(24) })
+                    }, LayoutParams(0, -2, 1f).apply { marginEnd = px(24) })
+                    addView(scene, LayoutParams(0, -2, .9f))
+                } else {
+                    orientation = VERTICAL
+                    addView(identity, LayoutParams(-1, -2))
+                    addView(scene, LayoutParams(-1, -2).apply { topMargin = px(24) })
+                    addView(description, LayoutParams(-1, -2).apply { topMargin = px(24) })
+                }
+            }
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+        }
     }
+
     private fun share() {
         try {
             val bitmap = Bitmap.createBitmap(1080, 1350, Bitmap.Config.ARGB_8888)

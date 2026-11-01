@@ -20,10 +20,12 @@ import kotlin.math.sin
  */
 class DeviceCheck : Instrumentation() {
     private var mode = "gestures"
+    private var issueCases = ""
 
     override fun onCreate(arguments: Bundle?) {
         super.onCreate(arguments)
         mode = arguments?.getString("check") ?: "gestures"
+        issueCases = arguments?.getString("cases").orEmpty()
         start()
     }
 
@@ -98,6 +100,7 @@ class DeviceCheck : Instrumentation() {
 
     override fun onStart() {
         if (mode == "persona") return PersonaCheck(this).run()
+        if (mode == "issues") return IssueReproCheck(this, issueCases).run()
         if (mode == "import") return importCheck()
         if (mode == "readable") return readableCheck()
         if (mode == "pages") return OverviewCheck(this).run()
