@@ -346,7 +346,8 @@ fun folderGrid(n: Int, cellW: Int, minW: Int, avail: Int, want: Int? = null): Pa
 
 /**
  * Shows [children] in a pop-up or full-screen folder window. [payload] makes the drag payload for child [i].
- * With [reorder], an icon dropped on the grid moves there (it returns the new order); dragged off the grid, it leaves the window.
+ * With [reorder] (home and drawer folders), icons reorder as in Launcher3 (it returns the new order); dragged off the
+ * folder, an icon leaves the window for home ([payload] decides whether the drop moves it or copies it).
  * With [icon] (the folder icon's image), the pop-up grows out of it and closes back into it, under the thumb, instead of
  * opening mid-screen; the icon hides while the folder is open, as in Launcher3.
  * It opens over whatever is showing: from the drawer, Back closes it back to the drawer.
@@ -365,11 +366,14 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
     // Rows shown before the grid scrolls: four in the pop-up and all of them full screen, unless set.
     val shownRows = looks.str("folderRows").toIntOrNull()
     val cell = CellLayout(this, cols, rows, 0)
+    /** The icon in each slot, by position; null for an item that no longer resolves. */
+    var order = mutableListOf<View?>()
     fun fill(list: List<Item>) {
         cell.removeAllViews()
+        order = MutableList(list.size) { null }
         list.forEachIndexed { i, c ->
             val (label, icon) = resolve(c) ?: return@forEachIndexed
-            cell.addView(IconView(this, label, icon, style, badgeStyle(), c.pkg).apply {
+            cell.addView(IconView(this, label, icon, style, badgeStyle(), c.pkg).also { order[i] = it }.apply {
                 layoutParams = CellLayout.CellParams(i % cols, i / cols, 1, 1)
                 if (looks.str("badges") != "off") badge(image, c.pkg)
                 setOnClickListener { v -> closeOverlay(); open(c, v) }
@@ -378,19 +382,62 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         }
     }
     fill(children)
-    // ponytail: the icon lands where it's dropped, with no live shuffle of the others while dragging (Nova shows one).
+    // Reordering as in Launcher3: the dragged icon leaves a gap; resting on another slot for 250 ms slides the icons in
+    // between over to move the gap there, and the drop fills it. Off the folder for 400 ms, the window closes and the
+    // icon carries on to home; coming back sooner keeps it open.
+    // ponytail: a long folder doesn't scroll while dragging (Launcher3 flips pages at the edge); drop, scroll, drag again.
+    var from = -1
+    var gap = -1
+    var target = -1
+    /** Moves the gap to [to]: each icon between slides one slot over, 230 ms, each starting a little after the last. */
+    fun moveGap(to: Int) {
+        if (gap < 0 || to == gap) return
+        val dragged = order.removeAt(gap)
+        order.add(to, dragged)
+        var delay = 0f
+        var step = 30f
+        for (r in if (to > gap) gap until to else gap downTo to + 1) {
+            val v = order[r] ?: continue
+            val x = cell.spanLeft(r % cols, 1).toFloat()
+            val y = (r / cols * cell.cellH).toFloat()
+            v.animate().cancel()
+            v.translationX += v.left - x; v.translationY += v.top - y
+            v.layoutParams = CellLayout.CellParams(r % cols, r / cols, 1, 1)
+            v.animate().translationX(0f).translationY(0f).setDuration(230).setStartDelay(delay.toLong()).setInterpolator(DecelerateInterpolator()).start()
+            delay += step; step *= 0.9f
+        }
+        dragged?.layoutParams = CellLayout.CellParams(to % cols, to / cols, 1, 1)
+        gap = to
+    }
+    val shuffle = Runnable { moveGap(target) }
+    var leaving = false
+    val leave = Runnable { leaving = false; closeOverlay(); drawer.hide(animate = false) }
+    fun stay() { leaving = false; root.removeCallbacks(leave) }
     if (reorder != null) cell.setOnDragListener { v, e ->
         trackDrag(v, e, keepOverlay = true)
         when (e.action) {
-            DragEvent.ACTION_DROP -> {
-                val from = (e.localState as? FolderChild)?.index ?: return@setOnDragListener false
-                if (!dragMoved) return@setOnDragListener false
+            DragEvent.ACTION_DRAG_STARTED -> order.indexOf(dragSource).takeIf { it >= 0 }?.let {
+                from = it; gap = it; target = it
+                order[it]?.alpha = 0f
+            }
+            DragEvent.ACTION_DRAG_LOCATION -> if (dragMoved && gap >= 0) {
+                stay()
                 val (x, y) = cell.cellAt(e.x, e.y)
-                fill(reorder(from, minOf(y * cols + x, children.size - 1)))
+                val t = minOf(y * cols + x, order.size - 1)
+                if (t != target) { target = t; root.removeCallbacks(shuffle); root.postDelayed(shuffle, 250) }
+            }
+            DragEvent.ACTION_DROP -> {
+                if (!dragMoved || gap < 0) return@setOnDragListener false
+                root.removeCallbacks(shuffle)
+                moveGap(target)
+                order[gap]?.alpha = 1f
+                val list = reorder(from, gap)
+                // Rebuilt (for the new positions' click handlers) once the slide has settled.
+                root.postDelayed({ if (cell.isAttachedToWindow) fill(list) }, 260)
                 root.tick()
             }
             // Only the view that took the drop hears ENDED.
-            DragEvent.ACTION_DRAG_ENDED -> dragEnded()
+            DragEvent.ACTION_DRAG_ENDED -> { root.removeCallbacks(shuffle); stay(); gap = -1; dragEnded() }
         }
         true
     }
@@ -404,6 +451,7 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         ellipsize = android.text.TextUtils.TruncateAt.END
         setPadding(0, (12 * dp).toInt(), 0, (4 * dp).toInt())
     }
+    lateinit var grid: View
     val card = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         if (full) background = panelBg(100, 0f, m3.surfaceHigh) else frost(this, looks.int("folderRadius") * dp)
@@ -414,6 +462,7 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         setPadding(p, p + if (full) insets.top else 0, p, p + if (full) insets.bottom else 0)
         addView(ScrollView(context).apply {
             addView(cell, FrameLayout.LayoutParams(cols * cellW, rows * cellH))
+            grid = this
         }, LinearLayout.LayoutParams(-2, if (full && shownRows == null) -2 else minOf(rows, shownRows ?: 4) * cellH).apply { gravity = Gravity.CENTER_HORIZONTAL })
         // The name sits under the icons, as in Launcher3.
         addView(name)
@@ -432,10 +481,16 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
     // No scrim, as in Launcher3: home stays as it is behind the folder; a tap outside still closes it.
     val dim = FrameLayout(this).apply {
         setOnClickListener { closeOverlay() }
-        // Off the folder's grid, a reorderable icon leaves the window for the home screen.
+        // Off the folder (off the grid when full screen) for a moment, a reorderable icon leaves it for the home screen.
         setOnDragListener { v, e ->
-            if (reorder != null && dragMoved && e.action == DragEvent.ACTION_DRAG_LOCATION) closeOverlay()
-            passDrag.onDrag(v, e)
+            if (reorder != null && dragMoved && e.action == DragEvent.ACTION_DRAG_LOCATION) {
+                val at = screenRect(v)
+                root.removeCallbacks(shuffle)
+                if (screenRect(if (full) grid else card).contains(at.left + e.x.toInt(), at.top + e.y.toInt())) stay()
+                else if (!leaving) { leaving = true; root.postDelayed(leave, 400) }
+            }
+            trackDrag(v, e, keepOverlay = reorder != null)
+            e.action != DragEvent.ACTION_DROP
         }
         addView(card, when {
             full -> FrameLayout.LayoutParams(-1, -1)

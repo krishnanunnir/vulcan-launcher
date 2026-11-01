@@ -619,7 +619,7 @@ fun VulcanActivity.hideAppsMenu() = appSwitches(getString(R.string.hide_apps), s
 
 // ---- Drawer groups (tabs and folders) ----
 
-private fun VulcanActivity.saveGroups(groups: List<Group>) {
+fun VulcanActivity.saveGroups(groups: List<Group>) {
     store.data.edit().putString("groups", groupsToJson(groups)).apply()
     home.drawer.refresh()
     (this as? SettingsActivity)?.takeIf { it.page == GROUPS }?.refresh()

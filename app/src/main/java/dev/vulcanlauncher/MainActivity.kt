@@ -59,6 +59,9 @@ class App(val info: LauncherActivityInfo, val serial: Long) {
 /** Drag payload for an item dragged out of a home-screen folder. */
 class FolderChild(val folder: Item, val index: Int)
 
+/** Drag payload for an app in the drawer folder named [group]: it reorders there; dropped on home, it's a copy. */
+class GroupChild(val group: String, val app: App)
+
 /** How far the page shrinks while dragging (Launcher3's spring-loaded state is about 0.8). */
 const val SPRING_SCALE = 0.8f
 
@@ -115,7 +118,8 @@ class MainActivity : VulcanActivity() {
     var onPickedImage: ((Uri) -> Unit)? = null
     var onDocument: ((Uri) -> Unit)? = null
     private var lastEdgeFlip = 0L
-    private var dragSource: View? = null
+    var dragSource: View? = null
+        private set
     private var dragPayload: Any? = null
     private var dragStart: PointF? = null
     var dragMoved = false
@@ -841,7 +845,10 @@ class MainActivity : VulcanActivity() {
 
     private var wiggles = listOf<android.animation.Animator>()
 
-    /** A drag that never moves is a long-press: its menu stays. [keepOverlay]: a folder window reordering its icons. */
+    /**
+     * A drag that never moves is a long-press: its menu stays. [keepOverlay]: a folder window reordering its icons, which
+     * keeps it and the drawer behind it until the drag leaves the folder.
+     */
     fun trackDrag(v: View, e: DragEvent, keepOverlay: Boolean = false) {
         if (e.action != DragEvent.ACTION_DRAG_LOCATION || dragMoved) return
         val loc = IntArray(2).also { v.getLocationOnScreen(it) }
@@ -855,8 +862,7 @@ class MainActivity : VulcanActivity() {
             springLoad(true)
             root.tick()
             closeMenu()
-            drawer.hide(animate = false)
-            if (!keepOverlay) closeOverlay()
+            if (!keepOverlay) { drawer.hide(animate = false); closeOverlay() }
         }
     }
 
@@ -995,6 +1001,7 @@ class MainActivity : VulcanActivity() {
 
     fun appOf(p: Any?): App? = when (p) {
         is App -> p
+        is GroupChild -> p.app
         is Item -> if (p.isApp) apps[p.appKey] else null
         is FolderChild -> p.folder.children.getOrNull(p.index)?.let { if (it.isApp) apps[it.appKey] else null }
         else -> null
@@ -1004,6 +1011,7 @@ class MainActivity : VulcanActivity() {
     fun asChild(p: Any?): Item? = when (p) {
         is Item -> if (p.isBlock || p.folder) null else p.copy(page = 0, x = 0, y = 0, w = 1, h = 1)
         is App -> Item(0, 0, 0, pkg = p.pkg, cls = p.cls, user = p.serial)
+        is GroupChild -> asChild(p.app)
         is FolderChild -> p.folder.children.getOrNull(p.index)
         is ShortcutInfo -> Item(0, 0, 0, pkg = p.`package`, shortcutId = p.id, user = serial(p.userHandle), label = p.shortLabel?.toString() ?: "")
         else -> null
@@ -1047,6 +1055,11 @@ class MainActivity : VulcanActivity() {
             is FolderChild -> removeFromFolder(p)
         }
     }
+
+    /** Takes an app out of its drawer folder (from its menu: a drag only copies it to home); a folder left empty goes. */
+    fun removeFromGroup(p: GroupChild) = saveGroups(drawer.groups().mapNotNull { g ->
+        if (g.name != p.group) g else g.copy(apps = g.apps - p.app.key).takeIf { it.apps.isNotEmpty() }
+    })
 
     fun removeItem(item: Item) {
         items.remove(item)
@@ -1104,12 +1117,13 @@ class MainActivity : VulcanActivity() {
             }
         }
         when {
-            payload is App -> {
-                if (!locked) tile("add", getString(R.string.menu_add)) { addToHome(payload) }
-                tile("edit", getString(R.string.edit)) { editApp(payload) }
-                val hidden = payload.key in store.strings("hidden")
-                tile(if (hidden) "show" else "hide", getString(if (hidden) R.string.unhide else R.string.hide)) { toggleHidden(payload.key) }
-                tile("tabs", getString(R.string.menu_group)) { addToGroup(payload.key) }
+            app != null && (payload is App || payload is GroupChild) -> {
+                if (!locked) tile("add", getString(R.string.menu_add)) { addToHome(app) }
+                tile("edit", getString(R.string.edit)) { editApp(app) }
+                val hidden = app.key in store.strings("hidden")
+                tile(if (hidden) "show" else "hide", getString(if (hidden) R.string.unhide else R.string.hide)) { toggleHidden(app.key) }
+                tile("tabs", getString(R.string.menu_group)) { addToGroup(app.key) }
+                if (payload is GroupChild) tile("close", getString(R.string.remove)) { removeFromGroup(payload) }
             }
             item != null && !locked -> {
                 if (!item.isBlock) tile("edit", getString(R.string.edit)) { editItem(item) }

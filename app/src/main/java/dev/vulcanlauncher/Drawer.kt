@@ -635,8 +635,16 @@ class Drawer(private val a: MainActivity) {
         when (e) {
             is Entry.AppE -> a.launch(e.app, v)
             is Entry.FolderE -> {
-                val apps = e.group.apps.mapNotNull { a.apps[it] }
-                a.openFolderWindow(e.group.name, folderItems(e.group), null, icon = (v as? IconView)?.image) { i -> apps[i] }
+                var group = e.group
+                var apps = group.apps.mapNotNull { a.apps[it] }
+                a.openFolderWindow(group.name, folderItems(group), null, reorder = { from, to ->
+                    // Uninstalled apps' keys aren't shown: they keep their place at the end.
+                    val keys = apps.map { it.key }.toMutableList().apply { add(to, removeAt(from)) }
+                    group = group.copy(apps = keys + (group.apps - keys.toSet()))
+                    apps = group.apps.mapNotNull { a.apps[it] }
+                    a.saveGroups(groups().map { if (it.name == group.name) group else it })
+                    folderItems(group)
+                }, icon = (v as? IconView)?.image) { i -> GroupChild(group.name, apps[i]) }
             }
             is Entry.WebE -> a.webSearch(e.query)
             is Entry.ContactE -> runCatching { a.startActivity(Intent(Intent.ACTION_VIEW, e.uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
