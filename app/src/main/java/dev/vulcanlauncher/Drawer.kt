@@ -200,11 +200,11 @@ class Drawer(private val a: MainActivity) {
 
     val root = object : LinearLayout(a) {
         private var ignoring = false
-        // Only a drawer that's fully open takes a new touch, so no app opens or lifts mid-animation. While it closes the
-        // touch goes to home underneath; while it opens or follows a finger, it's dropped.
+        // Only a drawer that's fully open and at rest takes a new touch, so no app opens or lifts mid-animation. While it
+        // closes the touch goes to home underneath; while it opens or follows a finger (even pulled all the way), it's dropped.
         override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
             if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
-                ignoring = progress < 1f
+                ignoring = progress < 1f || held
                 if (ignoring && anim != null && !settlingOpen) return false
             }
             return ignoring || super.dispatchTouchEvent(ev)
@@ -348,7 +348,11 @@ class Drawer(private val a: MainActivity) {
                                 downY = Float.MAX_VALUE
                                 focusSearch()
                             }
-                        } else { closing = true; downY = ev.rawY; stop() }
+                        } else {
+                            closing = true; held = true; downY = ev.rawY; stop()
+                            // The list sees no more of this touch: cancel it, or its pending long press lifts an app.
+                            MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; onTouchEvent(it); it.recycle() }
+                        }
                     }
                 }
                 if (!closing) return@setOnTouchListener false
@@ -356,7 +360,7 @@ class Drawer(private val a: MainActivity) {
                 if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
                     velocity?.computeCurrentVelocity(1000)
                     release(-(velocity?.yVelocity ?: 0f), 0.7f)
-                    closing = false
+                    closing = false; held = false
                 }
                 true
             }
@@ -369,6 +373,8 @@ class Drawer(private val a: MainActivity) {
     private var anim: android.animation.ValueAnimator? = null
     /** Where a running [anim] is heading: true for open. */
     private var settlingOpen = false
+    /** A finger is moving the drawer (home's swipe up, or its own pull down). */
+    private var held = false
     private var keyboardOnOpen = false
 
     /** Finger travel that fully opens or closes the drawer (Launcher3's phones: 300 dp; shorter here, so it's quicker). */
@@ -448,6 +454,7 @@ class Drawer(private val a: MainActivity) {
         // A drag in progress still routes events to a GONE view by its bounds, so move it off-screen too.
         root.translationY = root.height.toFloat()
         progress = 0f
+        held = false
     }
 
     fun show(keyboard: Boolean) {
@@ -466,6 +473,7 @@ class Drawer(private val a: MainActivity) {
         if (!end && !visible && up <= 0f) return false
         if (!visible) prepare()
         stop()
+        held = !end
         if (end) {
             val open = release(vy, 0.3f)
             if (open) root.tick()
@@ -647,7 +655,14 @@ class Drawer(private val a: MainActivity) {
 
     private fun folderItems(g: Group) = g.apps.mapNotNull { a.apps[it] }.map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) }
 
+    /**
+     * Fully open, at rest, no finger moving it. As Launcher3's item handlers: a tap or hold that lands any other way
+     * (a long press that fires after the drawer started closing, say) is dropped rather than opening or lifting an app.
+     */
+    private val settled get() = progress >= 1f && anim == null && !held
+
     private fun open(e: Entry, v: View?) {
+        if (!settled) return
         when (e) {
             is Entry.AppE -> a.launch(e.app, v)
             is Entry.FolderE -> {
@@ -668,6 +683,7 @@ class Drawer(private val a: MainActivity) {
     }
 
     private fun longPress(e: Entry, v: View) {
+        if (!settled) return
         when (e) {
             is Entry.AppE -> a.startDrag(v, e.app)
             is Entry.FolderE -> a.editGroup(e.group)
