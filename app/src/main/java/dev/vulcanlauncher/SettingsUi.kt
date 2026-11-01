@@ -366,10 +366,42 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
         c.key == "dockAlpha" && looks.str("dockBg") in listOf("housing", "glass", "none") || c.key == "dockColor" && looks.str("dockBg") == "none" ->
             listItem(null, getString(c.title), if (looks.str("dockBg") == "none") getString(R.string.dock_shadow_no_bg)
                 else getString(R.string.not_used_by_bg, valueName(LOOKS.first { it.key == "dockBg" }))) { pick(c) }.apply { alpha = 0.5f }
+        c.values.size > 2 && c.values.all { it.toIntOrNull() != null } -> slider(c)
         else -> listItem(null, getString(c.title), valueName(c), trailing = swatch(c)) { pick(c) }
     }.apply { tag = c.key } })
     if (group == LOOK) panel(list, null, listOf(listItem(null, getString(R.string.custom_colors),
         resources.getQuantityString(R.plurals.custom_colors_set, looks.colors().size, looks.colors().size)) { showPage(COLORS) }))
+}
+
+/** A numeric setting as an inline M3 slider, one stop per value, saved when the thumb is let go. */
+private fun SettingsActivity.slider(c: Choice): View {
+    val value = text(valueName(c), 14f, m3.onSurfaceVariant)
+    val bar = android.widget.SeekBar(this).apply {
+        max = c.values.size - 1
+        progress = c.values.indexOf(looks[c]).coerceAtLeast(0)
+        contentDescription = getString(c.title)
+        val tint = android.content.res.ColorStateList.valueOf(m3.on)
+        progressTintList = tint; thumbTintList = tint; tickMarkTintList = tint
+        if (c.values.size <= 12) tickMark = GradientDrawable().apply { shape = GradientDrawable.OVAL; setSize((4 * dp).toInt(), (4 * dp).toInt()) }
+        setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+            var dragging = false
+            override fun onProgressChanged(b: android.widget.SeekBar, i: Int, user: Boolean) {
+                value.text = choiceName(c, i)
+                if (android.os.Build.VERSION.SDK_INT >= 30) stateDescription = value.text
+                // Keys and accessibility moves have no let go: save them as they come.
+                if (user && !dragging) applyChoice(c, c.values[i])
+            }
+            override fun onStartTrackingTouch(b: android.widget.SeekBar) { dragging = true }
+            override fun onStopTrackingTouch(b: android.widget.SeekBar) { dragging = false; applyChoice(c, c.values[b.progress]) }
+        })
+        if (android.os.Build.VERSION.SDK_INT >= 30) stateDescription = value.text
+    }
+    return LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(0, (8 * dp).toInt(), 0, (4 * dp).toInt())
+        addView(listItem(null, getString(c.title), trailing = value, onClick = null).apply { minimumHeight = 0; setPadding(paddingLeft, 0, paddingRight, 0) })
+        addView(bar, LinearLayout.LayoutParams(-1, (40 * dp).toInt()))
+    }
 }
 
 /** A colour setting's current colour as a small circle, or null for other settings. */
@@ -590,7 +622,7 @@ private fun MainActivity.pickPackIcon(pkg: String, onPicked: (String) -> Unit) {
     }
 }
 
-/** Every app with an M3 switch, for hiding apps or filling a drawer group; [onSave] gets the apps switched on. */
+/** Every app with a checkbox, for hiding apps or filling a drawer group; [onSave] gets the apps checked. */
 fun VulcanActivity.appSwitches(title: String, on: Collection<String>, onSave: (List<String>) -> Unit) {
     val list = home.apps.values.sortedWith(compareBy(labelOrder()) { home.label(it) })
     val chosen = on.toMutableSet()
@@ -600,10 +632,22 @@ fun VulcanActivity.appSwitches(title: String, on: Collection<String>, onSave: (L
         override fun getItemId(p: Int) = p.toLong()
         override fun getView(p: Int, convert: View?, parent: ViewGroup): View {
             val app = list[p]
-            val toggle = Toggle(this@appSwitches, app.key in chosen)
-            return listItem(home.icon(app), if (home.isWork(app)) getString(R.string.work_app, home.label(app)) else home.label(app), trailing = toggle, appIcon = true) {
-                toggle.checked = !toggle.checked
-                if (toggle.checked) chosen += app.key else chosen -= app.key
+            // M3: checkboxes, not switches, for picking several from a list. The row takes the tap.
+            val box = android.widget.CheckBox(this@appSwitches).apply {
+                isChecked = app.key in chosen; isClickable = false; isFocusable = false
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                buttonTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(m3.on, m3.onSurfaceVariant))
+            }
+            return listItem(home.icon(app), if (home.isWork(app)) getString(R.string.work_app, home.label(app)) else home.label(app), trailing = box, appIcon = true) {
+                box.isChecked = !box.isChecked
+                if (box.isChecked) chosen += app.key else chosen -= app.key
+            }.apply {
+                accessibilityDelegate = object : View.AccessibilityDelegate() {
+                    override fun onInitializeAccessibilityNodeInfo(v: View, info: android.view.accessibility.AccessibilityNodeInfo) {
+                        super.onInitializeAccessibilityNodeInfo(v, info)
+                        info.className = android.widget.CheckBox::class.java.name; info.isCheckable = true; info.isChecked = box.isChecked
+                    }
+                }
             }.apply { setPaddingRelative((24 * dp).toInt(), paddingTop, (24 * dp).toInt(), paddingBottom) } // in line with the title
         }
     }
