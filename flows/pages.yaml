@@ -8,6 +8,8 @@ tags: [edits]
 - assertVisible: "Page 1"
 - tapOn: "Add page"
 - waitForAnimationToEnd
+- assertVisible: "Page 2"
+- back
 - repeat:   # a swipe right after the previews close can go unnoticed
     times: 3
     while:

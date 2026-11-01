@@ -55,18 +55,34 @@ class OverviewCheck(private val test: Instrumentation) {
         input(down, MotionEvent.ACTION_UP, p)
         settle()
     }
-    private fun drag(page: Int, target: () -> View) {
+    private fun drag(page: Int, viaRemove: Boolean = false, target: () -> View) {
         val start = center(tile(page))
         val down = SystemClock.uptimeMillis()
         input(down, MotionEvent.ACTION_DOWN, start)
         SystemClock.sleep(ViewConfiguration.getLongPressTimeout() + 200L)
-        val end = center(target())
-        for (i in 1..20) {
-            val f = i / 20f
-            input(down, MotionEvent.ACTION_MOVE, start.first + (end.first - start.first) * f to start.second + (end.second - start.second) * f)
-            SystemClock.sleep(20)
+        val destination = target()
+        val end = center(destination)
+        fun move(from: Pair<Float, Float>, to: Pair<Float, Float>) {
+            for (i in 1..20) {
+                val f = i / 20f
+                input(down, MotionEvent.ACTION_MOVE, from.first + (to.first - from.first) * f to from.second + (to.second - from.second) * f)
+                SystemClock.sleep(20)
+            }
+            SystemClock.sleep(150)
         }
-        SystemClock.sleep(150)
+        val remove = text(a.getString(R.string.page_remove)) as TextView
+        if (viaRemove) {
+            val overRemove = center(remove)
+            move(start, overRemove)
+            expect("hovering Remove arms the destructive target", remove.isSelected && remove.currentTextColor == a.m3.onError)
+            move(overRemove, end)
+            expect("leaving Remove clears the warning", !remove.isSelected && remove.currentTextColor == a.m3.onSurface)
+            screenshot("pages-remove-exited.png")
+        } else move(start, end)
+        if (destination === remove) {
+            if (a.pages.size == 1) expect("last page never shows an armed removal target", !remove.isSelected)
+            else expect("Remove changes to its destructive hover color", remove.isSelected && remove.currentTextColor == a.m3.onError)
+        }
         if (drags++ == 0) screenshot("pages-remove-hover.png")
         input(down, MotionEvent.ACTION_UP, end)
         settle()
@@ -154,7 +170,7 @@ class OverviewCheck(private val test: Instrumentation) {
 
             setup()
             // Dropping on the title must leave both the overview and the home layout alone.
-            drag(1) { text(a.getString(R.string.pages)) }
+            drag(1, viaRemove = true) { text(a.getString(R.string.pages)) }
             expect("stray drop leaves pages intact", a.looks.pages == 3 && a.items == sample && a.overlay != null)
             tap(tile(2))
             expect("thumbnail opens selected page", a.overlay == null && a.workspace.current == 2)
@@ -162,9 +178,12 @@ class OverviewCheck(private val test: Instrumentation) {
             setup(1)
             tap(addTile() ?: error("Add page has no accessible label"))
             expect("add creates exactly one page", a.looks.pages == 2 && a.pages.size == 2)
-            ui { a.showOverview() }
-            settle()
-            expect("added page can be selected", views(a.overlay!!).any { it is TextView && it.text.toString() == a.getString(R.string.page_n, 2) })
+            expect("adding stays in Pages with a measured new thumbnail", a.overlay != null && center(tile(1)).first > 0f && tile(1).width > 1 && tile(1).height > 1)
+            tap(addTile() ?: error("Add disappeared after creating a page"))
+            expect("another page can be added without reopening Pages", a.looks.pages == 3 && a.overlay != null)
+            screenshot("pages-after-add.png")
+            tap(tile(2))
+            expect("new thumbnail opens its page", a.overlay == null && a.workspace.current == 2)
 
             setup(9)
             expect("nine-page limit hides Add", addTile() == null && (1..9).all { n -> views(a.overlay!!).any { it is TextView && it.text.toString() == a.getString(R.string.page_n, n) } })

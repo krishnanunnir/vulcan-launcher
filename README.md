@@ -40,6 +40,9 @@ The wallpaper in the screenshots is [docs/wallpaper-dusk.jpg](docs/wallpaper-dus
 - **Swipe right on the first page** for the Now page: the date, music controls, upcoming events and favourite contacts.
 - **Back up** your whole setup to a file and restore it later.
 
+In **Pages**, tap **+** to add screens while keeping the previews open. Hold a preview and drag it onto **Remove page**;
+the target and the dragged preview turn red before you release.
+
 Long-press an empty spot on the home screen to open **Settings**.
 
 ## Install

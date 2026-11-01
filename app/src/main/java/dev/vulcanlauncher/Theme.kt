@@ -125,6 +125,8 @@ class Palette(val dark: Boolean, a1: (Int) -> Int, a2: (Int) -> Int, n1: (Int) -
     val inverseSurface = n1(t(20, 90))
     val inverseOnSurface = n1(t(95, 20))
     val inversePrimary = a1(t(80, 40))
+    val error = t(0xFFB3261E.toInt(), 0xFFF2B8B5.toInt())
+    val onError = t(Color.WHITE, 0xFF601410.toInt())
     val errorContainer = t(0xFFF9DEDC.toInt(), 0xFF8C1D18.toInt())
     val onErrorContainer = t(0xFF410E0B.toInt(), 0xFFF9DEDC.toInt())
     /** The one live thing: current page, active index letter, focused search. Never text on the housing. */

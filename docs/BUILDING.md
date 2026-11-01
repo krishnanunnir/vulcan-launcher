@@ -33,8 +33,9 @@ adb shell am instrument -w dev.vulcanlauncher.test/dev.vulcanlauncher.DeviceChec
 ```
 
 Pages regression check (use a disposable emulator without widgets): sends real framework drags to test removal,
-confirmation/cancel, reordering, default-page tracking, adding, the nine-page limit and layout lock. It restores the
-original items and settings afterwards and writes `files/pages-remove-hover.png` and `files/pages-after-remove.png`.
+red hover feedback and its reset, confirmation/cancel, reordering, default-page tracking, repeated additions without
+leaving Pages, the nine-page limit and layout lock. It restores the original items and settings afterwards and writes
+`files/pages-remove-hover.png`, `files/pages-remove-exited.png`, `files/pages-after-remove.png` and `files/pages-after-add.png`.
 
 ```sh
 adb -s emulator-5580 shell am instrument -w -e check pages dev.vulcanlauncher.test/dev.vulcanlauncher.DeviceCheck

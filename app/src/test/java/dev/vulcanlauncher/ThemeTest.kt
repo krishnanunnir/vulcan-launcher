@@ -59,7 +59,8 @@ class ThemeTest {
     private fun check(p: Palette, name: String, dark: Boolean) {
         for ((role, pair) in mapOf("surface" to (p.onSurface to p.surfaceHigh), "variant" to (p.onSurfaceVariant to p.surfaceHigh),
             "primary" to (p.onPrimary to p.primary), "primaryContainer" to (p.onPrimaryContainer to p.primaryContainer),
-            "secondaryContainer" to (p.onSecondaryContainer to p.secondaryContainer), "inverse" to (p.inverseOnSurface to p.inverseSurface))) {
+            "secondaryContainer" to (p.onSecondaryContainer to p.secondaryContainer), "inverse" to (p.inverseOnSurface to p.inverseSurface),
+            "error" to (p.onError to p.error))) {
             val ratio = contrast(pair.first, pair.second)
             assertTrue("$name $role $ratio", ratio >= 4.5)
         }

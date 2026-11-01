@@ -6,6 +6,8 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffColorFilter
 import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
 import android.view.DragEvent
@@ -13,6 +15,7 @@ import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -133,8 +136,22 @@ fun MainActivity.closeOverlay() {
     overlayClosed().also { overlayClosed = {} }
 }
 
-/** What a page tile carries while it is dragged in the overview. */
-private class PageDrag(val index: Int)
+/** A stable snapshot of the held page; hovering Remove tints the drag shadow without fading it with its source. */
+private class PageDrag(val index: Int, private val source: View, color: Int) : View.DragShadowBuilder(source) {
+    private val preview = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888).apply { source.draw(Canvas(this)) }
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val tint = PorterDuffColorFilter(color and 0xFFFFFF or 0x99000000.toInt(), PorterDuff.Mode.SRC_ATOP)
+    private var removing = false
+
+    fun setRemoving(on: Boolean) {
+        if (removing == on) return
+        removing = on
+        paint.colorFilter = if (on) tint else null
+        source.updateDragShadow(this)
+    }
+
+    override fun onDrawShadow(canvas: Canvas) { canvas.drawBitmap(preview, 0f, 0f, paint) }
+}
 
 /**
  * Desktop previews: every page as a thumbnail. Tap to go there; hold and drag onto another page to move it, or onto
@@ -162,18 +179,23 @@ fun MainActivity.showOverview() {
         compoundDrawablePadding = p / 2
         visibility = View.INVISIBLE
         fun look(hover: Boolean) {
-            val fg = if (hover) m3.onPrimaryContainer else m3.onSurface
-            background = if (hover) rounded(m3.primaryContainer, 24 * dp) else rounded(0, 24 * dp, m3.onSurface, 1.5f * dp)
+            isSelected = hover
+            val fg = if (hover) m3.onError else m3.onSurface
+            background = if (hover) rounded(m3.error, 24 * dp) else rounded(0, 24 * dp, m3.onSurface, 1.5f * dp)
             setTextColor(fg)
             setCompoundDrawablesRelative(symbol("delete", fg, 20f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
         }
         look(false)
         setOnDragListener { _, e ->
-            if (e.localState !is PageDrag) return@setOnDragListener false
+            val drag = e.localState as? PageDrag ?: return@setOnDragListener false
             when (e.action) {
-                DragEvent.ACTION_DRAG_ENTERED -> { look(true); performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) }
-                DragEvent.ACTION_DRAG_EXITED -> look(false)
-                DragEvent.ACTION_DROP -> (e.localState as? PageDrag)?.let { root.post { removePageAt(it.index) } }
+                DragEvent.ACTION_DRAG_ENTERED -> {
+                    val canRemove = pages.size > 1
+                    look(canRemove); drag.setRemoving(canRemove)
+                    if (canRemove) performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                }
+                DragEvent.ACTION_DRAG_EXITED -> { look(false); drag.setRemoving(false) }
+                DragEvent.ACTION_DROP -> root.post { removePageAt(drag.index) }
                 DragEvent.ACTION_DRAG_ENDED -> look(false)
             }
             true
@@ -219,7 +241,8 @@ fun MainActivity.showOverview() {
                 // Android sends ACTION_DRAG_STARTED only to visible children. Reveal the drop target before
                 // starting, so it registers for the drag; showing it in the overlay's listener is too late.
                 showRemove(true)
-                v.startDragAndDrop(null, View.DragShadowBuilder(v), PageDrag(i), View.DRAG_FLAG_OPAQUE).also {
+                val drag = PageDrag(i, v, m3.error)
+                v.startDragAndDrop(null, drag, drag, View.DRAG_FLAG_OPAQUE).also {
                     if (!it) showRemove(false)
                 }
             }
@@ -244,7 +267,19 @@ fun MainActivity.showOverview() {
             background = pressable(rounded(m3.secondaryContainer, 16 * dp), 16 * dp, m3.onSecondaryContainer)
             isDuplicateParentStateEnabled = true
         }, LinearLayout.LayoutParams(w, h))
-        setOnClickListener { looks["pages"] = (pages.size + 1).toString(); rebuild() }
+        setOnClickListener {
+            looks["pages"] = (pages.size + 1).toString()
+            rebuild()
+            // The new workspace must be measured before its page thumbnails can be drawn. Reopen before its
+            // first frame, so adding a page stays in the overview rather than returning to home.
+            val rebuilt = workspace
+            rebuilt.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+                override fun onGlobalLayout() {
+                    rebuilt.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                    if (workspace === rebuilt && !isDestroyed) showOverview()
+                }
+            })
+        }
     })
     showOverlay(FrameLayout(this).apply {
         setBackgroundColor(m3.surface and 0xFFFFFF or 0xD9000000.toInt())
