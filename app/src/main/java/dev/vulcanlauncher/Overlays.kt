@@ -154,7 +154,7 @@ fun MainActivity.showOverview() {
         row.addView(v, LinearLayout.LayoutParams(w, h + (24 * dp).toInt()).apply { setMargins((6 * dp).toInt(), (6 * dp).toInt(), (6 * dp).toInt(), (6 * dp).toInt()) })
         if (row.childCount == 3) row = LinearLayout(this)
     }
-    val hint = text(getString(R.string.pages_hint), 14f, m3.onSurfaceVariant).apply { gravity = Gravity.CENTER }
+    val hint = text(getString(if (locked) R.string.layout_locked else R.string.pages_hint), 14f, m3.onSurfaceVariant).apply { gravity = Gravity.CENTER }
     val remove = text(getString(R.string.page_remove), 14f, medium = true).apply {
         gravity = Gravity.CENTER
         val p = (16 * dp).toInt()
@@ -169,13 +169,19 @@ fun MainActivity.showOverview() {
         }
         look(false)
         setOnDragListener { _, e ->
+            if (e.localState !is PageDrag) return@setOnDragListener false
             when (e.action) {
                 DragEvent.ACTION_DRAG_ENTERED -> { look(true); performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) }
                 DragEvent.ACTION_DRAG_EXITED -> look(false)
                 DragEvent.ACTION_DROP -> (e.localState as? PageDrag)?.let { root.post { removePageAt(it.index) } }
+                DragEvent.ACTION_DRAG_ENDED -> look(false)
             }
             true
         }
+    }
+    fun showRemove(on: Boolean) {
+        hint.visibility = if (on) View.INVISIBLE else View.VISIBLE
+        remove.visibility = if (on) View.VISIBLE else View.INVISIBLE
     }
     pages.forEachIndexed { i, page ->
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
@@ -197,19 +203,25 @@ fun MainActivity.showOverview() {
         outline(false)
         add(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            contentDescription = getString(R.string.page_n, i + 1)
             addView(thumb, LinearLayout.LayoutParams(w, h))
             addView(text(getString(R.string.page_n, i + 1), 12f, if (i == default) m3.onSurface else m3.onSurfaceVariant, medium = i == default).apply {
                 gravity = Gravity.CENTER
                 setPadding((8 * dp).toInt(), (6 * dp).toInt(), (8 * dp).toInt(), 0)
                 compoundDrawablePadding = (4 * dp).toInt()
                 setCompoundDrawablesRelative(symbol("home", if (i == default) m3.primary else m3.outlineVariant, 14f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
-                contentDescription = getString(R.string.page_set_default)
+                contentDescription = "${getString(R.string.page_n, i + 1)}, ${getString(R.string.page_set_default)}"
                 setOnClickListener { looks["defaultPage"] = i.toString(); showOverview() }
             }, LinearLayout.LayoutParams(-2, -2).apply { gravity = Gravity.CENTER_HORIZONTAL })
             setOnClickListener { workspace.snapTo(i, animate = false); closeOverlay() }
-            setOnLongClickListener { v ->
+            if (!locked) setOnLongClickListener { v ->
                 performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                v.startDragAndDrop(null, View.DragShadowBuilder(v), PageDrag(i), View.DRAG_FLAG_OPAQUE)
+                // Android sends ACTION_DRAG_STARTED only to visible children. Reveal the drop target before
+                // starting, so it registers for the drag; showing it in the overlay's listener is too late.
+                showRemove(true)
+                v.startDragAndDrop(null, View.DragShadowBuilder(v), PageDrag(i), View.DRAG_FLAG_OPAQUE).also {
+                    if (!it) showRemove(false)
+                }
             }
             setOnDragListener { v, e ->
                 val from = (e.localState as? PageDrag)?.index ?: return@setOnDragListener false
@@ -224,7 +236,8 @@ fun MainActivity.showOverview() {
             }
         })
     }
-    if (pages.size < 9) add(LinearLayout(this).apply {
+    if (!locked && pages.size < 9) add(LinearLayout(this).apply {
+        contentDescription = getString(R.string.page_add)
         addView(ImageView(context).apply {
             setImageDrawable(symbol("add", m3.onSecondaryContainer, 32f))
             scaleType = ImageView.ScaleType.CENTER
@@ -240,8 +253,7 @@ fun MainActivity.showOverview() {
         setOnDragListener { _, e ->
             if (e.localState !is PageDrag) return@setOnDragListener false
             when (e.action) {
-                DragEvent.ACTION_DRAG_STARTED -> { hint.visibility = View.INVISIBLE; remove.visibility = View.VISIBLE }
-                DragEvent.ACTION_DRAG_ENDED -> { hint.visibility = View.VISIBLE; remove.visibility = View.INVISIBLE }
+                DragEvent.ACTION_DRAG_ENDED -> showRemove(false)
             }
             true
         }
@@ -260,6 +272,7 @@ fun MainActivity.showOverview() {
 }
 
 private fun MainActivity.movePageTo(from: Int, to: Int) {
+    if (locked) { toast(R.string.layout_locked); return }
     val default = looks.int("defaultPage")
     items = movePage(items, from, to).toMutableList()
     // The default page follows its contents, like every other page.
@@ -268,6 +281,7 @@ private fun MainActivity.movePageTo(from: Int, to: Int) {
 }
 
 private fun MainActivity.removePageAt(i: Int) {
+    if (locked) { toast(R.string.layout_locked); return }
     val n = pages.size
     if (n == 1) { toast(R.string.page_last); return }
     val default = looks.int("defaultPage")

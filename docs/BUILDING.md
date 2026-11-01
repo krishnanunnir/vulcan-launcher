@@ -32,6 +32,14 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell am instrument -w dev.vulcanlauncher.test/dev.vulcanlauncher.DeviceCheck
 ```
 
+Pages regression check (use a disposable emulator without widgets): sends real framework drags to test removal,
+confirmation/cancel, reordering, default-page tracking, adding, the nine-page limit and layout lock. It restores the
+original items and settings afterwards and writes `files/pages-remove-hover.png` and `files/pages-after-remove.png`.
+
+```sh
+adb -s emulator-5580 shell am instrument -w -e check pages dev.vulcanlauncher.test/dev.vulcanlauncher.DeviceCheck
+```
+
 Scenario flows in `flows/`, run with [Maestro](https://maestro.mobile.dev) (`brew install mobile-dev-inc/tap/maestro`). Install the debug APK first. The flows match English labels. Maestro sends analytics unless the variable below is set.
 
 Flows tagged `edits` (removing and renaming icons, lock layout, pages, widget picker, hiding, sorting, folders, tabs, drawer style, dock settings, app info) start from a wiped, fresh-install layout. They run on the emulators; on a phone you use, leave them out with `--exclude-tags edits`. The others never stop or wipe Vulcan.

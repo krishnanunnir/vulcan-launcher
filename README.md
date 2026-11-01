@@ -32,7 +32,7 @@ The wallpaper in the screenshots is [docs/wallpaper-dusk.jpg](docs/wallpaper-dus
 
 ## Features
 
-- **Arrange your home screen your way:** grids up to 12 by 12, up to 9 pages, resizable widgets, and a dock you can hide or scroll.
+- **Arrange your home screen your way:** grids up to 12 by 12, up to 9 pages, resizable widgets, and a dock you can hide or scroll. Lock the layout to prevent accidental icon and page edits.
 - **Find apps fast:** an A to Z app drawer with search, an optional letter index, and tabs (swipe sideways to switch) or folders to group apps. Hide the apps you don't want to see.
 - **Use gestures:** swipe, double-tap or pinch on the home screen to open notifications, an app, the app drawer, the screen lock and more. Each app icon can have its own swipe-up action too.
 - **Change the look:** icon packs, icon shapes, your own icons and labels, folder styles, and a night mode that follows the system or a schedule.

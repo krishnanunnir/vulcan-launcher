@@ -16,7 +16,7 @@ import kotlin.math.sin
  * On-device check of the home gestures with real multi-touch MotionEvents (which `adb input` can't send), dispatched into the launcher window.
  * Each gesture is mapped to "jump to page N" and the resulting page is checked. Settings are restored afterwards.
  * Run: adb shell am instrument -w dev.vulcanlauncher.test/dev.vulcanlauncher.DeviceCheck  (add -e check import for the import check,
- * -e check readable for the readable backup)
+ * -e check readable for the readable backup, -e check pages for the page overview)
  */
 class DeviceCheck : Instrumentation() {
     private var mode = "gestures"
@@ -99,6 +99,7 @@ class DeviceCheck : Instrumentation() {
     override fun onStart() {
         if (mode == "import") return importCheck()
         if (mode == "readable") return readableCheck()
+        if (mode == "pages") return OverviewCheck(this).run()
         val looks = targetContext.getSharedPreferences("looks", Context.MODE_PRIVATE)
         val saved = looks.all.toMap()
         try {

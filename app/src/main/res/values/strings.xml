@@ -450,6 +450,7 @@
     <string name="pages_hint">Tap to open · hold and drag to move or remove</string>
     <string name="page_set_default">Set as default page</string>
     <string name="page_remove">Remove page</string>
+    <string name="page_add">Add page</string>
     <string name="page_last">The home screen needs at least one page</string>
     <string name="page_remove_confirm">Remove page %1$d and everything on it?</string>
     <string name="item_removed">Item removed</string>

@@ -6,7 +6,7 @@ tags: [edits]
 - runFlow: common/home-menu.yaml
 - tapOn: "(?i)pages"
 - assertVisible: "Page 1"
-- tapOn: { point: "48%,55%" }   # the "+" tile has no label to match
+- tapOn: "Add page"
 - waitForAnimationToEnd
 - repeat:   # a swipe right after the previews close can go unnoticed
     times: 3
