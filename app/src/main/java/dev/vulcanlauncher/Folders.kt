@@ -336,10 +336,11 @@ fun spanAround(center: Int, size: Int, min: Int, max: Int) = (center - size / 2)
 
 /**
  * A folder window's columns and cell width for [n] items. Sized to its contents, as in Launcher3: 2 items 2×1, 4 are 2×2,
- * 6 are 3×2, up to four columns. Cells narrow from [cellW] to fit [avail] px; a column goes only when they'd be under [minW].
+ * 6 are 3×2, up to four columns, or [want] columns when set. Cells narrow from [cellW] to fit [avail] px; a column goes
+ * only when they'd be under [minW].
  */
-fun folderGrid(n: Int, cellW: Int, minW: Int, avail: Int): Pair<Int, Int> {
-    val cols = ceil(sqrt(n.toDouble())).toInt().coerceIn(1, 4).coerceAtMost(maxOf(1, avail / minW))
+fun folderGrid(n: Int, cellW: Int, minW: Int, avail: Int, want: Int? = null): Pair<Int, Int> {
+    val cols = (want ?: ceil(sqrt(n.toDouble())).toInt().coerceIn(1, 4)).coerceAtMost(maxOf(1, avail / minW))
     return cols to minOf(cellW, avail / cols)
 }
 
@@ -357,9 +358,12 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
     val base = style("")
     val style = IconStyle(base.sizePx, true, looks.labelSize("folderLabelSize"), panelText, false, base.iconShadow, font = base.font, lines = base.lines)
     // Within the screen, less the window's margins and padding (16 dp each side).
-    val (cols, cellW) = folderGrid(children.size, base.sizePx + (36 * dp).toInt(), base.sizePx + (8 * dp).toInt(), root.width - (64 * dp).toInt())
+    val (cols, cellW) = folderGrid(children.size, base.sizePx + (36 * dp).toInt(), base.sizePx + (8 * dp).toInt(), root.width - (64 * dp).toInt(),
+        looks.str("folderCols").toIntOrNull())
     val rows = maxOf(1, ceil(children.size / cols.toDouble()).toInt())
     val cellH = base.sizePx + (44 * dp).toInt()
+    // Rows shown before the grid scrolls: four in the pop-up and all of them full screen, unless set.
+    val shownRows = looks.str("folderRows").toIntOrNull()
     val cell = CellLayout(this, cols, rows, 0)
     fun fill(list: List<Item>) {
         cell.removeAllViews()
@@ -410,7 +414,7 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         setPadding(p, p + if (full) insets.top else 0, p, p + if (full) insets.bottom else 0)
         addView(ScrollView(context).apply {
             addView(cell, FrameLayout.LayoutParams(cols * cellW, rows * cellH))
-        }, LinearLayout.LayoutParams(-2, if (full) -2 else minOf(rows, 4) * cellH).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        }, LinearLayout.LayoutParams(-2, if (full && shownRows == null) -2 else minOf(rows, shownRows ?: 4) * cellH).apply { gravity = Gravity.CENTER_HORIZONTAL })
         // The name sits under the icons, as in Launcher3.
         addView(name)
     }

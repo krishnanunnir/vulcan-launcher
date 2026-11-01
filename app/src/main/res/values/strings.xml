@@ -125,6 +125,9 @@
     <string name="set_folderSwipe">Swipe to open</string>
     <string name="set_folderSwipe_info">Tap launches the first item</string>
     <string name="set_folderNames">Show folder name</string>
+    <string name="set_folderCols">Columns</string>
+    <string name="set_folderRows">Rows</string>
+    <string name="folderGrid_auto">Auto</string>
     <string name="set_shape">Icon shape</string>
     <string name="set_reshape">Reshape legacy icons</string>
     <string name="reshape_off">Off</string>

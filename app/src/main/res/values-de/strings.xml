@@ -359,6 +359,9 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="set_folderColor">Ordner-Hintergrundfarbe</string>
     <string name="set_folderFirstBig">Erstes Symbol priorisieren</string>
     <string name="set_folderNames">Ordnernamen anzeigen</string>
+    <string name="set_folderCols">Spalten</string>
+    <string name="set_folderRows">Zeilen</string>
+    <string name="folderGrid_auto">Automatisch</string>
     <string name="set_folderPreview">Ordner-Vorschau</string>
     <string name="set_folderRadius">Eckenradius des Ordnerfensters</string>
     <string name="set_folderSwipe">Zum Öffnen wischen</string>

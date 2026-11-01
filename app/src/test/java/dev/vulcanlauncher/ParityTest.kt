@@ -157,6 +157,8 @@ class ParityTest {
         assertEquals(4 to 75, folderGrid(12, 100, 60, 300))   // narrow screen: cells shrink, still four columns
         assertEquals(3 to 66, folderGrid(12, 100, 60, 200))   // narrower: a column goes rather than squash the icons
         assertEquals(1 to 50, folderGrid(3, 100, 60, 50))     // never fewer than one
+        assertEquals(6 to 100, folderGrid(4, 100, 60, 1000, want = 6)) // set columns win over the content-sized grid
+        assertEquals(3 to 66, folderGrid(4, 100, 60, 200, want = 6))   // but still fit the screen
     }
 
     @Test

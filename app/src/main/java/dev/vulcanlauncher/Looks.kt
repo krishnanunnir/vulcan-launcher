@@ -137,6 +137,9 @@ val LOOKS = listOf(
     onOff(FOLDERS, "folderSwipe", R.string.set_folderSwipe, false, R.string.set_folderSwipe_info),
     onOff(FOLDERS, "folderNames", R.string.set_folderNames, true),
     labelSize(FOLDERS, "folderLabelSize"),
+    // Auto: sized to the contents (folderGrid); a number fixes the columns, or how many rows show before it scrolls.
+    Choice(FOLDERS, "folderCols", R.string.set_folderCols, "auto", listOf("auto") + range(2, 6), listOf(R.string.folderGrid_auto), shown = listOf("") + range(2, 6)),
+    Choice(FOLDERS, "folderRows", R.string.set_folderRows, "auto", listOf("auto") + range(1, 6), listOf(R.string.folderGrid_auto), shown = listOf("") + range(1, 6)),
 
     Choice(LOOK, "shape", R.string.set_shape, "system", SHAPES, SHAPE_NAMES),
     Choice(LOOK, "reshape", R.string.set_reshape, "off", listOf("off", "unthemed", "always"), listOf(R.string.reshape_off, R.string.reshape_unthemed, R.string.reshape_always)),

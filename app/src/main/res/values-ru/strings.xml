@@ -359,6 +359,9 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="set_folderColor">Цвет фона папки</string>
     <string name="set_folderFirstBig">Приоритет первого значка</string>
     <string name="set_folderNames">Показывать имя папки</string>
+    <string name="set_folderCols">Столбцы</string>
+    <string name="set_folderRows">Строки</string>
+    <string name="folderGrid_auto">Авто</string>
     <string name="set_folderPreview">Превью папки</string>
     <string name="set_folderRadius">Радиус углов окна папки</string>
     <string name="set_folderSwipe">Свайп для открытия</string>
