@@ -660,7 +660,7 @@ class Drawer(private val a: MainActivity) {
     }
 
     private fun menu() {
-        a.showMenu(a.screenRect(menuButton)) {
+        a.showMenu(a.screenRect(menuButton), narrow = true) {
             fun row(sym: String, title: String, act: () -> Unit) = addView(a.listItem(a.symbol(sym), title, dense = true) { a.closeMenu(); act() })
             row(if (showHidden) "hide" else "show", a.getString(if (showHidden) R.string.hidden_hide else R.string.hidden_show)) { showHidden = !showHidden; refresh() }
             row("sort", a.getString(R.string.set_drawerSort)) {

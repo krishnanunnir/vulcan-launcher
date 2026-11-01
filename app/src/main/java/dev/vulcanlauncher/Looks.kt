@@ -153,7 +153,6 @@ val LOOKS = listOf(
     onOff(LOOK, "blur", R.string.set_blur, false, R.string.set_blur_info),
     onOff(LOOK, "popupShortcuts", R.string.set_popupShortcuts, true),
     onOff(LOOK, "popupNotifications", R.string.set_popupNotifications, true),
-    onOff(LOOK, "closeApp", R.string.set_closeApp, true),
     onOff(LOOK, "undoBar", R.string.set_undoBar, true),
 
     Choice(NIGHT, "nightMode", R.string.set_nightMode, "system", NIGHT_MODES, NIGHT_MODE_NAMES),

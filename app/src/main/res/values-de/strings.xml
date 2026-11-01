@@ -34,7 +34,6 @@
     <string name="add_to_group">Zur Gruppe hinzufügen</string>
     <string name="add_to_home">Zum Startbildschirm hinzufügen</string>
     <string name="added_to_home">Zum Startbildschirm hinzugefügt</string>
-    <string name="apk_saved">APK gespeichert</string>
     <string name="app_info">App-Info</string>
     <string name="app_not_installed">"App ist nicht installiert"</string>
     <string name="app_shortcut">App-Verknüpfung</string>
@@ -71,8 +70,6 @@
     <string name="charging">Wird geladen · %1$d%%</string>
     <string name="choose_apps">Apps auswählen</string>
     <string name="choose_icon">Symbol auswählen</string>
-    <string name="close_app">Schließen</string>
-    <string name="closed_tasks">Hintergrundaufgaben für %1$s geschlossen</string>
     <string name="color_black">Schwarz</string>
     <string name="color_blue">Blau</string>
     <string name="color_charcoal">Anthrazit</string>
@@ -89,7 +86,6 @@
     <string name="color_yellow">Gelb</string>
     <string name="convert_to_folder">In Ordner umwandeln</string>
     <string name="convert_to_tab">In Tab umwandeln</string>
-    <string name="couldnt_save">"Speichern fehlgeschlagen: %1$s"</string>
     <string name="default_home">Standard-Start-App</string>
     <string name="default_home_info">Mache Vulcan zu deinem Startbildschirm</string>
     <string name="delete">Löschen</string>
@@ -183,8 +179,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="icon_from_gallery">Bild aus der Galerie</string>
     <string name="icon_from_pack">Aus %1$s</string>
     <string name="icon_pack_unreadable">"Dieses Symbolpaket kann nicht gelesen werden"</string>
-    <string name="icon_png">Symbol-PNG</string>
-    <string name="icon_saved">Symbol gespeichert</string>
     <string name="import_">Importieren</string>
     <string name="import_failed">Import fehlgeschlagen: %1$s</string>
     <string name="import_message">%1$s und %2$s ersetzen dein aktuelles Layout.</string>
@@ -305,7 +299,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="restart">Launcher neu starten</string>
     <string name="restore_failed">Wiederherstellung fehlgeschlagen: %1$s</string>
     <string name="save">Speichern</string>
-    <string name="save_apk">APK speichern</string>
     <string name="search">Suchen</string>
     <string name="searchBar_bottom">Unten auf dem Bildschirm</string>
     <string name="searchBar_dockabove">Dock (über den Symbolen)</string>
@@ -327,7 +320,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="set_blur">Startbildschirm hinter Panels weichzeichnen</string>
     <string name="set_blur_info">Benötigt Android 12+</string>
     <string name="set_closeAfterLaunch">Nach dem Starten einer App schließen</string>
-    <string name="set_closeApp">„App schließen“ im Langdruck-Menü</string>
     <string name="set_cols">Spalten</string>
     <string name="set_contactSearch">Kontakte durchsuchen</string>
     <string name="set_contactSearch_info">Fragt nach Kontaktberechtigung</string>

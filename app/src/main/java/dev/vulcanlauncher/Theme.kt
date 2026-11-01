@@ -456,15 +456,20 @@ fun MainActivity.glassTint(blurred: Boolean): Int = when {
     else -> if (blurred) 0xA6F5F5F7 else 0xEBF7F7F9
 }.toInt()
 
+/** [frost]'s raised glass: lighter than a panel's tint, so a menu stands out over the drawer too. */
+fun MainActivity.frostTint() = when {
+    m3.dark -> if (viewBlur) 0xB32C2C30 else 0xF02C2C30
+    else -> if (viewBlur) 0xC7FFFFFF else 0xF5FFFFFF
+}.toInt()
+
+/** [frost]'s hairline edge. */
+fun MainActivity.frostEdge() = (if (m3.dark) 0x24FFFFFF else 0x1A000000).toInt()
+
 /** Frosted glass for a card or menu: the glass tint, a hairline edge, and on Samsung a real blur of what's behind [v]. */
 fun MainActivity.frost(v: View, radius: Float) {
     if (!looks.on("blur")) { housing(v, radius); return }
-    // A raised glass: lighter than a panel's tint, so a menu stands out over the drawer too.
-    val tint = when {
-        m3.dark -> if (viewBlur) 0xB32C2C30 else 0xF02C2C30
-        else -> if (viewBlur) 0xC7FFFFFF else 0xF5FFFFFF
-    }.toInt()
-    v.background = rounded(tint, radius, if (m3.dark) 0x24FFFFFF else 0x1A000000, dp / 2)
+    val tint = frostTint()
+    v.background = rounded(tint, radius, frostEdge(), dp / 2)
     // Samsung's blur draws instead of the background, so it carries the tint itself.
     if (viewBlur) v.semBlur((32 * dp).toInt(), tint, radius)
 }

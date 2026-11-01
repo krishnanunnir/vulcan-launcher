@@ -46,6 +46,7 @@ import android.widget.TextView
 import org.json.JSONObject
 import kotlin.math.ceil
 import kotlin.math.hypot
+import kotlin.math.roundToInt
 
 /** A launchable app from any profile (personal or work). [serial] is the profile's UserManager serial number. */
 class App(val info: LauncherActivityInfo, val serial: Long) {
@@ -64,6 +65,10 @@ class GroupChild(val group: String, val app: App)
 
 /** How far the page shrinks while dragging (Launcher3's spring-loaded state is about 0.8). */
 const val SPRING_SCALE = 0.8f
+
+/** A [w]-wide menu's left edge: on the anchor's left edge, or its right edge when that runs off a [width]-wide screen. */
+fun menuX(left: Int, right: Int, w: Int, width: Int, margin: Int) =
+    (if (left + w <= width - margin) left else right - w).coerceIn(margin, maxOf(margin, width - w - margin))
 
 class MainActivity : VulcanActivity() {
     companion object {
@@ -237,7 +242,7 @@ class MainActivity : VulcanActivity() {
         pages = List(looks.pages) { i ->
             CellLayout(this, looks.cols * sub, looks.rows * sub, i).apply {
                 setOnDragListener(dropListener(this))
-                setOnLongClickListener { homeMenu(); true }
+                setOnLongClickListener { homeOverview(); true }
             }
         }
         indicator = Indicator(this, looks.pages, looks.str("indicator"), looks.color("labelColor"), m3.signal)
@@ -857,14 +862,21 @@ class MainActivity : VulcanActivity() {
         val s = dragStart ?: PointF(x, y).also { dragStart = it }
         if (hypot(x - s.x, y - s.y) > 16 * dp) {
             dragMoved = true
-            // A drag that never moves stays a long-press: no drop targets until it does. A drawer folder's app has none:
-            // it only reorders or copies to home.
-            if (dragPayload !is GroupChild) dropBar.visibility = View.VISIBLE
-            springLoad(true)
+            // As Nova: a drag within a folder keeps home as it is until it leaves the folder (openFolderWindow's leave).
+            if (!keepOverlay) liftDrag()
             root.tick()
             closeMenu()
             if (!keepOverlay) { drawer.hide(animate = false); closeOverlay() }
         }
+    }
+
+    /**
+     * Home's drag mode: drop targets and the shrunk page. A drag that never moves stays a long-press: none until it does.
+     * A drawer folder's app has no drop targets: it only reorders or copies to home.
+     */
+    fun liftDrag() {
+        if (dragPayload !is GroupChild) dropBar.visibility = View.VISIBLE
+        springLoad(true)
     }
 
     /** For views that cover home (drawer, folder window): follow the drag but never accept the drop. */
@@ -1096,7 +1108,9 @@ class MainActivity : VulcanActivity() {
         val rows = ArrayList<View>()
         val tiles = ArrayList<Triple<String, String, () -> Unit>>()
         fun row(icon: Drawable, text: String, summary: String? = null, long: ((View) -> Unit)? = null, click: () -> Unit) {
-            rows += listItem(icon, text, summary, dense = true, summaryLines = 2) { closeMenu(); click() }.apply {
+            // As Nova: a draggable row (a shortcut) shows a grip at its end.
+            val grip = if (long != null && summary == null) ImageView(this).apply { setImageDrawable(symbol("drag", m3.onSurfaceVariant, 20f)) } else null
+            rows += listItem(icon, text, summary, trailing = grip, dense = true, summaryLines = 2) { closeMenu(); click() }.apply {
                 // A drag that starts here closes the menu once it moves (see trackDrag).
                 if (long != null) setOnLongClickListener { v -> long(v); if (dragSource !== v) closeMenu(); true }
             }
@@ -1128,15 +1142,16 @@ class MainActivity : VulcanActivity() {
             }
             item != null && !locked -> {
                 if (!item.isBlock) tile("edit", getString(R.string.edit)) { editItem(item) }
+                if (item.folder) folderActions(item).forEach { (sym, title, click) -> tile(sym, title, click) }
                 if (item.isBlock) tile("resize", getString(R.string.resize)) { resizeWidget(item) }
+                if (item.isWidget && awm.getAppWidgetInfo(item.widgetId)?.configure != null) tile("settings", getString(R.string.settings)) {
+                    runCatching { host.startAppWidgetConfigureActivityForResult(this, item.widgetId, 0, REQ_RECONFIG, null) }
+                }
                 if (item.isClock) {
                     val big = views[item]?.tag == true
                     tile("clock", getString(if (big) R.string.glanceStyle_date else R.string.glanceStyle_clock)) {
                         looks["glanceStyle"] = if (big) "date" else "clock"; rebuild()
                     }
-                }
-                if (item.isWidget && awm.getAppWidgetInfo(item.widgetId)?.configure != null) tile("settings", getString(R.string.settings)) {
-                    runCatching { host.startAppWidgetConfigureActivityForResult(this, item.widgetId, 0, REQ_RECONFIG, null) }
                 }
                 tile("close", getString(R.string.remove)) { removeItem(item); render() }
             }
@@ -1144,20 +1159,19 @@ class MainActivity : VulcanActivity() {
         }
         if (app != null) {
             tile("info", getString(R.string.app_info)) { launcherApps.startAppDetailsActivity(app.info.componentName, app.info.user, null, null) }
-            if (!isSystemApp(app)) tile("delete", getString(R.string.uninstall)) { uninstall(app) }
+            // The optional ones last, so every app's other tiles keep their places.
             if (awm.installedProviders.any { it.provider.packageName == app.pkg }) tile("widgets", getString(R.string.widgets)) { pickWidget(app.pkg) }
-            tile("download", getString(R.string.save_apk)) { saveApk(app) }
-            if (looks.on("closeApp")) tile("stop", getString(R.string.close_app)) {
-                getSystemService(android.app.ActivityManager::class.java).killBackgroundProcesses(app.pkg)
-                toast(R.string.closed_tasks, label(app))
-            }
-            tile("image", getString(R.string.icon_png)) { exportIcon(app) }
+            if (!isSystemApp(app)) tile("delete", getString(R.string.uninstall)) { uninstall(app) }
         }
         if (rows.isEmpty() && tiles.isEmpty()) return
-        showMenu(screenRect(anchor)) {
+        // Lined up with the icon itself, not its cell; clear of its label.
+        val at = screenRect(anchor).apply { screenRect((anchor as? IconView)?.image ?: anchor).let { left = it.left; right = it.right } }
+        // An app's menu is always tiles, so it has the same shape for every app and the hand learns where each one is.
+        // Others (folders, widgets) are rarer and vary: four or fewer read as rows (addActions).
+        showMenu(at, narrow = app == null && tiles.size <= 4) {
             rows.forEach { addView(it) }
             if (rows.isNotEmpty() && tiles.isNotEmpty()) addView(hairline())
-            addTiles(tiles, 4)
+            if (app != null) addTiles(tiles, 4) else addActions(tiles, 4, lead = emptySet())
         }
     }
 
@@ -1168,6 +1182,7 @@ class MainActivity : VulcanActivity() {
     fun closeMenu() {
         val m = menu ?: return
         menu = null
+        if (homeMode) { homeMode = false; springLoad(false); dockBox.animate().alpha(1f).setDuration(200).start() }
         // Let touches through at once; it only fades out.
         m.setOnClickListener(null); m.isClickable = false
         m.animate().alpha(0f).setDuration(120).withEndAction { root.removeView(m) }.start()
@@ -1181,14 +1196,15 @@ class MainActivity : VulcanActivity() {
     }
 
     /**
-     * A glass popover menu next to [anchor] (window coordinates): below it if there's room, else above. It grows out
-     * of the anchor. Drawn inside this window rather than as a PopupWindow: a drag started from another window never
-     * delivers its end event here.
+     * A glass popover menu next to [anchor] (window coordinates): above it if there's room, else below. It reveals
+     * out of the anchor. Drawn inside this window rather than as a PopupWindow: a drag started from another window never
+     * delivers its end event here. A [narrow] menu (rows only) is Launcher3's 216dp; tiles need 264dp for their legends.
+     * As Nova's: it lines up with the anchor's left edge (its right edge when that doesn't fit), and an arrow points at it.
      */
-    fun showMenu(anchor: Rect, build: LinearLayout.() -> Unit) {
+    fun showMenu(anchor: Rect, narrow: Boolean = false, build: LinearLayout.() -> Unit) {
         // Wider with a larger system font size, so the tracked tile legends don't clip.
         val margin = (8 * dp).toInt()
-        val w = minOf((264 * dp * maxOf(1f, resources.configuration.fontScale)).toInt(), root.width - 2 * margin)
+        val w = minOf(((if (narrow) 216 else 264) * dp * maxOf(1f, resources.configuration.fontScale)).toInt(), root.width - 2 * margin)
         menuWidth = w
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -1200,30 +1216,82 @@ class MainActivity : VulcanActivity() {
         }
         closeMenu()
         box.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED)
-        val x = (anchor.centerX() - w / 2).coerceIn(margin, maxOf(margin, root.width - w - margin))
-        val below = anchor.bottom + margin
-        val y = if (below + box.measuredHeight < root.height - insets.bottom) below
-            else maxOf(insets.top, anchor.top - box.measuredHeight - margin)
+        val x = menuX(anchor.left, anchor.right, w, root.width, margin)
+        // As Launcher3: above the anchor if there's room, else below.
+        val above = anchor.top - box.measuredHeight - margin
+        val y = if (above >= insets.top) above else minOf(anchor.bottom + margin, maxOf(insets.top, root.height - insets.bottom - box.measuredHeight))
+        val up = y > above
+        // As Nova: an arrow joins the menu to its anchor, in the menu's own glass (or housing) with its hairline edge.
+        // Its base overlaps the panel by the edge's width, covering the edge there so the two read as one shape.
+        // ponytail: on Samsung's blur the arrow is the glass tint without the blur behind it; close, not identical.
+        val glass = looks.on("blur")
+        val fill = if (glass) frostTint() else m3.raised
+        // The seam covers the glass's hairline, or the housing's 1 dp rim (housingFace).
+        val aw = (20 * dp).toInt(); val ah = (10 * dp).toInt(); val seam = if (glass) maxOf(1, (dp / 2).roundToInt()) else dp.roundToInt() + 1
+        val inset = (24 * dp).toInt() // clear of the panel's rounded corners
+        val ax = (anchor.centerX() - aw / 2).coerceIn(x + inset, maxOf(x + inset, x + w - aw - inset))
+        val arrow = object : View(this) {
+            val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = fill }
+            val edge = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                color = frostEdge(); style = android.graphics.Paint.Style.STROKE; strokeWidth = dp / 2
+            }
+            override fun onDraw(c: android.graphics.Canvas) {
+                val wd = width.toFloat()
+                val tip = if (up) 0f else height.toFloat()
+                val base = if (up) ah.toFloat() else seam.toFloat()
+                c.drawPath(android.graphics.Path().apply { moveTo(0f, base); lineTo(wd / 2, tip); lineTo(wd, base); close() }, paint)
+                if (up) c.drawRect(0f, base, wd, height.toFloat(), paint) else c.drawRect(0f, 0f, wd, base, paint)
+                if (glass) { c.drawLine(0f, base, wd / 2, tip, edge); c.drawLine(wd / 2, tip, wd, base, edge) }
+            }
+        }.apply { elevation = box.elevation; outlineProvider = null }
         val shade = FrameLayout(this).apply {
             setOnClickListener { closeMenu() }
             // No drag listener: a drag goes to the view under the finger, so a folder window reordering its icons keeps
             // itself open (trackDrag's keepOverlay) instead of this full-screen shade closing it on the first move (#1).
             // LEFT, not the default START: x is measured from the left edge in right-to-left languages too.
             addView(box, FrameLayout.LayoutParams(w, -2, Gravity.TOP or Gravity.LEFT).apply { leftMargin = x; topMargin = y })
+            addView(arrow, FrameLayout.LayoutParams(aw, ah + seam, Gravity.TOP or Gravity.LEFT).apply {
+                leftMargin = ax; topMargin = if (up) y - ah else y + box.measuredHeight - seam
+            })
         }
         root.addView(shade)
         menu = shade
-        box.pivotX = (anchor.centerX() - x).toFloat()
-        box.pivotY = if (y >= below) 0f else box.measuredHeight.toFloat()
-        box.scaleX = 0.8f; box.scaleY = 0.8f; box.alpha = 0f
-        box.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(220).setInterpolator(android.view.animation.OvershootInterpolator(1.1f)).start()
+        // As Nova: the panel reveals out of the anchor, then its contents fade in.
+        // ponytail: a circular reveal; Launcher3 reveals a growing rounded rectangle.
+        box.visibility = View.INVISIBLE
+        arrow.alpha = 0f
+        arrow.animate().alpha(1f).setDuration(100).start()
+        for (i in 0 until box.childCount) box.getChildAt(i).apply { alpha = 0f; animate().alpha(1f).setStartDelay(90).setDuration(150).start() }
+        box.post {
+            if (!box.isAttachedToWindow) return@post
+            box.visibility = View.VISIBLE
+            android.view.ViewAnimationUtils.createCircularReveal(box, ax - x + aw / 2, if (up) 0 else box.height, 0f,
+                hypot(box.width.toFloat(), box.height.toFloat())).apply { duration = 220; interpolator = EASE }.start()
+        }
     }
 
     /** Width of the menu being built by [showMenu]. */
     private var menuWidth = 0
 
+    /**
+     * A menu's actions, combining Launcher3 and Nova: the [lead] ones (by symbol, Launcher3's own picks) as labelled rows,
+     * the power extras as icon tiles under them. Four or fewer are all rows: a few tiles in a wide panel looked unfinished.
+     */
+    fun LinearLayout.addActions(actions: List<Triple<String, String, () -> Unit>>, maxCols: Int, lead: Set<String>) {
+        val (rows, tiles) = if (actions.size <= 4) actions to emptyList() else actions.partition { it.first in lead }
+        rows.forEach { (sym, title, click) ->
+            addView(listItem(symbol(sym, actionInk(sym, m3.onSurfaceVariant)), title, dense = true) { closeMenu(); click() })
+        }
+        if (rows.isNotEmpty() && tiles.isNotEmpty()) addView(hairline())
+        addTiles(tiles, maxCols)
+    }
+
+    /** Removing and uninstalling read as destructive at a glance. */
+    private fun actionInk(sym: String, normal: Int) = if (sym == "close" || sym == "delete") m3.error else normal
+
     /** Icon-over-label action tiles for a menu: up to [maxCols] to a row, fewer when a large font makes the legends wide. */
-    fun LinearLayout.addTiles(tiles: List<Triple<String, String, () -> Unit>>, maxCols: Int) {
+    private fun LinearLayout.addTiles(tiles: List<Triple<String, String, () -> Unit>>, maxCols: Int) {
+        if (tiles.isEmpty()) return
         val pad = (6 * dp).toInt()
         val views = tiles.map { (sym, title, click) ->
             (if (m3.housing) legend(title, 10f) else text(title, 11f, m3.onSurfaceVariant)).apply {
@@ -1231,14 +1299,17 @@ class MainActivity : VulcanActivity() {
                 maxLines = 1
                 ellipsize = android.text.TextUtils.TruncateAt.END
                 compoundDrawablePadding = (6 * dp).toInt()
-                setCompoundDrawablesWithIntrinsicBounds(null, symbol(sym, m3.onSurface, 22f), null, null)
+                setCompoundDrawablesWithIntrinsicBounds(null, symbol(sym, actionInk(sym, m3.onSurface), 22f), null, null)
                 setPadding(0, (12 * dp).toInt(), 0, (10 * dp).toInt())
                 background = pressable(null, 16 * dp)
                 setOnClickListener { closeMenu(); click() }
             }
         }
         val widest = views.maxOfOrNull { it.measure(0, 0); it.measuredWidth } ?: 1
-        val cols = ((menuWidth - 2 * pad) / maxOf(1, widest)).coerceIn(1, maxCols)
+        // Balanced lines (5 tiles as 3 + 2, not 4 + 1), so no tile sits alone under a full row.
+        val fit = ((menuWidth - 2 * pad) / maxOf(1, widest)).coerceIn(1, maxCols)
+        val lines = (tiles.size + fit - 1) / fit
+        val cols = (tiles.size + lines - 1) / lines
         views.chunked(cols).forEach { chunk ->
             addView(LinearLayout(context).apply {
                 setPadding(pad, 0, pad, 0)
@@ -1255,31 +1326,6 @@ class MainActivity : VulcanActivity() {
         layoutParams = LinearLayout.LayoutParams(-1, maxOf(1, (dp / 2).toInt())).apply { setMargins(0, (6 * dp).toInt(), 0, (6 * dp).toInt()) }
     }
 
-    // ponytail: copies the base APK only; split APKs (app bundles) need all of applicationInfo.splitSourceDirs to install
-    @Suppress("DEPRECATION")
-    private fun saveApk(a: App) {
-        onDocument = { uri ->
-            runCatching {
-                java.io.File(a.info.applicationInfo.sourceDir).inputStream().use { src -> contentResolver.openOutputStream(uri, "wt")!!.use { src.copyTo(it) } }
-            }.onSuccess { toast(R.string.apk_saved) }.onFailure { toast(R.string.couldnt_save, it.message) }
-        }
-        startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
-            .setType("application/vnd.android.package-archive").putExtra(Intent.EXTRA_TITLE, "${a.pkg}.apk"), REQ_DOC)
-    }
-
-    @Suppress("DEPRECATION")
-    private fun exportIcon(a: App) {
-        onDocument = { uri ->
-            val size = (192 * dp).toInt()
-            val bmp = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
-            icon(a).apply { setBounds(0, 0, size, size); draw(android.graphics.Canvas(bmp)) }
-            runCatching { contentResolver.openOutputStream(uri, "wt")!!.use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) } }
-                .onSuccess { toast(R.string.icon_saved) }.onFailure { toast(R.string.couldnt_save, it.message) }
-        }
-        startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
-            .setType("image/png").putExtra(Intent.EXTRA_TITLE, "${label(a)}.png"), REQ_DOC)
-    }
-
     private fun isSystemApp(a: App) = a.info.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
 
     fun toggleHidden(key: String) {
@@ -1291,11 +1337,57 @@ class MainActivity : VulcanActivity() {
 
     // ---- Home menu, widgets and shortcuts ----
 
+    /** The page is shrunk for [homeOverview]; closing its menu grows it back. */
+    private var homeMode = false
+
+    /**
+     * Nova's hold on empty space: the page shrinks into its outline (as while dragging), the dock steps aside, and the
+     * main home actions sit at the bottom as large buttons; "more" has the rest ([homeMenu]). Tap anywhere or Back to leave.
+     */
+    fun homeOverview() {
+        val ink = looks.color("labelColor")
+        val buttons = LinearLayout(this).apply {
+            listOf(
+                Triple("image", getString(R.string.wallpaper)) { perform("wallpaper") },
+                Triple("widgets", getString(R.string.widgets)) { pickWidget() },
+                Triple("settings", getString(R.string.settings)) { showSettings() },
+                Triple("more", getString(R.string.more_options)) { homeMenu() },
+            ).filter { !locked || it.first != "widgets" }.forEach { (sym, title, click) ->
+                addView(text(title, 13f, ink).apply {
+                    gravity = Gravity.CENTER
+                    maxLines = 1
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                    compoundDrawablePadding = (8 * dp).toInt()
+                    setCompoundDrawablesWithIntrinsicBounds(null, symbol(sym, ink, 32f), null, null)
+                    setPadding(0, (12 * dp).toInt(), 0, (12 * dp).toInt())
+                    background = pressable(null, 16 * dp, ink)
+                    setOnClickListener { closeMenu(); click() }
+                }, LinearLayout.LayoutParams(0, -2, 1f))
+            }
+            alpha = 0f
+            animate().alpha(1f).setStartDelay(100).setDuration(200).start()
+        }
+        closeMenu()
+        val shade = FrameLayout(this).apply {
+            setOnClickListener { closeMenu() }
+            addView(buttons, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
+                val p = (16 * dp).toInt()
+                setMargins(p, 0, p, insets.bottom + (24 * dp).toInt())
+            })
+        }
+        root.addView(shade)
+        menu = shade
+        homeMode = true
+        root.tick()
+        springLoad(true)
+        dockBox.animate().alpha(0f).setDuration(200).start()
+    }
+
     fun homeMenu() {
         val entries = listOf(
+            Triple("image", getString(R.string.wallpaper)) { perform("wallpaper") },
             Triple("widgets", getString(R.string.widgets)) { pickWidget() },
             Triple("bolt", getString(R.string.shortcuts)) { addShortcutMenu() },
-            Triple("image", getString(R.string.wallpaper)) { perform("wallpaper") },
             Triple("carousel", getString(R.string.pages)) { showOverview() },
             // As a clock widget: one row across the page, sized and moved like one.
             Triple("clock", getString(R.string.clock)) { addItem(Item(0, 0, 0, looks.cols * sub, sub, action = "clock")); Unit },
@@ -1305,7 +1397,7 @@ class MainActivity : VulcanActivity() {
             Triple("settings", getString(R.string.settings)) { showSettings() },
         ).filter { !locked || it.first !in listOf("widgets", "bolt", "clock") }
         val at = Rect(lastDown.x.toInt(), lastDown.y.toInt(), lastDown.x.toInt(), lastDown.y.toInt())
-        showMenu(at) { addTiles(entries, 3) }
+        showMenu(at, narrow = entries.size <= 4) { addActions(entries, 4, lead = setOf("image", "widgets", "settings")) }
     }
 
     /**

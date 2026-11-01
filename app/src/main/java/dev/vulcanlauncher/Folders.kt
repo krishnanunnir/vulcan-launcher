@@ -328,7 +328,42 @@ fun MainActivity.openFolder(item: Item) {
             save()
         }
         folder.children
-    }, icon = (views[item] as? IconView)?.image) { FolderChild(folder, it) }
+    }, icon = (views[item] as? IconView)?.image, more = { v ->
+        showMenu(screenRect(v), narrow = true) { addActions(folderActions(folder, reopen = true), 4, lead = setOf("check", "sort")) }
+    }) { FolderChild(folder, it) }
+}
+
+/** Nova's folder actions: pick its apps, or sort them A to Z. [reopen] shows the folder again after a sort. */
+fun MainActivity.folderActions(f: Item, reopen: Boolean = false) = listOf(
+    Triple("check", getString(R.string.folder_select_apps)) { closeOverlay(); selectFolderApps(f) },
+    Triple("sort", getString(R.string.folder_sort)) {
+        val order = labelOrder()
+        setFolderChildren(f, f.children.sortedWith(compareBy(order) { resolve(it)?.first?.toString() ?: "" }))
+        if (reopen) { closeOverlay(); root.postDelayed({ items.firstOrNull { it.folder && it.page == f.page && it.x == f.x && it.y == f.y }?.let(::openFolder) }, 220) }
+    },
+)
+
+/** Ticks the folder's apps on or off: kept ones stay in place, new ones go at the end; its shortcuts and actions stay. */
+private fun MainActivity.selectFolderApps(f: Item) {
+    val keys = f.children.mapNotNull { c -> appOf(c)?.key?.takeIf { c.isApp } }
+    appSwitches(f.label, keys) { chosen ->
+        val kept = f.children.filter { c -> !c.isApp || appOf(c)?.key in chosen }
+        val added = chosen.filter { it !in keys }.mapNotNull { apps[it]?.let(::asChild) }
+        setFolderChildren(f, kept + added)
+    }
+}
+
+/** Replaces [f]'s children; with one left it turns back into that item, with none it goes. */
+fun MainActivity.setFolderChildren(f: Item, children: List<Item>) {
+    val i = items.indexOf(f)
+    if (i < 0) return
+    when (children.size) {
+        0 -> items.removeAt(i)
+        1 -> items[i] = children[0].copy(page = f.page, x = f.x, y = f.y, w = f.w, h = f.h)
+        else -> items[i] = f.copy(children = children)
+    }
+    save()
+    render()
 }
 
 /** Start of a [size] span centred on [center], kept within [min]..[max] (or at [min] if it doesn't fit). */
@@ -350,10 +385,12 @@ fun folderGrid(n: Int, cellW: Int, minW: Int, avail: Int, want: Int? = null): Pa
  * folder, an icon leaves the window for home ([payload] decides whether the drop moves it or copies it).
  * With [icon] (the folder icon's image), the pop-up grows out of it and closes back into it, under the thumb, instead of
  * opening mid-screen; the icon hides while the folder is open, as in Launcher3.
- * It opens over whatever is showing: from the drawer, Back closes it back to the drawer.
+ * It opens over whatever is showing: from the drawer, Back closes it back to the drawer. [more] opens the folder's own
+ * menu from a ⋮ beside its name.
  */
 fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename: ((String) -> Unit)?,
-                                  reorder: ((from: Int, to: Int) -> List<Item>)? = null, icon: View? = null, payload: (Int) -> Any) {
+                                  reorder: ((from: Int, to: Int) -> List<Item>)? = null, icon: View? = null,
+                                  more: ((View) -> Unit)? = null, payload: (Int) -> Any) {
     val anchor = icon?.takeIf { it.isLaidOut }?.let(::screenRect)
     val full = looks.str("folderWindow") == "fullscreen"
     val base = style("")
@@ -411,7 +448,7 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
     }
     val shuffle = Runnable { moveGap(target) }
     var leaving = false
-    val leave = Runnable { leaving = false; closeOverlay(); drawer.hide(animate = false) }
+    val leave = Runnable { leaving = false; closeOverlay(); drawer.hide(animate = false); liftDrag() }
     fun stay() { leaving = false; root.removeCallbacks(leave) }
     if (reorder != null) cell.setOnDragListener { v, e ->
         trackDrag(v, e, keepOverlay = true)
@@ -449,7 +486,15 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         background = null
         setSingleLine()
         ellipsize = android.text.TextUtils.TruncateAt.END
-        setPadding(0, (12 * dp).toInt(), 0, (4 * dp).toInt())
+        // Inset by the ⋮ button's width on both sides, so the name stays centred.
+        val side = if (more != null) (48 * dp).toInt() else 0
+        setPadding(side, (12 * dp).toInt(), side, (4 * dp).toInt())
+    }
+    // As Nova: the folder's own menu (⋮) sits at the end of its name.
+    val footer = FrameLayout(this).apply {
+        addView(name, FrameLayout.LayoutParams(-1, -2))
+        if (more != null) addView(iconButton("more", getString(R.string.more_options)) { more(it) },
+            FrameLayout.LayoutParams((48 * dp).toInt(), (48 * dp).toInt(), Gravity.END or Gravity.BOTTOM))
     }
     lateinit var grid: View
     val card = LinearLayout(this).apply {
@@ -465,7 +510,7 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
             grid = this
         }, LinearLayout.LayoutParams(-2, if (full && shownRows == null) -2 else minOf(rows, shownRows ?: 4) * cellH).apply { gravity = Gravity.CENTER_HORIZONTAL })
         // The name sits under the icons, as in Launcher3.
-        addView(name)
+        addView(footer)
     }
     val w = cols * cellW + (32 * dp).toInt()
     val margin = (16 * dp).toInt()
@@ -516,9 +561,9 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         // The spots the first icons hold in the folder icon's preview, so each flies out of (and back into) its own.
         val slots = folderPreview(looks.str("folderPreview"), children.take(6).count { resolve(it) != null }, looks.on("folderFirstBig"))
         icon?.alpha = 0f
-        reveal(card, cell, name, anchor, slots, iconCorner, corner, open = true)
+        reveal(card, cell, footer, anchor, slots, iconCorner, corner, open = true)
         // Dragging an icon out, Back, or a tap outside: the window shrinks back into its folder.
-        overlayExit = { done -> reveal(card, cell, name, anchor, slots, iconCorner, corner, open = false) { icon?.alpha = 1f; done() } }
+        overlayExit = { done -> reveal(card, cell, footer, anchor, slots, iconCorner, corner, open = false) { icon?.alpha = 1f; done() } }
     } else if (!full) {
         card.scaleX = 0.9f; card.scaleY = 0.9f; card.alpha = 0f
         card.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(150).setInterpolator(DecelerateInterpolator()).start()

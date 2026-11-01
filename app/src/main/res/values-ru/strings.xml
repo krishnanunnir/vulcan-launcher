@@ -34,7 +34,6 @@
     <string name="add_to_group">Добавить в группу</string>
     <string name="add_to_home">Добавить на главный экран</string>
     <string name="added_to_home">Добавлено на главный экран</string>
-    <string name="apk_saved">APK сохранён</string>
     <string name="app_info">О приложении</string>
     <string name="app_not_installed">"Приложение не установлено"</string>
     <string name="app_shortcut">Ярлык приложения</string>
@@ -71,8 +70,6 @@
     <string name="charging">Зарядка · %1$d%%</string>
     <string name="choose_apps">Выбрать приложения</string>
     <string name="choose_icon">Выбрать значок</string>
-    <string name="close_app">Закрыть</string>
-    <string name="closed_tasks">Фоновые задачи для %1$s закрыты</string>
     <string name="color_black">Чёрный</string>
     <string name="color_blue">Синий</string>
     <string name="color_charcoal">Антрацитовый</string>
@@ -89,7 +86,6 @@
     <string name="color_yellow">Жёлтый</string>
     <string name="convert_to_folder">Преобразовать в папку</string>
     <string name="convert_to_tab">Преобразовать во вкладку</string>
-    <string name="couldnt_save">"Не удалось сохранить: %1$s"</string>
     <string name="default_home">Приложение главного экрана по умолчанию</string>
     <string name="default_home_info">Сделать Vulcan вашим главным экраном</string>
     <string name="delete">Удалить</string>
@@ -183,8 +179,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="icon_from_gallery">Изображение из галереи</string>
     <string name="icon_from_pack">Из %1$s</string>
     <string name="icon_pack_unreadable">"Не удаётся прочитать этот набор значков"</string>
-    <string name="icon_png">Значок PNG</string>
-    <string name="icon_saved">Значок сохранён</string>
     <string name="import_">Импортировать</string>
     <string name="import_failed">Не удалось импортировать: %1$s</string>
     <string name="import_message">%1$s и %2$s заменят вашу текущую раскладку.</string>
@@ -305,7 +299,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="restart">Перезапустить лаунчер</string>
     <string name="restore_failed">Не удалось восстановить: %1$s</string>
     <string name="save">Сохранить</string>
-    <string name="save_apk">Сохранить APK</string>
     <string name="search">Поиск</string>
     <string name="searchBar_bottom">Внизу экрана</string>
     <string name="searchBar_dockabove">Док (над значками)</string>
@@ -327,7 +320,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="set_blur">Размытие главного экрана за панелями</string>
     <string name="set_blur_info">Нужен Android 12+</string>
     <string name="set_closeAfterLaunch">Закрывать после запуска приложения</string>
-    <string name="set_closeApp">«Закрыть приложение» в меню долгого нажатия</string>
     <string name="set_cols">Столбцы</string>
     <string name="set_contactSearch">Поиск контактов</string>
     <string name="set_contactSearch_info">Запрашивает разрешение на контакты</string>

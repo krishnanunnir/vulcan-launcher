@@ -150,7 +150,6 @@
     <string name="set_blur_info">Needs Android 12+</string>
     <string name="set_popupShortcuts">App shortcuts in long-press menu</string>
     <string name="set_popupNotifications">Notifications in long-press menu</string>
-    <string name="set_closeApp">\"Close app\" in long-press menu</string>
     <string name="set_undoBar">Show undo bar after removing an item</string>
     <string name="set_nightMode">Night mode</string>
     <string name="set_nightStart">Schedule start</string>
@@ -397,13 +396,6 @@
     <string name="menu_group">Group</string>
     <string name="resize">Resize</string>
     <string name="widgets">Widgets</string>
-    <string name="save_apk">Save APK</string>
-    <string name="close_app">Close</string>
-    <string name="closed_tasks">Closed background tasks for %1$s</string>
-    <string name="icon_png">Icon PNG</string>
-    <string name="apk_saved">APK saved</string>
-    <string name="couldnt_save">Couldn\'t save: %1$s</string>
-    <string name="icon_saved">Icon saved</string>
     <string name="shortcuts">Shortcuts</string>
     <string name="wallpaper">Wallpaper</string>
     <string name="pages">Pages</string>
@@ -460,6 +452,8 @@
     <string name="undo">Undo</string>
     <string name="search_apps">Search apps</string>
     <string name="more_options">More options</string>
+    <string name="folder_select_apps">Select apps</string>
+    <string name="folder_sort">Sort A to Z</string>
     <string name="no_apps_match">No apps match “%1$s”</string>
     <string name="tab_all">All apps</string>
     <string name="tab_work">Work</string>

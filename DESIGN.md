@@ -223,7 +223,7 @@ Exact sizes live in the front matter and in `Theme.kt`; this is what each part i
 - **Home search bar:** a raised housing pill with no orange, since nothing on it is live.
 - **Drawer tabs:** the selected tab is a raised key; the others are plain legends. No dot, because the signal belongs to the index or search.
 - **Settings lists:** rows grouped on raised faces under printed legends, icons in round wells, opening with a nameplate beside the logo.
-- **Menus:** raised faces at the finger, with rows for content and icon tiles for actions.
+- **Menus:** raised faces at the finger, above it when there is room, lined up with its left edge (its right near the screen edge), with an arrow in the face's own colour and edge pointing at it. Rows for content (shortcuts with a grip, a notification), then the actions. An app's actions are always icon tiles in one order (Edit, Remove, App info, then Widgets and Uninstall when they apply), so every app's menu has the same shape. Other menus (folders, widgets, home) with four actions or fewer are labelled rows. Remove and Uninstall take the error colour on their icon. Holding empty space shrinks the page and shows Wallpaper, Widgets, Settings and More under it instead of a menu.
 - **Toggle:** a key-grey track when off, switch green when on.
 - **Page indicator:** a speaker-grille row of equal dots; the current one darkens without changing size. No orange on home by default.
 - **Drawer letter index:** secondary-ink letters down the right edge; the one in view gets legend ink and a signal dot.

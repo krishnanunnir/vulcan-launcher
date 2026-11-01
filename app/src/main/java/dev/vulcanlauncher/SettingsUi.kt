@@ -590,7 +590,7 @@ private fun MainActivity.pickPackIcon(pkg: String, onPicked: (String) -> Unit) {
 }
 
 /** Every app with an M3 switch, for hiding apps or filling a drawer group; [onSave] gets the apps switched on. */
-private fun VulcanActivity.appSwitches(title: String, on: Collection<String>, onSave: (List<String>) -> Unit) {
+fun VulcanActivity.appSwitches(title: String, on: Collection<String>, onSave: (List<String>) -> Unit) {
     val list = home.apps.values.sortedWith(compareBy(labelOrder()) { home.label(it) })
     val chosen = on.toMutableSet()
     val adapter = object : BaseAdapter() {

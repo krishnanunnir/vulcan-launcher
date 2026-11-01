@@ -77,6 +77,7 @@ class Symbol(private val name: String, private val color: Int, private val size:
             "search" -> { circle(10.5f, 10.5f, 6.5f); line(15.5f, 15.5f, 20f, 20f) }
             "mic" -> { rect(9f, 3f, 15f, 14f, 3f); arc(6f, 5f, 18f, 17f, 0f, 180f); line(12f, 17f, 12f, 21f) }
             "more" -> { dot(12f, 5f); dot(12f, 12f); dot(12f, 19f) }
+            "drag" -> for (x in listOf(9f, 15f)) for (y in listOf(6f, 12f, 18f)) dot(x, y, 1.6f)
             "apps" -> for (x in listOf(6f, 12f, 18f)) for (y in listOf(6f, 12f, 18f)) dot(x, y, 1.9f)
             "widgets" -> { rect(3.5f, 3.5f, 10.5f, 10.5f, 2f); rect(13.5f, 3.5f, 20.5f, 10.5f, 2f); rect(3.5f, 13.5f, 10.5f, 20.5f, 2f); rect(13.5f, 13.5f, 20.5f, 20.5f, 2f) }
             "flashlight" -> { poly(7f, 3f, 17f, 3f, 17f, 7f, 14.5f, 11f, 14.5f, 21f, 9.5f, 21f, 9.5f, 11f, 7f, 7f, close = true); line(7f, 7f, 17f, 7f); dot(12f, 14.5f, 1.2f) }

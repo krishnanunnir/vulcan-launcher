@@ -9,7 +9,6 @@
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
     <!-- "Close app" in the long-press menu (Android only lets this stop background processes). Normal permission. -->
-    <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
 
     <!-- Private Space (Android 15+): lists its apps and locks or unlocks it. Android only honours it for the default
          home app. Normal permission. -->
