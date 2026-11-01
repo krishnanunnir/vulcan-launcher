@@ -66,6 +66,17 @@ fun removePage(items: List<Item>, page: Int): Pair<List<Item>, List<Item>> {
     return kept.map { if (it.page > page) it.copy(page = it.page - 1) else it } to gone
 }
 
+/**
+ * Launcher3's page rules after a home drag. The empty page added after the last ones for the drag (index [count]) stays
+ * only if something landed on it; the page the drag came from ([from]) goes if the drop left it empty. Pages that were
+ * already empty stay. Returns the items with pages renumbered, the page count, and the removed page (-1 for none).
+ */
+fun settlePages(items: List<Item>, count: Int, from: Int?): Triple<List<Item>, Int, Int> {
+    val n = if (items.any { it.page == count }) count + 1 else count
+    if (from == null || from !in 0 until n || n == 1 || items.any { it.page == from }) return Triple(items, n, -1)
+    return Triple(removePage(items, from).first, n - 1, from)
+}
+
 /** Moves home page [from] to position [to], shifting the pages between. */
 fun movePage(items: List<Item>, from: Int, to: Int): List<Item> = items.map {
     val p = it.page

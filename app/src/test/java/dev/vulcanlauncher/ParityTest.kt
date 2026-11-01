@@ -107,6 +107,21 @@ class ParityTest {
     }
 
     @Test
+    fun dragPages() {
+        val a = Item(0, 0, 0, pkg = "a")
+        val b = Item(1, 0, 0, pkg = "b")
+        val d = Item(DOCK, 0, 0, pkg = "d")
+        // Nothing landed on the extra page (2): it goes; page 1 still has b.
+        assertEquals(Triple(listOf(a, b, d), 2, -1), settlePages(listOf(a, b, d), 2, 1))
+        // b moved from page 1 to the extra page: it's kept, and the emptied page 1 goes.
+        assertEquals(Triple(listOf(a, b, d), 2, 1), settlePages(listOf(a, b.copy(page = 2), d), 2, 1))
+        // b moved from page 1 to page 0: page 1 goes; a page that was empty before stays.
+        assertEquals(Triple(listOf(a, b.copy(page = 0)), 2, 1), settlePages(listOf(a, b.copy(page = 0)), 3, 1))
+        // The last page is never removed.
+        assertEquals(Triple(listOf(d), 1, -1), settlePages(listOf(d), 1, 0))
+    }
+
+    @Test
     fun subgridScaling() {
         val icon = Item(0, 2, 3, pkg = "a")
         val widget = Item(0, 1, 0, 3, 2, widgetId = 4)

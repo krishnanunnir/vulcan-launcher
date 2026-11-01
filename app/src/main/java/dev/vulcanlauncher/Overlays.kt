@@ -15,6 +15,7 @@ import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -24,7 +25,13 @@ import kotlin.math.hypot
 import kotlin.math.roundToInt
 
 /** Page indicator under the home pages: signal dots, dots or a sliding line. */
-class Indicator(context: Context, private val count: Int, private val style: String, private val color: Int, private val signal: Int = color) : View(context) {
+class Indicator(context: Context, count: Int, private val style: String, private val color: Int, private val signal: Int = color) : View(context) {
+    /** Pages shown; with one there's nothing to show, and it takes no room. */
+    var count = count
+        set(v) { field = v; visibility = if (v > 1) VISIBLE else GONE; invalidate() }
+
+    init { visibility = if (count > 1) VISIBLE else GONE }
+
     var position = 0f
         set(v) { field = v; invalidate() }
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -156,10 +163,14 @@ private class PageDrag(val index: Int, private val source: View, color: Int) : V
 /**
  * Desktop previews: every page as a thumbnail. Tap to go there; hold and drag onto another page to move it, or onto
  * Remove; tap a page's name to make it the default; "+" adds a page.
+ * [enter]: opening it, its tiles rise in one after another; false for a reopen after a change, which only grows the
+ * tile at [pop] (a page just added) in.
  */
 @SuppressLint("SetTextI18n")
-fun MainActivity.showOverview() {
+fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
     drawer.hide()
+    // A reopen replaces it at once; only leaving fades it out.
+    if (!enter) overlayExit = null
     // Three tiles per row, each with 6 dp margins on both sides.
     val w = maxOf(1, ((workspace.width - 48 * dp) / 3).toInt())
     val h = maxOf(1, w * workspace.height / maxOf(1, workspace.width))
@@ -208,7 +219,12 @@ fun MainActivity.showOverview() {
     pages.forEachIndexed { i, page ->
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         // Some widgets hold hardware bitmaps, which a software canvas can't draw; the thumbnail is then left blank.
+        // Without its overview card: opened from the hold-home buttons, the page still wears it while growing back,
+        // and its outline drew a second border inside the thumbnail's.
+        val card = page.background
+        page.background = null
         runCatching { Canvas(bmp).apply { scale(w / maxOf(1f, page.width.toFloat()), h / maxOf(1f, page.height.toFloat())); page.draw(this) } }
+        page.background = card
         val current = i == workspace.current
         val thumb = ImageView(this).apply {
             setImageBitmap(bmp)
@@ -233,7 +249,7 @@ fun MainActivity.showOverview() {
                 compoundDrawablePadding = (4 * dp).toInt()
                 setCompoundDrawablesRelative(symbol("home", if (i == default) m3.primary else m3.outlineVariant, 14f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
                 contentDescription = "${getString(R.string.page_n, i + 1)}, ${getString(R.string.page_set_default)}"
-                setOnClickListener { looks["defaultPage"] = i.toString(); showOverview() }
+                setOnClickListener { looks["defaultPage"] = i.toString(); showOverview(enter = false) }
             }, LinearLayout.LayoutParams(-2, -2).apply { gravity = Gravity.CENTER_HORIZONTAL })
             setOnClickListener { workspace.snapTo(i, animate = false); closeOverlay() }
             if (!locked) setOnLongClickListener { v ->
@@ -268,19 +284,13 @@ fun MainActivity.showOverview() {
             isDuplicateParentStateEnabled = true
         }, LinearLayout.LayoutParams(w, h))
         setOnClickListener {
-            looks["pages"] = (pages.size + 1).toString()
+            val added = pages.size
+            looks["pages"] = (added + 1).toString()
             rebuild()
-            // The new workspace must be measured before its page thumbnails can be drawn. Reopen before its
-            // first frame, so adding a page stays in the overview rather than returning to home.
-            val rebuilt = workspace
-            rebuilt.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
-                override fun onGlobalLayout() {
-                    rebuilt.viewTreeObserver.removeOnGlobalLayoutListener(this)
-                    if (workspace === rebuilt && !isDestroyed) showOverview()
-                }
-            })
+            reopenOverview(pop = added)
         }
     })
+    val tiles = (0 until grid.childCount).flatMap { r -> (grid.getChildAt(r) as ViewGroup).let { row -> (0 until row.childCount).map(row::getChildAt) } }
     showOverlay(FrameLayout(this).apply {
         setBackgroundColor(m3.surface and 0xFFFFFF or 0xD9000000.toInt())
         setOnClickListener { closeOverlay() }
@@ -302,25 +312,51 @@ fun MainActivity.showOverview() {
                 addView(remove, FrameLayout.LayoutParams(-2, -1, Gravity.CENTER))
             }, LinearLayout.LayoutParams(-1, (48 * dp).toInt()).apply { setMargins(0, (4 * dp).toInt(), 0, (8 * dp).toInt()) })
             addView(ScrollView(context).apply { addView(grid) }, LinearLayout.LayoutParams(-1, -2))
-        }, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
+        // At the top, not centred: a second row of pages would move every tile up.
+        }, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { topMargin = (40 * dp).toInt() })
     }) { content.alpha = 1f }
+    val panel = overlay!!
+    // Leaving (a page tapped, a tap outside, Back): it fades out over home, its tiles growing a little, as they settle.
+    overlayExit = { done ->
+        tiles.forEach { it.animate().scaleX(1.04f).scaleY(1.04f).setStartDelay(0).setDuration(180).start() }
+        panel.animate().alpha(0f).setDuration(180).withEndAction(done).start()
+    }
+    if (enter) {
+        panel.alpha = 0f
+        panel.animate().alpha(1f).setDuration(180).start()
+        tiles.forEachIndexed { i, t ->
+            t.alpha = 0f; t.scaleX = 0.92f; t.scaleY = 0.92f; t.translationY = 24 * dp
+            t.animate().alpha(1f).scaleX(1f).scaleY(1f).translationY(0f).setStartDelay(40L + 30L * i).setDuration(260).setInterpolator(EASE).start()
+        }
+    } else tiles.getOrNull(pop)?.apply {
+        alpha = 0f; scaleX = 0.7f; scaleY = 0.7f
+        animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(280).setInterpolator(EASE).start()
+    }
     // The wallpaper alone behind it: home's icons read through the scrim and crowded the previews. Set after
     // showOverlay, whose closing of an earlier overview (reopened after "+") brings home back.
     content.alpha = 0f
 }
 
-private fun MainActivity.movePageTo(from: Int, to: Int) {
+/**
+ * After a page is added or removed, the rebuilt home must be measured before its thumbnails can be drawn: the previews
+ * reopen then, before its first frame, so the change stays in the previews rather than returning to home.
+ */
+private fun MainActivity.reopenOverview(pop: Int = -1) = afterRebuild { showOverview(enter = false, pop = pop) }
+
+/** [then]: after the move; the previews reopen by default. */
+fun MainActivity.movePageTo(from: Int, to: Int, then: () -> Unit = { showOverview(enter = false) }) {
     if (locked) { toast(R.string.layout_locked); return }
     val default = looks.int("defaultPage")
     items = movePage(items, from, to).toMutableList()
     // The default page follows its contents, like every other page.
-    looks["defaultPage"] = (0 until pages.size).toMutableList().apply { add(to, removeAt(from)) }.indexOf(default).toString()
-    save(); render(); showOverview()
+    looks["defaultPage"] = (0 until looks.pages).toMutableList().apply { add(to, removeAt(from)) }.indexOf(default).toString()
+    save(); render(); then()
 }
 
-private fun MainActivity.removePageAt(i: Int) {
+/** [then]: after the rebuild that removing it takes; the previews reopen by default. */
+fun MainActivity.removePageAt(i: Int, then: () -> Unit = { reopenOverview() }) {
     if (locked) { toast(R.string.layout_locked); return }
-    val n = pages.size
+    val n = looks.pages // not pages.size: in the hold-home overview that counts its "+" card
     if (n == 1) { toast(R.string.page_last); return }
     val default = looks.int("defaultPage")
     val doRemove = {
@@ -332,6 +368,7 @@ private fun MainActivity.removePageAt(i: Int) {
         looks["pages"] = (n - 1).toString()
         looks["defaultPage"] = (if (default > i) default - 1 else default).coerceAtMost(n - 2).toString()
         rebuild()
+        then()
     }
     if (items.none { it.page == i }) doRemove()
     else dialog().setMessage(getString(R.string.page_remove_confirm, i + 1))

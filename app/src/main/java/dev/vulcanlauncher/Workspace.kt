@@ -82,6 +82,33 @@ class Workspace(context: Context) : ViewGroup(context) {
     var effect = "simple"
     var infinite = false
 
+    /**
+     * Shrunk (the hold-home overview, a drag): px between pages, so the neighbours peek in apart from the current one.
+     * The transition effect is off meanwhile, as in Launcher3's spring-loaded workspace.
+     */
+    var gap = 0f
+        set(v) { field = v; if (width > 0) onScrollChanged(scrollX, 0, scrollX, 0) }
+
+    /**
+     * The overview: a tap picks the page under it (-1 for none), a hold lifts it ([onPageHold]); swipes still turn
+     * pages, but nothing else (drawer, gestures), and the pages' icons take no touches meanwhile.
+     */
+    var onPageTap: ((Int) -> Unit)? = null
+    var onPageHold: ((Int) -> Unit)? = null
+    private val hold = Runnable { if (mode == NONE) { mode = DONE; onPageHold?.invoke(pageAt(downX, downY)) } }
+    /** The touch began in the overview: the hold that opens it ends with a lift that must not count as a tap. */
+    private var overviewTouch = false
+
+    /** The page under ([x], [y]) in this view's coordinates, wherever the gap has moved it; -1 for none. */
+    fun pageAt(x: Float, y: Float): Int {
+        if (y < 0 || y > height) return -1
+        for (i in 0 until childCount) getChildAt(i).let { c ->
+            val l = c.left - scrollX + c.translationX
+            if (x >= l && x < l + c.width) return i
+        }
+        return -1
+    }
+
     var current = 0
         private set
     private val slop = ViewConfiguration.get(context).scaledTouchSlop
@@ -124,6 +151,8 @@ class Workspace(context: Context) : ViewGroup(context) {
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         for (i in 0 until childCount) getChildAt(i).layout(i * width, 0, (i + 1) * width, height)
         scrollTo(current * width, 0)
+        // A page added while shrunk (the overview's "+") takes its place in the gap once it's laid out.
+        if (gap > 0f) onScrollChanged(scrollX, 0, scrollX, 0)
     }
 
     /** [velocity]: the finger's speed (px/s) on release; the page leaves at that speed and slows to a stop. */
@@ -152,7 +181,8 @@ class Workspace(context: Context) : ViewGroup(context) {
         val moving = l % width != 0
         for (i in 0 until childCount) getChildAt(i).apply {
             val o = (i * width - l) / width.toFloat()
-            applyTransform(pageTransform(effect, o))
+            applyTransform(if (gap > 0f) PageTransform() else pageTransform(effect, o))
+            if (gap > 0f) translationX = gap * o.coerceIn(-1f, 1f)
             val type = if (moving && abs(o) < 1f) LAYER_TYPE_HARDWARE else LAYER_TYPE_NONE
             if (layerType != type) setLayerType(type, null)
         }
@@ -192,6 +222,8 @@ class Workspace(context: Context) : ViewGroup(context) {
                 downX = ev.x; downY = ev.y; downTime = ev.eventTime; startScroll = scrollX; mode = NONE
                 velocity?.recycle(); velocity = VelocityTracker.obtain().apply { addMovement(ev) }
                 doubleTapDown = ev.eventTime - lastTapUp < doubleTapTimeout && hypot(ev.x - lastTapX, ev.y - lastTapY) < slop * 6 && !onItem(ev.x, ev.y)
+                overviewTouch = onPageTap != null
+                if (overviewTouch) { doubleTapDown = false; postDelayed(hold, ViewConfiguration.getLongPressTimeout().toLong()) }
             }
             MotionEvent.ACTION_POINTER_DOWN -> if (ev.pointerCount == 2 && mode != HORIZONTAL) {
                 mode = MULTI
@@ -208,7 +240,7 @@ class Workspace(context: Context) : ViewGroup(context) {
                     else if (dy > slop && dy > dx) mode = if (ev.y < downY && swipesItself(downX, downY)) CHILD else VERTICAL
                 }
                 MULTI -> if (ev.pointerCount >= 2) for (i in 0..1) { end[i * 2] = ev.getX(i); end[i * 2 + 1] = ev.getY(i) }
-                VERTICAL -> if (!doubleTapDown) pulling = onPull?.invoke(downY - ev.y - slop, 0f, false) == true || pulling
+                VERTICAL -> if (!doubleTapDown && onPageTap == null) pulling = onPull?.invoke(downY - ev.y - slop, 0f, false) == true || pulling
             }
             MotionEvent.ACTION_POINTER_UP -> if (mode == MULTI) {
                 twoFingerGesture(start[0], start[1], start[2], start[3], end[0], end[1], end[2], end[3], slop * 4f)?.let(onGesture)
@@ -234,7 +266,12 @@ class Workspace(context: Context) : ViewGroup(context) {
         val dx = ev.x - downX
         val dy = ev.y - downY
         val last = childCount - 1
-        when {
+        removeCallbacks(hold)
+        if (onPageTap != null) when {
+            mode == HORIZONTAL -> snapTo(releasePage(fromPage, scrollX / maxOf(1, width).toFloat(), vx, flingV), velocity = vx)
+            mode == NONE && ev.actionMasked == MotionEvent.ACTION_UP && overviewTouch -> onPageTap?.invoke(pageAt(ev.x, ev.y))
+        }
+        else when {
             mode == HORIZONTAL && edgePulling -> { snapTo(0); onEdgePull?.invoke(if (ev.actionMasked == MotionEvent.ACTION_UP) edgePx else 0f, vx, true) }
             mode == HORIZONTAL && current == 0 && dx > slop * 6 && !infinite && scrollX <= 0 -> { snapTo(0); onGesture("swipeRight") }
             mode == HORIZONTAL && current == last && dx < -slop * 6 && !infinite && scrollX >= last * width -> { snapTo(last); onGesture("swipeLeft") }
@@ -279,7 +316,7 @@ class Workspace(context: Context) : ViewGroup(context) {
         }
     }
 
-    override fun onInterceptTouchEvent(ev: MotionEvent) = track(ev)
+    override fun onInterceptTouchEvent(ev: MotionEvent) = track(ev) || onPageTap != null
 
     override fun onTouchEvent(ev: MotionEvent): Boolean {
         track(ev)
@@ -288,7 +325,7 @@ class Workspace(context: Context) : ViewGroup(context) {
             val x = (startScroll - (ev.x - downX)).toInt()
             val inside = x.coerceIn(0, max)
             edgePx = maxOf(0, -x).toFloat()
-            if (!infinite && (edgePulling || edgePx > 0) && onEdgePull?.invoke(edgePx, 0f, false) == true) { edgePulling = true; scrollTo(0, 0) }
+            if (!infinite && onPageTap == null && (edgePulling || edgePx > 0) && onEdgePull?.invoke(edgePx, 0f, false) == true) { edgePulling = true; scrollTo(0, 0) }
             else when {
                 infinite -> scrollTo(inside, 0)
                 stretch -> { scrollTo(inside, 0); pull((x - inside).toFloat(), ev.y) }

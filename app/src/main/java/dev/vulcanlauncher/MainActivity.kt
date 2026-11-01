@@ -36,8 +36,10 @@ import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.view.DragEvent
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -65,6 +67,9 @@ class GroupChild(val group: String, val app: App)
 
 /** How far the page shrinks while dragging (Launcher3's spring-loaded state is about 0.8). */
 const val SPRING_SCALE = 0.8f
+
+/** What home shows: itself, the hold-home buttons over the shrunk page, or a drag over the shrunk page. */
+enum class HomeState { NORMAL, OVERVIEW, DRAG }
 
 /** A [w]-wide menu's left edge: on the anchor's left edge, or its right edge when that runs off a [width]-wide screen. */
 fun menuX(left: Int, right: Int, w: Int, width: Int, margin: Int) =
@@ -200,6 +205,8 @@ class MainActivity : VulcanActivity() {
         wiggles = emptyList()
         // Everything below belongs to the old views; none of it is shown again.
         overlay = null; overlayClosed = {}; menu = null; dragSource = null
+        // Home's state, its outline and a drag's extra page were the old views' too.
+        springAnim?.cancel(); spring = 0f; homeState = HomeState.NORMAL; dragPage = null; plusPage = null
         iconCache.clear(); badgeIcons.clear(); widgetFrames.clear()
         build()
         workspace.snapTo(page.coerceAtMost(looks.pages - 1), animate = false)
@@ -239,12 +246,7 @@ class MainActivity : VulcanActivity() {
         applyBar()
 
         val gesture = { g: String -> perform(looks.str("g_$g")) }
-        pages = List(looks.pages) { i ->
-            CellLayout(this, looks.cols * sub, looks.rows * sub, i).apply {
-                setOnDragListener(dropListener(this))
-                setOnLongClickListener { homeOverview(); true }
-            }
-        }
+        pages = List(looks.pages) { newPage(it) }
         indicator = Indicator(this, looks.pages, looks.str("indicator"), looks.color("labelColor"), m3.signal)
         workspace = Workspace(this).apply {
             pages.forEach { addView(it) }
@@ -300,7 +302,8 @@ class MainActivity : VulcanActivity() {
             // As an overlay, later children (indicator, dock) are pulled up over the bottom of the pages.
             val overlay = looks.on("dockOverlay") && looks.dockOn && !landscape
             addView(workspace, LinearLayout.LayoutParams(-1, 0, 1f).apply { if (overlay) bottomMargin = -dockHeight })
-            if (looks.str("indicator") != "none" && looks.pages > 1) addView(indicator, LinearLayout.LayoutParams(-1, (14 * dp).toInt()))
+            // Even for one page (it's gone then): a page added in the overview brings it in without a rebuild.
+            if (looks.str("indicator") != "none") addView(indicator, LinearLayout.LayoutParams(-1, (14 * dp).toInt()))
             if (looks.on("swipeIndicator")) addView(TextView(context).apply {
                 text = "︿"
                 gravity = Gravity.CENTER
@@ -314,7 +317,7 @@ class MainActivity : VulcanActivity() {
             if (search == "bottom") addView(searchBar())
             // Spring-loaded, the page is a card: holding a drag beside it turns the page, as the edge of a full page does.
             setOnDragListener { v, e ->
-                trackDrag(v, e)
+                if (e.localState !is PageMove) trackDrag(v, e)
                 if (e.action == DragEvent.ACTION_DRAG_LOCATION && spring > 0f) {
                     val r = Rect().also(workspace::getHitRect)
                     if (e.y >= r.top && e.y <= r.bottom && (e.x < r.left || e.x > r.right))
@@ -824,6 +827,8 @@ class MainActivity : VulcanActivity() {
         dragPayload = payload
         dragStart = null
         dragMoved = false
+        dropped = false
+        dragFrom = (payload as? Item)?.page?.takeIf { !isDock(it) }
         (dropBar.getChildAt(0) as TextView).text = getString(if (payload is Item || payload is FolderChild) R.string.remove else R.string.cancel)
         val system = appOf(payload)?.info?.applicationInfo?.let { it.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0 }
         dropBar.getChildAt(1).visibility = if (system == false) View.VISIBLE else View.GONE
@@ -875,14 +880,15 @@ class MainActivity : VulcanActivity() {
      * A drawer folder's app has no drop targets: it only reorders or copies to home.
      */
     fun liftDrag() {
-        if (dragPayload !is GroupChild) dropBar.visibility = View.VISIBLE
-        springLoad(true)
+        setHomeState(HomeState.DRAG)
+        addDragPage()
     }
 
     /** For views that cover home (drawer, folder window): follow the drag but never accept the drop. */
     val passDrag = View.OnDragListener { v, e -> trackDrag(v, e); e.action != DragEvent.ACTION_DROP }
 
     private fun dropListener(cell: CellLayout) = View.OnDragListener { v, e ->
+        (e.localState as? PageMove)?.let { return@OnDragListener pageDrag(cell, e, it) }
         trackDrag(v, e)
         when (e.action) {
             DragEvent.ACTION_DRAG_LOCATION -> {
@@ -924,6 +930,9 @@ class MainActivity : VulcanActivity() {
                 DragEvent.ACTION_DRAG_EXITED -> look(false)
                 DragEvent.ACTION_DROP -> when (kind) {
                     "remove" -> when (p) {
+                        is PageMove -> root.post {
+                            removePageAt(p.index) { afterRebuild { workspace.snapTo(minOf(p.index, looks.pages - 1), animate = false); homeOverview(animate = false) } }
+                        }
                         is Item -> removeItem(p)
                         is FolderChild -> { removeFromFolder(p); save() }
                     }
@@ -937,35 +946,30 @@ class MainActivity : VulcanActivity() {
 
     private var spring = 0f
     private var springAnim: ValueAnimator? = null
-    private var springCard: View? = null
 
     /**
-     * Launcher3's spring-loaded home while dragging: the page and its clock shrink into an outlined card, which leaves
-     * the top strip to the drop targets; the dock stays. [on] false grows it back.
+     * Launcher3's spring-loaded home, for a drag and for the hold-home overview: the pages shrink into outlined cards a
+     * gap apart, so the neighbours peek in, and the top strip is left to the drop targets. [on] false grows them back;
+     * [animate] false jumps there (a rebuild reopening the overview).
      */
-    // ponytail: one card for the current page; Launcher3 gives every page its own and lets the next one peek in.
-    private fun springLoad(on: Boolean) {
+    private fun springLoad(on: Boolean, animate: Boolean = true) {
         // Launcher3's workspace accent: its light tone over a dark wallpaper (light labels), its dark tone otherwise.
         // The Appliance look keeps to its legends' colour.
         val label = looks.color("labelColor")
         val accent = if (m3.housing) label else m3.ramps[0](if (luminance(label) > 0.5) 90 else 10)
         (pages + dockPages).forEach { it.outlineColor = accent; if (!on) it.landing = null }
-        val block = listOf(workspace)
-        val card = springCard ?: View(this).also { springCard = it; root.addView(it, 0) }
+        val box = workspace.parent as ViewGroup
         if (on && spring == 0f) {
-            fun rootX(v: View): Int { var x = 0; var p = v; while (p !== root) { x += p.left; p = p.parent as View }; return x }
-            fun rootY(v: View): Int { var y = 0; var p = v; while (p !== root) { y += p.top; p = p.parent as View }; return y }
-            val left = rootX(workspace)
-            val top = rootY(block.first())
-            val bottom = rootY(workspace) + workspace.height
-            // The card's top lands just under the drop targets; it scales about the point that puts it there.
-            val py = (insets.top + 76 * dp - SPRING_SCALE * top) / (1 - SPRING_SCALE)
-            val px = left + workspace.width / 2f
-            card.layoutParams = FrameLayout.LayoutParams(workspace.width, bottom - top, Gravity.TOP or Gravity.LEFT).apply { leftMargin = left; topMargin = top }
-            card.background = rounded(label and 0xFFFFFF or 0x1F000000, 28 * dp, accent and 0xFFFFFF or 0x99000000.toInt(), 2 * dp)
-            for (v in block) { v.pivotX = px - rootX(v); v.pivotY = py - rootY(v) }
-            card.pivotX = px - left; card.pivotY = py - top
+            var top = 0
+            var v: View = workspace
+            while (v !== root) { top += v.top; v = v.parent as View }
+            // The cards' top lands just under the drop targets; they scale about the point that puts it there.
+            workspace.pivotX = workspace.width / 2f
+            workspace.pivotY = (insets.top + 76 * dp - SPRING_SCALE * top) / (1 - SPRING_SCALE) - top
+            // The neighbours draw outside the shrunk page's bounds.
+            workspace.clipChildren = false; box.clipChildren = false
         }
+        if (on) pages.forEach { if (it.background == null) it.background = pageCard().apply { alpha = (spring * 255).toInt() } }
         springAnim?.cancel()
         springAnim = ValueAnimator.ofFloat(spring, if (on) 1f else 0f).apply {
             duration = 300
@@ -973,15 +977,30 @@ class MainActivity : VulcanActivity() {
             addUpdateListener {
                 spring = it.animatedValue as Float
                 val s = 1 - (1 - SPRING_SCALE) * spring
-                for (v in block + card) { v.scaleX = s; v.scaleY = s }
-                card.alpha = spring
+                workspace.scaleX = s; workspace.scaleY = s
+                // 16 dp between the cards on screen.
+                workspace.gap = 16 * dp / SPRING_SCALE * spring
+                pages.forEach { p -> p.background?.alpha = (spring * 255).toInt() }
                 dropBar.alpha = spring
             }
             if (!on) addListener(object : android.animation.AnimatorListenerAdapter() {
-                override fun onAnimationEnd(a: android.animation.Animator) { if (spring == 0f) dropBar.visibility = View.GONE }
+                override fun onAnimationEnd(a: android.animation.Animator) {
+                    if (spring != 0f) return
+                    dropBar.visibility = View.GONE
+                    pages.forEach { it.background = null }
+                    workspace.clipChildren = true; box.clipChildren = true
+                }
             })
             start()
+            if (!animate) end()
         }
+    }
+
+    /** A shrunk page's card: a light fill and an outline in the accent. */
+    private fun pageCard(): Drawable {
+        val label = looks.color("labelColor")
+        val accent = if (m3.housing) label else m3.ramps[0](if (luminance(label) > 0.5) 90 else 10)
+        return rounded(label and 0xFFFFFF or 0x1F000000, 28 * dp, accent and 0xFFFFFF or 0x99000000.toInt(), 2 * dp)
     }
 
     fun dragEnded() {
@@ -991,14 +1010,199 @@ class MainActivity : VulcanActivity() {
         wiggles.forEach { it.cancel() }
         iconViews.forEach { it.image.rotation = 0f }
         wiggles = emptyList()
-        springLoad(false)
+        setHomeState(HomeState.NORMAL)
         src.alpha = 1f
         val moved = dragMoved
         val payload = dragPayload
         // Posted: adding or removing views while ENDED is still being dispatched throws
         // ConcurrentModificationException in ViewGroup.dispatchDragEvent.
         // A drag that never moved already shows its menu (startDrag); it stays open.
-        root.post { if (!moved && src.isAttachedToWindow) { if (menu == null) showPopup(src, payload) } else render() }
+        root.post { if (!moved && src.isAttachedToWindow) { if (menu == null) showPopup(src, payload) } else { render(); settleDragPages() } }
+    }
+
+    /** Home's one state; [setHomeState] changes it. */
+    private var homeState = HomeState.NORMAL
+
+    /**
+     * As Launcher3's state manager: one call puts home in [s], and everything follows from it. The page shrinks into its
+     * outline for the hold-home buttons and for a drag; the buttons also take the dock's and page dots' place, and a
+     * drag shows its drop targets (not for a drawer folder's app, which only reorders or copies to home).
+     */
+    private fun setHomeState(s: HomeState, animate: Boolean = true) {
+        if (s == homeState) return
+        homeState = s
+        if (s == HomeState.OVERVIEW) addPlusPage() else removePlusPage()
+        springLoad(s != HomeState.NORMAL, animate)
+        workspace.onPageTap = if (s == HomeState.OVERVIEW) ::overviewTap else null
+        workspace.onPageHold = if (s == HomeState.OVERVIEW) ::overviewHold else null
+        val chrome = if (s == HomeState.OVERVIEW) 0f else 1f
+        listOf(dockBox, indicator).forEach { it.animate().alpha(chrome).setDuration(200).start() }
+        if (s == HomeState.DRAG && dragPayload !is GroupChild) dropBar.visibility = View.VISIBLE
+    }
+
+    /** The overview's last card: tapping its "+" adds a page there (up to the Pages setting's 9). */
+    private var plusPage: CellLayout? = null
+
+    private fun addPlusPage() {
+        if (plusPage != null || locked || pages.size >= 9) return
+        newPage(pages.size).apply {
+            setOnLongClickListener(null)
+            isLongClickable = false
+            foreground = android.graphics.drawable.LayerDrawable(arrayOf(symbol("add", looks.color("labelColor"), 48f))).apply { setLayerGravity(0, Gravity.CENTER) }
+            contentDescription = getString(R.string.page_add)
+        }.also { plusPage = it; pages = pages + it; workspace.addView(it) }
+    }
+
+    private fun removePlusPage() {
+        val p = plusPage ?: return
+        plusPage = null
+        pages = pages - p
+        workspace.removeView(p)
+        if (workspace.current >= pages.size) workspace.snapTo(pages.size - 1)
+    }
+
+    /** The overview: a tap opens the page under it, or adds one on "+"; off the pages it closes. */
+    private fun overviewTap(i: Int) {
+        val page = pages.getOrNull(i)
+        when {
+            page == null -> closeMenu()
+            page === plusPage -> addPageInPlace(page)
+            else -> { workspace.snapTo(i); closeMenu() }
+        }
+    }
+
+    /**
+     * "+" tapped: as on One UI, its card becomes the new empty page where it is (its "+" fades out) and a new "+" card
+     * slides in after it, all without a rebuild, so nothing on screen blinks.
+     */
+    private fun addPageInPlace(page: CellLayout) {
+        plusPage = null
+        page.contentDescription = null
+        page.setOnLongClickListener { homeOverview(); true }
+        page.foreground?.let { plus ->
+            ValueAnimator.ofInt(255, 0).apply {
+                duration = 180
+                addUpdateListener { plus.alpha = it.animatedValue as Int }
+                addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(a: android.animation.Animator) { if (page.foreground === plus) page.foreground = null }
+                })
+                start()
+            }
+        }
+        looks["pages"] = pages.size.toString()
+        indicator.count = pages.size
+        page.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+        addPlusPage()
+        // Its card and "+" fade in; not the view's alpha, which the shrunk workspace sets on every layout.
+        plusPage?.let { next ->
+            val card = pageCard().also { next.background = it }
+            val plus = next.foreground
+            ValueAnimator.ofInt(0, 255).apply {
+                duration = 260
+                startDelay = 80
+                addUpdateListener { card.alpha = it.animatedValue as Int; plus?.alpha = it.animatedValue as Int }
+                start()
+            }
+            card.alpha = 0; plus?.alpha = 0
+        }
+    }
+
+    /** A page held in the overview, being dragged: onto another page they swap places, onto Remove it goes. */
+    class PageMove(val index: Int)
+
+    private fun overviewHold(i: Int) {
+        val page = pages.getOrNull(i)
+        if (page == null || page === plusPage || locked) return
+        page.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        (dropBar.getChildAt(0) as TextView).text = getString(R.string.page_remove)
+        dropBar.getChildAt(1).visibility = View.GONE
+        dropBar.visibility = View.VISIBLE
+        val s = workspace.scaleX
+        page.startDragAndDrop(null, object : View.DragShadowBuilder(page) {
+            override fun onProvideShadowMetrics(size: Point, touch: Point) {
+                size.set((page.width * s).toInt(), (page.height * s).toInt())
+                touch.set(size.x / 2, size.y / 2)
+            }
+            override fun onDrawShadow(c: android.graphics.Canvas) { c.scale(s, s); page.draw(c) }
+        }, PageMove(i), View.DRAG_FLAG_OPAQUE)
+        page.alpha = 0.3f
+    }
+
+    /** A page's drag over [cell]: holding it near an edge turns the page; dropping it there moves it. */
+    private fun pageDrag(cell: CellLayout, e: DragEvent, m: PageMove): Boolean {
+        if (isDock(cell.page)) return false
+        when (e.action) {
+            DragEvent.ACTION_DRAG_LOCATION -> edgeFlip(workspace, e.x, cell.width)
+            DragEvent.ACTION_DROP -> if (cell !== plusPage && cell.page != m.index) root.post { movePageTo(m.index, cell.page) { workspace.snapTo(cell.page) } }
+            DragEvent.ACTION_DRAG_ENDED -> { dropBar.visibility = View.GONE; pages.forEach { it.alpha = 1f } }
+        }
+        return true
+    }
+
+    /** Runs [then] once the views a rebuild made are measured, before their first frame. */
+    fun afterRebuild(then: () -> Unit) {
+        val rebuilt = workspace
+        rebuilt.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                rebuilt.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                if (workspace === rebuilt && !isDestroyed) then()
+            }
+        })
+    }
+
+    /** Gives a touch on the overview's shade to the shrunk pages, in their own coordinates. */
+    private fun toWorkspace(ev: MotionEvent) {
+        val e = MotionEvent.obtain(ev)
+        var x = 0
+        var y = 0
+        var v: View = workspace
+        while (v !== root) { x += v.left; y += v.top; v = v.parent as View }
+        e.offsetLocation(-x.toFloat(), -y.toFloat())
+        e.transform(android.graphics.Matrix().also { workspace.matrix.invert(it) })
+        workspace.dispatchTouchEvent(e)
+        e.recycle()
+    }
+
+    private fun newPage(i: Int) = CellLayout(this, looks.cols * sub, looks.rows * sub, i).apply {
+        setOnDragListener(dropListener(this))
+        setOnLongClickListener { homeOverview(); true }
+    }
+
+    /** The empty page a drag adds after the last one ([addDragPage]), the home page it started on, and whether it landed on home. */
+    private var dragPage: CellLayout? = null
+    private var dragFrom: Int? = null
+    private var dropped = false
+
+    /**
+     * As Launcher3: while dragging, an empty page waits after the last one (up to the Pages setting's 9), unless the
+     * last one is empty already. [settleDragPages] keeps it if something lands on it.
+     */
+    // ponytail: the page dots don't count it until the drop; Launcher3 shows it as one more dot while dragging.
+    private fun addDragPage() {
+        if (dragPage != null || pages.size >= 9 || pages.last().childCount == 0) return
+        newPage(pages.size).also {
+            it.background = pageCard().apply { alpha = (spring * 255).toInt() }
+            dragPage = it; pages = pages + it; workspace.addView(it)
+        }
+    }
+
+    /** After a drag: [settlePages]'s rules, then a rebuild only when the page count changes. */
+    private fun settleDragPages() {
+        val extra = dragPage
+        dragPage = null
+        val (kept, n, gone) = settlePages(items, looks.pages, if (dropped) dragFrom else null)
+        if (n == looks.pages && gone < 0) {
+            extra?.let { pages = pages - it; workspace.removeView(it); workspace.snapTo(workspace.current) }
+            return
+        }
+        items = kept.toMutableList()
+        val default = looks.int("defaultPage")
+        if (gone in 0 until default) looks["defaultPage"] = (default - 1).toString()
+        val show = workspace.current - if (gone in 0 until workspace.current) 1 else 0
+        looks["pages"] = n.toString()
+        save()
+        rebuild()
+        workspace.snapTo(show, animate = false)
     }
 
     /** Holding a drag near the left/right edge flips to the neighbouring page. */
@@ -1050,8 +1254,9 @@ class MainActivity : VulcanActivity() {
         if (!dragMoved) return false
         val child = asChild(payload)
         val target = mergeTarget(cell, px, py, payload)
-        if (child != null && target != null) { mergeIntoFolder(target, child, payload); return true }
+        if (child != null && target != null) { dropped = true; mergeIntoFolder(target, child, payload); return true }
         val spot = landing(cell, px, py, payload) ?: return false
+        dropped = true
         val placed = ((payload as? Item) ?: child ?: return false).copy(page = cell.page, x = spot.left, y = spot.top, w = spot.width(), h = spot.height())
         detach(payload)
         items += placed
@@ -1182,9 +1387,9 @@ class MainActivity : VulcanActivity() {
     fun closeMenu() {
         val m = menu ?: return
         menu = null
-        if (homeMode) { homeMode = false; springLoad(false); listOf(dockBox, indicator).forEach { it.animate().alpha(1f).setDuration(200).start() } }
+        if (homeState == HomeState.OVERVIEW) setHomeState(HomeState.NORMAL)
         // Let touches through at once; it only fades out.
-        m.setOnClickListener(null); m.isClickable = false
+        m.setOnClickListener(null); m.setOnTouchListener(null); m.isClickable = false
         m.animate().alpha(0f).setDuration(120).withEndAction { root.removeView(m) }.start()
     }
 
@@ -1337,85 +1542,74 @@ class MainActivity : VulcanActivity() {
 
     // ---- Home menu, widgets and shortcuts ----
 
-    /** The page is shrunk for [homeOverview]; closing its menu grows it back. */
-    private var homeMode = false
-
     /**
      * Nova's hold on empty space: the page shrinks into its outline (as while dragging), the dock steps aside, and the
-     * main home actions sit at the bottom as large buttons; Options has the rest ([homeOptions]). Tap anywhere or Back to leave.
+     * main home actions sit at the bottom as large buttons; More has the rest ([homeMore]). Tap anywhere or Back to leave.
      */
-    fun homeOverview() {
-        val ink = looks.color("labelColor")
-        lateinit var options: TextView
-        val buttons = LinearLayout(this).apply {
-            listOf(
-                Triple("image", getString(R.string.wallpaper)) { perform("wallpaper") },
-                Triple("widgets", getString(R.string.widgets)) { pickWidget() },
-                Triple("settings", getString(R.string.settings)) { showSettings() },
-                Triple("carousel", getString(R.string.pages)) { showOverview() },
-                Triple("more", getString(R.string.home_options)) { homeOptions(options) },
-            ).filter { !locked || it.first != "widgets" }.forEach { (sym, title, click) ->
-                addView(text(title, 13f, ink).apply {
-                    gravity = Gravity.CENTER
-                    maxLines = 1
-                    ellipsize = android.text.TextUtils.TruncateAt.END
-                    compoundDrawablePadding = (8 * dp).toInt()
-                    setCompoundDrawablesWithIntrinsicBounds(null, symbol(sym, ink, 32f), null, null)
-                    setPadding(0, (12 * dp).toInt(), 0, (12 * dp).toInt())
-                    background = pressable(null, 16 * dp, ink)
-                    setOnClickListener { if (sym != "more") closeMenu(); click() }
-                    if (sym == "more") options = this
-                }, LinearLayout.LayoutParams(0, -2, 1f))
-            }
-            alpha = 0f
-            animate().alpha(1f).setStartDelay(100).setDuration(200).start()
-        }
+    fun homeOverview(animate: Boolean = true) {
         closeMenu()
+        val row = LinearLayout(this)
+        homeButtons(row)
         val shade = FrameLayout(this).apply {
-            setOnClickListener { closeMenu() }
-            addView(buttons, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
+            // Off the buttons, touches go to the shrunk pages: swipe between them, tap one to open it, hold one to move it.
+            @SuppressLint("ClickableViewAccessibility")
+            setOnTouchListener { _, ev -> toWorkspace(ev); true }
+            addView(row, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
                 val p = (16 * dp).toInt()
                 setMargins(p, 0, p, insets.bottom + (24 * dp).toInt())
             })
         }
         root.addView(shade)
         menu = shade
-        homeMode = true
         root.tick()
-        springLoad(true)
-        // The page dots too: with a large font they sat on the buttons.
-        listOf(dockBox, indicator).forEach { it.animate().alpha(0f).setDuration(200).start() }
+        setHomeState(HomeState.OVERVIEW, animate)
     }
 
+    /** [homeOverview]'s main buttons, into [row]. */
+    private fun homeButtons(row: LinearLayout): Unit = fillHomeRow(row, listOf(
+        Triple("image", getString(R.string.wallpaper)) { closeMenu(); perform("wallpaper") },
+        Triple("widgets", getString(R.string.widgets)) { closeMenu(); pickWidget() },
+        Triple("carousel", getString(R.string.pages)) { closeMenu(); showOverview() },
+        Triple("settings", getString(R.string.settings)) { closeMenu(); showSettings() },
+        Triple("more", getString(R.string.home_more)) { homeMore(row) },
+    ).filter { !locked || it.first != "widgets" })
+
     /**
-     * Options' menu, over [homeOverview]: it opens above its [button], which stays lit, and the buttons stay where they
-     * are. Tapping outside goes back to the buttons alone; an action, or Back, closes it all.
+     * More: the same row turns into Back, Shortcuts, Clock and Lock, in the same style and place, so nothing new lands
+     * on the page. Back turns it into the main buttons again; an action, a tap outside or the Back key closes it all.
      */
-    private fun homeOptions(button: TextView) {
-        // Tapped again while open: back to the buttons alone.
-        if (button.isActivated) { homeMode = false; homeOverview(); return }
-        val entries = listOf(
-            Triple("bolt", getString(R.string.shortcuts)) { addShortcutMenu() },
-            // As a clock widget: one row across the page, sized and moved like one.
-            Triple("clock", getString(R.string.clock)) { addItem(Item(0, 0, 0, looks.cols * sub, sub, action = "clock")); Unit },
-            Triple(if (locked) "unlock" else "lock", getString(if (locked) R.string.unlock else R.string.lock)) {
-                looks["lockLayout"] = if (locked) "off" else "on"; toast(if (locked) R.string.layout_locked else R.string.layout_unlocked)
-            },
-        ).filter { !locked || it.first !in listOf("bolt", "clock") }
-        val at = screenRect(button)
-        val row = button.parent as LinearLayout
-        val lp = row.layoutParams
-        (row.parent as ViewGroup).removeView(row)
-        // showMenu closes the overview first; the page stays shrunk and the dock hidden under the menu.
-        homeMode = false
-        showMenu(at, narrow = true) { addActions(entries, 4, lead = emptySet()) }
-        homeMode = true
-        val shade = menu as FrameLayout
-        shade.setOnClickListener { homeMode = false; homeOverview() }
-        shade.addView(row, lp)
-        button.isActivated = true
+    private fun homeMore(row: LinearLayout): Unit = fillHomeRow(row, listOf(
+        Triple("back", getString(R.string.back)) { homeButtons(row) },
+        Triple("bolt", getString(R.string.shortcuts)) { closeMenu(); addShortcutMenu() },
+        // As a clock widget: one row across the page, sized and moved like one.
+        Triple("clock", getString(R.string.clock)) { closeMenu(); addItem(Item(0, 0, 0, looks.cols * sub, sub, action = "clock")); Unit },
+        Triple(if (locked) "unlock" else "lock", getString(if (locked) R.string.unlock else R.string.lock)) {
+            closeMenu(); looks["lockLayout"] = if (locked) "off" else "on"; toast(if (locked) R.string.layout_locked else R.string.layout_unlocked)
+        },
+    ).filter { !locked || it.first !in listOf("bolt", "clock") })
+
+    /** Fills [row] with [entries] as large buttons: fading in when it's new, cross-fading when it had some. */
+    private fun fillHomeRow(row: LinearLayout, entries: List<Triple<String, String, () -> Unit>>) {
         val ink = looks.color("labelColor")
-        button.background = pressable(rounded(ink and 0xFFFFFF or 0x26000000, 16 * dp), 16 * dp, ink)
+        val fill = {
+            row.removeAllViews()
+            entries.forEach { (sym, title, click) -> row.addView(homeButton(sym, title, ink, click), LinearLayout.LayoutParams(0, -2, 1f)) }
+            row.animate().alpha(1f).setDuration(150).start()
+        }
+        if (row.childCount == 0) { row.alpha = 0f; fill() }
+        else row.animate().alpha(0f).setDuration(100).withEndAction(fill).start()
+    }
+
+    /** One of [homeOverview]'s buttons: its symbol over its title, in the labels' colour. */
+    private fun homeButton(sym: String, title: String, ink: Int, click: () -> Unit) = text(title, 13f, ink).apply {
+        gravity = Gravity.CENTER
+        maxLines = 1
+        ellipsize = android.text.TextUtils.TruncateAt.END
+        compoundDrawablePadding = (8 * dp).toInt()
+        setCompoundDrawablesWithIntrinsicBounds(null, symbol(sym, ink, 32f), null, null)
+        setPadding(0, (12 * dp).toInt(), 0, (12 * dp).toInt())
+        background = pressable(null, 16 * dp, ink)
+        setOnClickListener { click() }
     }
 
     fun homeMenu() {
