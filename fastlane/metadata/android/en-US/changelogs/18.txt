@@ -1,0 +1,6 @@
+- Hold-home preview no longer overlaps its buttons with the dock off.
+- Drawer tabs: Move left / Move right in a tab's menu.
+- Swiping drawer tabs wraps from the last to the first.
+- No square flash behind a held drawer icon.
+- More space above Remove page in the Pages editor.
+- German and Russian translations for the color editor (thanks PierBez).
