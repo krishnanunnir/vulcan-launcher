@@ -367,7 +367,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="glanceStyle_clock">Большие часы и дата</string>
     <string name="glanceStyle_date">Только дата</string>
     <string name="clock">Часы</string>
-    
     <string name="set_hideClock">Скрыть часы в строке состояния</string>
     <string name="set_hideClock_info">На главном экране. Нужно однократное разрешение через adb</string>
     <string name="set_homeButton">Кнопка «Домой»</string>
@@ -385,7 +384,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="set_labelSize">Размер подписей</string>
     <string name="set_labels">Подписи</string>
     <string name="set_launchAnim">Анимация запуска приложений</string>
-    <string name="set_lockLayout">Заблокировать раскладку</string>
+    <string name="set_lockLayout">Заблокировать главный экран</string>
     <string name="set_nightEnd">Конец расписания</string>
     <string name="set_nightMode">Ночной режим</string>
     <string name="set_nightStart">Начало расписания</string>
@@ -563,4 +562,38 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
         <item quantity="many">%1$d виджетов</item>
         <item quantity="other">%1$d виджета</item>
     </plurals>
+    <string name="custom_colors">Свои цвета</string>
+    <string name="custom_colors_info">Каждый цвет заменяет цвет темы во всех оформлениях. Сбросьте отдельный цвет, чтобы восстановить исходный цвет темы.</string>
+    <string name="role_accent">Акцент</string>
+    <string name="role_surface">Фон</string>
+    <string name="role_text">Текст</string>
+    <string name="role_text2">Вторичный текст</string>
+    <string name="role_raised">Карточки и меню</string>
+    <string name="role_well">Док и поиск</string>
+    <string name="role_divider">Разделители</string>
+    <string name="color_from_theme">Из темы</string>
+    <string name="color_preview_title">Предпросмотр</string>
+    <string name="color_preview_button">Акцент</string>
+    <string name="color_preview_search">Поиск</string>
+    <string name="color_contrast_ok">Контраст текста %1$s:1</string>
+    <string name="color_contrast_low">Плохо читается: %1$s:1</string>
+    <string name="hsv_hue">Оттенок</string>
+    <string name="hsv_saturation">Насыщенность</string>
+    <string name="hsv_brightness">Яркость</string>
+    <string name="step_less">Меньше %1$s</string>
+    <string name="step_more">Больше %1$s</string>
+    <string name="reset_colors">Сбросить все цвета</string>
+    <string name="low_contrast">Плохо читается</string>
+    <string name="low_contrast_info">С этим цветом контраст текста составит %1$s:1, а для комфортного чтения нужно не меньше %2$s:1.</string>
+    <string name="save_anyway">Всё равно сохранить</string>
+    <string name="contrib_translations">Переводы на немецкий и русский языки</string>
+    <string name="contrib_testing">Тестирование F-Droid и отчёты о регрессиях</string>
+    <string name="contrib_feedback">Отзывы об удобстве использования и идеи новых функций</string>
+    <string name="persona_architect_line">Построил Vulcan кирпичик за кирпичиком.</string>
+    <string name="persona_refiner_line">Позаботился о том, чтобы каждая мелочь была на своём месте.</string>
+    <string name="persona_refiner_signature">Всегда думает о том, как всё ощущается под пальцем.</string>
+    <string name="persona_hint">Нажмите на участника, чтобы узнать его поближе.</string>
+    <string name="persona_share">Поделиться карточкой</string>
+    <string name="persona_share_failed">Не удалось поделиться карточкой. Попробуйте ещё раз.</string>
+    <string name="persona_card_footer">Один из тех, кто стоит за вашим главным экраном.</string>
 </resources>
