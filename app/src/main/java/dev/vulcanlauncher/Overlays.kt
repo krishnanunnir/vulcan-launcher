@@ -337,7 +337,7 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
             addView(FrameLayout(context).apply {
                 addView(hint, FrameLayout.LayoutParams(-1, -1))
                 addView(remove, FrameLayout.LayoutParams(-2, -1, Gravity.CENTER))
-            }, LinearLayout.LayoutParams(-1, (48 * dp).toInt()).apply { setMargins(0, (4 * dp).toInt(), 0, (8 * dp).toInt()) })
+            }, LinearLayout.LayoutParams(-1, (48 * dp).toInt()).apply { setMargins(0, (16 * dp).toInt(), 0, (8 * dp).toInt()) })
             addView(ScrollView(context).apply { addView(grid) }, LinearLayout.LayoutParams(-1, -2))
         // At the top, not centred: a second row of pages would move every tile up.
         }, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { topMargin = (40 * dp).toInt() })

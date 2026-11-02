@@ -714,19 +714,19 @@ fun VulcanActivity.editGroup(g: Group) {
     val groups = home.drawer.groups()
     fun replace(n: Group?) = saveGroups(groups.mapNotNull { if (it.name == g.name) n else it })
     val other = if (g.type == "tab") "folder" else "tab"
-    pickList(g.name, listOf(
-        symbol("edit") to getString(R.string.rename),
-        symbol("apps") to getString(R.string.choose_apps),
-        symbol(other.replace("tab", "tabs")) to getString(if (other == "tab") R.string.convert_to_tab else R.string.convert_to_folder),
-        symbol("delete") to getString(R.string.delete),
-    )) { i ->
-        when (i) {
-            0 -> askName(getString(R.string.rename), g.name) { replace(g.copy(name = it)) }
-            1 -> chooseApps(g.name, g.apps) { replace(g.copy(apps = it)) }
-            2 -> replace(g.copy(type = other))
-            else -> replace(null)
-        }
-    }
+    // Tabs move along the drawer's tab row: left is earlier, except in right-to-left languages.
+    val rtl = resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL
+    fun move(sym: String, title: Int, by: Int) = moveGroup(groups, g.name, if (rtl) -by else by)
+        ?.takeIf { g.type == "tab" }?.let { Triple(symbol(sym), getString(title)) { saveGroups(it) } }
+    val actions = listOfNotNull(
+        Triple(symbol("edit"), getString(R.string.rename)) { askName(getString(R.string.rename), g.name) { replace(g.copy(name = it)) } },
+        Triple(symbol("apps"), getString(R.string.choose_apps)) { chooseApps(g.name, g.apps) { replace(g.copy(apps = it)) } },
+        move("left", R.string.move_left, -1),
+        move("right", R.string.move_right, 1),
+        Triple(symbol(other.replace("tab", "tabs")), getString(if (other == "tab") R.string.convert_to_tab else R.string.convert_to_folder)) { replace(g.copy(type = other)) },
+        Triple(symbol("delete"), getString(R.string.delete)) { replace(null) },
+    )
+    pickList(g.name, actions.map { it.first to it.second }) { actions[it].third() }
 }
 
 fun VulcanActivity.addToGroup(key: String) {

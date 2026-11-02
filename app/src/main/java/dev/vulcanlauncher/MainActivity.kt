@@ -68,6 +68,10 @@ class GroupChild(val group: String, val app: App)
 /** How far the page shrinks while dragging (Launcher3's spring-loaded state is about 0.8). */
 const val SPRING_SCALE = 0.8f
 
+/** The shrunk page's scale: [SPRING_SCALE], or less so a [height]-tall page whose top lands at [top] ends by [bottom]. */
+fun springScale(height: Int, top: Float, bottom: Float) =
+    if (height <= 0) SPRING_SCALE else ((bottom - top) / height).coerceIn(0.5f, SPRING_SCALE)
+
 /** What home shows: itself, the hold-home buttons over the shrunk page, or a drag over the shrunk page. */
 enum class HomeState { NORMAL, OVERVIEW, DRAG }
 
@@ -947,6 +951,11 @@ class MainActivity : VulcanActivity() {
     private var spring = 0f
     private var springAnim: ValueAnimator? = null
 
+    /** Space [homeOverview]'s buttons take at the bottom of the screen; 0 for a drag, which has none. */
+    private var springBottom = 0
+    /** The shrunk page's scale, from [springScale]. */
+    private var cardScale = SPRING_SCALE
+
     /**
      * Launcher3's spring-loaded home, for a drag and for the hold-home overview: the pages shrink into outlined cards a
      * gap apart, so the neighbours peek in, and the top strip is left to the drop targets. [on] false grows them back;
@@ -963,9 +972,12 @@ class MainActivity : VulcanActivity() {
             var top = 0
             var v: View = workspace
             while (v !== root) { top += v.top; v = v.parent as View }
-            // The cards' top lands just under the drop targets; they scale about the point that puts it there.
+            // The cards' top lands just under the drop targets; they scale about the point that puts it there. Their
+            // bottom stays 16 dp clear of the overview's buttons; without the dock the page is taller.
+            val cardTop = insets.top + 76 * dp
+            cardScale = springScale(workspace.height, cardTop, root.height - springBottom - 16 * dp)
             workspace.pivotX = workspace.width / 2f
-            workspace.pivotY = (insets.top + 76 * dp - SPRING_SCALE * top) / (1 - SPRING_SCALE) - top
+            workspace.pivotY = (cardTop - cardScale * top) / (1 - cardScale) - top
             // The neighbours draw outside the shrunk page's bounds.
             workspace.clipChildren = false; box.clipChildren = false
         }
@@ -976,10 +988,10 @@ class MainActivity : VulcanActivity() {
             interpolator = EASE
             addUpdateListener {
                 spring = it.animatedValue as Float
-                val s = 1 - (1 - SPRING_SCALE) * spring
+                val s = 1 - (1 - cardScale) * spring
                 workspace.scaleX = s; workspace.scaleY = s
                 // 16 dp between the cards on screen.
-                workspace.gap = 16 * dp / SPRING_SCALE * spring
+                workspace.gap = 16 * dp / cardScale * spring
                 pages.forEach { p -> p.background?.alpha = (spring * 255).toInt() }
                 dropBar.alpha = spring
             }
@@ -1561,8 +1573,11 @@ class MainActivity : VulcanActivity() {
         }
         root.addView(shade)
         menu = shade
+        row.measure(View.MeasureSpec.makeMeasureSpec(root.width - (32 * dp).toInt(), View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED)
+        springBottom = row.measuredHeight + insets.bottom + (24 * dp).toInt()
         root.tick()
         setHomeState(HomeState.OVERVIEW, animate)
+        springBottom = 0
     }
 
     /** [homeOverview]'s main buttons, into [row]. */

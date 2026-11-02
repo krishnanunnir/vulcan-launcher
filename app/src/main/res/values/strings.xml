@@ -393,6 +393,8 @@
     <string name="choose_apps">Choose apps</string>
     <string name="convert_to_tab">Convert to tab</string>
     <string name="convert_to_folder">Convert to folder</string>
+    <string name="move_left">Move left</string>
+    <string name="move_right">Move right</string>
     <string name="delete">Delete</string>
     <string name="add_to_group">Add to group</string>
     <string name="no_new_categories">No new categories to group</string>

@@ -85,6 +85,8 @@
     <string name="color_white">Weiß</string>
     <string name="color_yellow">Gelb</string>
     <string name="convert_to_folder">In Ordner umwandeln</string>
+    <string name="move_left">Nach links verschieben</string>
+    <string name="move_right">Nach rechts verschieben</string>
     <string name="convert_to_tab">In Tab umwandeln</string>
     <string name="default_home">Standard-Start-App</string>
     <string name="default_home_info">Mache Vulcan zu deinem Startbildschirm</string>

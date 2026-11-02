@@ -72,9 +72,18 @@ private val SCROLL_CUBIC = android.view.animation.Interpolator { t -> val u = t 
 /** [from]..[to] of [p] as 0..1, clamped (Launcher3's clampToProgress over a linear curve). */
 private fun span(p: Float, from: Float, to: Float) = ((p - from) / (to - from)).coerceIn(0f, 1f)
 
-/** The tab a sideways swipe lands on: the one after [current] in [keys] if [forward], else before; null at either end. */
+/** The tab a sideways swipe lands on: the one after [current] in [keys] if [forward], else before, wrapping round at either end; null with fewer than two. */
 fun swipedTab(keys: List<String>, current: String, forward: Boolean): String? =
-    keys.getOrNull(keys.indexOf(current) + if (forward) 1 else -1)
+    if (keys.size < 2) null else keys[(keys.indexOf(current).coerceAtLeast(0) + if (forward) 1 else -1).mod(keys.size)]
+
+/** [groups] with [name] swapped with the nearest group of its type [by] -1 (earlier) or 1 (later); null at that end. */
+fun moveGroup(groups: List<Group>, name: String, by: Int): List<Group>? {
+    val i = groups.indexOfFirst { it.name == name }
+    if (i < 0) return null
+    val range = if (by < 0) (i - 1 downTo 0) else (i + 1 until groups.size)
+    val j = range.firstOrNull { groups[it].type == groups[i].type } ?: return null
+    return groups.toMutableList().apply { this[i] = groups[j]; this[j] = groups[i] }
+}
 
 /** Tag on a drawer view that shows an app, so GridView can hand it back for another app. */
 private const val APP_VIEW = "app"
@@ -294,6 +303,8 @@ class Drawer(private val a: MainActivity) {
     init {
         grid.apply {
             numColumns = cols
+            // The stock selector is a sharp full-cell rectangle that flashes on a long press; a rounded state layer instead.
+            selector = a.pressable(null, 16 * a.dp)
             // Grid styles: the row height holds the air between rows.
             verticalSpacing = if (styleName == "list") (16 * a.dp).toInt() else 0
             val side = ((if (bottomBar) 12 else 8) * a.dp).toInt()

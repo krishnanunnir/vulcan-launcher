@@ -85,6 +85,8 @@
     <string name="color_white">Белый</string>
     <string name="color_yellow">Жёлтый</string>
     <string name="convert_to_folder">Преобразовать в папку</string>
+    <string name="move_left">Переместить влево</string>
+    <string name="move_right">Переместить вправо</string>
     <string name="convert_to_tab">Преобразовать во вкладку</string>
     <string name="default_home">Приложение главного экрана по умолчанию</string>
     <string name="default_home_info">Сделать Vulcan вашим главным экраном</string>
