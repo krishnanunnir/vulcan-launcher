@@ -6,7 +6,7 @@ tags: [edits]
 - runFlow: common/drawer.yaml
 - longPressOn: "YouTube"
 - tapOn: "(?i)group"
-- tapOn: "＋ New folder"
+- tapOn: "New folder"
 - inputText: "Media"
 - tapOn: "(?i)ok|create|save|add"
 - tapOn: "Media"

@@ -225,7 +225,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="more_options">Ещё</string>
     <string name="move_to_page">Переместить на страницу</string>
     <string name="new_folder">Новая папка</string>
-    <string name="new_folder_item">＋ Новая папка</string>
     <string name="new_tab">Новая вкладка</string>
     <string name="night_off">Выкл.</string>
     <string name="night_on">Всегда включён</string>

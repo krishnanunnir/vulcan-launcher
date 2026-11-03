@@ -732,11 +732,19 @@ fun VulcanActivity.editGroup(g: Group) {
 
 fun VulcanActivity.addToGroup(key: String) {
     val groups = home.drawer.groups()
-    val names = groups.map { it.name } + getString(R.string.new_folder_item)
-    dialog().setTitle(R.string.add_to_group).setItems(names.toTypedArray()) { _, i ->
-        if (i == groups.size) askName(getString(R.string.new_folder), "") { saveGroups(groups + Group(it, "folder", listOf(key))) }
-        else saveGroups(groups.map { if (it.name == groups[i].name && key !in it.apps) it.copy(apps = it.apps + key) else it })
-    }.show()
+    // A checklist: the app's groups start ticked, so unticking one takes it out.
+    val checked = BooleanArray(groups.size) { key in groups[it].apps }
+    fun save(extra: List<Group> = emptyList()) = saveGroups(groups.mapIndexed { i, g -> when {
+        checked[i] && key !in g.apps -> g.copy(apps = g.apps + key)
+        !checked[i] -> g.copy(apps = g.apps - key)
+        else -> g
+    } } + extra)
+    dialog().setTitle(R.string.add_to_group)
+        .setMultiChoiceItems(groups.map { it.name }.toTypedArray(), checked) { _, i, on -> checked[i] = on }
+        .setPositiveButton(R.string.ok) { _, _ -> save() }
+        .setNegativeButton(R.string.cancel, null)
+        .setNeutralButton(R.string.new_folder) { _, _ -> askName(getString(R.string.new_folder), "") { save(listOf(Group(it, "folder", listOf(key)))) } }
+        .show()
 }
 
 /** Groups apps into drawer folders by the category each app declares (games, social, productivity…). */
