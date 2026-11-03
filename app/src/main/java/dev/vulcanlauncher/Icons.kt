@@ -254,10 +254,25 @@ class Icons(private val context: Context, private val looks: Looks) {
         return InsetDrawable(icon, inset)
     }
 
-    fun custom(custom: String): Drawable? = when {
+    /**
+     * Custom icons drawn so far, by their "pack:"/"uri:" string. Home's render() resolves every item again, and without
+     * this each one re-read its image (a photo twice, to size it) or, from a pack other than the chosen one, re-parsed
+     * that pack's whole appfilter.
+     */
+    private val customs = HashMap<String, Drawable?>()
+    /** Packs other than [pack] that custom icons come from, parsed once. */
+    private val otherPacks = HashMap<String, IconPack?>()
+
+    /** Forgets custom icons (under memory pressure); they're drawn again when next needed. */
+    fun trim() = customs.clear()
+
+    fun custom(custom: String): Drawable? =
+        if (custom.isEmpty()) null else if (custom in customs) customs[custom] else loadCustom(custom).also { customs[custom] = it }
+
+    private fun loadCustom(custom: String): Drawable? = when {
         custom.startsWith("pack:") -> {
             val (pkg, name) = custom.removePrefix("pack:").split(":", limit = 2).let { it[0] to it.getOrElse(1) { "" } }
-            (if (pkg == pack?.pkg) pack else loadIconPack(context, pkg))?.drawable(name)
+            (if (pkg == pack?.pkg) pack else otherPacks.getOrPut(pkg) { loadIconPack(context, pkg) })?.drawable(name)
         }
         custom.startsWith("uri:") -> runCatching {
             // A photo picked as an icon can be 12 MP (48 MB decoded): read its size first and decode it subsampled.

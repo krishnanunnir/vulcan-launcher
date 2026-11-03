@@ -526,9 +526,7 @@ class Drawer(private val a: MainActivity) {
         val q = search.text.toString().trim()
         val hidden = a.store.strings("hidden")
         val launches = a.launches()
-        // Each key once: a comparator's selector runs on every comparison.
-        val ordered = a.apps.values.map { it to SortKey(a.label(it), it.info.firstInstallTime, launches.optInt(it.key)) }
-            .sortedWith(compareBy(drawerComparator(a.looks.str("drawerSort"))) { it.second }).map { it.first }
+        val ordered = ordered(launches)
         val groups = groups()
         val work = a.apps.values.filter { a.isWork(it) }.map { it.key }.toSet()
         val workTab = a.looks.on("workTab") && work.isNotEmpty()
@@ -571,6 +569,27 @@ class Drawer(private val a: MainActivity) {
             }
         }
         return out
+    }
+
+    /** [ordered]'s result and what it was sorted from: the app list, custom labels, sort and launch counts. */
+    private var order: List<App> = emptyList()
+    private var orderApps: Any? = null
+    private var orderFrom: List<Any?>? = null
+
+    /**
+     * Every app in drawer order. Sorting by label compares with the system collator, so it's done again only when what
+     * it's sorted from changes, not on each letter typed into search.
+     */
+    private fun ordered(launches: org.json.JSONObject): List<App> {
+        val sort = a.looks.str("drawerSort")
+        // loadApps() replaces the app list rather than changing it, so the same list means the same apps.
+        val from = listOf(a.store.data.getString("custom", ""), sort, if (sort == "used") launches.toString() else null)
+        if (a.apps === orderApps && from == orderFrom) return order
+        // Each key once: a comparator's selector runs on every comparison.
+        order = a.apps.values.map { it to SortKey(a.label(it), it.info.firstInstallTime, launches.optInt(it.key)) }
+            .sortedWith(compareBy(drawerComparator(sort)) { it.second }).map { it.first }
+        orderApps = a.apps; orderFrom = from
+        return order
     }
 
     /** Something it shows changed: rebuilt now if open, else on the next open. */
@@ -775,9 +794,14 @@ class Drawer(private val a: MainActivity) {
             is Entry.ContactE -> "☺"
         }
         private var sections = arrayOf<String>()
+        /** Each entry's section, worked out once per change: the scroll listener asks on every frame. */
+        private var entrySections = IntArray(0)
 
         override fun notifyDataSetChanged() {
-            sections = entries.map(::letter).distinct().toTypedArray()
+            val letters = entries.map(::letter)
+            sections = letters.distinct().toTypedArray()
+            val at = sections.withIndex().associate { (i, l) -> l to i }
+            entrySections = IntArray(letters.size) { at.getValue(letters[it]) }
             super.notifyDataSetChanged()
         }
         // Stacked from the bottom, GridView right-aligns the short row; padding to whole rows keeps results reading left to right.
@@ -798,8 +822,8 @@ class Drawer(private val a: MainActivity) {
                 .height = if (cellH > 0) cellH else -2
         }
         override fun getSections(): Array<String> = sections
-        override fun getPositionForSection(s: Int) = entries.indexOfFirst { letter(it) == sections.getOrNull(s) }.coerceAtLeast(0) + lead
-        override fun getSectionForPosition(p: Int) = sections.indexOf(getItem(p)?.let(::letter)).coerceAtLeast(0)
+        override fun getPositionForSection(s: Int) = entrySections.indexOf(s).coerceAtLeast(0) + lead
+        override fun getSectionForPosition(p: Int) = entrySections.getOrNull(p - lead) ?: 0
     }
 }
 

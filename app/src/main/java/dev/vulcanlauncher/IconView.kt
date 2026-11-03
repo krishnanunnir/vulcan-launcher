@@ -66,15 +66,29 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { shadowBmp = null }
 
+    private companion object {
+        /**
+         * Blurred shadows by icon and size. Icons are shared (MainActivity's cache), so the drawer's recycled views reuse
+         * one instead of blurring again on every bind while scrolling. Weak: a shadow goes with its icon.
+         */
+        val shadows = java.util.WeakHashMap<Drawable, Pair<Int, Bitmap>>()
+
+        fun shadowOf(icon: Drawable, s: Int): Bitmap {
+            shadows[icon]?.let { (size, bmp) -> if (size == s) return bmp }
+            val b = Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888)
+            icon.setBounds(0, 0, s, s); icon.draw(Canvas(b))
+            val shadow = b.extractAlpha(Paint().apply { maskFilter = BlurMaskFilter(s / 24f, BlurMaskFilter.Blur.NORMAL) }, null)
+            b.recycle()
+            return shadow.also { shadows[icon] = s to it }
+        }
+    }
+
     override fun onDraw(canvas: Canvas) {
         val s = minOf(width, height)
         val l = (width - s) / 2
         val t = (height - s) / 2
         if (shadow) {
-            val bmp = shadowBmp ?: Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888).also { b ->
-                icon.setBounds(0, 0, s, s); icon.draw(Canvas(b))
-                shadowBmp = b.extractAlpha(Paint().apply { maskFilter = BlurMaskFilter(s / 24f, BlurMaskFilter.Blur.NORMAL) }, null)
-            }
+            val bmp = shadowBmp ?: shadowOf(icon, s).also { shadowBmp = it }
             paint.color = 0x66000000
             canvas.drawBitmap(bmp, l.toFloat(), t + s / 30f, paint)
         }

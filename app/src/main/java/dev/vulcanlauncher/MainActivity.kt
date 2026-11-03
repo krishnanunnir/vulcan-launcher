@@ -211,7 +211,7 @@ class MainActivity : VulcanActivity() {
         overlay = null; overlayClosed = {}; menu = null; dragSource = null
         // Home's state, its outline and a drag's extra page were the old views' too.
         springAnim?.cancel(); spring = 0f; homeState = HomeState.NORMAL; dragPage = null; plusPage = null
-        iconCache.clear(); badgeIcons.clear(); widgetFrames.clear()
+        iconCache.clear(); badgeIcons.clear(); widgetFrames.clear(); shortcutCache.clear()
         build()
         workspace.snapTo(page.coerceAtMost(looks.pages - 1), animate = false)
         if (dialogs.any { it.isShowing }) dialogScrim(true)
@@ -416,7 +416,7 @@ class MainActivity : VulcanActivity() {
     /** Under memory pressure, forget icons no view shows (drawer apps scrolled past); they're redrawn when next needed. */
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        @Suppress("DEPRECATION") if (level >= TRIM_MEMORY_BACKGROUND) iconCache.clear()
+        @Suppress("DEPRECATION") if (level >= TRIM_MEMORY_BACKGROUND) { iconCache.clear(); shortcutCache.clear(); icons.trim() }
     }
 
     override fun onResume() {
@@ -606,10 +606,12 @@ class MainActivity : VulcanActivity() {
         // Apps republish their shortcuts often (messaging apps on every message): redraw only for one pinned on home.
         override fun onShortcutsChanged(pkg: String, shortcuts: MutableList<ShortcutInfo>, user: UserHandle) {
             val s = serial(user)
+            shortcutCache.keys.removeAll { it.startsWith("$pkg/") }
             if ((items + items.flatMap { it.children }).any { it.isShortcut && it.pkg == pkg && it.user == s }) render()
         }
         private fun reload(pkgs: List<String>, homeOnly: Boolean = false) {
             loadApps(pkgs)
+            shortcutCache.keys.removeAll { it.substringBefore('/') in pkgs }
             drawer.invalidate()
             if (!homeOnly || (items + items.flatMap { it.children }).any { it.pkg in pkgs }) render()
         }
@@ -636,7 +638,7 @@ class MainActivity : VulcanActivity() {
 
     /** Private Space (or a work profile) locked, unlocked, paused or resumed. */
     private val profileReceiver = object : android.content.BroadcastReceiver() {
-        override fun onReceive(c: android.content.Context, i: Intent) { loadApps(); drawer.invalidate(); render() }
+        override fun onReceive(c: android.content.Context, i: Intent) { loadApps(); shortcutCache.clear(); drawer.invalidate(); render() }
     }
 
     fun launch(a: App, v: View?) {
@@ -736,9 +738,7 @@ class MainActivity : VulcanActivity() {
                 item.action.startsWith("app:") -> "apps"
                 else -> ACTION_SYMBOLS[item.action] ?: "bolt"
             }))
-        item.isShortcut -> pinnedShortcut(item).let { s ->
-            item.label.ifEmpty { s?.shortLabel?.toString() ?: "" } to (icons.custom(item.icon) ?: s?.let(::shortcutIcon) ?: packageManager.defaultActivityIcon)
-        }
+        item.isShortcut -> shortcut(item).let { (l, icon) -> item.label.ifEmpty { l } to (icons.custom(item.icon) ?: icon) }
         item.action == "activity" -> runCatching { packageManager.getActivityInfo(ComponentName(item.pkg, item.cls), 0) }.getOrNull()?.let {
             item.label.ifEmpty { it.loadLabel(packageManager).toString() } to (icons.custom(item.icon) ?: it.loadIcon(packageManager))
         }
@@ -773,6 +773,20 @@ class MainActivity : VulcanActivity() {
             } catch (e: Exception) { toast(R.string.cant_open_activity) }
             else -> apps[item.appKey]?.let { launch(it, v) } ?: toast(R.string.app_not_installed)
         }
+    }
+
+    /**
+     * Pinned shortcuts' label and icon by package/id/user. Looking one up is two calls into the system per shortcut, and
+     * render() resolves every item; [onShortcutsChanged] drops a package's entries when it republishes.
+     */
+    private val shortcutCache = HashMap<String, Pair<String, Drawable>>()
+
+    /** A pinned shortcut's label and icon. One that can't be read now (a locked profile) isn't cached, so it's tried again. */
+    private fun shortcut(item: Item): Pair<String, Drawable> {
+        val key = "${item.pkg}/${item.shortcutId}/${item.user}"
+        shortcutCache[key]?.let { return it }
+        val s = pinnedShortcut(item) ?: return "" to packageManager.defaultActivityIcon
+        return ((s.shortLabel?.toString() ?: "") to shortcutIcon(s)).also { shortcutCache[key] = it }
     }
 
     /** Kept across render(), so a widget isn't inflated again (and reset) whenever any item changes. */
