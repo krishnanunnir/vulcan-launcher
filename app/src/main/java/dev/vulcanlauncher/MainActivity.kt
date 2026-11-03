@@ -23,6 +23,7 @@ import android.graphics.Color
 import android.graphics.Point
 import android.graphics.PointF
 import android.graphics.Rect
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
@@ -51,12 +52,12 @@ import kotlin.math.hypot
 import kotlin.math.roundToInt
 
 /** A launchable app from any profile (personal or work). [serial] is the profile's UserManager serial number. */
-class App(val info: LauncherActivityInfo, val serial: Long) {
+class App(val info: LauncherActivityInfo, val serial: Long, labelOf: (App) -> String) {
     val pkg: String = info.componentName.packageName
     val cls: String = info.componentName.className
     val key = appKey(pkg, cls, serial)
     /** The app's own label. Cached: each LauncherActivityInfo.getLabel() loads the app's resources, and sorting asks often. */
-    val title: String by lazy(LazyThreadSafetyMode.NONE) { info.label.toString() }
+    val title: String by lazy(LazyThreadSafetyMode.NONE) { labelOf(this) }
 }
 
 /** Drag payload for an item dragged out of a home-screen folder. */
@@ -140,6 +141,8 @@ class MainActivity : VulcanActivity() {
         private set
     private var barHidden = false
     private val iconCache = HashMap<String, Drawable>()
+    /** Icons and labels kept on disk across starts, so loading them doesn't open every app's APK. Set with [icons]. */
+    private lateinit var appCache: AppCache
 
     /** Subgrid factor of the grid, set when home is built (onCreate, [rebuild]). */
     var sub = 1
@@ -222,6 +225,7 @@ class MainActivity : VulcanActivity() {
     private fun build() {
         sub = looks.sub
         icons = Icons(this, looks)
+        appCache = AppCache(this, icons.signature)
         recolor()
         applyOrientation()
         loadApps()
@@ -546,10 +550,11 @@ class MainActivity : VulcanActivity() {
         privateUser = if (android.os.Build.VERSION.SDK_INT >= 35)
             profiles.firstOrNull { launcherApps.getLauncherUserInfo(it)?.userType == UserManager.USER_TYPE_PROFILE_PRIVATE } else null
         // A locked Private Space shows none of its apps, anywhere.
-        apps = profiles.filter { it != privateUser || !privateLocked }.flatMap { user -> launcherApps.getActivityList(null, user).map { App(it, serial(user)) } }
+        apps = profiles.filter { it != privateUser || !privateLocked }.flatMap { user -> launcherApps.getActivityList(null, user).map { App(it, serial(user), appCache::label) } }
             .filter { it.pkg != packageName }.associateBy { it.key }
         customs = store.obj("custom")
-        if (changed == null) iconCache.clear() else iconCache.keys.removeAll { it.substringBefore('/') in changed }
+        if (changed == null) { iconCache.clear(); appCache.keepOnly(apps.keys) }
+        else { iconCache.keys.removeAll { it.substringBefore('/') in changed }; appCache.forget(changed) }
     }
 
     /**
@@ -589,7 +594,7 @@ class MainActivity : VulcanActivity() {
         override fun onPackageAdded(pkg: String, user: UserHandle) {
             reloadItems()
             reload(listOf(pkg))
-            if (looks.on("autoAdd")) launcherApps.getActivityList(pkg, user).forEach { addToHome(App(it, serial(user)), quiet = true) }
+            if (looks.on("autoAdd")) launcherApps.getActivityList(pkg, user).forEach { addToHome(App(it, serial(user), appCache::label), quiet = true) }
         }
         // Uninstalled (an update is onPackageChanged): its icons go too, or they'd hold their cells invisibly. The
         // system has already deleted its widgets.
@@ -617,7 +622,9 @@ class MainActivity : VulcanActivity() {
 
     fun label(a: App): String = customs.optJSONObject(a.key)?.optString("label")?.takeIf { it.isNotEmpty() } ?: a.title
     fun icon(a: App): Drawable = iconCache.getOrPut(a.key) {
-        icons.get(a.pkg, a.cls, customs.optJSONObject(a.key)?.optString("icon") ?: "") { a.info.getBadgedIcon(0) }
+        val custom = customs.optJSONObject(a.key)?.optString("icon") ?: ""
+        // Icons.get always ends in a flat bitmap.
+        BitmapDrawable(resources, appCache.icon(a, custom) { (icons.get(a.pkg, a.cls, custom) { a.info.getBadgedIcon(0) } as BitmapDrawable).bitmap })
     }
     /** Main activity of [pkg] in profile [user], for apps a backup names by package only. */
     fun mainActivity(pkg: String, user: Long): String? {

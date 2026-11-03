@@ -3,7 +3,9 @@ package dev.vulcanlauncher
 import android.content.Context
 import android.content.Intent
 import android.content.res.Resources
+import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.ColorFilter
 import android.graphics.Paint
@@ -18,6 +20,9 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.InsetDrawable
 import android.net.Uri
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.io.File
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import kotlin.math.PI
@@ -216,6 +221,51 @@ fun loadIconPack(context: Context, pkg: String): IconPack? = runCatching {
 fun flatIcon(context: Context, icon: Drawable, px: Int): Drawable = BitmapDrawable(context.resources,
     Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888).also { icon.setBounds(0, 0, px, px); icon.draw(Canvas(it)) })
 
+/**
+ * Each app's finished icon and label on disk, as Launcher3's IconCache keeps them. Asking the app itself opens its APK,
+ * and its resource table stays mapped until a GC (Gmail's is 10 MB): with this, a start opens only apps that changed.
+ * An entry holds while the app's APK and the system build match, and [looks] ([Icons.signature]) or the locale.
+ */
+class AppCache(context: Context, private val looks: String) {
+    private val dir = File(context.cacheDir, "apps").apply { mkdirs() }
+    private val locale = context.resources.configuration.locales.toLanguageTags()
+
+    private fun name(key: String) = key.replace('/', '#')
+    private fun stamp(a: App, extra: String) =
+        a.info.applicationInfo.sourceDir.let { "$it|${File(it).lastModified()}|${android.os.Build.FINGERPRINT}|$extra" }
+
+    fun label(a: App): String {
+        val f = File(dir, name(a.key) + ".label"); val s = stamp(a, locale)
+        read(f, s) { it.readUTF() }?.let { return it }
+        return a.info.label.toString().also { l -> write(f, s) { it.writeUTF(l) } }
+    }
+
+    fun icon(a: App, custom: String, make: () -> Bitmap): Bitmap {
+        val f = File(dir, name(a.key) + ".png"); val s = stamp(a, "$looks|$custom")
+        read(f, s) { BitmapFactory.decodeStream(it) }?.let { return it }
+        // PNG encoding takes a few ms an icon; nothing draws into the bitmap again, so it's encoded off the UI thread.
+        return make().also { b -> writer.execute { write(f, s) { b.compress(Bitmap.CompressFormat.PNG, 100, it) } } }
+    }
+
+    /** Drops the entries of [pkgs]: an app can change its icon or label without an update. */
+    fun forget(pkgs: Collection<String>) = dir.listFiles()?.forEach { f -> if (pkgs.any { f.name.startsWith("$it#") }) f.delete() }
+    /** Drops the entries of apps not in [keys] (uninstalled while the launcher wasn't running). */
+    fun keepOnly(keys: Collection<String>) {
+        val names = keys.map(::name).toSet()
+        dir.listFiles()?.forEach { f -> if (f.name.substringBeforeLast('.') !in names) f.delete() }
+    }
+
+    private fun <T> read(f: File, stamp: String, body: (DataInputStream) -> T?): T? =
+        runCatching { DataInputStream(f.inputStream().buffered()).use { if (it.readUTF() == stamp) body(it) else null } }.getOrNull()
+
+    private fun write(f: File, stamp: String, body: (DataOutputStream) -> Unit) {
+        val tmp = File(f.path + ".tmp")
+        runCatching { DataOutputStream(tmp.outputStream().buffered()).use { it.writeUTF(stamp); body(it) }; tmp.renameTo(f) }
+    }
+
+    companion object { private val writer = java.util.concurrent.Executors.newSingleThreadExecutor() }
+}
+
 /** The largest power-of-two subsample that keeps a [side]-px image at least [target] px. */
 fun sampleSize(side: Int, target: Int): Int = Integer.highestOneBit((side / target.coerceAtLeast(1)).coerceAtLeast(1))
 
@@ -225,6 +275,15 @@ class Icons(private val context: Context, private val looks: Looks) {
     val pack: IconPack? = looks.iconPack.takeIf { it.isNotEmpty() }?.let { loadIconPack(context, it) }
     /** The largest size any surface shows an icon at, in px: every icon is drawn once at this size (see [flat]). */
     private val size = (listOf("iconSize", "dockIconSize", "drawerIconSize").maxOf { looks.int(it) } * context.resources.displayMetrics.density).toInt()
+    /**
+     * Everything that shapes an icon here, for [AppCache]: the pack and its version, the options, the size, dark mode
+     * (an icon can have a night variant) and the system's adaptive-icon mask, which a theme can change.
+     */
+    val signature: String = listOf(looks.iconPack, pack?.let { runCatching { context.packageManager.getPackageInfo(it.pkg, 0).lastUpdateTime }.getOrNull() },
+        looks.str("shape"), looks.str("reshape"), looks.on("normalize"), looks.on("autogen"), size,
+        context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK,
+        context.resources.getIdentifier("config_icon_mask", "string", "android").takeIf { it != 0 }?.let { context.resources.getString(it) },
+    ).joinToString("|")
 
     /** [base] is the app's own icon; [custom] an "pack:<pkg>:<name>" or "uri:<uri>" override. */
     fun get(pkg: String, cls: String, custom: String, base: () -> Drawable): Drawable {
