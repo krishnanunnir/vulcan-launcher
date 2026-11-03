@@ -1,0 +1,4 @@
+- Uses far less memory. On a Galaxy S23: home 54 → 38 MB, drawer open 237 → 106 MB, in the background 135 → 60 MB.
+- Icons and labels are kept on disk, so Vulcan no longer loads every app to draw its icon.
+- Add to group is a checklist: tick or untick each group.
+- Rotating or switching dark mode in Settings no longer leaks dialogs.
