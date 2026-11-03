@@ -259,6 +259,10 @@ class Drawer(private val a: MainActivity) {
         addView(privateBar, LinearLayout.LayoutParams(-1, -2).apply { setMargins(pad, 0, pad / 2, 0) })
         if (!fromBottom) addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
         if (bottomBar) addView(bar, barParams)
+        // setProgress fades this sheet and each of its parts. Drawn as overlapping, every faded part would render into its
+        // own offscreen buffer (the sheet alone 10 MB at 1080×2340) that the GPU cache then holds for a minute or two.
+        forceHasOverlappingRendering(false)
+        for (i in 0 until childCount) getChildAt(i).forceHasOverlappingRendering(false)
     }
 
     val visible get() = root.visibility == View.VISIBLE

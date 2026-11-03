@@ -66,6 +66,8 @@ internal fun SettingsActivity.showPersona(p: Persona): PersonaProfile {
     val dialog = Dialog(this, android.R.style.Theme_DeviceDefault_NoActionBar_Fullscreen)
     val profile = PersonaProfile(this, p) { dialog.dismiss() }
     dialog.setContentView(profile)
+    dialog.setOnDismissListener { dialogs -= dialog }
+    dialogs += dialog
     dialog.show()
     return profile
 }

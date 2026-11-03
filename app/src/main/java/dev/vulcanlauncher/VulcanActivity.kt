@@ -68,7 +68,14 @@ abstract class VulcanActivity : Activity() {
             })
         }
     }
-    protected val dialogs = mutableSetOf<AlertDialog>()
+    /** Open dialogs; full-screen ones built without [dialog] add and remove themselves. */
+    val dialogs = mutableSetOf<android.app.Dialog>()
+
+    /** Rotation or a theme change rebuilds the activity: its dialogs close with it, or their windows leak. */
+    override fun onDestroy() {
+        dialogs.toList().forEach { it.dismiss() }
+        super.onDestroy()
+    }
     private var scrim: View? = null
 
     /** The dim behind open dialogs, as the system's (styleDialog's lighter scrim), faded in and out. */

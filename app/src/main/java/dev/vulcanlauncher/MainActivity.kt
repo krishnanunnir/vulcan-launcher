@@ -336,6 +336,7 @@ class MainActivity : VulcanActivity() {
                 if (floatingDock) setMargins((4 * dp).toInt(), (14 * dp).toInt(), (10 * dp).toInt(), (14 * dp).toInt())
             })
         }
+        content.forceHasOverlappingRendering(false) // faded as the drawer opens: no full-screen offscreen buffer (see Drawer.root)
         drawer = Drawer(this)
         // Swipe up opens the drawer under the finger instead of after the gesture ends.
         if (looks.str("g_swipeUp") == "drawer") { workspace.onPull = drawer::pull; dock.onPull = drawer::pull }
@@ -410,6 +411,12 @@ class MainActivity : VulcanActivity() {
         // Once a day (not on every stop) so a reset or bad change can't overwrite the last good copy straight away.
         val auto = store.autoBackups[0]
         if (!auto.exists() || System.currentTimeMillis() - auto.lastModified() > 24 * 3600_000L) runCatching { store.rotateAutoBackup() }
+    }
+
+    /** Under memory pressure, forget icons no view shows (drawer apps scrolled past); they're redrawn when next needed. */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        @Suppress("DEPRECATION") if (level >= TRIM_MEMORY_BACKGROUND) iconCache.clear()
     }
 
     override fun onResume() {

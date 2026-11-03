@@ -25,3 +25,13 @@ class ScaleSpanTest {
         assertEquals(1, scaleSpan(1, 2340, 1080))   // never below one
     }
 }
+
+class SampleSizeTest {
+    @Test
+    fun sampleSize() {
+        assertEquals(16, sampleSize(3000, 168))  // 12 MP photo → 187 px, still above the icon size
+        assertEquals(1, sampleSize(168, 168))    // already the right size
+        assertEquals(1, sampleSize(100, 168))    // smaller: never upsampled
+        assertEquals(1, sampleSize(-1, 168))     // unreadable bounds
+    }
+}

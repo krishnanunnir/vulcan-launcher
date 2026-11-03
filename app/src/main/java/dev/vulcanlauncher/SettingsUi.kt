@@ -551,7 +551,8 @@ private fun MainActivity.pickPackIcon(pkg: String, onPicked: (String) -> Unit) {
     val all = pack.names
     var shown = all
     val cell = (72 * dp).toInt()
-    // ponytail: ~150 decoded icons kept (a few screens' worth); a pack's thousands are decoded again as they scroll back in.
+    val pad = (10 * dp).toInt()
+    // ponytail: ~150 icons kept (a few screens' worth, ~10 MB drawn at cell size); a pack's thousands are redrawn as they scroll back in.
     val cache = android.util.LruCache<String, Drawable>(150)
     val loader = java.util.concurrent.Executors.newSingleThreadExecutor()
     val adapter = object : BaseAdapter() {
@@ -560,7 +561,6 @@ private fun MainActivity.pickPackIcon(pkg: String, onPicked: (String) -> Unit) {
         override fun getItemId(p: Int) = p.toLong()
         override fun getView(p: Int, convert: View?, parent: ViewGroup) = ((convert as? ImageView) ?: ImageView(this@pickPackIcon).apply {
             layoutParams = android.widget.AbsListView.LayoutParams(-1, cell)
-            val pad = (10 * dp).toInt()
             setPadding(pad, pad, pad, pad)
             background = pressable(null, 16 * dp)
         }).apply {
@@ -570,7 +570,7 @@ private fun MainActivity.pickPackIcon(pkg: String, onPicked: (String) -> Unit) {
             setImageDrawable(cache.get(n))
             if (cache.get(n) == null) loader.execute {
                 if (tag != n) return@execute // scrolled past before its turn
-                val d = pack.drawable(n) ?: return@execute
+                val d = pack.drawable(n)?.let { flatIcon(this@pickPackIcon, it, cell - 2 * pad) } ?: return@execute
                 cache.put(n, d)
                 post { if (tag == n) setImageDrawable(d) }
             }
@@ -617,7 +617,8 @@ private fun MainActivity.pickPackIcon(pkg: String, onPicked: (String) -> Unit) {
     d = android.app.Dialog(this, android.R.style.Theme_DeviceDefault_NoActionBar).apply {
         setContentView(panel)
         window?.apply { setLayout(-1, -1); setBackgroundDrawable(android.graphics.drawable.ColorDrawable(m3.surface)) }
-        setOnDismissListener { loader.shutdownNow() }
+        setOnDismissListener { loader.shutdownNow(); dialogs -= d }
+        dialogs += d
         show()
     }
 }

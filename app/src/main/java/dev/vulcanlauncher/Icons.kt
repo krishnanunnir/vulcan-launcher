@@ -209,11 +209,22 @@ fun loadIconPack(context: Context, pkg: String): IconPack? = runCatching {
     IconPack(pkg, res, map, back, mask, upon, scale)
 }.getOrNull()
 
+/**
+ * [icon] drawn once into one [px]-square bitmap. A system adaptive icon keeps its 108 dp layers plus copies cached at
+ * draw size (~600 kB at 420 dpi), a pack icon its full 192–512 px image; this is ~110 kB at 64 dp.
+ */
+fun flatIcon(context: Context, icon: Drawable, px: Int): Drawable = BitmapDrawable(context.resources,
+    Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888).also { icon.setBounds(0, 0, px, px); icon.draw(Canvas(it)) })
+
+/** The largest power-of-two subsample that keeps a [side]-px image at least [target] px. */
+fun sampleSize(side: Int, target: Int): Int = Integer.highestOneBit((side / target.coerceAtLeast(1)).coerceAtLeast(1))
+
 /** App icons with the chosen icon pack, shape and legacy-icon options applied. Built once per activity. */
 class Icons(private val context: Context, private val looks: Looks) {
     private val outline = shapeOutline(looks.str("shape"))
     val pack: IconPack? = looks.iconPack.takeIf { it.isNotEmpty() }?.let { loadIconPack(context, it) }
-    private val size = (96 * context.resources.displayMetrics.density).toInt()
+    /** The largest size any surface shows an icon at, in px: every icon is drawn once at this size (see [flat]). */
+    private val size = (listOf("iconSize", "dockIconSize", "drawerIconSize").maxOf { looks.int(it) } * context.resources.displayMetrics.density).toInt()
 
     /** [base] is the app's own icon; [custom] an "pack:<pkg>:<name>" or "uri:<uri>" override. */
     fun get(pkg: String, cls: String, custom: String, base: () -> Drawable): Drawable {
@@ -227,8 +238,10 @@ class Icons(private val context: Context, private val looks: Looks) {
         } else if (icon !is AdaptiveIconDrawable && looks.on("normalize")) {
             icon = normalized(icon)
         }
-        return if (outline != null && icon is AdaptiveIconDrawable) ShapedIcon(icon, outline) else icon
+        return flat(if (outline != null && icon is AdaptiveIconDrawable) ShapedIcon(icon, outline) else icon)
     }
+
+    private fun flat(icon: Drawable) = flatIcon(context, icon, size)
 
     /** Scales a legacy icon so its visible (non-transparent) part fills [NORMAL_FILL] of the icon box. */
     private fun normalized(icon: Drawable): Drawable {
@@ -247,12 +260,17 @@ class Icons(private val context: Context, private val looks: Looks) {
             (if (pkg == pack?.pkg) pack else loadIconPack(context, pkg))?.drawable(name)
         }
         custom.startsWith("uri:") -> runCatching {
-            context.contentResolver.openInputStream(Uri.parse(custom.removePrefix("uri:")))!!.use {
-                BitmapDrawable(context.resources, android.graphics.BitmapFactory.decodeStream(it))
+            // A photo picked as an icon can be 12 MP (48 MB decoded): read its size first and decode it subsampled.
+            val uri = Uri.parse(custom.removePrefix("uri:"))
+            val opts = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(uri)!!.use { android.graphics.BitmapFactory.decodeStream(it, null, opts) }
+            opts.inSampleSize = sampleSize(minOf(opts.outWidth, opts.outHeight), size); opts.inJustDecodeBounds = false
+            context.contentResolver.openInputStream(uri)!!.use {
+                BitmapDrawable(context.resources, android.graphics.BitmapFactory.decodeStream(it, null, opts))
             }
         }.getOrNull()
         else -> null
-    }
+    }?.let(::flat)
 
     /** ADW-style theming for apps the pack doesn't list: back plate, masked and scaled icon, overlay. */
     private fun autogen(icon: Drawable, pkg: String): Drawable? {
