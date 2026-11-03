@@ -417,10 +417,14 @@ class MainActivity : VulcanActivity() {
         if (!auto.exists() || System.currentTimeMillis() - auto.lastModified() > 24 * 3600_000L) runCatching { store.rotateAutoBackup() }
     }
 
-    /** Under memory pressure, forget icons no view shows (drawer apps scrolled past); they're redrawn when next needed. */
+    /**
+     * Once home is out of sight, forget icons no view shows (drawer apps scrolled past, ~110 kB each); they're read back
+     * from [appCache] when next needed. Their pixels are freed only by a GC, which otherwise came seconds to minutes
+     * later or not before the next drawer open; with the ~7 MB Java heap one costs a few ms.
+     */
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        @Suppress("DEPRECATION") if (level >= TRIM_MEMORY_BACKGROUND) iconCache.clear()
+        if (level >= TRIM_MEMORY_UI_HIDDEN) { iconCache.clear(); System.gc() }
     }
 
     override fun onResume() {
