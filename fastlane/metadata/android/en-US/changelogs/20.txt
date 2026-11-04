@@ -1,0 +1,4 @@
+- Smarter drawer search: typo and initials matching, app shortcuts, Android settings, calculations, timers and alarms.
+- Optional themed icons on Android 13 and later.
+- Copy drawer folders to home. Smart folders categorize more apps and can be topped up.
+- Fix crashes from malformed restored backups and refresh open folders after removing an app.
