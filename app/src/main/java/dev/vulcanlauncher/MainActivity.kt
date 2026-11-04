@@ -121,6 +121,8 @@ class MainActivity : VulcanActivity() {
     var overlayClosed: () -> Unit = {}
     /** Plays the open overlay's exit animation, then calls its argument; null: the overlay just goes. */
     var overlayExit: ((done: () -> Unit) -> Unit)? = null
+    /** Shows the open folder window's current apps after one is taken out; null when no folder is open. */
+    var refillFolder: (() -> Unit)? = null
     val views = HashMap<Item, View>()
     val viewItems = HashMap<View, Item>()
     val folderFx = FolderFx(this)
@@ -1388,7 +1390,7 @@ class MainActivity : VulcanActivity() {
                 val hidden = app.key in store.strings("hidden")
                 tile(if (hidden) "show" else "hide", getString(if (hidden) R.string.unhide else R.string.hide)) { toggleHidden(app.key) }
                 tile("tabs", getString(R.string.menu_group)) { addToGroup(app.key) }
-                if (payload is GroupChild) tile("close", getString(R.string.remove)) { removeFromGroup(payload) }
+                if (payload is GroupChild) tile("close", getString(R.string.remove)) { removeFromGroup(payload); refillFolder?.invoke() }
             }
             item != null && !locked -> {
                 if (!item.isBlock) tile("edit", getString(R.string.edit)) { editItem(item) }
@@ -1409,7 +1411,7 @@ class MainActivity : VulcanActivity() {
                 if (!locked) tile("add", getString(R.string.menu_add)) { addItem(groupItem(payload)) }
                 tile("edit", getString(R.string.edit)) { editGroup(payload) }
             }
-            payload is FolderChild && !locked -> tile("close", getString(R.string.remove)) { removeFromFolder(payload); save(); render() }
+            payload is FolderChild && !locked -> tile("close", getString(R.string.remove)) { removeFromFolder(payload); save(); render(); refillFolder?.invoke() }
         }
         if (app != null) {
             tile("info", getString(R.string.app_info)) { launcherApps.startAppDetailsActivity(app.info.componentName, app.info.user, null, null) }

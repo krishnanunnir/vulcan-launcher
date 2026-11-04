@@ -845,7 +845,11 @@ class Drawer(private val a: MainActivity) {
                     apps = group.apps.mapNotNull { a.apps[it] }
                     a.saveGroups(groups().map { if (it.name == group.name) group else it })
                     folderItems(group)
-                }, icon = (v as? IconView)?.image) { i -> GroupChild(group.name, apps[i]) }
+                }, icon = (v as? IconView)?.image, reload = {
+                    groups().firstOrNull { it.name == group.name && it.type == "folder" }?.let {
+                        group = it; apps = it.apps.mapNotNull { k -> a.apps[k] }; folderItems(it)
+                    }
+                }) { i -> GroupChild(group.name, apps[i]) }
             }
             is Entry.WebE -> a.webSearch(e.query)
             is Entry.ContactE -> runCatching { a.startActivity(Intent(Intent.ACTION_VIEW, e.uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }

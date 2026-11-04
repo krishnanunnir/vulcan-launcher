@@ -166,6 +166,7 @@ fun MainActivity.closeOverlay() {
     // An exit animation plays in the root's overlay layer: drawn, but already gone for touch, drags and Back.
     overlayExit?.let { exit -> root.overlay.add(v); exit { root.overlay.remove(v) } }
     overlayExit = null
+    refillFolder = null
     if (!drawer.visible) blurHome(false)
     overlayClosed().also { overlayClosed = {} }
 }

@@ -330,6 +330,8 @@ fun MainActivity.openFolder(item: Item) {
         folder.children
     }, icon = (views[item] as? IconView)?.image, more = { v ->
         showMenu(screenRect(v), narrow = true) { addActions(folderActions(folder, reopen = true), 4, lead = setOf("check", "sort")) }
+    }, reload = {
+        items.firstOrNull { it.folder && it.page == folder.page && it.x == folder.x && it.y == folder.y }?.also { folder = it }?.children
     }) { FolderChild(folder, it) }
 }
 
@@ -390,7 +392,7 @@ fun folderGrid(n: Int, cellW: Int, minW: Int, avail: Int, want: Int? = null): Pa
  */
 fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename: ((String) -> Unit)?,
                                   reorder: ((from: Int, to: Int) -> List<Item>)? = null, icon: View? = null,
-                                  more: ((View) -> Unit)? = null, payload: (Int) -> Any) {
+                                  more: ((View) -> Unit)? = null, reload: (() -> List<Item>?)? = null, payload: (Int) -> Any) {
     val anchor = icon?.takeIf { it.isLaidOut }?.let(::screenRect)
     val full = looks.str("folderWindow") == "fullscreen"
     val base = style("")
@@ -555,6 +557,8 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         })
     }
     showOverlay(dim, depth = false) { onRename?.invoke(name.text.toString().trim()) }
+    // A folder that's gone (or became a single app) closes; the grid keeps its size, so the last slots stay empty.
+    if (reload != null) refillFolder = { reload()?.let(::fill) ?: closeOverlay() }
     if (spot != null && anchor != null) {
         val corner = looks.int("folderRadius") * dp
         val iconCorner = minOf(anchor.width(), anchor.height()) * if (looks.str("folderBg") == "square") 0.2f else 0.5f
