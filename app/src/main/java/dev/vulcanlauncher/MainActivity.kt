@@ -1264,9 +1264,16 @@ class MainActivity : VulcanActivity() {
         else -> null
     }
 
+    /** A drawer folder as a new home folder with the same apps (a copy: the drawer keeps its own). */
+    private fun groupItem(g: Group) = Item(0, 0, 0, sub, sub, folder = true, label = g.name,
+        children = g.apps.mapNotNull { apps[it] }.map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) })
+
+    /** The payload as a home item, a drawer folder included. */
+    private fun asItem(p: Any?) = if (p is Group) groupItem(p) else p as? Item
+
     /** Where dropping [payload] at ([px], [py]) would place it (grid units), or null when it can't go there. */
     private fun landing(cell: CellLayout, px: Float, py: Float, payload: Any?): Rect? {
-        val moving = payload as? Item
+        val moving = asItem(payload)
         if (moving == null && asChild(payload) == null) return null
         if (isDock(cell.page) && moving?.isBlock == true) return null
         val unit = if (isDock(cell.page)) 1 else sub
@@ -1287,7 +1294,7 @@ class MainActivity : VulcanActivity() {
         if (child != null && target != null) { dropped = true; mergeIntoFolder(target, child, payload); return true }
         val spot = landing(cell, px, py, payload) ?: return false
         dropped = true
-        val placed = ((payload as? Item) ?: child ?: return false).copy(page = cell.page, x = spot.left, y = spot.top, w = spot.width(), h = spot.height())
+        val placed = (asItem(payload) ?: child ?: return false).copy(page = cell.page, x = spot.left, y = spot.top, w = spot.width(), h = spot.height())
         detach(payload)
         items += placed
         root.tick()
@@ -1389,6 +1396,10 @@ class MainActivity : VulcanActivity() {
                     }
                 }
                 tile("close", getString(R.string.remove)) { removeItem(item); render() }
+            }
+            payload is Group -> {
+                if (!locked) tile("add", getString(R.string.menu_add)) { addItem(groupItem(payload)) }
+                tile("edit", getString(R.string.edit)) { editGroup(payload) }
             }
             payload is FolderChild && !locked -> tile("close", getString(R.string.remove)) { removeFromFolder(payload); save(); render() }
         }

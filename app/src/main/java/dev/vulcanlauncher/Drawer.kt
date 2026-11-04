@@ -701,7 +701,8 @@ class Drawer(private val a: MainActivity) {
         if (!settled) return
         when (e) {
             is Entry.AppE -> a.startDrag(v, e.app)
-            is Entry.FolderE -> a.editGroup(e.group)
+            // As an app: drag to copy it to home; its menu (Add, Edit) shows if the finger stays.
+            is Entry.FolderE -> a.startDrag(v, e.group)
             is Entry.WebE, is Entry.ContactE -> {}
         }
     }
