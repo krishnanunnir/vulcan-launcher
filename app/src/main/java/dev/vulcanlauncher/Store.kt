@@ -115,7 +115,9 @@ class Store(private val context: Context) {
      */
     fun load(sub: Int): MutableList<Item> {
         val raw = prefs.getString("items", "[]")!!
-        runCatching { return layoutIn(itemsFromJson(raw), prefs.getString("sub", null)?.toIntOrNull(), sub).toMutableList() }
+        // Subgrid factors are 1 and 2; any other (a hand-edited backup) is taken as the current one, not divided by.
+        val saved = prefs.getString("sub", null)?.toIntOrNull()?.takeIf { it == 1 || it == 2 }
+        runCatching { return layoutIn(itemsFromJson(raw), saved, sub).toMutableList() }
         runCatching { File(context.filesDir, "layout-unreadable.json").writeText(raw) }
         for (f in autoBackups) runCatching {
             val b = JSONObject(f.readText())
@@ -139,9 +141,11 @@ class Store(private val context: Context) {
         a.writeText(export())
     }
 
-    fun strings(key: String): MutableSet<String> = JSONArray(data.getString(key, "[]")).let { a -> MutableList(a.length()) { a.getString(it) }.toMutableSet() }
+    // Lenient: a restored or hand-edited value of the wrong type reads as empty instead of crashing home on every start.
+    fun strings(key: String): MutableSet<String> = (runCatching { JSONArray(data.getString(key, "[]")) }.getOrNull() ?: JSONArray())
+        .let { a -> (0 until a.length()).mapNotNull { a.opt(it) as? String }.toMutableSet() }
     fun putStrings(key: String, set: Collection<String>) = data.edit().putString(key, JSONArray(set.toList()).toString()).apply()
-    fun obj(key: String) = JSONObject(data.getString(key, "{}")!!)
+    fun obj(key: String) = runCatching { JSONObject(data.getString(key, "{}")!!) }.getOrElse { JSONObject() }
     fun putObj(key: String, o: JSONObject) = data.edit().putString(key, o.toString()).apply()
 
     /**

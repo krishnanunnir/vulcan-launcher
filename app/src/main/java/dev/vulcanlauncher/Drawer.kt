@@ -23,11 +23,14 @@ import kotlin.math.abs
 /** A drawer tab or drawer folder: [type] is "tab" or "folder"; [apps] are app keys. */
 data class Group(val name: String, val type: String, val apps: List<String>)
 
-fun groupsFromJson(s: String): List<Group> = JSONArray(s).let { a ->
-    List(a.length()) {
-        val o = a.getJSONObject(it)
-        val apps = o.getJSONArray("apps")
-        Group(o.getString("name"), o.getString("type"), List(apps.length()) { i -> apps.getString(i) })
+/** The groups in [s]. A restored or hand-edited file can hold anything: what isn't a group is skipped, never thrown. */
+fun groupsFromJson(s: String): List<Group> = (runCatching { JSONArray(s) }.getOrNull() ?: JSONArray()).let { a ->
+    (0 until a.length()).mapNotNull {
+        val o = a.optJSONObject(it) ?: return@mapNotNull null
+        val name = o.opt("name") as? String ?: return@mapNotNull null
+        val type = o.opt("type") as? String ?: return@mapNotNull null
+        val apps = o.optJSONArray("apps") ?: JSONArray()
+        Group(name, type, (0 until apps.length()).mapNotNull { i -> apps.opt(i) as? String })
     }
 }
 

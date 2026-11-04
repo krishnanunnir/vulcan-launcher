@@ -101,4 +101,14 @@ class StoreTest {
         assertEquals(groups, files["data"]!!["groups"])
         assertEquals("", files["data"]!!["pendingWidget"])
     }
+
+    @Test
+    fun groupsFromAnything() {
+        // A restored or hand-edited file can hold anything here; home must still start (it read these on every refresh).
+        for (bad in listOf("oops", "{\"a\":1}", "5", "")) assertEquals(emptyList<Group>(), groupsFromJson(bad))
+        val s = """[{"type":"folder"}, 5, null, {"name":"X","type":"folder","apps":"no"},
+            {"name":"Y","type":"tab","apps":["a",1,null,{"b":2},"c"]}, {"name":7,"type":"tab","apps":[]}]"""
+        assertEquals(listOf(Group("X", "folder", emptyList()), Group("Y", "tab", listOf("a", "c"))), groupsFromJson(s))
+        assertEquals(listOf(Group("Z", "folder", listOf("k"))), groupsFromJson(groupsToJson(listOf(Group("Z", "folder", listOf("k"))))))
+    }
 }
