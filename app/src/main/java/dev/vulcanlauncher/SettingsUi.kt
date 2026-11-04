@@ -747,15 +747,37 @@ fun VulcanActivity.addToGroup(key: String) {
         .show()
 }
 
-/** Groups apps into drawer folders by the category each app declares (games, social, productivity…). */
+/** Groups apps into drawer folders by category (see [smartCategory]); run again, it tops up the folders it made. */
 private fun SettingsActivity.smartFolders() {
-    val groups = home.drawer.groups()
-    val byCat = home.apps.values.groupBy { it.info.applicationInfo.category }.filterKeys { it != ApplicationInfo.CATEGORY_UNDEFINED }
-    val made = byCat.filterValues { it.size >= 2 }.mapNotNull { (cat, list) ->
-        val name = ApplicationInfo.getCategoryTitle(this, cat)?.toString() ?: return@mapNotNull null
-        if (groups.any { it.name == name }) null else Group(name, "folder", list.map { it.key })
+    // Apps whose intent filters say what they are, for those that declare no category.
+    fun role(cat: Int, vararg intents: Intent) = intents.flatMap { packageManager.queryIntentActivities(it, 0) }.map { it.activityInfo.packageName to cat }
+    fun main(c: String) = Intent(Intent.ACTION_MAIN).addCategory(c)
+    val roles = (role(CAT_TOOLS, main(Intent.CATEGORY_APP_CALCULATOR), main(Intent.CATEGORY_APP_FILES)) +
+        role(ApplicationInfo.CATEGORY_NEWS, main(Intent.CATEGORY_APP_WEATHER)) +
+        role(ApplicationInfo.CATEGORY_PRODUCTIVITY, main(Intent.CATEGORY_APP_CALENDAR), main(Intent.CATEGORY_APP_EMAIL),
+            Intent(Intent.ACTION_SENDTO, android.net.Uri.parse("mailto:"))) +
+        role(ApplicationInfo.CATEGORY_SOCIAL, main(Intent.CATEGORY_APP_MESSAGING), main(Intent.CATEGORY_APP_CONTACTS),
+            Intent(Intent.ACTION_SENDTO, android.net.Uri.parse("smsto:")), Intent(Intent.ACTION_DIAL)) +
+        role(ApplicationInfo.CATEGORY_MAPS, main(Intent.CATEGORY_APP_MAPS)) +
+        role(ApplicationInfo.CATEGORY_AUDIO, main(Intent.CATEGORY_APP_MUSIC)) +
+        role(CAT_HEALTH, main(Intent.CATEGORY_APP_FITNESS)) +
+        role(ApplicationInfo.CATEGORY_IMAGE, main(Intent.CATEGORY_APP_GALLERY), Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE))
+        ).reversed().toMap() // the first role listed wins
+    val names = mapOf(CAT_FINANCE to R.string.cat_finance, CAT_SHOPPING to R.string.cat_shopping, CAT_HEALTH to R.string.cat_health, CAT_TOOLS to R.string.cat_tools)
+    @Suppress("DEPRECATION") val byName = home.apps.values.mapNotNull { a ->
+        val ai = a.info.applicationInfo
+        val cat = smartCategory(ai.category, ai.flags and ApplicationInfo.FLAG_IS_GAME != 0, roles[a.pkg], a.pkg, a.title,
+            ai.flags and ApplicationInfo.FLAG_SYSTEM != 0) ?: return@mapNotNull null
+        val name = names[cat]?.let(::getString) ?: ApplicationInfo.getCategoryTitle(this, cat)?.toString() ?: return@mapNotNull null
+        name to a
+    }.groupBy({ it.first }, { it.second }).mapValues { (_, l) -> l.sortedBy { it.title.lowercase() }.map { it.key } }
+    val (groups, made, added) = smartGroups(home.drawer.groups(), byName)
+    when {
+        made > 0 -> toast(resources.getQuantityString(R.plurals.created_folders, made, made))
+        added > 0 -> toast(resources.getQuantityString(R.plurals.added_to_folders, added, added))
+        else -> { toast(getString(R.string.no_new_categories)); return }
     }
-    if (made.isEmpty()) toast(getString(R.string.no_new_categories)) else { saveGroups(groups + made); toast(resources.getQuantityString(R.plurals.created_folders, made.size, made.size)) }
+    saveGroups(groups)
 }
 
 // ---- Backup, permissions ----

@@ -82,4 +82,32 @@ class OfflineFeaturesTest {
             <int name="dock_grid_cols" value="4" /><boolean name="x" value="true" /><int name="desktop_page_count" value="2" /></map>"""
         assertEquals(mapOf("cols" to "6", "rows" to "7", "dockCols" to "4", "pages" to "2"), importedPrefs(xml))
     }
+
+    @Test
+    fun smartFolders() {
+        val none = android.content.pm.ApplicationInfo.CATEGORY_UNDEFINED
+        val social = android.content.pm.ApplicationInfo.CATEGORY_SOCIAL
+        fun cat(pkg: String, label: String, system: Boolean = false) = smartCategory(none, false, null, pkg, label, system)
+        assertEquals(android.content.pm.ApplicationInfo.CATEGORY_AUDIO, smartCategory(android.content.pm.ApplicationInfo.CATEGORY_AUDIO, false, null, "x", "x", false))
+        assertEquals(android.content.pm.ApplicationInfo.CATEGORY_GAME, smartCategory(none, true, social, "x", "x", false))
+        assertEquals(CAT_TOOLS, smartCategory(none, false, CAT_TOOLS, "com.whatsapp", "WhatsApp", false)) // role beats words
+        assertEquals(social, cat("com.whatsapp", "WhatsApp"))
+        assertEquals(CAT_FINANCE, cat("com.phonepe.app", "PhonePe"))
+        assertEquals(social, cat("com.google.android.dialer", "Phone", system = true)) // not Tools
+        assertEquals(android.content.pm.ApplicationInfo.CATEGORY_AUDIO, cat("com.amazon.mp3", "Amazon Music")) // not shopping
+        assertEquals(android.content.pm.ApplicationInfo.CATEGORY_VIDEO, cat("com.amazon.avod.thirdpartyclient", "Prime Video"))
+        assertEquals(CAT_SHOPPING, cat("in.amazon.mShop.android.shopping", "Amazon"))
+        assertNull(cat("com.example.display", "Play")) // "play" and "display" aren't "pay"
+        assertNull(cat("org.example.thing", "Thing"))
+        assertEquals(CAT_TOOLS, cat("com.sec.android.app.something", "Something", system = true))
+
+        val groups = listOf(Group("Social", "folder", listOf("a")), Group("Mine", "folder", listOf("b")), Group("Work", "tab", listOf("c")))
+        val (out, made, added) = smartGroups(groups, mapOf("Social" to listOf("a", "b", "d"), "Games" to listOf("e", "f"), "News" to listOf("g"), "Work" to listOf("h", "i")))
+        assertEquals(listOf("a", "d"), out.first { it.name == "Social" }.apps) // b stays in Mine
+        assertEquals(listOf("e", "f"), out.first { it.name == "Games" }.apps)
+        assertTrue(out.none { it.name == "News" }) // one app isn't a folder
+        assertEquals(1, out.count { it.name == "Work" }) // a tab's name isn't reused
+        assertEquals(1, made)
+        assertEquals(1, added)
+    }
 }

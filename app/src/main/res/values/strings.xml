@@ -396,6 +396,10 @@
     <string name="move_right">Move right</string>
     <string name="delete">Delete</string>
     <string name="add_to_group">Add to group</string>
+    <string name="cat_finance">Finance</string>
+    <string name="cat_shopping">Shopping &amp; food</string>
+    <string name="cat_health">Health &amp; fitness</string>
+    <string name="cat_tools">Tools</string>
     <string name="no_new_categories">No new categories to group</string>
     <string name="reset_defaults">Reset to defaults</string>
     <string name="restore_failed">Restore failed: %1$s</string>
@@ -507,6 +511,10 @@
     <plurals name="filter_icons">
         <item quantity="one">Filter %1$d icon</item>
         <item quantity="other">Filter %1$d icons</item>
+    </plurals>
+    <plurals name="added_to_folders">
+        <item quantity="one">Added %1$d app to folders</item>
+        <item quantity="other">Added %1$d apps to folders</item>
     </plurals>
     <plurals name="created_folders">
         <item quantity="one">Created %1$d folder</item>
