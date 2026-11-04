@@ -597,4 +597,31 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="persona_share">Поделиться карточкой</string>
     <string name="persona_share_failed">Не удалось поделиться карточкой. Попробуйте ещё раз.</string>
     <string name="persona_card_footer">Один из тех, кто стоит за вашим главным экраном.</string>
+    <string name="contributors">Участники</string>
+    <string name="contrib_info">Люди, которые делают Vulcan</string>
+    <string name="contrib_thanks">Спасибо всем, кто создавал Vulcan.</string>
+    <string name="contrib_creator">Создатель</string>
+    <string name="persona_architect">Архитектор</string>
+    <string name="persona_architect_signature">Превращает пустой экран в дом.</string>
+    <string name="persona_polyglot">Полиглот</string>
+    <string name="persona_polyglot_line">Научил Vulcan немецкому и русскому.</string>
+    <string name="persona_polyglot_signature">Помогает Vulcan чувствовать себя как дома на новых языках.</string>
+    <string name="persona_bug_hunter">Охотник за багами</string>
+    <string name="persona_bug_hunter_line">Нашёл баги, прячущиеся между жестами.</string>
+    <string name="persona_bug_hunter_signature">Острый глаз, чёткий отчёт и ещё один тест.</string>
+    <string name="persona_refiner">Перфекционист</string>
+    <string name="persona_close">Закрыть</string>
+    <string name="persona_share_text">%1$s — %2$s. %3$s\n\nПознакомьтесь с людьми, которые создают Vulcan: Настройки → Участники.\nhttps://github.com/krishnanunnir/vulcan-launcher</string>
+    <string name="persona_card_brand">Vulcan / Участники</string>
+    <string name="persona_card_description">%1$s, %2$s. %3$s</string>
+    <string name="home_more">Ещё</string>
+    <string name="page_add">Добавить страницу</string>
+    <string name="folder_select_apps">Выбрать приложения</string>
+    <string name="folder_sort">Сортировать А–Я</string>
+    <plurals name="custom_colors_set">
+        <item quantity="one">%1$d цвет изменён</item>
+        <item quantity="few">%1$d цвета изменено</item>
+        <item quantity="many">%1$d цветов изменено</item>
+        <item quantity="other">%1$d цвета изменено</item>
+    </plurals>
 </resources>
