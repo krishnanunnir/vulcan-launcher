@@ -18,6 +18,8 @@
          contacts → contact search and favourite contacts; calendar → upcoming events; coarse location → sunset night mode. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <!-- "timer 5m" and "alarm 7:30" in drawer search hand the time to the clock app. Normal permission. -->
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <!-- "Hide clock": can only be granted from a computer (adb shell pm grant), never by the app itself. -->

@@ -145,6 +145,7 @@ val LOOKS = listOf(
     Choice(LOOK, "reshape", R.string.set_reshape, "off", listOf("off", "unthemed", "always"), listOf(R.string.reshape_off, R.string.reshape_unthemed, R.string.reshape_always)),
     onOff(LOOK, "autogen", R.string.set_autogen, true),
     onOff(LOOK, "normalize", R.string.set_normalize, false),
+    onOff(LOOK, "themedIcons", R.string.set_themedIcons, false, R.string.set_themedIcons_info),
     onOff(LOOK, "iconShadow", R.string.set_iconShadow, false),
     onOff(LOOK, "wiggle", R.string.set_wiggle, false),
     Choice(LOOK, "launchAnim", R.string.set_launchAnim, "zoom", listOf("system", "zoom", "reveal", "fade", "slideUp", "slideLeft", "none"), listOf(R.string.launchAnim_system, R.string.launchAnim_zoom, R.string.launchAnim_reveal, R.string.launchAnim_fade, R.string.launchAnim_slideup, R.string.launchAnim_slideleft, R.string.launchAnim_none)),

@@ -681,6 +681,14 @@ class MainActivity : VulcanActivity() {
             .orEmpty().sortedBy { it.rank }.take(4) // Launcher3's MAX_SHORTCUTS
     }.getOrDefault(emptyList())
 
+    /** Every app's shortcuts in every profile, for drawer search; none unless Vulcan is the default home (an Android rule). */
+    fun allShortcuts(): List<ShortcutInfo> {
+        if (!runCatching { launcherApps.hasShortcutHostPermission() }.getOrDefault(false)) return emptyList()
+        val query = LauncherApps.ShortcutQuery().setQueryFlags(LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST)
+        // A locked profile throws; its shortcuts are left out.
+        return launcherApps.profiles.flatMap { u -> runCatching { launcherApps.getShortcuts(query, u).orEmpty() }.getOrDefault(emptyList()) }
+    }
+
     private fun pinnedShortcut(item: Item): ShortcutInfo? = runCatching {
         launcherApps.getShortcuts(LauncherApps.ShortcutQuery().setPackage(item.pkg).setShortcutIds(listOf(item.shortcutId))
             .setQueryFlags(LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED), userOf(item.user))?.firstOrNull()

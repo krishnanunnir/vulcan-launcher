@@ -279,8 +279,18 @@ class Icons(private val context: Context, private val looks: Looks) {
      * Everything that shapes an icon here, for [AppCache]: the pack and its version, the options, the size, dark mode
      * (an icon can have a night variant) and the system's adaptive-icon mask, which a theme can change.
      */
+    /**
+     * Themed icons (Android 13+): an app's monochrome layer in the system's wallpaper colours, light or dark, as the
+     * platform's own launcher pairs them. Null when off.
+     */
+    private val themeColors: Pair<Int, Int>? = if (android.os.Build.VERSION.SDK_INT >= 33 && looks.on("themedIcons")) {
+        val night = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+        if (night) context.getColor(android.R.color.system_neutral1_800) to context.getColor(android.R.color.system_accent1_100)
+        else context.getColor(android.R.color.system_accent1_100) to context.getColor(android.R.color.system_neutral2_700)
+    } else null
+
     val signature: String = listOf(looks.iconPack, pack?.let { runCatching { context.packageManager.getPackageInfo(it.pkg, 0).lastUpdateTime }.getOrNull() },
-        looks.str("shape"), looks.str("reshape"), looks.on("normalize"), looks.on("autogen"), size,
+        looks.str("shape"), looks.str("reshape"), looks.on("normalize"), looks.on("autogen"), size, themeColors,
         context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK,
         context.resources.getIdentifier("config_icon_mask", "string", "android").takeIf { it != 0 }?.let { context.resources.getString(it) },
     ).joinToString("|")
@@ -290,6 +300,10 @@ class Icons(private val context: Context, private val looks: Looks) {
         custom(custom)?.let { return it }
         val themed = pack?.map?.get("$pkg/$cls")?.let { pack.drawable(it) }
         var icon = themed ?: base()
+        // An icon pack's own icon wins; apps with no monochrome layer keep their colours.
+        if (themed == null && themeColors != null && android.os.Build.VERSION.SDK_INT >= 33) (icon as? AdaptiveIconDrawable)?.monochrome?.let { mono ->
+            icon = AdaptiveIconDrawable(ColorDrawable(themeColors.first), mono.mutate().apply { setTint(themeColors.second) })
+        }
         if (themed == null && pack != null && looks.on("autogen") && pack.back.isNotEmpty()) autogen(icon, pkg)?.let { return it }
         val reshape = looks.str("reshape")
         if (icon !is AdaptiveIconDrawable && (reshape == "always" || reshape == "unthemed" && themed == null)) {

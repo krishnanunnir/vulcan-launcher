@@ -38,8 +38,9 @@ The wallpaper in the screenshots is [docs/wallpaper-dusk.jpg](docs/wallpaper-dus
 
 - **Arrange your home screen your way:** grids up to 12 by 12, up to 9 pages, resizable widgets, and a dock you can hide or scroll. Lock the layout to prevent accidental icon and page edits.
 - **Find apps fast:** an A to Z app drawer with search, an optional letter index, and tabs (swipe sideways to switch) or folders to group apps. Hide the apps you don't want to see.
+- **Search does more:** it forgives typos ("whtsapp") and finds apps by initials ("gm" for Google Maps). It also finds app shortcuts ("new tab") and Android settings pages ("wifi"), works out sums ("12*3-4", tap to copy), and sets timers and alarms ("timer 5m", "alarm 7:30pm") in your clock app.
 - **Use gestures:** swipe, double-tap or pinch on the home screen to open notifications, an app, the app drawer, the screen lock and more. Each app icon can have its own swipe-up action too.
-- **Change the look:** icon packs, icon shapes, your own icons and labels, folder styles, and a night mode that follows the system or a schedule.
+- **Change the look:** icon packs, themed one-colour icons (Android 13+), icon shapes, your own icons and labels, folder styles, and a night mode that follows the system or a schedule.
 - **Long-press an app** for its shortcuts, notifications, app info or uninstall.
 - **Swipe right on the first page** for the Now page: the date, music controls, upcoming events and favourite contacts.
 - **Back up** your whole setup to a file and restore it later.
@@ -118,6 +119,7 @@ Most permissions below stay **off until you turn on the feature that needs them*
 | Notification dots and counts on icons, notifications in the long-press menu, and music controls on the Now page. Notifications are counted in memory and never saved. | **Off** until you turn it on in Settings → Permissions. | Notification access (`BIND_NOTIFICATION_LISTENER_SERVICE`) |
 | Showing Private Space (Android 15+) in its own drawer tab, and locking or unlocking it. Android only lists it to your default home app, and unlocking always asks for your screen lock. | Always available. Granted at install. | `ACCESS_HIDDEN_PROFILES` |
 | Searching your contacts from the app drawer, and favourite contacts on the Now page. | Asked only when you turn one of those on. | `READ_CONTACTS` |
+| Setting a timer or alarm from drawer search ("timer 5m"). Vulcan only hands the time to your clock app, which shows it before starting. | Always available. Granted at install. | `SET_ALARM` |
 | Upcoming events on the Now page. | Asked only when you turn it on. | `READ_CALENDAR` |
 | "Sunset to sunrise" night mode. It uses the last location your phone already knows and works out the sun times on the phone. | Asked only when you pick that mode. | `ACCESS_COARSE_LOCATION` |
 | The screen lock, recent apps and power menu gestures (Android offers no other way). It can't read anything on your screen. | **Off** until you turn it on. | Accessibility service (`BIND_ACCESSIBILITY_SERVICE`, `canRetrieveWindowContent="false"`) |

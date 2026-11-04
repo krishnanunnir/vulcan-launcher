@@ -1,6 +1,7 @@
 package dev.vulcanlauncher
 
 import android.content.Intent
+import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.Gravity
@@ -175,6 +176,17 @@ private const val APP_VIEW = "app"
 /** Material "emphasized" easing: quick start, long soft landing. */
 val EASE = android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f)
 
+/** Android's settings pages that drawer search can open, by title. */
+private val SETTINGS_PAGES = listOf(R.string.page_wifi to Settings.ACTION_WIFI_SETTINGS, R.string.page_bluetooth to Settings.ACTION_BLUETOOTH_SETTINGS,
+    R.string.page_network to Settings.ACTION_WIRELESS_SETTINGS, R.string.page_airplane to Settings.ACTION_AIRPLANE_MODE_SETTINGS,
+    R.string.page_display to Settings.ACTION_DISPLAY_SETTINGS, R.string.page_sound to Settings.ACTION_SOUND_SETTINGS,
+    R.string.page_battery to Intent.ACTION_POWER_USAGE_SUMMARY, R.string.page_apps to Settings.ACTION_APPLICATION_SETTINGS,
+    R.string.page_default_apps to Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS, R.string.page_storage to Settings.ACTION_INTERNAL_STORAGE_SETTINGS,
+    R.string.page_location to Settings.ACTION_LOCATION_SOURCE_SETTINGS, R.string.page_security to Settings.ACTION_SECURITY_SETTINGS,
+    R.string.page_accessibility to Settings.ACTION_ACCESSIBILITY_SETTINGS, R.string.page_language to Settings.ACTION_LOCALE_SETTINGS,
+    R.string.page_date to Settings.ACTION_DATE_SETTINGS, R.string.page_developer to Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS,
+    R.string.page_about to Settings.ACTION_DEVICE_INFO_SETTINGS)
+
 /** The app drawer overlay. Built once per activity; [refresh] rebuilds its contents. */
 class Drawer(private val a: MainActivity) {
     private sealed class Entry {
@@ -182,6 +194,8 @@ class Drawer(private val a: MainActivity) {
         class FolderE(val group: Group) : Entry()
         class WebE(val query: String) : Entry()
         class ContactE(val name: String, val photo: String?, val uri: android.net.Uri) : Entry()
+        /** A search result that does one thing when tapped: an app shortcut, a settings page, a sum, a timer. */
+        class ActionE(val label: String, val icon: android.graphics.drawable.Drawable, val run: (View?) -> Unit) : Entry()
     }
 
     private val styleName = a.looks.str("drawerStyle")
@@ -594,6 +608,7 @@ class Drawer(private val a: MainActivity) {
         a.getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(search.windowToken, 0)
         search.text.clear()
         search.clearFocus()
+        shortcuts = null
         showHidden = false
         if (animate) settle(open = false)
         else { stop(); if (a.overlay == null) a.setDepth(0f); gone() }
@@ -621,7 +636,10 @@ class Drawer(private val a: MainActivity) {
         if (tab == "work" && !workTab || tab == "private" && !privateTab ||
             tab.isNotEmpty() && tab != "work" && tab != "private" && groups.none { it.name == tab && it.type == "tab" }) tab = ""
         entries = if (q.isNotEmpty()) {
-            ordered.filter { (showHidden || it.key !in hidden) && a.label(it).contains(q, ignoreCase = true) }.map { Entry.AppE(it) } +
+            // Best match first; sortedByDescending is stable, so equal matches keep the drawer's order.
+            quick(q) + ordered.filter { showHidden || it.key !in hidden }.map { it to matchScore(a.label(it), q) }
+                .filter { it.second > 0 }.sortedByDescending { it.second }.map { Entry.AppE(it.first) } +
+                shortcutHits(q, hidden) + settingsHits(q) +
                 contacts(q) + if (a.looks.on("webSearch")) listOf(Entry.WebE(q)) else emptyList()
         } else {
             val keys = tabApps(ordered.map { it.key }, groups, tab, hidden, showHidden, a.looks.on("keepInAll"), work, workTab, private)
@@ -636,7 +654,7 @@ class Drawer(private val a: MainActivity) {
         grid.isStackFromBottom = fromBottom || bottomBar && q.isNotEmpty()
         index.visibility = if (q.isEmpty() && entries.isNotEmpty()) View.VISIBLE else View.GONE
         empty.text = a.getString(R.string.no_apps_match, q)
-        empty.visibility = if (q.isNotEmpty() && entries.none { it is Entry.AppE || it is Entry.ContactE }) View.VISIBLE else View.GONE
+        empty.visibility = if (q.isNotEmpty() && entries.none { it !is Entry.WebE }) View.VISIBLE else View.GONE
         buildTabs(groups, workTab, privateTab, q.isEmpty())
         privateBar.visibility = if (q.isEmpty() && tab == "private") View.VISIBLE else View.GONE
         if (privateBar.visibility == View.VISIBLE) buildPrivateBar()
@@ -655,6 +673,58 @@ class Drawer(private val a: MainActivity) {
             }
         }
         return out
+    }
+
+    private fun glyph(symbol: String? = null, text: String? = null) = GlyphIcon(a.m3.primaryContainer, a.m3.onPrimaryContainer, text, symbol)
+
+    /** A sum's answer (tap to copy it), or a timer or alarm to set, as the first result. */
+    private fun quick(q: String): List<Entry> {
+        calc(q)?.let { v ->
+            val t = calcText(v)
+            return listOf(Entry.ActionE("= $t", glyph(text = "=")) {
+                a.getSystemService(android.content.ClipboardManager::class.java).setPrimaryClip(android.content.ClipData.newPlainText(t, t))
+                // Android 13+ confirms a copy itself.
+                if (android.os.Build.VERSION.SDK_INT < 33) a.toast(R.string.copied)
+            })
+        }
+        fun clock(label: String, intent: Intent) = listOf(Entry.ActionE(label, glyph("clock")) {
+            runCatching { a.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { a.toast(R.string.no_clock_app) }
+        })
+        return when (val c = command(q)) {
+            is Command.Timer -> clock(a.getString(R.string.search_timer, android.text.format.DateUtils.formatElapsedTime(c.seconds.toLong())),
+                Intent(android.provider.AlarmClock.ACTION_SET_TIMER).putExtra(android.provider.AlarmClock.EXTRA_LENGTH, c.seconds))
+            is Command.Alarm -> clock(a.getString(R.string.search_alarm, android.text.format.DateFormat.getTimeFormat(a).format(
+                    java.util.Calendar.getInstance().apply { set(java.util.Calendar.HOUR_OF_DAY, c.hour); set(java.util.Calendar.MINUTE, c.minute) }.time)),
+                Intent(android.provider.AlarmClock.ACTION_SET_ALARM).putExtra(android.provider.AlarmClock.EXTRA_HOUR, c.hour)
+                    .putExtra(android.provider.AlarmClock.EXTRA_MINUTES, c.minute))
+            null -> emptyList()
+        }
+    }
+
+    /** Every app's shortcuts, read on the first search after the drawer opens and dropped when it closes. */
+    private var shortcuts: List<android.content.pm.ShortcutInfo>? = null
+
+    /** Up to four app shortcuts ("New tab", "Compose") whose names match, from apps the drawer shows. */
+    private fun shortcutHits(q: String, hidden: Set<String>): List<Entry> {
+        if (q.length < 3) return emptyList()
+        val shown = a.apps.values.filter { showHidden || it.key !in hidden }.map { it.pkg to it.info.user }.toSet()
+        val all = shortcuts ?: a.allShortcuts().also { shortcuts = it }
+        return all.filter { (it.`package` to it.userHandle) in shown }.map { it to matchScore(it.shortLabel?.toString() ?: "", q) }
+            .filter { it.second >= 2 }.sortedByDescending { it.second }.take(4).map { (s, _) ->
+                // Drawn once at cell size: a shortcut's own icon can be a 108 dp adaptive one.
+                Entry.ActionE(s.shortLabel.toString(), flatIcon(a, a.shortcutIcon(s), iconStyle.sizePx)) { v -> a.startShortcut(s.`package`, s.id, s.userHandle, v) }
+            }
+    }
+
+    /** Up to three of Android's settings pages ("Wi-Fi settings", "Battery settings") whose names match. */
+    private fun settingsHits(q: String): List<Entry> {
+        if (q.length < 3) return emptyList()
+        return SETTINGS_PAGES.map { a.getString(it.first) to it.second }.filter { matchScore(it.first, q) >= 2 }
+            .sortedByDescending { matchScore(it.first, q) }.take(3).map { (title, action) ->
+                Entry.ActionE(title, glyph("settings")) {
+                    runCatching { a.startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { a.toast(R.string.cant_open, title) }
+                }
+            }
     }
 
     /** Something it shows changed: rebuilt now if open, else on the next open. */
@@ -750,6 +820,7 @@ class Drawer(private val a: MainActivity) {
         is Entry.ContactE -> IconView(a, e.name, e.photo?.let { p ->
             runCatching { a.contentResolver.openInputStream(android.net.Uri.parse(p))!!.use { android.graphics.drawable.BitmapDrawable(a.resources, android.graphics.BitmapFactory.decodeStream(it)) } }.getOrNull()
         } ?: GlyphIcon(a.m3.primaryContainer, a.m3.onPrimaryContainer, text = e.name.take(1).uppercase()), iconStyle, a.badgeStyle(), "")
+        is Entry.ActionE -> IconView(a, e.label, e.icon, iconStyle, a.badgeStyle(), "")
     }
 
     private fun folderItems(g: Group) = g.apps.mapNotNull { a.apps[it] }.map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) }
@@ -778,6 +849,7 @@ class Drawer(private val a: MainActivity) {
             }
             is Entry.WebE -> a.webSearch(e.query)
             is Entry.ContactE -> runCatching { a.startActivity(Intent(Intent.ACTION_VIEW, e.uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            is Entry.ActionE -> e.run(v)
         }
     }
 
@@ -787,7 +859,7 @@ class Drawer(private val a: MainActivity) {
             is Entry.AppE -> a.startDrag(v, e.app)
             // As an app: drag to copy it to home; its menu (Add, Edit) shows if the finger stays.
             is Entry.FolderE -> a.startDrag(v, e.group)
-            is Entry.WebE, is Entry.ContactE -> {}
+            is Entry.WebE, is Entry.ContactE, is Entry.ActionE -> {}
         }
     }
 
@@ -858,6 +930,7 @@ class Drawer(private val a: MainActivity) {
             is Entry.FolderE -> "▤"
             is Entry.WebE -> "⌕"
             is Entry.ContactE -> "☺"
+            is Entry.ActionE -> "⌕"
         }
         private var sections = arrayOf<String>()
 
