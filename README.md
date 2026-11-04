@@ -7,11 +7,15 @@
 **A home screen for Android that does what Nova Launcher does, without ads, trackers or analytics.**<br>
 It has no internet access at all, so nothing it does can leave your phone.
 
+### A fully customizable launcher under 320 KB.
+
 [![Latest release](https://img.shields.io/github/v/release/krishnanunnir/vulcan-launcher?label=release&color=E8721C)](https://github.com/krishnanunnir/vulcan-launcher/releases/latest)
 [![Android 8+](https://img.shields.io/badge/Android-8%2B-4E8F3A?logo=android&logoColor=white)](#install)
 [![No internet permission](https://img.shields.io/badge/internet%20permission-none-2A2A28)](#privacy-and-permissions)
 [![License: MIT](https://img.shields.io/github/license/krishnanunnir/vulcan-launcher?color=595752)](LICENSE)
 
+<a href="https://f-droid.org/packages/dev.vulcanlauncher/"><img src="https://f-droid.org/badge/get-it-on.png" height="66" alt="Get it on F-Droid"></a>
+<br>
 <a href="https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk"><img src="https://img.shields.io/badge/Download%20APK-E8721C?style=for-the-badge&logo=android&logoColor=white" height="44" alt="Download the latest Vulcan APK"></a>
 &nbsp;
 <a href="https://github.com/krishnanunnir/vulcan-launcher/releases"><img src="https://img.shields.io/badge/All%20releases-2A2A28?style=for-the-badge&logo=github&logoColor=white" height="44" alt="All Vulcan releases on GitHub"></a>
@@ -50,7 +54,9 @@ Long-press an empty spot on the home screen to open **Settings**.
 
 Vulcan needs Android 8 or newer.
 
-[Download the APK](https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk), then:
+The easiest way is [F-Droid](https://f-droid.org/packages/dev.vulcanlauncher/): install it from there and it keeps Vulcan up to date. F-Droid can lag a few days behind new releases.
+
+Or [download the APK](https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk), then:
 
 1. Open it on your phone and tap **Install**. Android may first ask you to allow installs from your browser or file manager.
 2. Press the **Home** button. Android asks which home app to use: pick **Vulcan**, then **Always**.
