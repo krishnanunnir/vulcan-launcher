@@ -77,4 +77,20 @@ class LooksTest {
             assertEquals(group, keys.toSet(), listed.toSet())
         }
     }
+
+    /**
+     * Settings must not grow without end (CLAUDE.md). A new setting replaces or merges an old one; raising
+     * [SETTINGS_BUDGET] needs the owner's yes, said in the commit message. Gestures are one row per input, so exempt.
+     */
+    @Test
+    fun settingsStayWithinBudget() {
+        assertTrue("${LOOKS.size} settings, budget $SETTINGS_BUDGET", LOOKS.size <= SETTINGS_BUDGET)
+        for ((group, sections) in SECTIONS) for ((title, keys) in sections)
+            if (keys !== GESTURE_KEYS) assertTrue("$group section $title has ${keys.size} rows", keys.size <= MAX_SECTION_ROWS)
+    }
+
+    private companion object {
+        const val SETTINGS_BUDGET = 118
+        const val MAX_SECTION_ROWS = 8
+    }
 }
