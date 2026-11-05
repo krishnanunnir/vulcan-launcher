@@ -274,11 +274,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="page_set_default">Сделать страницей по умолчанию</string>
     <string name="pages">Страницы</string>
     <string name="pages_hint">Коснитесь, чтобы открыть · удерживайте и перетащите, чтобы переместить или удалить</string>
-    <string name="panel_appearance">Внешний вид</string>
-    <string name="panel_apps">Приложения</string>
-    <string name="panel_interaction">Взаимодействие</string>
     <string name="panel_launcher">Лаунчер</string>
-    <string name="panel_layout">Раскладка</string>
     <string name="permissions">Разрешения</string>
     <string name="permissions_info">К чему у лаунчера есть доступ</string>
     <string name="picker_restarted">Vulcan перезапустился, пока был открыт выбор. Попробуйте ещё раз</string>

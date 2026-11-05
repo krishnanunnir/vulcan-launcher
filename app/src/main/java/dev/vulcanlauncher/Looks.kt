@@ -54,10 +54,11 @@ const val NIGHT = "Night mode"
 const val BADGES = "Notification badges"
 const val GESTURES = "Gestures & inputs"
 const val NOW = "Now page"
+const val SEARCH_GROUP = "Search"
 /** Settings groups are identified by their English names (kept in saved state and backups); these are their titles. */
 val GROUP_TITLES = mapOf(HOME to R.string.group_home, DOCK_GROUP to R.string.group_dock, DRAWER to R.string.group_drawer,
     FOLDERS to R.string.group_folders, LOOK to R.string.group_look, NIGHT to R.string.group_night, BADGES to R.string.group_badges,
-    GESTURES to R.string.group_gestures, NOW to R.string.group_now)
+    GESTURES to R.string.group_gestures, NOW to R.string.group_now, SEARCH_GROUP to R.string.group_search)
 
 val LOOKS = listOf(
     Choice(HOME, "cols", R.string.set_cols, "5", range(3, 12)),
@@ -77,8 +78,8 @@ val LOOKS = listOf(
     onOff(HOME, "infiniteScroll", R.string.set_infiniteScroll, false),
     Choice(HOME, "wallpaperScroll", R.string.set_wallpaperScroll, "on", listOf("on", "off", "reverse"), listOf(R.string.wallpaperScroll_on, R.string.wallpaperScroll_off, R.string.wallpaperScroll_reverse)),
     Choice(HOME, "searchBar", R.string.set_searchBar, "dockBelow", listOf("off", "top", "bottom", "dockAbove", "dockBelow"), listOf(R.string.searchBar_off, R.string.searchBar_top, R.string.searchBar_bottom, R.string.searchBar_dockabove, R.string.searchBar_dockbelow)),
-    Choice(HOME, "searchStyle", R.string.set_searchStyle, "pill", listOf("rect", "rounded", "pill"), listOf(R.string.searchStyle_rect, R.string.searchStyle_rounded, R.string.searchStyle_pill)),
-    color(HOME, "searchColor", R.string.set_searchColor, "system", themed = true),
+    Choice(SEARCH_GROUP, "searchStyle", R.string.set_searchStyle, "pill", listOf("rect", "rounded", "pill"), listOf(R.string.searchStyle_rect, R.string.searchStyle_rounded, R.string.searchStyle_pill)),
+    color(SEARCH_GROUP, "searchColor", R.string.set_searchColor, "system", themed = true),
     // The clock item (long-press home → Clock). "style": a big clock with the Appliance look, the date alone otherwise.
     Choice(HOME, "glanceStyle", R.string.set_glanceStyle, "style", listOf("style", "clock", "date"), listOf(R.string.drawerSearch_style, R.string.glanceStyle_clock, R.string.glanceStyle_date)),
     onOff(HOME, "lockLayout", R.string.set_lockLayout, false),
@@ -127,9 +128,9 @@ val LOOKS = listOf(
     onOff(DRAWER, "foldersFirst", R.string.set_foldersFirst, true),
     onOff(DRAWER, "keepInAll", R.string.set_keepInAll, true),
     onOff(DRAWER, "workTab", R.string.set_workTab, true),
-    onOff(DRAWER, "webSearch", R.string.set_webSearch, true, R.string.set_webSearch_info),
-    Choice(DRAWER, "searchEngine", R.string.set_searchEngine, "browser", SEARCH_ENGINES, SEARCH_ENGINE_NAMES),
-    onOff(DRAWER, "contactSearch", R.string.set_contactSearch, false, R.string.set_contactSearch_info),
+    onOff(SEARCH_GROUP, "webSearch", R.string.set_webSearch, true, R.string.set_webSearch_info),
+    Choice(SEARCH_GROUP, "searchEngine", R.string.set_searchEngine, "browser", SEARCH_ENGINES, SEARCH_ENGINE_NAMES),
+    onOff(SEARCH_GROUP, "contactSearch", R.string.set_contactSearch, false, R.string.set_contactSearch_info),
 
     Choice(FOLDERS, "folderPreview", R.string.set_folderPreview, "grid", PREVIEWS, PREVIEW_NAMES),
     Choice(FOLDERS, "folderBg", R.string.set_folderBg, "square", FOLDER_BGS, FOLDER_BG_NAMES),
@@ -180,6 +181,54 @@ val LOOKS = listOf(
 ) + GESTURE_KEYS.indices.map { Choice(GESTURES, GESTURE_KEYS[it], GESTURE_NAMES[it], GESTURE_DEFAULTS[it], ACTIONS, ACTION_NAMES, action = true) } + listOf(
     Choice(GESTURES, "homeButton", R.string.set_homeButton, "defaultpage", ACTIONS, ACTION_NAMES, action = true),
     onOff(GESTURES, "homeFirst", R.string.set_homeFirst, true),
+)
+
+/**
+ * How each settings page is laid out, as Nova 8.9.4's: titled sections of keys, in order. "@…" keys are links to other
+ * pages (Dock, Hidden apps, Drawer groups, Custom colors). A group not listed shows its settings as one untitled panel.
+ */
+val SECTIONS: Map<String, List<Pair<Int, List<String>>>> = mapOf(
+    HOME to listOf(
+        R.string.sec_layout to listOf("cols", "rows", "pages", "defaultPage", "subgrid", "iconSize", "@dock"),
+        R.string.sec_labels to listOf("labels", "labelSize", "labelColor", "labelFont", "labelLines", "labelShadow"),
+        R.string.sec_search to listOf("searchBar"),
+        R.string.sec_scroll to listOf("wallpaperScroll", "scrollEffect", "infiniteScroll", "indicator"),
+        R.string.sec_widgets to listOf("glanceStyle", "widgetRadius", "widgetOverlap"),
+        R.string.sec_status to listOf("statusBar", "darkStatusIcons", "hideClock"),
+        R.string.sec_new_apps to listOf("autoAdd"),
+        R.string.sec_advanced to listOf("lockLayout", "orientation"),
+    ),
+    DOCK_GROUP to listOf(
+        R.string.sec_layout to listOf("dock", "dockCols", "dockPages", "dockIconSize", "dockLabels"),
+        R.string.sec_background to listOf("dockBg", "dockColor", "dockAlpha", "dockShadow", "dockBehindNav"),
+        R.string.sec_advanced to listOf("swipeIndicator", "dockOverlay"),
+    ),
+    DRAWER to listOf(
+        R.string.sec_layout to listOf("drawerStyle", "drawerCols", "drawerRows", "drawerIconSize", "drawerLabels", "drawerLabelSize", "fillFromBottom"),
+        R.string.sec_colors to listOf("drawerTheme", "drawerAlpha"),
+        R.string.group_drawer to listOf("drawerSearch", "drawerSort", "frequent", "pullToSearch", "showKeyboard", "fastScroll"),
+        R.string.sec_apps to listOf("@hidden", "@groups", "foldersFirst", "keepInAll", "workTab"),
+        R.string.sec_advanced to listOf("closeAfterLaunch", "rememberPosition"),
+    ),
+    FOLDERS to listOf(
+        R.string.sec_folder_icon to listOf("folderPreview", "folderBg", "folderClip", "folderFirstBig"),
+        R.string.sec_window to listOf("folderWindow", "folderColor", "folderAlpha", "folderRadius", "folderNames", "folderSwipe"),
+        R.string.sec_layout to listOf("folderCols", "folderRows", "folderLabelSize"),
+    ),
+    SEARCH_GROUP to listOf(
+        R.string.sec_search_bar to listOf("searchStyle", "searchColor"),
+        R.string.sec_results to listOf("webSearch", "searchEngine", "contactSearch"),
+    ),
+    LOOK to listOf(
+        R.string.sec_icons to listOf("iconPack", "shape", "reshape", "autogen", "normalize", "themedIcons", "iconShadow"),
+        R.string.sec_colors to listOf("accent", "@colors"),
+        R.string.sec_animation to listOf("launchAnim", "settingsAnim", "wiggle", "blur"),
+        R.string.sec_popups to listOf("popupShortcuts", "popupNotifications", "undoBar"),
+    ),
+    GESTURES to listOf(
+        R.string.sec_buttons to listOf("homeButton", "homeFirst"),
+        R.string.sec_gestures to GESTURE_KEYS,
+    ),
 )
 
 /** Defaults before 0.16, for settings whose default changed then. "glance" on becomes a clock item ([MainActivity.build]). */

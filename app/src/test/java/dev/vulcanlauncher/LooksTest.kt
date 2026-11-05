@@ -66,4 +66,15 @@ class LooksTest {
             assertTrue(k, v in c.values && v != c.default)
         }
     }
+
+    /** Every setting of a sectioned page shows in exactly one of its sections, and every section key is a real setting. */
+    @Test
+    fun sectionsCoverEverySetting() {
+        for ((group, sections) in SECTIONS) {
+            val listed = sections.flatMap { it.second }.filterNot { it.startsWith("@") }
+            assertEquals(group, listed.size, listed.toSet().size)
+            val keys = LOOKS.filter { it.group == group }.map { it.key } + if (group == LOOK) listOf("iconPack") else emptyList()
+            assertEquals(group, keys.toSet(), listed.toSet())
+        }
+    }
 }

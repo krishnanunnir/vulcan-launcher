@@ -29,7 +29,6 @@ import kotlin.math.roundToInt
 
 private val CATEGORY_INFO = mapOf(
     HOME to ("home" to R.string.cat_home),
-    DOCK_GROUP to ("dock" to R.string.cat_dock),
     DRAWER to ("apps" to R.string.cat_drawer),
     FOLDERS to ("folder" to R.string.cat_folders),
     LOOK to ("palette" to R.string.cat_look),
@@ -37,6 +36,7 @@ private val CATEGORY_INFO = mapOf(
     BADGES to ("badge" to R.string.cat_badges),
     GESTURES to ("gesture" to R.string.cat_gestures),
     NOW to ("sun" to R.string.cat_now),
+    SEARCH_GROUP to ("search" to R.string.cat_search),
 )
 
 // Launcher pages under settings home, beside the categories.
@@ -44,7 +44,9 @@ const val BACKUP = "Backup"
 const val PERMISSIONS = "Permissions"
 const val GROUPS = "Groups"
 
-private fun depth(page: String) = when (page) { "" -> 0; COLORS -> 2; else -> 1 }
+/** Colors sits under Look & feel and Dock under Home screen, as in Nova. */
+private val PARENT = mapOf(COLORS to LOOK, DOCK_GROUP to HOME)
+private fun depth(page: String) = when (page) { "" -> 0; in PARENT -> 2; else -> 1 }
 
 /** Where each settings page was scrolled when it was left for a deeper one, so back returns to the same spot. */
 private val leftAt = mutableMapOf<String, Int>()
@@ -194,7 +196,7 @@ fun SettingsActivity.showPage(page: String, scroll: Int = 0, restoring: Boolean 
         if (field?.visibility == View.VISIBLE) {
             ime.hideSoftInputFromWindow(field.windowToken, 0)
             field.setText(""); field.visibility = View.GONE; title.visibility = View.VISIBLE; searchButton?.visibility = View.VISIBLE
-        } else when (page) { "" -> finish(); COLORS -> showPage(LOOK, leftAt[LOOK] ?: 0); else -> showPage("", leftAt[""] ?: 0) }
+        } else if (page == "") finish() else PARENT[page].orEmpty().let { showPage(it, leftAt[it] ?: 0) }
     }
     val panel = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
@@ -275,13 +277,9 @@ private fun SettingsActivity.settingsHome(page: LinearLayout): (String) -> Unit 
     fun category(name: String) = CATEGORY_INFO.getValue(name).let { (icon, info) ->
         listItem(symbol(icon, m3.onPrimaryContainer), getString(GROUP_TITLES.getValue(name)), getString(info), tonalIcon = true) { showPage(name) }
     }
-    panel(list, getString(R.string.panel_layout), listOf(HOME, DOCK_GROUP, DRAWER, FOLDERS).map(::category))
-    panel(list, getString(R.string.panel_appearance), listOf(LOOK, NIGHT, BADGES).map(::category))
-    panel(list, getString(R.string.panel_interaction), listOf(GESTURES, NOW).map(::category))
-    panel(list, getString(R.string.panel_apps), listOf(
-        listItem(symbol("hide", m3.onPrimaryContainer), getString(R.string.hidden_apps), getString(R.string.hidden_apps_info), tonalIcon = true) { hideAppsMenu() },
-        listItem(symbol("tabs", m3.onPrimaryContainer), getString(R.string.drawer_groups), getString(R.string.drawer_groups_info), tonalIcon = true) { showPage(GROUPS) },
-    ))
+    // As Nova 8.9.4's two tabs: what goes where, then how it looks.
+    panel(list, getString(R.string.settings), listOf(HOME, DRAWER, FOLDERS, SEARCH_GROUP, GESTURES, NOW, BADGES).map(::category))
+    panel(list, getString(R.string.panel_style), listOf(LOOK, NIGHT).map(::category))
     panel(list, getString(R.string.panel_launcher), listOf(
         listItem(symbol("archive", m3.onPrimaryContainer), getString(R.string.backup_restore), getString(R.string.backup_restore_info), tonalIcon = true) { showPage(BACKUP) },
         listItem(symbol("shield", m3.onPrimaryContainer), getString(R.string.permissions), getString(R.string.permissions_info), tonalIcon = true) { showPage(PERMISSIONS) },
@@ -354,7 +352,7 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
         applyChoice(c, c.values[j])
         changed()
     }.setNegativeButton(R.string.cancel, null).show()
-    panel(list, null, choices.map { c -> when {
+    fun row(c: Choice): View = when {
         // The housing dock has its own shadow; no background has none to cast.
         c.key == "dockShadow" && looks.str("dockBg") in listOf("housing", "none") ->
             listItem(null, getString(c.title), getString(if (looks.str("dockBg") == "none") R.string.dock_shadow_no_bg else R.string.dock_shadow_housing)) {}.apply { alpha = 0.5f }
@@ -375,9 +373,18 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
             listItem(null, getString(c.title), getString(R.string.panels_amoled)) { pick(c) }.apply { alpha = 0.5f }
         c.values.size > 2 && c.values.all { it.toIntOrNull() != null } -> slider(c)
         else -> listItem(null, getString(c.title), valueName(c), trailing = swatch(c)) { pick(c) }
-    }.apply { tag = c.key } })
-    if (group == LOOK) panel(list, null, listOf(listItem(null, getString(R.string.custom_colors),
-        resources.getQuantityString(R.plurals.custom_colors_set, looks.colors().size, looks.colors().size)) { showPage(COLORS) }))
+    }.apply { tag = c.key }
+    val byKey = choices.associateBy { it.key }
+    fun link(key: String): View? = when (key) {
+        "@dock" -> listItem(null, getString(R.string.group_dock), getString(R.string.cat_dock)) { showPage(DOCK_GROUP) }
+        "@hidden" -> listItem(null, getString(R.string.hidden_apps), getString(R.string.hidden_apps_info)) { hideAppsMenu() }
+        "@groups" -> listItem(null, getString(R.string.drawer_groups), getString(R.string.drawer_groups_info)) { showPage(GROUPS) }
+        "@colors" -> listItem(null, getString(R.string.custom_colors),
+            resources.getQuantityString(R.plurals.custom_colors_set, looks.colors().size, looks.colors().size)) { showPage(COLORS) }
+        else -> byKey[key]?.let(::row) // null: hidden for now (night hours)
+    }
+    val sections = SECTIONS[group] ?: return panel(list, null, choices.map(::row))
+    for ((title, keys) in sections) keys.mapNotNull(::link).takeIf { it.isNotEmpty() }?.let { panel(list, getString(title), it) }
 }
 
 /** A numeric setting as an inline M3 slider, one stop per value, saved when the thumb is let go. */

@@ -274,11 +274,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="page_set_default">Als Standardseite festlegen</string>
     <string name="pages">Seiten</string>
     <string name="pages_hint">Tippen zum Öffnen · halten und ziehen zum Verschieben oder Entfernen</string>
-    <string name="panel_appearance">Darstellung</string>
-    <string name="panel_apps">Apps</string>
-    <string name="panel_interaction">Bedienung</string>
     <string name="panel_launcher">Launcher</string>
-    <string name="panel_layout">Layout</string>
     <string name="permissions">Berechtigungen</string>
     <string name="permissions_info">Worauf der Launcher zugreifen kann</string>
     <string name="picker_restarted">Vulcan wurde neu gestartet, während die Auswahl geöffnet war. Bitte versuche es erneut</string>
