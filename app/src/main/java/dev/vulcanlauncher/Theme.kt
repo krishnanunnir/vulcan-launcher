@@ -17,6 +17,7 @@ import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.RippleDrawable
 import android.os.Build
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
@@ -319,7 +320,7 @@ fun VulcanActivity.pickList(title: CharSequence, rows: List<Pair<Drawable?, Char
         override fun getView(p: Int, convert: View?, parent: android.view.ViewGroup) =
             listItem(rows[p].first, rows[p].second, summaries?.get(p), appIcon = appIcon, dense = !appIcon, onClick = null).apply { setPadding((24 * dp).toInt(), paddingTop, (24 * dp).toInt(), paddingBottom) }
     }
-    dialog().setTitle(title).setAdapter(adapter) { _, i -> onPick(i) }.setNegativeButton(R.string.cancel, null).show()
+    sheet().setTitle(title).setAdapter(adapter) { _, i -> onPick(i) }.setNegativeButton(R.string.cancel, null).show()
 }
 
 fun VulcanActivity.divider() = View(this).apply {
@@ -510,10 +511,53 @@ fun MainActivity.showSheet(title: String?, build: LinearLayout.() -> Unit) {
     body.animate().translationY(0f).setDuration(300).setInterpolator(DecelerateInterpolator(2f)).start()
 }
 
-/** Dialogs: M3 surface, 28 dp corners and primary-coloured buttons. The scrim is the activity's (see VulcanActivity.dialog). */
-fun VulcanActivity.styleDialog(d: AlertDialog) {
+/** Dialogs: M3 surface, 28 dp corners and primary-coloured buttons. The scrim is the activity's (see VulcanActivity.dialog).
+ *  A [sheet] (pickers, forms) slides up from the bottom edge, in thumb reach; confirmations and warnings stay centred (#46). */
+fun VulcanActivity.styleDialog(d: AlertDialog, sheet: Boolean = false) {
     d.window?.apply {
-        setBackgroundDrawable(InsetDrawable(rounded(m3.surfaceHigh, 28 * dp), (24 * dp).toInt(), (24 * dp).toInt(), (24 * dp).toInt(), (24 * dp).toInt()))
+        if (sheet) {
+            // As Launcher3's sheets: 28 dp top corners, a 32×4 dp handle, the surface running on under the navigation bar.
+            val r = 28 * dp
+            val handle = GradientDrawable().apply { setColor(m3.onSurface and 0x00FFFFFF or 0x66000000); cornerRadius = 2 * dp }
+            setBackgroundDrawable(android.graphics.drawable.LayerDrawable(arrayOf(
+                GradientDrawable().apply { setColor(m3.surfaceHigh); cornerRadii = floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f) }, handle)).apply {
+                setLayerGravity(1, Gravity.TOP or Gravity.CENTER_HORIZONTAL)
+                setLayerSize(1, (32 * dp).toInt(), (4 * dp).toInt())
+                setLayerInsetTop(1, (16 * dp).toInt())
+            })
+            setGravity(Gravity.BOTTOM)
+            // M3's 640 dp cap: a tablet's sheet doesn't stretch edge to edge.
+            setLayout(minOf(resources.displayMetrics.widthPixels, (640 * dp).toInt()), android.view.WindowManager.LayoutParams.WRAP_CONTENT)
+            setWindowAnimations(android.R.style.Animation_InputMethod)
+            val pad = (8 * dp).toInt()
+            decorView.setPadding(0, (20 * dp).toInt(), 0, pad)
+            // ponytail: before Android 11 the sheet stops above the navigation bar; setFitInsetsTypes needs API 30.
+            if (Build.VERSION.SDK_INT >= 30) {
+                attributes = attributes.apply { fitInsetsTypes = 0 }
+                setDecorFitsSystemWindows(false)
+                navigationBarColor = Color.TRANSPARENT
+                if (onColor(m3.surfaceHigh) != Color.WHITE) insetsController?.setSystemBarsAppearance(
+                    android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS, android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS)
+                // The keyboard still lifts the sheet: it's padded by whichever is taller, the navigation bar or the keyboard.
+                decorView.setOnApplyWindowInsetsListener { v, insets ->
+                    v.setPadding(0, v.paddingTop, 0, pad + insets.getInsets(android.view.WindowInsets.Type.navigationBars() or android.view.WindowInsets.Type.ime()).bottom)
+                    insets
+                }
+            }
+            // Drag the sheet down by its top (handle, title) to close it, as Launcher3's; lists and fields keep their touches.
+            var y0 = 0f
+            decorView.setOnTouchListener { v, e ->
+                when (e.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> y0 = e.rawY
+                    MotionEvent.ACTION_MOVE -> v.translationY = (e.rawY - y0).coerceAtLeast(0f)
+                    // ponytail: closes past a quarter of its height, no fling velocity; add a VelocityTracker if it feels stiff.
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                        if (v.translationY > v.height / 4f) v.animate().translationY(v.height.toFloat()).setDuration(150).withEndAction { d.cancel() }.start()
+                        else v.animate().translationY(0f).setDuration(200).start()
+                }
+                true
+            }
+        } else setBackgroundDrawable(InsetDrawable(rounded(m3.surfaceHigh, 28 * dp), (24 * dp).toInt(), (24 * dp).toInt(), (24 * dp).toInt(), (24 * dp).toInt()))
     }
     for (b in listOf(AlertDialog.BUTTON_POSITIVE, AlertDialog.BUTTON_NEGATIVE, AlertDialog.BUTTON_NEUTRAL)) d.getButton(b)?.apply {
         // An accent the user made unreadable here must not hide the way back (Reset, Cancel).

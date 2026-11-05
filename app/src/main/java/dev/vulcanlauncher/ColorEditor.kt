@@ -195,7 +195,7 @@ private fun SettingsActivity.editColor(key: String, title: Int) {
         }
     }
     fun save(c: Int) { looks["c_$key"] = hex(c); changed() }
-    dialog().setTitle(title).setView(box)
+    sheet().setTitle(title).setView(box)
         .setPositiveButton(R.string.save) { _, _ ->
             val c = color
             // Unchanged: keep following the theme rather than pinning its current colour.

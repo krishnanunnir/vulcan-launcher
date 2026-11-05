@@ -825,7 +825,7 @@ class MainActivity : VulcanActivity() {
 
     /** Moves a home item to the first free spot on a page picked from a list: the TalkBack way to move it. */
     fun moveToPage(item: Item) {
-        dialog().setTitle(R.string.move_to_page).setItems(Array(pages.size) { getString(R.string.page_n, it + 1) }) { _, p ->
+        sheet().setTitle(R.string.move_to_page).setItems(Array(pages.size) { getString(R.string.page_n, it + 1) }) { _, p ->
             val spot = firstFreeSpot(items.filter { it != item && !isDock(it.page) }, looks.pages, looks.cols * sub, looks.rows * sub, item.w, item.h, p)
             if (spot == null) { toast(R.string.no_room); return@setItems }
             items[items.indexOf(item)] = item.copy(page = spot.page, x = spot.x, y = spot.y)
@@ -1741,7 +1741,7 @@ class MainActivity : VulcanActivity() {
             }
             list.addView(header)
         }
-        d = dialog().setTitle(R.string.widgets).setView(scroll).create().also { it.show() }
+        d = sheet().setTitle(R.string.widgets).setView(scroll).create().also { it.show() }
     }
 
     private fun addWidget(info: AppWidgetProviderInfo) {
@@ -1808,7 +1808,7 @@ class MainActivity : VulcanActivity() {
             // Subgrid: whole-cell steps only, or the list runs to a hundred entries.
             .filter { (w, h) -> (w == item.w || w % sub == 0) && (h == item.h || h % sub == 0) }
         fun cells(n: Int) = if (n % sub == 0) "${n / sub}" else "${n / sub}½"
-        dialog().setTitle(R.string.resize).setItems(sizes.map { (w, h) -> "${cells(w)} × ${cells(h)}".let { if (w == item.w && h == item.h) getString(R.string.resize_current, it) else it } }
+        sheet().setTitle(R.string.resize).setItems(sizes.map { (w, h) -> "${cells(w)} × ${cells(h)}".let { if (w == item.w && h == item.h) getString(R.string.resize_current, it) else it } }
             .toTypedArray()) { _, i ->
             val (w, h) = sizes[i]
             items[items.indexOf(item)] = item.copy(w = w, h = h)
@@ -1819,7 +1819,7 @@ class MainActivity : VulcanActivity() {
 
     private fun addShortcutMenu() {
         val options = listOf(R.string.launcher_action, R.string.app_shortcut, R.string.activity).map(::getString).toTypedArray()
-        dialog().setTitle(R.string.add_to_home).setItems(options) { _, which ->
+        sheet().setTitle(R.string.add_to_home).setItems(options) { _, which ->
             when (which) {
                 0 -> pickAction(getString(R.string.launcher_action)) { addItem(Item(0, 0, 0, sub, sub, action = it)) }
                 1 -> {
@@ -1835,7 +1835,7 @@ class MainActivity : VulcanActivity() {
                 else -> pickApp(getString(R.string.activity)) { app ->
                     val acts = runCatching { packageManager.getPackageInfo(app.pkg, PackageManager.GET_ACTIVITIES).activities }
                         .getOrNull().orEmpty().filter { it.exported }
-                    dialog().setTitle(label(app)).setItems(acts.map { "${it.loadLabel(packageManager)}\n${it.name.removePrefix(app.pkg)}" }.toTypedArray()) { _, i ->
+                    sheet().setTitle(label(app)).setItems(acts.map { "${it.loadLabel(packageManager)}\n${it.name.removePrefix(app.pkg)}" }.toTypedArray()) { _, i ->
                         addItem(Item(0, 0, 0, sub, sub, pkg = app.pkg, cls = acts[i].name, action = "activity"))
                     }.show()
                 }

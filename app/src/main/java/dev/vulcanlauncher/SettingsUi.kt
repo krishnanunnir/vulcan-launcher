@@ -348,7 +348,7 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
     val hours = looks.str("nightMode") in listOf("schedule", "sun")
     val choices = (if (group == LOOK) listOf(iconPackChoice()) else emptyList()) +
         LOOKS.filter { it.group == group && (hours || it.key != "nightStart" && it.key != "nightEnd") }
-    fun pick(c: Choice) = dialog().setTitle(c.title).setSingleChoiceItems(c.values.indices.map { choiceName(c, it) }.toTypedArray(), c.values.indexOf(looks[c])) { d, j ->
+    fun pick(c: Choice) = sheet().setTitle(c.title).setSingleChoiceItems(c.values.indices.map { choiceName(c, it) }.toTypedArray(), c.values.indexOf(looks[c])) { d, j ->
         d.dismiss()
         applyChoice(c, c.values[j])
         changed()
@@ -499,7 +499,7 @@ fun MainActivity.editDialog(title: String, label: String, defaultLabel: String, 
         // The row's own 16 dp inset lines its icon up with the dialog's 24 dp edge.
         box.addView(holder, LinearLayout.LayoutParams(-1, -2).apply { setMargins((-16 * dp).toInt(), (8 * dp).toInt(), -pad, 0) })
     }
-    dialog().setTitle(title).setView(box)
+    sheet().setTitle(title).setView(box)
         .setPositiveButton(R.string.save) { _, _ -> onSave(name.text.toString().trim(), iconV, swipeV) }
         .setNegativeButton(R.string.cancel, null).show()
 }
@@ -659,7 +659,7 @@ fun VulcanActivity.appSwitches(title: String, on: Collection<String>, onSave: (L
         }
     }
     val lv = android.widget.ListView(this).apply { this.adapter = adapter; divider = null }
-    dialog().setTitle(title).setView(lv)
+    sheet().setTitle(title).setView(lv)
         .setPositiveButton(R.string.save) { _, _ -> onSave(list.map { it.key }.filter { it in chosen }) }
         .setNegativeButton(R.string.cancel, null).show()
 }
@@ -704,7 +704,7 @@ private fun SettingsActivity.groupsPage(list: LinearLayout) {
 private fun VulcanActivity.askName(title: String, current: String, onName: (String) -> Unit) {
     val input = field(current, getString(R.string.name))
     val box = android.widget.FrameLayout(this).apply { setPadding((24 * dp).toInt(), (8 * dp).toInt(), (24 * dp).toInt(), 0); addView(input) }
-    dialog().setTitle(title).setView(box)
+    sheet().setTitle(title).setView(box)
         .setPositiveButton(R.string.ok) { _, _ -> input.text.toString().trim().takeIf { it.isNotEmpty() }?.let(onName) }
         .setNegativeButton(R.string.cancel, null).show()
 }
@@ -745,7 +745,7 @@ fun VulcanActivity.addToGroup(key: String) {
         !checked[i] -> g.copy(apps = g.apps - key)
         else -> g
     } } + extra)
-    dialog().setTitle(R.string.add_to_group)
+    sheet().setTitle(R.string.add_to_group)
         .setMultiChoiceItems(groups.map { it.name }.toTypedArray(), checked) { _, i, on -> checked[i] = on }
         .setPositiveButton(R.string.ok) { _, _ -> save() }
         .setNegativeButton(R.string.cancel, null)

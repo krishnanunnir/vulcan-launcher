@@ -50,13 +50,15 @@ abstract class VulcanActivity : Activity() {
     }
 
     // Light or dark text by the dialog's own background (styleDialog), which custom colours can flip from the scheme's.
-    fun dialog(): AlertDialog.Builder = object : AlertDialog.Builder(this, (onColor(m3.surfaceHigh) == Color.WHITE).let { dark -> when {
+    /** A picker or form: [dialog] as a bottom sheet (see styleDialog). */
+    fun sheet() = dialog(sheet = true)
+    fun dialog(sheet: Boolean = false): AlertDialog.Builder = object : AlertDialog.Builder(this, (onColor(m3.surfaceHigh) == Color.WHITE).let { dark -> when {
         m3.housing -> if (dark) R.style.VulcanDialogApplianceDark else R.style.VulcanDialogAppliance
         else -> if (dark) R.style.VulcanDialogDark else R.style.VulcanDialog
     } }) {
         // Styled before the first frame: built (buttons included) without showing, so it never flashes unstyled.
         override fun create(): AlertDialog = super.create().also { d ->
-            d.create(); styleDialog(d)
+            d.create(); styleDialog(d, sheet)
             // The dim is this window's, not each dialog's: a dialog opened from another (a menu item, a picker's next
             // step) then takes its place over a steady dim. With their own, the dim faded out and back in between them.
             d.window?.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
@@ -111,7 +113,7 @@ abstract class VulcanActivity : Activity() {
             listOf(symbol("carousel") to getString(R.string.jump_to_page_item), symbol("apps") to getString(R.string.open_app_item))
         pickList(title, rows) { i ->
             when (i) {
-                ACTIONS.size -> dialog().setTitle(R.string.page).setItems(Array(looks.pages) { getString(R.string.page_n, it + 1) }) { _, p -> onPicked("page:$p") }.show()
+                ACTIONS.size -> sheet().setTitle(R.string.page).setItems(Array(looks.pages) { getString(R.string.page_n, it + 1) }) { _, p -> onPicked("page:$p") }.show()
                 ACTIONS.size + 1 -> pickApp(getString(R.string.open_app)) { onPicked("app:${it.key}") }
                 else -> onPicked(ACTIONS[i])
             }
