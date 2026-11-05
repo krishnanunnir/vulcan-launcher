@@ -21,8 +21,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.abs
 
-/** A drawer tab or drawer folder: [type] is "tab" or "folder"; [apps] are app keys. */
-data class Group(val name: String, val type: String, val apps: List<String>)
+/** A drawer tab or drawer folder: [type] is "tab" or "folder"; [apps] are app keys; [color] a tab's own "#RRGGBB", null for the theme's. */
+data class Group(val name: String, val type: String, val apps: List<String>, val color: String? = null)
 
 /** The groups in [s]. A restored or hand-edited file can hold anything: what isn't a group is skipped, never thrown. */
 fun groupsFromJson(s: String): List<Group> = (runCatching { JSONArray(s) }.getOrNull() ?: JSONArray()).let { a ->
@@ -31,12 +31,13 @@ fun groupsFromJson(s: String): List<Group> = (runCatching { JSONArray(s) }.getOr
         val name = o.opt("name") as? String ?: return@mapNotNull null
         val type = o.opt("type") as? String ?: return@mapNotNull null
         val apps = o.optJSONArray("apps") ?: JSONArray()
-        Group(name, type, (0 until apps.length()).mapNotNull { i -> apps.opt(i) as? String })
+        val color = (o.opt("color") as? String)?.takeIf { Regex("#[0-9a-fA-F]{6}").matches(it) }
+        Group(name, type, (0 until apps.length()).mapNotNull { i -> apps.opt(i) as? String }, color)
     }
 }
 
 fun groupsToJson(groups: List<Group>) = JSONArray().apply {
-    groups.forEach { put(JSONObject().put("name", it.name).put("type", it.type).put("apps", JSONArray(it.apps))) }
+    groups.forEach { put(JSONObject().put("name", it.name).put("type", it.type).put("apps", JSONArray(it.apps)).apply { it.color?.let { c -> put("color", c) } }) }
 }.toString()
 
 /**
@@ -757,23 +758,29 @@ class Drawer(private val a: MainActivity) {
         tabs.post { tabs.getChildAt(tabKeys.indexOf(tab).coerceAtLeast(0))?.let { it.requestRectangleOnScreen(android.graphics.Rect(0, 0, it.width, it.height)) } }
         // M3 filter chips: the selected one filled with the secondary container and a check mark. Housing: a raised
         // key; the others are plain legends.
-        for ((key, title) in names) tabs.addView(a.text(title, 14f, if (key == tab) a.m3.onSecondaryContainer else a.m3.onSurfaceVariant, medium = true).apply {
+        for ((key, title) in names) {
             val on = key == tab
-            gravity = Gravity.CENTER_VERTICAL
-            val p = (16 * a.dp).toInt()
-            setPadding(if (on && !housing) p / 2 else p, 0, p, 0)
-            compoundDrawablePadding = (8 * a.dp).toInt()
-            // Housing: the raised key alone marks the selected tab; the screen's signal belongs to the index or search.
-            if (on && !housing) setCompoundDrawablesRelative(a.symbol("check", a.m3.onSecondaryContainer, 18f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
-            background = a.pressable(when {
-                housing -> if (on) a.rounded(a.m3.raised, 16 * a.dp, if (a.m3.dark) 0x1FFFFFFF else 0x14000000, a.dp / 2) else null
-                on -> a.rounded(a.m3.secondaryContainer, 8 * a.dp)
-                else -> a.rounded(0, 8 * a.dp, a.m3.outlineVariant)
-            }, if (housing) 16 * a.dp else 8 * a.dp)
-            layoutParams = LinearLayout.LayoutParams(-2, (32 * a.dp).toInt()).apply { marginStart = (8 * a.dp).toInt() }
-            setOnClickListener { tab = key; refresh() }
-            if (key != "" && key != "work" && key != "private") setOnLongClickListener { a.editGroup(groups.first { it.name == key }); true }
-        })
+            // A tab's own colour (set in its editor, as Nova's) fills it while selected; the text is black or white to match.
+            val own = groups.firstOrNull { it.name == key && it.type == "tab" }?.color?.let(android.graphics.Color::parseColor)
+            val fill = own ?: a.tabFill()
+            val ink = if (own != null) onColor(own) else if (housing) a.m3.onSurface else a.m3.onSecondaryContainer
+            tabs.addView(a.text(title, 14f, if (on) ink else a.m3.onSurfaceVariant, medium = true).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                val p = (16 * a.dp).toInt()
+                setPadding(if (on && !housing) p / 2 else p, 0, p, 0)
+                compoundDrawablePadding = (8 * a.dp).toInt()
+                // Housing: the raised key alone marks the selected tab; the screen's signal belongs to the index or search.
+                if (on && !housing) setCompoundDrawablesRelative(a.symbol("check", ink, 18f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
+                background = a.pressable(when {
+                    housing -> if (on) a.rounded(fill, 16 * a.dp, if (a.m3.dark) 0x1FFFFFFF else 0x14000000, a.dp / 2) else null
+                    on -> a.rounded(fill, 8 * a.dp)
+                    else -> a.rounded(0, 8 * a.dp, a.m3.outlineVariant)
+                }, if (housing) 16 * a.dp else 8 * a.dp)
+                layoutParams = LinearLayout.LayoutParams(-2, (32 * a.dp).toInt()).apply { marginStart = (8 * a.dp).toInt() }
+                setOnClickListener { tab = key; refresh() }
+                if (key != "" && key != "work" && key != "private") setOnLongClickListener { a.editGroup(groups.first { it.name == key }); true }
+            })
+        }
     }
 
     private fun buildFrequent(apps: List<App>) {

@@ -110,5 +110,8 @@ class StoreTest {
             {"name":"Y","type":"tab","apps":["a",1,null,{"b":2},"c"]}, {"name":7,"type":"tab","apps":[]}]"""
         assertEquals(listOf(Group("X", "folder", emptyList()), Group("Y", "tab", listOf("a", "c"))), groupsFromJson(s))
         assertEquals(listOf(Group("Z", "folder", listOf("k"))), groupsFromJson(groupsToJson(listOf(Group("Z", "folder", listOf("k"))))))
+        // A tab's colour survives a save; one that isn't #RRGGBB falls back to the theme's.
+        assertEquals(listOf(Group("T", "tab", listOf("k"), "#E53935")), groupsFromJson(groupsToJson(listOf(Group("T", "tab", listOf("k"), "#E53935")))))
+        assertEquals(listOf(Group("T", "tab", emptyList())), groupsFromJson("""[{"name":"T","type":"tab","apps":[],"color":"red"}]"""))
     }
 }

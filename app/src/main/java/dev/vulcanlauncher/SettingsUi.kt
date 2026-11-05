@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.provider.Settings
 import android.graphics.drawable.Drawable
+import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.text.Editable
 import android.text.TextWatcher
@@ -728,12 +729,26 @@ fun VulcanActivity.editGroup(g: Group) {
     val actions = listOfNotNull(
         Triple(symbol("edit"), getString(R.string.rename)) { askName(getString(R.string.rename), g.name) { replace(g.copy(name = it)) } },
         Triple(symbol("apps"), getString(R.string.choose_apps)) { chooseApps(g.name, g.apps) { replace(g.copy(apps = it)) } },
+        // A tab's own colour, as Nova's: it fills the tab while it's selected (Drawer.buildTabs). No setting of its own (#49).
+        if (g.type == "tab") Triple(colorDot(g.color?.let(Color::parseColor) ?: tabFill()), getString(R.string.tab_color)) {
+            pickList(getString(R.string.tab_color), listOf(colorDot(tabFill()) to getString(R.string.color_from_theme)) +
+                COLOR_VALUES.zip(COLOR_NAMES).map { (v, n) -> colorDot(Color.parseColor(v)) to getString(n) }) { i ->
+                replace(g.copy(color = COLOR_VALUES.getOrNull(i - 1)))
+            }
+        } else null,
         move("left", R.string.move_left, -1),
         move("right", R.string.move_right, 1),
         Triple(symbol(other.replace("tab", "tabs")), getString(if (other == "tab") R.string.convert_to_tab else R.string.convert_to_folder)) { replace(g.copy(type = other)) },
         Triple(symbol("delete"), getString(R.string.delete)) { replace(null) },
     )
     pickList(g.name, actions.map { it.first to it.second }) { actions[it].third() }
+}
+
+/** The selected tab's fill when the tab has no colour of its own. */
+fun VulcanActivity.tabFill() = if (m3.housing) m3.raised else m3.secondaryContainer
+
+private fun VulcanActivity.colorDot(c: Int) = GradientDrawable().apply {
+    shape = GradientDrawable.OVAL; setColor(c); setStroke(dp.toInt(), m3.outlineVariant); setSize((24 * dp).toInt(), (24 * dp).toInt())
 }
 
 fun VulcanActivity.addToGroup(key: String) {

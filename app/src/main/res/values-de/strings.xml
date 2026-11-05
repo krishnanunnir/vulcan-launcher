@@ -289,6 +289,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="preview_stack">Stapel</string>
     <string name="private_install">Apps im Privaten Bereich installieren</string>
     <string name="remove">Entfernen</string>
+    <string name="tab_color">Farbe</string>
     <string name="rename">Umbenennen</string>
     <string name="reset">Zurücksetzen</string>
     <string name="reset_confirm">Alle Einstellungen und das gesamte Startbildschirm-Layout entfernen?</string>

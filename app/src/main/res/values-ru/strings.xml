@@ -289,6 +289,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="preview_stack">Стопка</string>
     <string name="private_install">Устанавливать приложения в приватное пространство</string>
     <string name="remove">Удалить</string>
+    <string name="tab_color">Цвет</string>
     <string name="rename">Переименовать</string>
     <string name="reset">Сбросить</string>
     <string name="reset_confirm">Удалить все настройки и всю раскладку главного экрана?</string>

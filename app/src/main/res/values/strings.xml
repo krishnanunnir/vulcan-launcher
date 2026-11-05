@@ -391,6 +391,7 @@
     <string name="new_tab">New tab</string>
     <string name="new_folder">New folder</string>
     <string name="group_exists">A group with that name exists</string>
+    <string name="tab_color">Color</string>
     <string name="rename">Rename</string>
     <string name="choose_apps">Choose apps</string>
     <string name="convert_to_tab">Convert to tab</string>
