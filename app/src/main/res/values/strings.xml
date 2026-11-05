@@ -368,6 +368,7 @@
     <string name="dock_shadow_no_bg">Not used without a dock background</string>
     <string name="dock_shadow_housing">The Housing dock has its own shadow</string>
     <string name="not_used_by_bg">Not used by the %1$s background</string>
+    <string name="panels_amoled">Always dark with the AMOLED Black theme color</string>
     <string name="set_iconPack">Icon pack</string>
     <string name="iconPack_system">System icons</string>
     <string name="housing_follows_theme">Housing (follows the theme)</string>

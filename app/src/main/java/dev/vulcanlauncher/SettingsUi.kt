@@ -344,7 +344,10 @@ private fun SettingsActivity.nameplate() = LinearLayout(this).apply {
 }
 
 private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout) {
-    val choices = (if (group == LOOK) listOf(iconPackChoice()) else emptyList()) + LOOKS.filter { it.group == group }
+    // Schedule hours only where they're used: the schedule, and sunset to sunrise until a location is known.
+    val hours = looks.str("nightMode") in listOf("schedule", "sun")
+    val choices = (if (group == LOOK) listOf(iconPackChoice()) else emptyList()) +
+        LOOKS.filter { it.group == group && (hours || it.key != "nightStart" && it.key != "nightEnd") }
     fun pick(c: Choice) = dialog().setTitle(c.title).setSingleChoiceItems(c.values.indices.map { choiceName(c, it) }.toTypedArray(), c.values.indexOf(looks[c])) { d, j ->
         d.dismiss()
         applyChoice(c, c.values[j])
@@ -366,6 +369,9 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
         c.key == "dockAlpha" && looks.str("dockBg") in listOf("housing", "glass", "none") || c.key == "dockColor" && looks.str("dockBg") == "none" ->
             listItem(null, getString(c.title), if (looks.str("dockBg") == "none") getString(R.string.dock_shadow_no_bg)
                 else getString(R.string.not_used_by_bg, valueName(LOOKS.first { it.key == "dockBg" }))) { pick(c) }.apply { alpha = 0.5f }
+        // AMOLED Black is always dark, whatever the panel theme says.
+        c.key == "drawerTheme" && looks.str("accent") == "amoled" ->
+            listItem(null, getString(c.title), getString(R.string.panels_amoled)) { pick(c) }.apply { alpha = 0.5f }
         c.values.size > 2 && c.values.all { it.toIntOrNull() != null } -> slider(c)
         else -> listItem(null, getString(c.title), valueName(c), trailing = swatch(c)) { pick(c) }
     }.apply { tag = c.key } })

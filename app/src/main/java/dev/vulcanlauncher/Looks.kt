@@ -15,7 +15,11 @@ class Choice(
 
 /** What value [i] is called on screen; [text] reads a string resource. */
 fun Choice.name(i: Int, text: (Int) -> String): String = names.getOrNull(i)?.let(text) ?: shown.getOrElse(i) { "" }
-fun Context.choiceName(c: Choice, i: Int) = c.name(i, ::getString)
+// Schedule hours in the phone's own 12- or 24-hour clock: "8:00" meant as 8 pm swapped the schedule (#52).
+fun Context.choiceName(c: Choice, i: Int) = if (c.key == "nightStart" || c.key == "nightEnd")
+    android.text.format.DateFormat.getTimeFormat(this).format(java.util.Calendar.getInstance().apply {
+        set(java.util.Calendar.HOUR_OF_DAY, i); set(java.util.Calendar.MINUTE, 0) }.time)
+    else c.name(i, ::getString)
 
 private fun range(from: Int, to: Int, step: Int = 1) = (from..to step step).map { it.toString() }
 private fun onOff(group: String, key: String, title: Int, default: Boolean, info: Int = 0) =

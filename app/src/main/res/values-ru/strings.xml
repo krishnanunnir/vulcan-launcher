@@ -241,6 +241,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="none">Нет</string>
     <string name="not_launcher_backup">В этом файле нет базы данных лаунчера — это точно резервная копия лаунчера?</string>
     <string name="not_used_by_bg">Не используется с фоном «%1$s»</string>
+    <string name="panels_amoled">С цветом темы «Чёрный AMOLED» всегда тёмная</string>
     <string name="not_vulcan_backup">Это не резервная копия Vulcan</string>
     <string name="now_all_day">%1$s весь день</string>
     <string name="now_allow_calendar">Разрешить доступ к календарю</string>

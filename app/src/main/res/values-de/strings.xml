@@ -241,6 +241,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="none">Keine</string>
     <string name="not_launcher_backup">Keine Launcher-Datenbank in dieser Datei; ist es eine Launcher-Sicherung?</string>
     <string name="not_used_by_bg">Wird vom Hintergrund „%1$s“ nicht verwendet</string>
+    <string name="panels_amoled">Mit der Theme-Farbe AMOLED-Schwarz immer dunkel</string>
     <string name="not_vulcan_backup">Keine Vulcan-Sicherung</string>
     <string name="now_all_day">%1$s ganztägig</string>
     <string name="now_allow_calendar">Kalenderzugriff erlauben</string>
