@@ -230,6 +230,11 @@ class Drawer(private val a: MainActivity) {
     private val glass = styleName == "glass"
     /** Appliance housing: an opaque warm-grey body, a recessed search slot at the bottom and a letter index. */
     private val housing = styleName == "housing"
+    /**
+     * Our own letter index in a strip the grid leaves free. Android's fast scroller took taps on a 48 dp strip over the
+     * last column, visible or not, so the right edge of those icons did nothing (#47). Horizontal pages have none.
+     */
+    private val letterIndex = a.looks.on("fastScroll") && styleName != "pages"
     private val searchPlace = a.looks.str("drawerSearch")
     /** Search bar under the thumb, results stacked above it: glass and housing put it there unless the user chose. */
     private val bottomBar = if (searchPlace == "style") glass || housing else searchPlace == "bottom"
@@ -348,7 +353,7 @@ class Drawer(private val a: MainActivity) {
         val content = FrameLayout(a)
         if (styleName == "pages") content.addView(pager) else content.addView(grid)
         content.addView(empty, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER).apply { setMargins(pad * 2, 0, pad * 2, 0) })
-        if (housing && a.looks.on("fastScroll")) content.addView(index, FrameLayout.LayoutParams((28 * a.dp).toInt(), -1, Gravity.END))
+        if (letterIndex) content.addView(index, FrameLayout.LayoutParams((28 * a.dp).toInt(), -1, Gravity.END))
         if (fromBottom) addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
         // Nova: above the tabs, except horizontal pages, where it sits under them. A divider closes it off.
         if (styleName != "pages") addView(frequentRow, LinearLayout.LayoutParams(-1, -2))
@@ -410,11 +415,10 @@ class Drawer(private val a: MainActivity) {
             // Grid styles: the row height holds the air between rows.
             verticalSpacing = if (styleName == "list") (16 * a.dp).toInt() else 0
             val side = ((if (bottomBar) 12 else 8) * a.dp).toInt()
-            // Housing leaves room at the end (the right, or the left in right-to-left languages) for the letter index.
-            setPaddingRelative(side, (if (bottomBar) 16 * a.dp else 8 * a.dp).toInt(), if (housing && a.looks.on("fastScroll")) (28 * a.dp).toInt() else side, (8 * a.dp).toInt())
+            // Room at the end (the right, or the left in right-to-left languages) for the letter index.
+            setPaddingRelative(side, (if (bottomBar) 16 * a.dp else 8 * a.dp).toInt(), if (letterIndex) (28 * a.dp).toInt() else side, (8 * a.dp).toInt())
             clipToPadding = false
             adapter = this@Drawer.adapter
-            isFastScrollEnabled = a.looks.on("fastScroll") && !housing
             setOnScrollListener(object : android.widget.AbsListView.OnScrollListener {
                 override fun onScrollStateChanged(v: android.widget.AbsListView, state: Int) {}
                 override fun onScroll(v: android.widget.AbsListView, first: Int, visible: Int, total: Int) {
@@ -778,7 +782,7 @@ class Drawer(private val a: MainActivity) {
         if (apps.isEmpty()) return
         val side = ((if (bottomBar) 12 else 8) * a.dp).toInt()
         frequentRow.addView(LinearLayout(a).apply {
-            setPaddingRelative(side, (8 * a.dp).toInt(), if (housing && a.looks.on("fastScroll")) (28 * a.dp).toInt() else side, (8 * a.dp).toInt())
+            setPaddingRelative(side, (8 * a.dp).toInt(), if (letterIndex) (28 * a.dp).toInt() else side, (8 * a.dp).toInt())
             // Empty slots keep each icon in its grid column.
             for (i in 0 until gridCols) addView(apps.getOrNull(i)?.let { app -> val e = Entry.AppE(app)
                 entryView(e, style = rowStyle).apply {
@@ -882,7 +886,7 @@ class Drawer(private val a: MainActivity) {
         }
     }
 
-    /** The housing drawer's letter index down the right edge: the section in view is marked with the signal dot; touch or drag to jump. */
+    /** The drawer's letter index down the right edge: the section in view is marked with the signal dot; touch or drag to jump. */
     private inner class LetterIndex : View(a) {
         var current = 0
             set(v) { if (field != v) { field = v; invalidate() } }

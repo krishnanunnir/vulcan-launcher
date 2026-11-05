@@ -209,6 +209,29 @@ class Workspace(context: Context) : ViewGroup(context) {
         return false
     }
 
+    /** True when the point is on a widget of the current page holding a list that can still scroll [dir] (1: down). */
+    private fun widgetScrolls(x: Float, y: Float, dir: Int): Boolean {
+        val page = getChildAt(current) as? ViewGroup ?: return false
+        for (i in 0 until page.childCount) {
+            val c = page.getChildAt(i)
+            if (c is WidgetFrame && c.visibility == View.VISIBLE && x >= c.left && x < c.right && y >= c.top && y < c.bottom)
+                return scrollsAt(c, x - c.left, y - c.top, dir)
+        }
+        return false
+    }
+
+    private fun scrollsAt(v: View, x: Float, y: Float, dir: Int): Boolean {
+        if (v.canScrollVertically(dir)) return true
+        if (v !is ViewGroup) return false
+        val px = x + v.scrollX
+        val py = y + v.scrollY
+        for (i in v.childCount - 1 downTo 0) {
+            val c = v.getChildAt(i)
+            if (c.visibility == View.VISIBLE && px >= c.left && px < c.right && py >= c.top && py < c.bottom && scrollsAt(c, px - c.left, py - c.top, dir)) return true
+        }
+        return false
+    }
+
     /** Shared by intercept and touch handling; returns true once the gesture belongs to the pager. */
     private fun track(ev: MotionEvent): Boolean {
         if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
@@ -237,7 +260,9 @@ class Workspace(context: Context) : ViewGroup(context) {
                     // The page starts moving from where the finger is now, not jumping the slop it took to decide.
                     if (dx > pageSlop && dx > dy) { mode = HORIZONTAL; fromPage = current; startScroll += (ev.x - downX).toInt() }
                     // Up from an icon with its own swipe action: left to the icon, even when the first move is a long one.
-                    else if (dy > slop && dy > dx) mode = if (ev.y < downY && swipesItself(downX, downY)) CHILD else VERTICAL
+                    // On a widget list that can still scroll that way (calendar, inbox): left to the widget (#50).
+                    else if (dy > slop && dy > dx) mode = if (ev.y < downY && swipesItself(downX, downY) ||
+                        widgetScrolls(downX, downY, if (ev.y < downY) 1 else -1)) CHILD else VERTICAL
                 }
                 MULTI -> if (ev.pointerCount >= 2) for (i in 0..1) { end[i * 2] = ev.getX(i); end[i * 2 + 1] = ev.getY(i) }
                 VERTICAL -> if (!doubleTapDown && onPageTap == null) pulling = onPull?.invoke(downY - ev.y - slop, 0f, false) == true || pulling
