@@ -20,6 +20,8 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
 - Every permission must be listed and justified in the README's Permissions table. Prefer a permission the user explicitly turns on (accessibility, notification listener) over one granted silently.
 - **Never copy code, resources or assets from Nova Launcher.** `docs/nova-reference.md` is a feature list only. The Nova APK and decompiled sources live outside this repo (`../nova-launcher-*.apk`) and must never be committed.
 - No runtime dependencies (no AndroidX, no Compose) unless a feature truly cannot be done with the platform API. Discuss it before adding one. Test-only dependencies are fine.
+- **Every new setting goes in the right place, in two spots.** Add it to `LOOKS` with the right group, and add its key to `SECTIONS` (both in `Looks.kt`), in the section of that group where it belongs. Put it next to the settings it relates to, not at the end. A setting missing from `SECTIONS` fails `LooksTest.sectionsCoverEverySetting`. Don't make that test pass by dropping it into whatever section is nearest.
+- **Settings follow Nova 8.9.4's structure.** Before you place a new setting, check where Nova puts the same option, and use that category and section. Nova 8.9.4 is installed on the emulator; its settings screen is `com.teslacoilsw.launcher/.preferences.SettingsActivity`. Settings has two parts: Settings (Home screen with Dock inside it, App drawer, Folders, Search, Gestures & inputs, Now page, Badges) and Style (Look & feel, Night mode). Add a new category or section only when Nova has no home for the option, and say so in the commit message.
 
 ## Conventions
 
