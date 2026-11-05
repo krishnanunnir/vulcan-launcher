@@ -467,13 +467,18 @@ fun MainActivity.frostTint() = when {
 fun MainActivity.frostEdge() = (if (m3.dark) 0x24FFFFFF else 0x1A000000).toInt()
 
 /** Frosted glass for a card or menu: the glass tint, a hairline edge, and on Samsung a real blur of what's behind [v]. */
-fun MainActivity.frost(v: View, radius: Float) {
+fun MainActivity.frost(v: View, radius: Float, alphaPercent: Int = 100) {
+    // See-through (folder Background opacity): a flat face and hairline, no shadow to show through it.
+    if (!looks.on("blur") && alphaPercent < 100) { v.background = rounded(m3.raised.withAlpha(alphaPercent), radius, frostEdge(), dp / 2); return }
     if (!looks.on("blur")) { housing(v, radius); return }
-    val tint = frostTint()
+    val tint = frostTint().withAlpha(alphaPercent)
     v.background = rounded(tint, radius, frostEdge(), dp / 2)
     // Samsung's blur draws instead of the background, so it carries the tint itself.
     if (viewBlur) v.semBlur((32 * dp).toInt(), tint, radius)
 }
+
+/** This colour with its alpha scaled to [percent]. */
+fun Int.withAlpha(percent: Int) = this and 0xFFFFFF or ((Color.alpha(this) * percent / 100) shl 24)
 
 /** A light haptic tick (page settled, drawer committed, item dropped). */
 fun View.tick() = performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)

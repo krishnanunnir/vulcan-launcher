@@ -134,6 +134,8 @@ val LOOKS = listOf(
     Choice(FOLDERS, "folderPreview", R.string.set_folderPreview, "grid", PREVIEWS, PREVIEW_NAMES),
     Choice(FOLDERS, "folderBg", R.string.set_folderBg, "square", FOLDER_BGS, FOLDER_BG_NAMES),
     color(FOLDERS, "folderColor", R.string.set_folderColor, "system", themed = true),
+    // The open folder's window, as the drawer's Background opacity.
+    percent(FOLDERS, "folderAlpha", R.string.set_drawerAlpha, "100"),
     onOff(FOLDERS, "folderClip", R.string.set_folderClip, false),
     onOff(FOLDERS, "folderFirstBig", R.string.set_folderFirstBig, false),
     Choice(FOLDERS, "folderRadius", R.string.set_folderRadius, "28", range(0, 32, 4), shown = range(0, 32, 4).map { "$it dp" }),

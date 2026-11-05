@@ -501,7 +501,8 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
     lateinit var grid: View
     val card = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        if (full) background = panelBg(100, 0f, m3.surfaceHigh) else frost(this, looks.int("folderRadius") * dp)
+        val alpha = looks.int("folderAlpha")
+        if (full) background = panelBg(alpha, 0f, m3.surfaceHigh) else frost(this, looks.int("folderRadius") * dp, alpha)
         isClickable = true
         // Full screen: name and icons centred, within reach of the thumb as in the pop-up; a long folder scrolls.
         if (full) gravity = Gravity.CENTER_VERTICAL
