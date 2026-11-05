@@ -527,7 +527,6 @@
     <string name="page_of">Strona %1$d z %2$d</string>
     <string name="not_launcher_backup">Brak bazy danych launchera w tym pliku. Czy to na pewno kopia zapasowa launchera?</string>
     <string name="not_vulcan_backup">To nie jest kopia zapasowa aplikacji Vulcan</string>
-    <string name="app_name" translatable="false">Vulcan</string>
     <string name="badge_service_label">Plakietki Vulcan</string>
     <string name="action_service_label">Działania Vulcan</string>
     <plurals name="filter_icons">
