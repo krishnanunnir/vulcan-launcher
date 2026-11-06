@@ -15,12 +15,11 @@ It has no internet access at all, so nothing it does can leave your phone.
 [![License: MIT](https://img.shields.io/github/license/krishnanunnir/vulcan-launcher?color=595752)](LICENSE)
 
 <a href="https://f-droid.org/packages/dev.vulcanlauncher/"><img src="https://f-droid.org/badge/get-it-on.png" height="66" alt="Get it on F-Droid"></a>
+<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/krishnanunnir/vulcan-launcher"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" height="66" alt="Get it on Obtainium"></a>
 <br>
 <a href="https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk"><img src="https://img.shields.io/badge/Download%20APK-E8721C?style=for-the-badge&logo=android&logoColor=white" height="44" alt="Download the latest Vulcan APK"></a>
 &nbsp;
 <a href="https://github.com/krishnanunnir/vulcan-launcher/releases"><img src="https://img.shields.io/badge/All%20releases-2A2A28?style=for-the-badge&logo=github&logoColor=white" height="44" alt="All Vulcan releases on GitHub"></a>
-&nbsp;
-<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/krishnanunnir/vulcan-launcher"><img src="https://img.shields.io/badge/Get%20it%20on%20Obtainium-595752?style=for-the-badge&logo=android&logoColor=white" height="44" alt="Add Vulcan to Obtainium"></a>
 
 <img src="docs/screenshots/home.jpg" width="19%" alt="Home screen: the sunset launcher shortcut, mail and photos, five dock apps, and the search bar over the dusk wallpaper">
 <img src="docs/screenshots/menu.jpg" width="19%" alt="Long-press menu on the home screen: widgets, shortcuts, wallpaper, pages, lock and settings">
