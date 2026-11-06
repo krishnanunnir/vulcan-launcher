@@ -19,6 +19,8 @@ It has no internet access at all, so nothing it does can leave your phone.
 <a href="https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk"><img src="https://img.shields.io/badge/Download%20APK-E8721C?style=for-the-badge&logo=android&logoColor=white" height="44" alt="Download the latest Vulcan APK"></a>
 &nbsp;
 <a href="https://github.com/krishnanunnir/vulcan-launcher/releases"><img src="https://img.shields.io/badge/All%20releases-2A2A28?style=for-the-badge&logo=github&logoColor=white" height="44" alt="All Vulcan releases on GitHub"></a>
+&nbsp;
+<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/krishnanunnir/vulcan-launcher"><img src="https://img.shields.io/badge/Get%20it%20on%20Obtainium-595752?style=for-the-badge&logo=android&logoColor=white" height="44" alt="Add Vulcan to Obtainium"></a>
 
 <img src="docs/screenshots/home.jpg" width="19%" alt="Home screen: the sunset launcher shortcut, mail and photos, five dock apps, and the search bar over the dusk wallpaper">
 <img src="docs/screenshots/menu.jpg" width="19%" alt="Long-press menu on the home screen: widgets, shortcuts, wallpaper, pages, lock and settings">
@@ -56,6 +58,8 @@ Long-press an empty spot on the home screen to open **Settings**.
 Vulcan needs Android 8 or newer.
 
 The easiest way is [F-Droid](https://f-droid.org/packages/dev.vulcanlauncher/): install it from there and it keeps Vulcan up to date. F-Droid can lag a few days behind new releases.
+
+For updates as soon as they're released, add Vulcan to [Obtainium](https://github.com/ImranR98/Obtainium) ([one-tap link](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/krishnanunnir/vulcan-launcher)). It installs the APK straight from GitHub Releases. Pick one source and stay with it: Android may refuse to update an install from one source with an APK from another, and switching then means uninstalling. Back up your layout first (Settings → Backup & restore).
 
 Or [download the APK](https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk), then:
 
