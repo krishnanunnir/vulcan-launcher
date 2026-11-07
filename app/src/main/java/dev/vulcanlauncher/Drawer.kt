@@ -663,6 +663,8 @@ class Drawer(private val a: MainActivity) {
         buildTabs(groups, workTab, privateTab, q.isEmpty())
         privateBar.visibility = if (q.isEmpty() && tab == "private") View.VISIBLE else View.GONE
         if (privateBar.visibility == View.VISIBLE) buildPrivateBar()
+        // Warm the first two screens off the UI thread; the rest is prefetched as the list scrolls (see Adapter).
+        a.prefetchIcons(entries.filterIsInstance<Entry.AppE>().map { it.app }.take(cols * rows * 2))
         if (styleName == "pages") buildPages() else adapter.notifyDataSetChanged()
     }
 
@@ -960,7 +962,10 @@ class Drawer(private val a: MainActivity) {
         override fun getItem(pos: Int) = entries.getOrNull(pos - lead)
         override fun getItemId(pos: Int) = pos.toLong()
         override fun isEnabled(pos: Int) = getItem(pos) != null
-        override fun getView(pos: Int, convert: View?, parent: ViewGroup): View = (getItem(pos)?.let { entryView(it, convert) }?.apply {
+        override fun getView(pos: Int, convert: View?, parent: ViewGroup): View {
+            // Once per row, warm the next screen off the UI thread while this one is on show.
+            if (pos % cols == 0 && pos < entries.size) a.prefetchIcons(entries.drop(pos).take(cols * rows).filterIsInstance<Entry.AppE>().map { it.app })
+            return (getItem(pos)?.let { entryView(it, convert) }?.apply {
             if (styleName == "list") setPadding((8 * a.dp).toInt(), 0, 0, 0)
         } ?: entryView(entries[0]).apply { visibility = View.INVISIBLE }).apply { // a filler as tall as a real cell, or GridView misplaces the row
             if (styleName == "list") return@apply
@@ -969,6 +974,7 @@ class Drawer(private val a: MainActivity) {
             // cell was never attached to the window and accessibility skipped it.
             (layoutParams as? android.widget.AbsListView.LayoutParams ?: android.widget.AbsListView.LayoutParams(-1, -2).also { layoutParams = it })
                 .height = if (cellH > 0) cellH else -2
+        }
         }
         override fun getSections(): Array<String> = sections
         override fun getPositionForSection(s: Int) = entries.indexOfFirst { letter(it) == sections.getOrNull(s) }.coerceAtLeast(0) + lead
