@@ -108,11 +108,14 @@ abstract class VulcanActivity : Activity() {
         this@VulcanActivity.pickList(title, list.map { icon(it) to if (isWork(it)) getString(R.string.work_app, label(it)) else label(it) }, appIcon = true) { onPicked(list[it]) }
     }
 
-    fun pickAction(title: String, onPicked: (String) -> Unit) {
+    /** [folder]: a folder's swipe, which may also open the folder itself (listed last, "folder"). */
+    fun pickAction(title: String, folder: Boolean = false, onPicked: (String) -> Unit) {
         val rows = ACTIONS.zip(ACTION_NAMES).map { (a, n) -> ACTION_SYMBOLS[a]?.let { symbol(it) } to getString(n) } +
-            listOf(symbol("carousel") to getString(R.string.jump_to_page_item), symbol("apps") to getString(R.string.open_app_item))
+            listOf(symbol("carousel") to getString(R.string.jump_to_page_item), symbol("apps") to getString(R.string.open_app_item)) +
+            (if (folder) listOf(symbol("folder") to getString(R.string.action_open_folder)) else emptyList())
         pickList(title, rows) { i ->
             when (i) {
+                ACTIONS.size + 2 -> onPicked("folder")
                 ACTIONS.size -> sheet().setTitle(R.string.page).setItems(Array(looks.pages) { getString(R.string.page_n, it + 1) }) { _, p -> onPicked("page:$p") }.show()
                 ACTIONS.size + 1 -> pickApp(getString(R.string.open_app)) { onPicked("app:${it.key}") }
                 else -> onPicked(ACTIONS[i])

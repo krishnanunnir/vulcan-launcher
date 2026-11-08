@@ -749,7 +749,7 @@ class MainActivity : VulcanActivity() {
 
     /** Label and icon for any non-widget item, or null when its app is gone. */
     fun resolve(item: Item): Pair<CharSequence, Drawable>? = when {
-        item.folder -> item.label to folderIcon(item.children)
+        item.folder -> item.label to (icons.custom(item.icon) ?: folderIcon(item.children))
         item.isAction -> item.label.ifEmpty { actionName(item.action, ::appLabel) } to
             (icons.custom(item.icon) ?: if (item.action == "settings") packageManager.getApplicationIcon(applicationInfo)
             else GlyphIcon(m3.primaryContainer, m3.onPrimaryContainer, symbol = when {
@@ -776,7 +776,7 @@ class MainActivity : VulcanActivity() {
             contentDescription = label
             setOnClickListener { open(item, it) }
             onSwipe = when {
-                item.folder && looks.on("folderSwipe") -> { { openFolder(item) } }
+                item.folder && folderSwipeOpens(item.swipe, looks.on("folderSwipe")) -> { { openFolder(item) } }
                 item.swipe.isNotEmpty() -> { { perform(item.swipe) } }
                 else -> null
             }
@@ -786,7 +786,7 @@ class MainActivity : VulcanActivity() {
 
     fun open(item: Item, v: View?) {
         when {
-            item.folder -> if (looks.on("folderSwipe")) item.children.firstOrNull()?.let { open(it, v) } else openFolder(item)
+            item.folder -> if (folderSwipeOpens(item.swipe, looks.on("folderSwipe"))) item.children.firstOrNull()?.let { open(it, v) } else openFolder(item)
             item.isAction -> perform(item.action)
             item.isShortcut -> startShortcut(item.pkg, item.shortcutId, userOf(item.user), v)
             item.action == "activity" -> try {
@@ -1868,8 +1868,17 @@ class MainActivity : VulcanActivity() {
                 "widgets" -> pickWidget()
                 "wallpaper" -> startActivity(Intent.createChooser(Intent(Intent.ACTION_SET_WALLPAPER), getString(R.string.wallpaper)))
                 "torch" -> toggleTorch()
+                "locklayout" -> { looks["lockLayout"] = if (locked) "off" else "on"; toast(if (locked) R.string.layout_locked else R.string.layout_unlocked) }
+                "work" -> toggleWork()
             }
         }
+    }
+
+    /** Pauses or resumes the work profile; Android lets the default home app do this (API 28+). */
+    private fun toggleWork() {
+        val work = launcherApps.profiles.firstOrNull { it != Process.myUserHandle() && it != privateUser }
+        if (work == null || android.os.Build.VERSION.SDK_INT < 28) return toast(R.string.no_work_profile)
+        runCatching { um.requestQuietModeEnabled(!um.isQuietModeEnabled(work), work) }.onFailure { toast(R.string.no_work_profile) }
     }
 
     private var torchOn = false

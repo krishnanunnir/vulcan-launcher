@@ -13,21 +13,28 @@ import kotlin.math.hypot
  * Parameterised forms: "page:N" (0-based page) and "app:pkg/cls/user".
  */
 val ACTIONS = listOf("none", "drawer", "now", "notifications", "quicksettings", "togglebar", "recents", "defaultpage", "previews",
-    "toggledock", "search", "voice", "assistant", "lock", "power", "settings", "widgets", "wallpaper", "torch")
+    "toggledock", "search", "voice", "assistant", "lock", "power", "settings", "widgets", "wallpaper", "torch", "locklayout", "work")
 val ACTION_NAMES = listOf(
     R.string.action_none, R.string.action_drawer, R.string.action_now, R.string.action_notifications,
     R.string.action_quicksettings, R.string.action_togglebar, R.string.action_recents, R.string.action_defaultpage,
     R.string.action_previews, R.string.action_toggledock, R.string.action_search, R.string.action_voice,
     R.string.action_assistant, R.string.action_lock, R.string.action_power, R.string.action_settings,
-    R.string.action_widgets, R.string.action_wallpaper, R.string.action_torch,
+    R.string.action_widgets, R.string.action_wallpaper, R.string.action_torch, R.string.action_locklayout, R.string.action_work,
 )
 
 /** Display name for an action code; [text] reads a string resource with format arguments, [appLabel] resolves "app:" codes. */
 fun actionName(code: String, text: (Int, Array<Any>) -> String, appLabel: (String) -> String? = { null }): String = when {
     code.startsWith("page:") -> text(R.string.action_jump_to_page, arrayOf((code.removePrefix("page:").toIntOrNull() ?: 0) + 1))
+    code == "folder" -> text(R.string.action_open_folder, arrayOf())
     code.startsWith("app:") -> text(R.string.action_open_app, arrayOf(appLabel(code.removePrefix("app:")) ?: text(R.string.action_app_fallback, arrayOf())))
     else -> text(ACTION_NAMES.getOrElse(ACTIONS.indexOf(code)) { ACTION_NAMES[0] }, arrayOf())
 }
+
+/**
+ * Whether a folder's swipe opens it (and a tap then opens its first app). Its own swipe action wins: "folder" opens it,
+ * any other action replaces it; "" follows the global Swipe to open setting.
+ */
+fun folderSwipeOpens(swipe: String, global: Boolean) = swipe == "folder" || swipe.isEmpty() && global
 
 fun android.content.Context.actionName(code: String, appLabel: (String) -> String? = { null }) =
     actionName(code, { id, args -> getString(id, *args) }, appLabel)

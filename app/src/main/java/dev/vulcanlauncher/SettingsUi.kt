@@ -475,7 +475,7 @@ private fun SettingsActivity.applyChoice(c: Choice, value: String) {
  * [preview] draws an icon value ("" is the default icon).
  */
 fun MainActivity.editDialog(title: String, label: String, defaultLabel: String, icon: String?, swipe: String?,
-                            preview: (String) -> Drawable?, onSave: (String, String, String) -> Unit) {
+                            preview: (String) -> Drawable?, folder: Boolean = false, onSave: (String, String, String) -> Unit) {
     var iconV = icon ?: ""
     var swipeV = swipe ?: ""
     val pad = (24 * dp).toInt()
@@ -499,8 +499,10 @@ fun MainActivity.editDialog(title: String, label: String, defaultLabel: String, 
         val holder = android.widget.FrameLayout(this)
         fun row() {
             holder.removeAllViews()
-            holder.addView(listItem(symbol("gesture"), getString(R.string.swipe_up_action), actionName(swipeV.ifEmpty { "none" }, ::appLabel)) {
-                pickAction(getString(R.string.swipe_up_action)) { swipeV = if (it == "none") "" else it; row() }
+            // A folder keeps "none", so it can opt out of the global Swipe to open; "" follows that setting.
+            val shown = swipeV.ifEmpty { if (folder && looks.on("folderSwipe")) "folder" else "none" }
+            holder.addView(listItem(symbol("gesture"), getString(R.string.swipe_up_action), actionName(shown, ::appLabel)) {
+                pickAction(getString(R.string.swipe_up_action), folder) { swipeV = if (it == "none" && !folder) "" else it; row() }
             })
         }
         row()
@@ -518,8 +520,8 @@ fun MainActivity.editItem(item: Item) {
         item.isApp -> appLabel(item.appKey) ?: ""
         else -> resolve(item.copy(label = ""))?.first?.toString() ?: ""
     }
-    editDialog(getString(if (item.folder) R.string.edit_folder else R.string.edit), item.label, default, if (item.folder) null else item.icon, item.swipe,
-        { ic -> resolve(item.copy(icon = ic))?.second }) { l, ic, sw ->
+    editDialog(getString(if (item.folder) R.string.edit_folder else R.string.edit), item.label, default, item.icon, item.swipe,
+        { ic -> resolve(item.copy(icon = ic))?.second }, item.folder) { l, ic, sw ->
         val i = items.indexOf(item)
         if (i < 0) return@editDialog
         items[i] = item.copy(label = if (item.folder) l.ifEmpty { getString(R.string.folder) } else l, icon = ic, swipe = sw)
@@ -545,11 +547,12 @@ fun MainActivity.pickIcon(onPicked: (String) -> Unit) {
     val packs = iconPacks(this)
     val rows = listOf(symbol("refresh") to getString(R.string.icon_default_option)) +
         packs.map { (pkg, name) -> runCatching { packageManager.getApplicationIcon(pkg) }.getOrNull() to getString(R.string.icon_from_pack, name) } +
-        (symbol("image") to getString(R.string.icon_from_gallery))
+        (symbol("apps") to getString(R.string.icon_from_app)) + (symbol("image") to getString(R.string.icon_from_gallery))
     pickList(getString(R.string.icon), rows) { i ->
         when {
             i == 0 -> onPicked("")
             i <= packs.size -> pickPackIcon(packs[i - 1].first, onPicked)
+            i == packs.size + 1 -> pickApp(getString(R.string.icon_from_app)) { onPicked("app:${it.pkg}/${it.cls}") }
             else -> {
                 onPickedImage = { onPicked("uri:$it") }
                 @Suppress("DEPRECATION")
@@ -729,10 +732,10 @@ fun VulcanActivity.editGroup(g: Group) {
     val groups = home.drawer.groups()
     fun replace(n: Group?) = saveGroups(groups.mapNotNull { if (it.name == g.name) n else it })
     val other = if (g.type == "tab") "folder" else "tab"
-    // Tabs move along the drawer's tab row: left is earlier, except in right-to-left languages.
+    // Tabs move along the drawer's tab row, folders along the grid: left is earlier, except in right-to-left languages.
     val rtl = resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL
     fun move(sym: String, title: Int, by: Int) = moveGroup(groups, g.name, if (rtl) -by else by)
-        ?.takeIf { g.type == "tab" }?.let { Triple(symbol(sym), getString(title)) { saveGroups(it) } }
+        ?.let { Triple(symbol(sym), getString(title)) { saveGroups(it) } }
     val actions = listOfNotNull(
         Triple(symbol("edit"), getString(R.string.rename)) { askName(getString(R.string.rename), g.name) { replace(g.copy(name = it)) } },
         Triple(symbol("apps"), getString(R.string.choose_apps)) { chooseApps(g.name, g.apps) { replace(g.copy(apps = it)) } },

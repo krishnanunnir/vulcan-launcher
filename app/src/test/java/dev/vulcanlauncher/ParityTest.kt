@@ -34,6 +34,17 @@ class ParityTest {
         assertEquals("${R.string.action_lock}:", actionName("lock", t))
         assertEquals("${R.string.action_none}:", actionName("bogus", t))
         assertEquals(13, GESTURE_KEYS.size) // 13 home gestures
+        assertEquals("${R.string.action_open_folder}:", actionName("folder", t))
+    }
+
+    @Test
+    fun folderSwipe() {
+        // #66: a folder's own swipe action beats the global Swipe to open; #65: "folder" turns it on per folder.
+        assertFalse(folderSwipeOpens("page:2", global = true))
+        assertFalse(folderSwipeOpens("none", global = true))
+        assertTrue(folderSwipeOpens("folder", global = false))
+        assertTrue(folderSwipeOpens("", global = true))
+        assertFalse(folderSwipeOpens("", global = false))
     }
 
     @Test

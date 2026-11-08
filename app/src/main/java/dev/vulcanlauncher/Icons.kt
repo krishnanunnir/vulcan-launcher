@@ -328,6 +328,11 @@ class Icons(private val context: Context, private val looks: Looks) {
     }
 
     fun custom(custom: String): Drawable? = when {
+        // Another app's icon, as this launcher draws it (pack, theming, shape). Gone app: null, so the default shows.
+        custom.startsWith("app:") -> custom.removePrefix("app:").split("/").let { (pkg, cls) ->
+            runCatching { context.packageManager.getActivityIcon(android.content.ComponentName(pkg, cls)) }.getOrNull()
+                ?.let { base -> get(pkg, cls, "") { base } }
+        }
         custom.startsWith("pack:") -> {
             val (pkg, name) = custom.removePrefix("pack:").split(":", limit = 2).let { it[0] to it.getOrElse(1) { "" } }
             (if (pkg == pack?.pkg) pack else loadIconPack(context, pkg))?.drawable(name)

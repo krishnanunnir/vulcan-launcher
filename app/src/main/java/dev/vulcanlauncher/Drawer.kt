@@ -348,6 +348,23 @@ class Drawer(private val a: MainActivity) {
             if (barOff) visibility = View.GONE
         }
         searchBar = bar
+        // A pull down on the search bar closes the drawer, wherever the list is scrolled (#56). Taps still reach the field.
+        var barDownY = 0f
+        val pullClose = View.OnTouchListener { v, ev ->
+            when (ev.actionMasked) {
+                MotionEvent.ACTION_DOWN -> { barDownY = ev.rawY; false }
+                MotionEvent.ACTION_MOVE -> (ev.rawY - barDownY > 48 * a.dp).also { pulled ->
+                    if (pulled) {
+                        barDownY = Float.MAX_VALUE
+                        MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; v.onTouchEvent(it); it.recycle() }
+                        hide()
+                    }
+                }
+                else -> false
+            }
+        }
+        bar.setOnTouchListener(pullClose)
+        search.setOnTouchListener(pullClose)
         val barParams = LinearLayout.LayoutParams(-1, ((if (bottomBar) 48 else 56) * a.dp).toInt()).apply { setMargins(pad, pad / 2, pad, pad / 2) }
         if (!bottomBar) addView(bar, barParams)
         tabs.setPadding(pad - (4 * a.dp).toInt(), if (bottomBar || fromBottom) pad / 2 else 0, pad, (8 * a.dp).toInt())

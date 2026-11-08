@@ -14,7 +14,7 @@ import kotlin.math.sin
 val ACTION_SYMBOLS = mapOf("now" to "sun", "drawer" to "apps", "notifications" to "notifications", "quicksettings" to "settings",
     "recents" to "recents", "previews" to "carousel", "lock" to "lock", "power" to "power", "search" to "search", "voice" to "mic",
     "assistant" to "sparkle", "settings" to "settings", "defaultpage" to "home", "widgets" to "widgets", "wallpaper" to "image",
-    "toggledock" to "dock", "togglebar" to "notifications", "torch" to "flashlight", "none" to "close")
+    "toggledock" to "dock", "togglebar" to "notifications", "torch" to "flashlight", "locklayout" to "lock", "work" to "person", "none" to "close")
 
 /**
  * Outlined icons in the Material Symbols style, drawn on a 24-unit grid with round 2-unit strokes.
