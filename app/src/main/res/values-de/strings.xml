@@ -163,7 +163,7 @@
     <string name="group_night">Nachtmodus</string>
     <string name="group_now">Jetzt-Seite</string>
     <string name="hidden_apps">Versteckte Apps</string>
-    <string name="hidden_apps_info">Blende Apps aus der Übersicht aus</string>
+    <string name="hidden_apps_info">Blendet Apps aus der Übersicht aus</string>
     <string name="hidden_hide">"Versteckte Apps nicht anzeigen"</string>
     <string name="hidden_show">Versteckte Apps anzeigen</string>
     <string name="hide">Ausblenden</string>

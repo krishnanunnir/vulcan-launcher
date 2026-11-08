@@ -163,7 +163,7 @@
     <string name="group_night">Ночной режим</string>
     <string name="group_now">Страница «Сейчас»</string>
     <string name="hidden_apps">Скрытые приложения</string>
-    <string name="hidden_apps_info">Не показывайте приложения в меню</string>
+    <string name="hidden_apps_info">Скрывать приложения в меню</string>
     <string name="hidden_hide">"Не показывать скрытые приложения"</string>
     <string name="hidden_show">Показывать скрытые приложения</string>
     <string name="hide">Скрыть</string>
@@ -262,7 +262,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="open_settings">Открыть настройки</string>
     <string name="orientation_auto">Поворачивать с телефоном</string>
     <string name="orientation_landscape">Альбомная</string>
-    <string name="orientation_portrait">Портретная</string>
+    <string name="orientation_portrait">Книжная</string>
     <string name="page">Страница</string>
     <string name="page_last">Главному экрану нужна хотя бы одна страница</string>
     <string name="page_n">Страница %1$d</string>
@@ -282,7 +282,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="preview_radial">Радиальный</string>
     <string name="preview_stack">Стопка</string>
     <string name="private_install">Устанавливать приложения в приватное пространство</string>
-    <string name="remove">Удалить</string>
+    <string name="remove">Убрать</string>
     <string name="tab_color">Цвет</string>
     <string name="rename">Переименовать</string>
     <string name="reset">Сбросить</string>
