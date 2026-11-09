@@ -1,8 +1,9 @@
-# Release every 2 days: if main changed since the last v* tag, bump the version, tag, build the signed APK, publish.
+# Weekly release: if main changed since the last v* tag, bump the version, write the changelog, tag,
+# build the signed APK, publish.
 name: Auto release
 
 on:
-  schedule: [{ cron: "0 3 */2 * *" }] # 03:00 UTC on odd days of the month (31st → 1st runs two days in a row)
+  schedule: [{ cron: "0 3 * * 1" }] # Mondays 03:00 UTC
   workflow_dispatch:
 
 permissions:
@@ -21,6 +22,7 @@ jobs:
         id: check
         run: |
           last=$(git describe --tags --abbrev=0 --match 'v*')
+          echo "last=$last" >> "$GITHUB_OUTPUT"
           if git diff --quiet "$last" HEAD; then
             echo "No changes since $last"; echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
@@ -37,10 +39,24 @@ jobs:
             code=$((code + 1))
             name="${name%.*}.$(( ${name##*.} + 1 ))"
             sed -i -E "s/^( *versionCode = )[0-9]+/\1$code/; s/^( *versionName = )\"[^\"]+\"/\1\"$name\"/" $f
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -am "Release v$name"
           fi
+
+          # Changelog = commit subjects since the last tag, minus release/CI/repo-housekeeping commits.
+          git log --no-merges --format='%s' "${{ steps.check.outputs.last }}..HEAD" \
+            | grep -vE '^(Release v|CI:|CLAUDE\.md|README|Docs?:|Merge )' > "$RUNNER_TEMP/changes.txt" || true
+          [ -s "$RUNNER_TEMP/changes.txt" ] || echo "Small fixes and improvements." > "$RUNNER_TEMP/changes.txt"
+          sed 's/^/- /' "$RUNNER_TEMP/changes.txt" > "$RUNNER_TEMP/notes.md"
+          # F-Droid shows fastlane changelogs/<versionCode>.txt, max 500 bytes. A hand-written one wins.
+          cl=fastlane/metadata/android/en-US/changelogs/$code.txt
+          if [ ! -f "$cl" ]; then
+            # Whole lines only, up to 500 bytes. ponytail: wording is the raw commit subjects; hand-write $cl for nicer text.
+            awk '{ n += length($0) + 1; if (n > 500) exit; print }' "$RUNNER_TEMP/changes.txt" > "$cl"
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A "$f" "$cl"
+          git diff --cached --quiet || git commit -m "Release v$name"
           git tag "v$name"
           git push origin HEAD:main "v$name"
           echo "name=$name" >> "$GITHUB_OUTPUT"
@@ -71,4 +87,4 @@ jobs:
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           v=v${{ steps.ver.outputs.name }}
-          gh release create "$v" vulcan-launcher.apk SHA256SUMS --title "Vulcan ${{ steps.ver.outputs.name }}" --generate-notes
+          gh release create "$v" vulcan-launcher.apk SHA256SUMS --title "Vulcan ${{ steps.ver.outputs.name }}" --notes-file "$RUNNER_TEMP/notes.md"
