@@ -30,6 +30,7 @@ jobs:
       - name: Bump version, commit, tag
         if: steps.check.outputs.skip != 'true'
         id: ver
+        env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           f=app/build.gradle.kts
           code=$(sed -nE 's/^ *versionCode = ([0-9]+).*/\1/p' $f)
@@ -46,6 +47,14 @@ jobs:
             | grep -vE '^(Release v|CI:|CLAUDE\.md|README|Docs?:|Merge )' > "$RUNNER_TEMP/changes.txt" || true
           [ -s "$RUNNER_TEMP/changes.txt" ] || echo "Small fixes and improvements." > "$RUNNER_TEMP/changes.txt"
           sed 's/^/- /' "$RUNNER_TEMP/changes.txt" > "$RUNNER_TEMP/notes.md"
+          # Thank everyone but the repo owner and bots (GitHub release notes only, not F-Droid).
+          # PR authors catch contributors whose commit email isn't linked to their GitHub account.
+          since=$(git log -1 --format=%cI "${{ steps.check.outputs.last }}")
+          people=$( { gh api "repos/${{ github.repository }}/compare/${{ steps.check.outputs.last }}...${{ github.sha }}" \
+                        --jq '.commits[].author.login // empty'
+                      gh pr list --state merged --search "merged:>$since" -L 200 --json author --jq '.[].author.login'
+                    } | sort -u | grep -vxE "${{ github.repository_owner }}|.*\[bot\]|app/.*" | sed 's/^/@/' | paste -sd ' ' - || true)
+          [ -z "$people" ] || printf '\n**Contributors:** thanks to %s\n' "$people" >> "$RUNNER_TEMP/notes.md"
           # F-Droid shows fastlane changelogs/<versionCode>.txt, max 500 bytes. A hand-written one wins.
           cl=fastlane/metadata/android/en-US/changelogs/$code.txt
           if [ ! -f "$cl" ]; then
