@@ -868,9 +868,11 @@ class MainActivity : VulcanActivity() {
         // its cell is left empty.
         val at = IntArray(2).also { v.getLocationInWindow(it) }
         val touch = Point((lastDown.x - at[0]).toInt().coerceIn(0, v.width), (lastDown.y - at[1]).toInt().coerceIn(0, v.height))
-        v.startDragAndDrop(ClipData.newPlainText("", ""), object : View.DragShadowBuilder(v) {
+        val started = v.startDragAndDrop(ClipData.newPlainText("", ""), object : View.DragShadowBuilder(v) {
             override fun onProvideShadowMetrics(size: Point, touchPoint: Point) { super.onProvideShadowMetrics(size, touchPoint); touchPoint.set(touch.x, touch.y) }
         }, payload, View.DRAG_FLAG_OPAQUE)
+        // No drag means no ENDED to undo what follows: show the menu instead.
+        if (!started) { dragSource = null; showPopup(v, payload); return }
         if (payload is Item) v.alpha = 0f
         // The menu shows the moment the long-press registers, as on the wallpaper; moving the drag closes it (trackDrag).
         // Not for a drag out of a menu row (a shortcut): that menu stays until the drag moves.

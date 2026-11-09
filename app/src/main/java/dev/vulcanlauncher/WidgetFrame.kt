@@ -14,7 +14,9 @@ class WidgetFrame(context: Context) : FrameLayout(context) {
     private var fired = false
     private val longPress = Runnable { fired = true; performLongClick() }
 
-    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+    // In dispatch, not intercept: a touch on a part of the widget no child takes never reaches intercept again after
+    // DOWN, so its UP didn't cancel the timer and a plain tap became a failed drag that left the widget hidden (#60).
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 fired = false; downX = ev.x; downY = ev.y
@@ -24,6 +26,8 @@ class WidgetFrame(context: Context) : FrameLayout(context) {
                 if (abs(ev.x - downX) > slop || abs(ev.y - downY) > slop) removeCallbacks(longPress)
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> removeCallbacks(longPress)
         }
-        return fired
+        return super.dispatchTouchEvent(ev)
     }
+
+    override fun onInterceptTouchEvent(ev: MotionEvent) = fired
 }
