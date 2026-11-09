@@ -1,0 +1,74 @@
+# Weekly release: if main changed since the last v* tag, bump the version, tag, build the signed APK, publish.
+name: Auto release
+
+on:
+  schedule: [{ cron: "0 3 * * 1" }] # Mondays 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Changed since last release?
+        id: check
+        run: |
+          last=$(git describe --tags --abbrev=0 --match 'v*')
+          if git diff --quiet "$last" HEAD; then
+            echo "No changes since $last"; echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump version, commit, tag
+        if: steps.check.outputs.skip != 'true'
+        id: ver
+        run: |
+          f=app/build.gradle.kts
+          code=$(sed -nE 's/^ *versionCode = ([0-9]+).*/\1/p' $f)
+          name=$(sed -nE 's/^ *versionName = "([^"]+)".*/\1/p' $f)
+          # Already bumped by hand (version not yet tagged) → release it as-is.
+          if git rev-parse -q --verify "refs/tags/v$name" >/dev/null; then
+            code=$((code + 1))
+            name="${name%.*}.$(( ${name##*.} + 1 ))"
+            sed -i -E "s/^( *versionCode = )[0-9]+/\1$code/; s/^( *versionName = )\"[^\"]+\"/\1\"$name\"/" $f
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -am "Release v$name"
+          fi
+          git tag "v$name"
+          git push origin HEAD:main "v$name"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      # JDK 21 matches F-Droid's build server (docs/BUILDING.md); built after tagging so the embedded revision is the tag.
+      - uses: actions/setup-java@v4
+        if: steps.check.outputs.skip != 'true'
+        with: { distribution: temurin, java-version: "21" }
+
+      - name: Build signed APK
+        if: steps.check.outputs.skip != 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "$RUNNER_TEMP/release.jks" "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > keystore.properties
+          ./gradlew --no-daemon clean assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk vulcan-launcher.apk
+          sha256sum vulcan-launcher.apk > SHA256SUMS
+          rm keystore.properties "$RUNNER_TEMP/release.jks"
+
+      - name: Publish release
+        if: steps.check.outputs.skip != 'true'
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          v=v${{ steps.ver.outputs.name }}
+          gh release create "$v" vulcan-launcher.apk SHA256SUMS --title "Vulcan ${{ steps.ver.outputs.name }}" --generate-notes
