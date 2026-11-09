@@ -83,3 +83,42 @@ class MoveGroupTest {
         org.junit.Assert.assertNull(moveGroup(groups, "Nope", 1))
     }
 }
+
+class ManualOrderTest {
+    private fun eq(expected: Any?, actual: Any?) = org.junit.Assert.assertEquals(expected, actual)
+
+    @org.junit.Test fun manualSortUsesRankThenLabels() {
+        val keys = listOf(SortKey("Zulu", 0, 0, 0), SortKey("Bravo", 0, 0), SortKey("Mike", 0, 0, 1), SortKey("Alpha", 0, 0))
+        eq(listOf("Zulu", "Mike", "Alpha", "Bravo"), keys.sortedWith(drawerComparator("manual", java.util.Locale.ENGLISH)).map { it.label })
+    }
+    @org.junit.Test fun tabKeepsItsOwnOrderOnlyWhenManual() {
+        val groups = listOf(Group("T", "tab", listOf("c", "a", "x", "b")))
+        val all = listOf("a", "b", "c")
+        eq(listOf("a", "b", "c"), tabApps(all, groups, "T", emptySet(), false, true, emptySet(), false))
+        eq(listOf("c", "a", "b"), tabApps(all, groups, "T", emptySet(), false, true, emptySet(), false, manual = true))
+        eq(listOf("c", "b"), tabApps(all, groups, "T", setOf("a"), false, true, emptySet(), false, manual = true))
+    }
+    @org.junit.Test fun arrangingKeepsTheRestBehind() {
+        eq(listOf("c", "a", "b", "x"), arranged(listOf("a", "x", "b", "c"), listOf("c", "a", "b")))
+        eq(listOf("b", "a"), arranged(emptyList(), listOf("b", "a")))
+    }
+    @org.junit.Test fun movedSwapsNeighboursAndStopsAtEnds() {
+        eq(listOf("b", "a", "c"), moved(listOf("a", "b", "c"), 1, -1))
+        eq(listOf("a", "c", "b"), moved(listOf("a", "b", "c"), 1, 1))
+        eq(listOf("a", "b", "c"), moved(listOf("a", "b", "c"), 0, -1))
+        eq(listOf("a", "b", "c"), moved(listOf("a", "b", "c"), 2, 1))
+    }
+    @org.junit.Test fun favouritesReplaceMostUsed() {
+        val used = mapOf("a" to 5, "b" to 9, "c" to 0, "h" to 20)
+        val shown = { k: String -> k != "h" && k != "gone" }
+        eq(listOf("b", "a"), frequentApps(emptyList(), used, shown, 4))
+        eq(listOf("c", "a"), frequentApps(listOf("c", "gone", "a"), used, shown, 4))
+        eq(listOf("c"), frequentApps(listOf("c", "a"), used, shown, 1))
+        eq(listOf("b", "a"), frequentApps(listOf("gone"), used, shown, 4))
+    }
+    @org.junit.Test fun otherGroupsOfEachApp() {
+        val groups = listOf(Group("A", "tab", listOf("x", "y")), Group("B", "folder", listOf("x")), Group("C", "tab", listOf("z")))
+        eq(mapOf("x" to listOf("A", "B"), "y" to listOf("A"), "z" to listOf("C")), groupsOfApps(groups, null))
+        eq(mapOf("x" to listOf("B"), "z" to listOf("C")), groupsOfApps(groups, "A"))
+    }
+}

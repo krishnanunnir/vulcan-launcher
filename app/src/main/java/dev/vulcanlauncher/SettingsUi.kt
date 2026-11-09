@@ -641,7 +641,8 @@ private fun MainActivity.pickPackIcon(pkg: String, onPicked: (String) -> Unit) {
 }
 
 /** Every app with a checkbox, for hiding apps or filling a drawer group; [onSave] gets the apps checked. */
-fun VulcanActivity.appSwitches(title: String, on: Collection<String>, onSave: (List<String>) -> Unit) {
+/** [others]: each app's other groups, shown under its name so a tab's apps can be picked from those not yet sorted (#55). */
+fun VulcanActivity.appSwitches(title: String, on: Collection<String>, others: Map<String, List<String>> = emptyMap(), onSave: (List<String>) -> Unit) {
     val list = home.apps.values.sortedWith(compareBy(labelOrder()) { home.label(it) })
     val chosen = on.toMutableSet()
     val adapter = object : BaseAdapter() {
@@ -656,7 +657,8 @@ fun VulcanActivity.appSwitches(title: String, on: Collection<String>, onSave: (L
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 buttonTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(m3.on, m3.onSurfaceVariant))
             }
-            return listItem(home.icon(app), if (home.isWork(app)) getString(R.string.work_app, home.label(app)) else home.label(app), trailing = box, appIcon = true) {
+            return listItem(home.icon(app), if (home.isWork(app)) getString(R.string.work_app, home.label(app)) else home.label(app),
+                others[app.key]?.let { getString(R.string.in_groups, it.joinToString()) }, trailing = box, appIcon = true) {
                 box.isChecked = !box.isChecked
                 if (box.isChecked) chosen += app.key else chosen -= app.key
             }.apply {
@@ -673,6 +675,55 @@ fun VulcanActivity.appSwitches(title: String, on: Collection<String>, onSave: (L
     sheet().setTitle(title).setView(lv)
         .setPositiveButton(R.string.save) { _, _ -> onSave(list.map { it.key }.filter { it in chosen }) }
         .setNegativeButton(R.string.cancel, null).show()
+}
+
+/**
+ * Puts [keys] in order with up and down buttons; Save hands back the new order.
+ * ponytail: buttons, not drag handles; a ListView drag-reorder if long lists make this tedious.
+ */
+fun VulcanActivity.arrangeApps(title: String, keys: List<String>, onSave: (List<String>) -> Unit) {
+    var order = keys.filter { it in home.apps }
+    val adapter = object : BaseAdapter() {
+        override fun getCount() = order.size
+        override fun getItem(p: Int) = order[p]
+        override fun getItemId(p: Int) = p.toLong()
+        override fun getView(p: Int, convert: View?, parent: ViewGroup): View {
+            val app = home.apps.getValue(order[p])
+            fun step(sym: String, label: Int, by: Int) = iconButton(sym, getString(label)) { order = moved(order, p, by); notifyDataSetChanged() }
+                .apply { isEnabled = p + by in order.indices; alpha = if (isEnabled) 1f else 0.38f }
+            val buttons = LinearLayout(this@arrangeApps).apply { addView(step("up", R.string.move_up, -1)); addView(step("down", R.string.move_down, 1)) }
+            return listItem(home.icon(app), home.label(app), trailing = buttons, appIcon = true, onClick = null)
+                .apply { setPaddingRelative((24 * dp).toInt(), paddingTop, (12 * dp).toInt(), paddingBottom) }
+        }
+    }
+    val lv = android.widget.ListView(this).apply { this.adapter = adapter; divider = null }
+    sheet().setTitle(title).setView(lv)
+        .setPositiveButton(R.string.save) { _, _ -> onSave(order) }
+        .setNegativeButton(R.string.cancel, null).show()
+}
+
+/**
+ * Arranges [shown], the apps of drawer tab [tab] ("" for all apps): a tab group keeps the order in its apps list, the
+ * other tabs share data.drawerOrder. Saving switches the drawer to the manual sort, where that order shows.
+ */
+fun VulcanActivity.arrangeTab(tab: String, shown: List<String>) {
+    val groups = home.drawer.groups()
+    val group = groups.firstOrNull { it.name == tab && it.type == "tab" }
+    arrangeApps(getString(R.string.arrange_apps), shown) { order ->
+        looks["drawerSort"] = "manual"
+        if (group != null) saveGroups(groups.map { if (it === group) it.copy(apps = arranged(it.apps, order)) else it })
+        else { store.putStrings("drawerOrder", arranged(store.strings("drawerOrder").toList(), order)); home.drawer.refresh() }
+    }
+}
+
+/** Picks the apps pinned above the drawer's tabs, then their order; none pinned, the row shows the most used apps. */
+fun VulcanActivity.chooseFavourites() {
+    val pinned = store.strings("favourites").toList()
+    appSwitches(getString(R.string.favourites), pinned) { chosen ->
+        val keep = pinned.filter { it in chosen } + chosen.filter { it !in pinned }
+        fun save(keys: List<String>) { store.putStrings("favourites", keys); home.drawer.refresh() }
+        if (keep.size > 1) arrangeApps(getString(R.string.favourites), keep, ::save) else save(keep)
+    }
 }
 
 fun VulcanActivity.hideAppsMenu() = appSwitches(getString(R.string.hide_apps), store.strings("hidden")) {
@@ -723,10 +774,12 @@ private fun VulcanActivity.askName(title: String, current: String, onName: (Stri
 private fun SettingsActivity.newGroup(type: String) = askName(getString(if (type == "tab") R.string.new_tab else R.string.new_folder), "") { name ->
     val groups = home.drawer.groups()
     if (groups.any { it.name == name }) { toast(getString(R.string.group_exists)); return@askName }
-    chooseApps(name, emptyList()) { saveGroups(groups + Group(name, type, it)) }
+    chooseApps(name, emptyList(), groupsOfApps(groups, null)) { saveGroups(groups + Group(name, type, it)) }
 }
 
-private fun VulcanActivity.chooseApps(title: String, current: List<String>, onDone: (List<String>) -> Unit) = appSwitches(title, current, onDone)
+/** A group's apps: those still ticked keep their place (a tab's arranged order), new ones go at the end. */
+private fun VulcanActivity.chooseApps(title: String, current: List<String>, others: Map<String, List<String>>, onDone: (List<String>) -> Unit) =
+    appSwitches(title, current, others) { chosen -> onDone(current.filter { it in chosen } + chosen.filter { it !in current }) }
 
 fun VulcanActivity.editGroup(g: Group) {
     val groups = home.drawer.groups()
@@ -738,7 +791,8 @@ fun VulcanActivity.editGroup(g: Group) {
         ?.let { Triple(symbol(sym), getString(title)) { saveGroups(it) } }
     val actions = listOfNotNull(
         Triple(symbol("edit"), getString(R.string.rename)) { askName(getString(R.string.rename), g.name) { replace(g.copy(name = it)) } },
-        Triple(symbol("apps"), getString(R.string.choose_apps)) { chooseApps(g.name, g.apps) { replace(g.copy(apps = it)) } },
+        Triple(symbol("apps"), getString(R.string.choose_apps)) { chooseApps(g.name, g.apps, groupsOfApps(groups, g.name)) { replace(g.copy(apps = it)) } },
+        if (g.type == "tab") Triple(symbol("drag"), getString(R.string.arrange_apps)) { arrangeTab(g.name, g.apps) } else null,
         // A tab's own colour, as Nova's: it fills the tab while it's selected (Drawer.buildTabs). No setting of its own (#49).
         if (g.type == "tab") Triple(colorDot(g.color?.let(Color::parseColor) ?: tabFill()), getString(R.string.tab_color)) {
             pickList(getString(R.string.tab_color), listOf(colorDot(tabFill()) to getString(R.string.color_from_theme)) +

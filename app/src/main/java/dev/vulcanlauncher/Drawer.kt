@@ -41,12 +41,13 @@ fun groupsToJson(groups: List<Group>) = JSONArray().apply {
 }.toString()
 
 /**
- * App keys shown in a drawer tab, in [ordered] order. [tab] is "" (all apps), "work", "private", or a tab group's name.
+ * App keys shown in a drawer tab, in [ordered] order, or a tab group's own order when [manual]. [tab] is "" (all apps),
+ * "work", "private", or a tab group's name.
  * The main tab leaves out hidden apps, work apps when they have their own tab, Private Space apps (always in their
  * own tab), and grouped apps unless [keepInAll].
  */
 fun tabApps(ordered: List<String>, groups: List<Group>, tab: String, hidden: Set<String>, showHidden: Boolean,
-            keepInAll: Boolean, work: Set<String>, workTab: Boolean, private: Set<String> = emptySet()): List<String> {
+            keepInAll: Boolean, work: Set<String>, workTab: Boolean, private: Set<String> = emptySet(), manual: Boolean = false): List<String> {
     val shown = ordered.filter { showHidden || it !in hidden }
     return when (tab) {
         "" -> {
@@ -55,9 +56,26 @@ fun tabApps(ordered: List<String>, groups: List<Group>, tab: String, hidden: Set
         }
         "work" -> shown.filter { it in work }
         "private" -> shown.filter { it in private }
-        else -> groups.firstOrNull { it.name == tab && it.type == "tab" }?.apps?.toSet()?.let { g -> shown.filter { it in g } } ?: emptyList()
+        else -> groups.firstOrNull { it.name == tab && it.type == "tab" }?.apps?.let { g ->
+            if (manual) shown.toSet().let { s -> g.distinct().filter { it in s } } else g.toSet().let { s -> shown.filter { it in s } }
+        } ?: emptyList()
     }
 }
+
+/** [order] after arranging the apps [shown] as [arranged]: they take the front, the rest keep their order after them. */
+fun arranged(order: List<String>, arranged: List<String>) = arranged + (order - arranged.toSet())
+
+/** [list] with item [i] swapped with its neighbour [by] -1 (up) or 1 (down); unchanged at either end. */
+fun <T> moved(list: List<T>, i: Int, by: Int): List<T> =
+    if (i + by !in list.indices || i !in list.indices) list else list.toMutableList().apply { this[i] = list[i + by]; this[i + by] = list[i] }
+
+/** The row above the tabs: the [pinned] favourites when there are any, else the most [launches] apps; [shown] filters. */
+fun frequentApps(pinned: List<String>, launches: Map<String, Int>, shown: (String) -> Boolean, cols: Int): List<String> =
+    pinned.filter(shown).ifEmpty { launches.filter { it.value > 0 && shown(it.key) }.entries.sortedByDescending { it.value }.map { it.key } }.take(cols)
+
+/** For each app key, the groups it's in, leaving out [except] (the group being edited). */
+fun groupsOfApps(groups: List<Group>, except: String?): Map<String, List<String>> =
+    groups.filter { it.name != except }.flatMap { g -> g.apps.map { it to g.name } }.groupBy({ it.first }, { it.second })
 
 /**
  * Whether a released drawer pull ends open: flung up faster than [fling] (px/s, upward positive), or past [threshold]
@@ -648,8 +666,10 @@ class Drawer(private val a: MainActivity) {
         val hidden = a.store.strings("hidden")
         val launches = a.launches()
         // Each key once: a comparator's selector runs on every comparison.
-        val ordered = a.apps.values.map { it to SortKey(a.label(it), it.info.firstInstallTime, launches.optInt(it.key)) }
-            .sortedWith(compareBy(drawerComparator(a.looks.str("drawerSort"))) { it.second }).map { it.first }
+        val sort = a.looks.str("drawerSort")
+        val rank = a.store.strings("drawerOrder").withIndex().associate { it.value to it.index }
+        val ordered = a.apps.values.map { it to SortKey(a.label(it), it.info.firstInstallTime, launches.optInt(it.key), rank[it.key] ?: Int.MAX_VALUE) }
+            .sortedWith(compareBy(drawerComparator(sort)) { it.second }).map { it.first }
         val groups = groups()
         val work = a.apps.values.filter { a.isWork(it) }.map { it.key }.toSet()
         val workTab = a.looks.on("workTab") && work.isNotEmpty()
@@ -664,14 +684,14 @@ class Drawer(private val a: MainActivity) {
                 shortcutHits(q, hidden) + settingsHits(q) +
                 contacts(q) + if (a.looks.on("webSearch")) listOf(Entry.WebE(q)) else emptyList()
         } else {
-            val keys = tabApps(ordered.map { it.key }, groups, tab, hidden, showHidden, a.looks.on("keepInAll"), work, workTab, private)
+            val keys = tabApps(ordered.map { it.key }, groups, tab, hidden, showHidden, a.looks.on("keepInAll"), work, workTab, private, sort == "manual")
             val list = keys.mapNotNull { a.apps[it] }.map { Entry.AppE(it) }
             val folders = if (tab == "") groups.filter { it.type == "folder" }.map { Entry.FolderE(it) } else emptyList()
             if (a.looks.on("foldersFirst")) folders + list else list + folders
         }
         buildFrequent(if (q.isEmpty() && tab == "" && a.looks.on("frequent"))
-            a.apps.values.filter { launches.optInt(it.key) > 0 && it.key !in hidden && it.key !in private }.sortedByDescending { launches.optInt(it.key) }
-                .take(gridCols) else emptyList())
+            frequentApps(a.store.strings("favourites").toList(), a.apps.keys.associateWith { launches.optInt(it) },
+                { it in a.apps && it !in hidden && it !in private }, gridCols).mapNotNull { a.apps[it] } else emptyList())
         // Glass and housing: search results sit just above the bottom search bar, under the thumb.
         grid.isStackFromBottom = fromBottom || bottomBar && q.isNotEmpty()
         index.visibility = if (q.isEmpty() && entries.isNotEmpty()) View.VISIBLE else View.GONE
@@ -895,6 +915,12 @@ class Drawer(private val a: MainActivity) {
         }
     }
 
+    /** Arranges the open tab's apps by hand; that switches the drawer to the manual sort. */
+    private fun arrange() {
+        if (search.text.isNotEmpty()) search.setText("") // the tab's apps, not search results
+        a.arrangeTab(tab, entries.mapNotNull { (it as? Entry.AppE)?.app?.key })
+    }
+
     private fun menu() {
         a.showMenu(a.screenRect(menuButton), narrow = true) {
             fun row(sym: String, title: String, act: () -> Unit) = addView(a.listItem(a.symbol(sym), title, dense = true) { a.closeMenu(); act() })
@@ -902,8 +928,11 @@ class Drawer(private val a: MainActivity) {
             row("sort", a.getString(R.string.set_drawerSort)) {
                 a.sheet().setTitle(R.string.set_drawerSort).setSingleChoiceItems(SORT_NAMES.map(a::getString).toTypedArray(), SORTS.indexOf(a.looks.str("drawerSort"))) { d, i ->
                     a.looks["drawerSort"] = SORTS[i]; d.dismiss(); refresh()
+                    if (SORTS[i] == "manual") arrange()
                 }.show()
             }
+            row("drag", a.getString(R.string.arrange_apps)) { arrange() }
+            row("star", a.getString(R.string.favourites)) { a.chooseFavourites() }
             row("tabs", a.getString(R.string.drawer_groups)) { hide(); a.groupsMenu() }
             row("hide", a.getString(R.string.hidden_apps)) { a.hideAppsMenu() }
             row("settings", a.getString(R.string.launcher_settings)) { hide(); a.showSettings() }

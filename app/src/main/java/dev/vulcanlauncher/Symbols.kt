@@ -72,6 +72,9 @@ class Symbol(private val name: String, private val color: Int, private val size:
             "back" -> { line(19f, 12f, 5f, 12f); poly(11f, 6f, 5f, 12f, 11f, 18f) }
             "left" -> poly(15f, 6f, 9f, 12f, 15f, 18f)
             "right" -> poly(9f, 6f, 15f, 12f, 9f, 18f)
+            "up" -> poly(6f, 15f, 12f, 9f, 18f, 15f)
+            "down" -> poly(6f, 9f, 12f, 15f, 18f, 9f)
+            "star" -> poly(12.0f, 3.6f, 14.4f, 9.4f, 20.6f, 9.8f, 15.8f, 13.8f, 17.3f, 19.9f, 12.0f, 16.6f, 6.7f, 19.9f, 8.2f, 13.8f, 3.4f, 9.8f, 9.6f, 9.4f, close = true)
             "sort" -> { line(4f, 7f, 20f, 7f); line(4f, 12f, 15f, 12f); line(4f, 17f, 10f, 17f) }
             "check" -> poly(5f, 12.5f, 10f, 17.5f, 19f, 7f)
             "search" -> { circle(10.5f, 10.5f, 6.5f); line(15.5f, 15.5f, 20f, 20f) }

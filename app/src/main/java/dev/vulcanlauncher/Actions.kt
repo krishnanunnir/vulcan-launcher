@@ -129,13 +129,14 @@ fun isNight(mode: String, hour: Int, start: Int, end: Int, systemNight: Boolean)
     else -> false
 }
 
-val SORTS = listOf("az", "za", "installed", "used")
+/** "manual": the order the user arranged (data.drawerOrder for the drawer, each tab's own apps list for a tab). */
+val SORTS = listOf("az", "za", "installed", "used", "manual")
 val SORT_NAMES = listOf(
-    R.string.sort_az, R.string.sort_za, R.string.sort_installed, R.string.sort_used,
+    R.string.sort_az, R.string.sort_za, R.string.sort_installed, R.string.sort_used, R.string.sort_manual,
 )
 
-/** One drawer entry's sort facts. */
-class SortKey(val label: String, val installed: Long, val launches: Int)
+/** One drawer entry's sort facts. [rank]: its place in the arranged order; apps never arranged go after, A–Z. */
+class SortKey(val label: String, val installed: Long, val launches: Int, val rank: Int = Int.MAX_VALUE)
 
 /**
  * Label order in the system language: Ä sorts with A in German, Ё with Е in Russian; case and accents are ignored.
@@ -161,6 +162,7 @@ fun drawerComparator(sort: String, locale: Locale = Locale.getDefault()): Compar
         "za" -> byLabel.reversed()
         "installed" -> compareByDescending<SortKey> { it.installed }.then(byLabel)
         "used" -> compareByDescending<SortKey> { it.launches }.then(byLabel)
+        "manual" -> compareBy<SortKey> { it.rank }.then(byLabel)
         else -> byLabel
     }
 }

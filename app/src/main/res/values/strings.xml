@@ -208,6 +208,12 @@
     <string name="sort_za">Title (Z–A)</string>
     <string name="sort_installed">Newest first</string>
     <string name="sort_used">Most used</string>
+    <string name="sort_manual">Manual</string>
+    <string name="arrange_apps">Arrange apps</string>
+    <string name="move_up">Move up</string>
+    <string name="move_down">Move down</string>
+    <string name="favourites">Favourites</string>
+    <string name="in_groups">In %1$s</string>
     <string name="engine_browser">Default web search app</string>
     <string name="engine_google">Google</string>
     <string name="engine_duckduckgo">DuckDuckGo</string>
