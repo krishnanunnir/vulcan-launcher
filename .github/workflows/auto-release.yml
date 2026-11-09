@@ -1,8 +1,8 @@
-# Weekly release: if main changed since the last v* tag, bump the version, tag, build the signed APK, publish.
+# Release every 2 days: if main changed since the last v* tag, bump the version, tag, build the signed APK, publish.
 name: Auto release
 
 on:
-  schedule: [{ cron: "0 3 * * 1" }] # Mondays 03:00 UTC
+  schedule: [{ cron: "0 3 */2 * *" }] # 03:00 UTC on odd days of the month (31st → 1st runs two days in a row)
   workflow_dispatch:
 
 permissions:
