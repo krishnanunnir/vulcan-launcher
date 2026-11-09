@@ -73,9 +73,12 @@ private fun itemList(a: JSONArray) = (0 until a.length()).mapNotNull { runCatchi
 /** [items] without the apps and shortcuts of an uninstalled package. A folder left with one item turns back into it. */
 fun removePackage(items: List<Item>, pkg: String, user: Long) = removeApps(items) { it.pkg == pkg && it.user == user }
 
-/** [items] without the apps, shortcuts and activities [gone] picks (widgets and folders are never passed to it). */
+/**
+ * [items] without the apps, shortcuts and activities [gone] picks. Widgets, widget spots and folders are never passed to
+ * it: a widget's package may have no app Vulcan can see, so it would look uninstalled.
+ */
 fun removeApps(items: List<Item>, gone: (Item) -> Boolean): List<Item> {
-    fun g(i: Item) = i.pkg.isNotEmpty() && !i.isWidget && !i.folder && gone(i)
+    fun g(i: Item) = i.pkg.isNotEmpty() && !i.isWidget && !i.isWidgetSlot && !i.folder && gone(i)
     return items.filterNot(::g).mapNotNull { f ->
         val rest = f.children.filterNot(::g)
         when {
@@ -106,7 +109,11 @@ fun layoutIn(items: List<Item>, saved: Int?, current: Int): List<Item> = when {
  */
 class Store(private val context: Context) {
     private val prefs = context.getSharedPreferences("layout", Context.MODE_PRIVATE)
-    val data = context.getSharedPreferences("data", Context.MODE_PRIVATE)!!
+    val data = context.getSharedPreferences("data", Context.MODE_PRIVATE)!!.apply {
+        // Before 0.31 a restore wrote data's flags (welcome, restoringWidgets) back as "true"/"false" text, and getBoolean threw.
+        val text = all.filterValues { it == "true" || it == "false" }
+        if (text.isNotEmpty()) edit().apply { text.forEach { (k, v) -> putBoolean(k, v == "true") } }.commit()
+    }
 
     /** Nothing saved yet: first run, or after a reset. */
     val isNew get() = !prefs.contains("items")
@@ -184,7 +191,8 @@ class Store(private val context: Context) {
         // ponytail: three commits, not one transaction; an I/O failure between them can mix old and new files. The layout
         // carries its own subgrid factor, so its positions still read right; only grid sizes could be the old ones (fitItems copes)
         for ((name, values) in files) context.getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear().apply {
-            values.forEach { (k, v) -> putString(k, v) }
+            // data keeps its flags as booleans; the backup has them as "true"/"false"
+            values.forEach { (k, v) -> if (name == "data" && (v == "true" || v == "false")) putBoolean(k, v == "true") else putString(k, v) }
         }.commit()
         return rejected
     }

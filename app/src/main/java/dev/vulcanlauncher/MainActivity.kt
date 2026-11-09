@@ -1759,7 +1759,7 @@ class MainActivity : VulcanActivity() {
     }
 
     /** The provider an imported widget's spot asks for, if its app is installed. */
-    private fun slotProvider(slot: Item): AppWidgetProviderInfo? = ComponentName(slot.pkg, slot.cls).let { c ->
+    fun slotProvider(slot: Item): AppWidgetProviderInfo? = ComponentName(slot.pkg, slot.cls).let { c ->
         runCatching { awm.getInstalledProvidersForProfile(userOf(slot.user)) }.getOrNull()?.firstOrNull { it.provider == c }
     }
 
@@ -1813,8 +1813,24 @@ class MainActivity : VulcanActivity() {
      */
     fun restoreNextWidget() {
         if (!store.data.getBoolean(RESTORING_WIDGETS, false)) return
-        val next = items.firstOrNull { it.isWidgetSlot && slotProvider(it) != null }
-        if (next == null) { store.data.edit().remove(RESTORING_WIDGETS).apply(); refreshWelcome() } else restoreWidget(next)
+        val next = items.firstOrNull { it.isWidgetSlot && slotKey(it) !in skippedSlots && slotProvider(it) != null }
+        if (next != null) { restoreWidget(next); return }
+        skippedSlots.clear()
+        store.data.edit().remove(RESTORING_WIDGETS).apply()
+        refreshWelcome()
+    }
+
+    /** Spots whose widget's own setup screen was backed out of during this restore: they stay "Tap to add", the rest go on. */
+    private val skippedSlots = HashSet<String>()
+    private fun slotKey(slot: Item) = "${slot.page} ${slot.x} ${slot.y}"
+
+    /** Backed out of a widget's setup screen: drop that widget, keep its spot, and go on to the next one. */
+    private fun skipWidget() {
+        pendingWidget?.let { host.deleteAppWidgetId(it.first) }
+        pendingWidget = null
+        pendingSlot?.let { skippedSlots += slotKey(it) }
+        pendingSlot = null
+        restoreNextWidget()
     }
 
     private fun addWidget(info: AppWidgetProviderInfo) {
@@ -1840,7 +1856,8 @@ class MainActivity : VulcanActivity() {
             page.addOnLayoutChangeListener(object : View.OnLayoutChangeListener {
                 override fun onLayoutChange(v: View, l: Int, t: Int, r: Int, b: Int, ol: Int, ot: Int, or: Int, ob: Int) {
                     v.removeOnLayoutChangeListener(this)
-                    placeWidget()
+                    // After this layout pass: views added during it (the widget, and render()'s dock) were never laid out.
+                    v.post { placeWidget() }
                 }
             })
             return
@@ -2036,7 +2053,7 @@ class MainActivity : VulcanActivity() {
         val ok = resultCode == RESULT_OK
         when (requestCode) {
             REQ_BIND -> if (ok) configureWidget() else cancelWidget()
-            REQ_CONFIG -> if (ok) placeWidget() else cancelWidget()
+            REQ_CONFIG -> if (ok) placeWidget() else if (pendingSlot != null) skipWidget() else cancelWidget()
             REQ_SHORTCUT -> if (ok && data != null) {
                 val req = launcherApps.getPinItemRequest(data)
                 // ponytail: pre-Android 8 style EXTRA_SHORTCUT_INTENT results aren't stored; every current app uses pin requests

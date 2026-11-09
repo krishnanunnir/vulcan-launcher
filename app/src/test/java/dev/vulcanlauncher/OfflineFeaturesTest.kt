@@ -74,6 +74,8 @@ class OfflineFeaturesTest {
         assertEquals(Item(0, 2, 0, 2, 2, pkg = "com.w", cls = "com.w.Clock", action = WIDGET_SLOT), out.items[3])
         assertTrue(out.items[3].isWidgetSlot && out.items[3].isBlock && !out.items[3].isAction && !out.items[3].isApp)
         assertEquals(1, out.widgets)
+        // A widget's package may have no app Vulcan can see: its spot must survive the uninstalled-app sweep.
+        assertEquals(listOf(out.items[3]), removeApps(listOf(out.items[3])) { true })
 
         val half = importToItems(listOf(row(1, -100, 10, 0.5, 1.5)), mapOf(10L to 0), 5)
         assertTrue(half.subgrid)

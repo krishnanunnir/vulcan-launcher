@@ -923,7 +923,8 @@ fun VulcanActivity.applyImport(layout: ImportedLayout, settings: Map<String, Str
     settings.forEach { (k, v) -> looks[k] = v }
     looks["subgrid"] = if (layout.subgrid) "on" else "off"
     val pages = (layout.items.filter { !isDock(it.page) }.maxOfOrNull { it.page } ?: 0) + 1
-    if (pages > looks.int("pages")) looks["pages"] = pages.coerceAtMost(9).toString()
+    // The backup's own page count when it has one, else just enough for its items: never this home's old empty pages.
+    looks["pages"] = maxOf(pages, settings["pages"]?.toIntOrNull() ?: 1).coerceAtMost(9).toString()
     store.save(layout.items, if (layout.subgrid) 2 else 1)
     if (layout.widgets > 0) store.data.edit().putBoolean(RESTORING_WIDGETS, true).commit()
     val all = layout.items.flatMap { listOf(it) + it.children }

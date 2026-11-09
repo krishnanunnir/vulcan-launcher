@@ -39,6 +39,11 @@
         <intent>
             <action android:name="com.novalauncher.THEME" />
         </intent>
+        <!-- Widget providers, for apps with widgets but no icon of their own (Android's Battery widget): without this the
+             widget list leaves them out, and an imported one can't be made again. -->
+        <intent>
+            <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+        </intent>
         <!-- Legacy "add shortcut" activities, offered in Add shortcut → App shortcut. -->
         <intent>
             <action android:name="android.intent.action.CREATE_SHORTCUT" />

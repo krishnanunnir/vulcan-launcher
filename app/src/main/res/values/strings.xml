@@ -573,8 +573,8 @@
         <item quantity="other">Created %1$d folders</item>
     </plurals>
     <plurals name="import_skipped">
-        <item quantity="one">%1$d Nova-only item can\'t come over.</item>
-        <item quantity="other">%1$d Nova-only items can\'t come over.</item>
+        <item quantity="one">%1$d item can\'t come over: it\'s Nova\'s own, or its app isn\'t on this phone.</item>
+        <item quantity="other">%1$d items can\'t come over: they\'re Nova\'s own, or their app isn\'t on this phone.</item>
     </plurals>
     <plurals name="import_items">
         <item quantity="one">%1$d item will replace your home screen.</item>

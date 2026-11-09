@@ -73,15 +73,15 @@ private fun MainActivity.addWelcome(v: WelcomeView) {
 }
 
 /**
- * A Nova backup, ready for the review: what this phone can't open (Nova's own settings screen, an app not installed
- * here) would vanish from home anyway, so it's left out of the preview and the counts and said not to come over.
+ * A Nova backup, ready for the review: what this phone can't open (Nova's own settings screen, an app or a widget's
+ * app not installed here) would vanish from home anyway, so it's left out of the preview and the counts and said not to come over.
  * Null (and said) when the file isn't one.
  */
 fun MainActivity.readForReview(uri: android.net.Uri): Pair<ImportedLayout, Map<String, String>>? =
     runCatching { readLauncherBackup(this, uri) }
         .onFailure { toast(getString(R.string.import_failed, it.message)) }
         .getOrNull()?.let { (layout, settings) ->
-            val kept = layout.items.filter { it.folder || it.isWidgetSlot || resolve(it) != null }
+            val kept = layout.items.filter { if (it.isWidgetSlot) slotProvider(it) != null else it.folder || resolve(it) != null }
             ImportedLayout(kept, layout.subgrid, layout.skipped + layout.items.size - kept.size) to settings
         }
 
@@ -105,8 +105,6 @@ class WelcomeView(private val a: MainActivity, import: Pair<ImportedLayout, Map<
         if (import == null && a.store.data.getBoolean(RESTORING_WIDGETS, false) && a.items.any { it.isWidgetSlot }) add("widgets")
         if (isEmpty()) add("widgets") // ponytail: an import-only welcome whose widgets went meanwhile; its Continue just finishes
     }
-    /** Continue was tapped on "widgets": once the restore stops, the welcome is done. */
-    private var restoring = false
     /** The Nova backup picked on "setup", shown on "review" before it replaces anything. */
     private var picked: Pair<ImportedLayout, Map<String, String>>? = import
     // Becoming the home app relaunches Vulcan, and that step is gone from the list then; a review lost its file. Both
@@ -205,9 +203,9 @@ class WelcomeView(private val a: MainActivity, import: Pair<ImportedLayout, Map<
         addView(alwaysAllow(), LinearLayout.LayoutParams(-2, px(40f)).apply { topMargin = px(14f) })
         addView(View(a), LinearLayout.LayoutParams(1, 0, 1f))
         addView(primary(R.string.widgets_continue) {
-            if (!a.store.data.getBoolean(RESTORING_WIDGETS, false)) finish() else { restoring = true; a.restoreNextWidget() }
+            if (!a.store.data.getBoolean(RESTORING_WIDGETS, false)) finish() else a.restoreNextWidget()
         }, keyParams())
-        addView(quiet(R.string.widgets_skip) { a.store.data.edit().remove(RESTORING_WIDGETS).apply(); finish() }, keyParams(gap = 8f, h = 48f))
+        addView(quiet(R.string.widgets_skip) { skipWidgets() }, keyParams(gap = 8f, h = 48f))
     }
 
     /** A picture of the box to tick in Android's prompt: a checked square and its words, in a quiet outlined pill. */
@@ -273,11 +271,14 @@ class WelcomeView(private val a: MainActivity, import: Pair<ImportedLayout, Map<
         addView(TextView(a).apply {
             text = counts.joinToString("  ·  ").uppercase()
             textSize = 11f
+            // One line: with large text it shrinks (to 8 sp) rather than wrap mid-count.
+            maxLines = 1
+            setAutoSizeTextTypeUniformWithConfiguration(8, 11, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
             letterSpacing = 0.12f
             setTextColor(QUIET)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             gravity = Gravity.CENTER
-        }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = px(16f) })
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(16f) })
         a.importNote(layout, lead = false, separator = "\n").takeIf { it.isNotEmpty() }?.let { note ->
             addView(body(note).apply { textSize = 14f }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = px(8f) })
         }
@@ -365,12 +366,17 @@ class WelcomeView(private val a: MainActivity, import: Pair<ImportedLayout, Map<
         place(animate = true)
     }
 
-    fun back() = if (at > 0) go(at - 1) else finish()
+    // The import has happened by the widgets step: Back there is Skip, never back to choosing a file.
+    fun back() = if (steps[at] == "widgets") skipWidgets() else if (at > 0) go(at - 1) else finish()
+
+    /** The widgets stay "Tap to add" spots, and nothing asks for them later on its own. */
+    private fun skipWidgets() { a.store.data.edit().remove(RESTORING_WIDGETS).apply(); finish() }
 
     fun resumed() {
         if (steps[at] == "home" && a.isDefaultHome()) postDelayed({ go(at + 1) }, 250)
         // Every widget is back (or the user stopped): lift away onto the finished home.
-        if (steps[at] == "widgets" && restoring && !a.store.data.getBoolean(RESTORING_WIDGETS, false)) { restoring = false; postDelayed({ finish() }, 300) }
+        // The stored flag, not memory: Android may have restarted Vulcan while a widget's setup screen was open.
+        if (steps[at] == "widgets" && !a.store.data.getBoolean(RESTORING_WIDGETS, false) && tag != null) postDelayed({ finish() }, 300)
     }
 
     /** Android's own "use as home app" prompt (10+), or its default-apps page. */
