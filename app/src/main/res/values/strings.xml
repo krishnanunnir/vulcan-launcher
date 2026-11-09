@@ -437,7 +437,6 @@
     <string name="reset">Reset</string>
     <string name="import_failed">Import failed: %1$s</string>
     <string name="import_title">Import this layout?</string>
-    <string name="import_message">%1$s and %2$s will replace your current layout.</string>
     <string name="import_">Import</string>
     <string name="picker_restarted">Vulcan restarted while the picker was open. Please try again</string>
     <string name="no_web_search_app">No app handles web search</string>
@@ -574,16 +573,16 @@
         <item quantity="other">Created %1$d folders</item>
     </plurals>
     <plurals name="import_skipped">
-        <item quantity="one">%1$d item can\'t come over (widgets must be added again, and some old-style shortcuts aren\'t supported).</item>
-        <item quantity="other">%1$d items can\'t come over (widgets must be added again, and some old-style shortcuts aren\'t supported).</item>
+        <item quantity="one">%1$d Nova-only item can\'t come over.</item>
+        <item quantity="other">%1$d Nova-only items can\'t come over.</item>
     </plurals>
     <plurals name="import_items">
-        <item quantity="one">%1$d home screen item</item>
-        <item quantity="other">%1$d home screen items</item>
+        <item quantity="one">%1$d item will replace your home screen.</item>
+        <item quantity="other">%1$d items will replace your home screen.</item>
     </plurals>
-    <plurals name="import_settings">
-        <item quantity="one">%1$d grid setting</item>
-        <item quantity="other">%1$d grid settings</item>
+    <plurals name="import_widgets">
+        <item quantity="one">%1$d widget comes back after Android asks you once.</item>
+        <item quantity="other">%1$d widgets come back after Android asks you once.</item>
     </plurals>
     <string name="custom_colors">Custom colors</string>
     <string name="custom_colors_info">Each color replaces the theme color\'s in every look. Reset one to get the theme\'s back.</string>
@@ -672,4 +671,31 @@
         <item quantity="one">%1$d widget</item>
         <item quantity="other">%1$d widgets</item>
     </plurals>
+    <!-- First run -->
+    <string name="welcome_tagline">A home screen with no internet access. Nothing it does can leave your phone.</string>
+    <string name="welcome_begin">Get started</string>
+    <string name="welcome_home_title">Make it your home</string>
+    <string name="welcome_home_body">Vulcan opens when you press Home. You can switch back any time in Android\'s settings.</string>
+    <string name="welcome_home_set">Set as home app</string>
+    <string name="welcome_not_now">Not now</string>
+    <string name="welcome_setup_title">Bring your home screen</string>
+    <string name="welcome_setup_body">Pick a Nova backup and your apps, folders, dock, grid and widgets come over.</string>
+    <string name="welcome_nova">Import from Nova</string>
+    <string name="welcome_restore">Restore a Vulcan backup</string>
+    <string name="welcome_fresh">Start fresh</string>
+    <string name="widget_slot_add">Tap to add</string>
+    <string name="widget_slot_missing">App not installed</string>
+    <string name="widget_slot_missing_toast">This widget\'s app isn\'t installed</string>
+    <string name="widget_slot_describe">Add the %1$s widget</string>
+    <string name="review_title">Your Nova home screen</string>
+    <string name="review_another">Choose another file</string>
+    <plurals name="review_apps"><item quantity="one">%1$d app</item><item quantity="other">%1$d apps</item></plurals>
+    <plurals name="review_folders"><item quantity="one">%1$d folder</item><item quantity="other">%1$d folders</item></plurals>
+    <plurals name="review_widgets"><item quantity="one">%1$d widget</item><item quantity="other">%1$d widgets</item></plurals>
+    <plurals name="review_pages"><item quantity="one">%1$d page</item><item quantity="other">%1$d pages</item></plurals>
+    <plurals name="widgets_title"><item quantity="one">Bring back your widget</item><item quantity="other">Bring back your %1$d widgets</item></plurals>
+    <string name="widgets_body">Android asks once before Vulcan can show widgets. Tick this box and the rest come back on their own.</string>
+    <string name="widgets_always">Always allow Vulcan</string>
+    <string name="widgets_continue">Continue</string>
+    <string name="widgets_skip">Skip for now</string>
 </resources>

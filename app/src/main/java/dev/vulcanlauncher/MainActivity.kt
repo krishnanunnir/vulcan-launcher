@@ -92,6 +92,7 @@ class MainActivity : VulcanActivity() {
         const val REQ_RECONFIG = 7
         const val REQ_DOC = 8
         const val REQ_PERMISSION = 9
+        const val REQ_HOME = 10
         /** The live launcher activity, for the on-device check (androidTest/DeviceCheck). */
         var running: java.lang.ref.WeakReference<MainActivity>? = null
     }
@@ -178,6 +179,7 @@ class MainActivity : VulcanActivity() {
         store = Store(this)
         looks = Looks(this)
         looks.adoptDefaults(upgrade = !store.isNew)
+        markWelcome()
         awm = AppWidgetManager.getInstance(this)
         host = AppWidgetHost(this, HOST_ID)
         // The application's LauncherApps, not this activity's: the system keeps its listener binder (and so its context)
@@ -199,6 +201,9 @@ class MainActivity : VulcanActivity() {
         BadgeService.onChange = { pkgs -> runOnUiThread { if (pkgs.isNotEmpty()) { updateBadges(pkgs); drawer.refreshBadges() }; updateGlance() } }
         // Rotation recreates the activity: stay on the page the user was on.
         savedInstanceState?.getInt("page", -1)?.takeIf { it in 0 until looks.pages }?.let { workspace.snapTo(it, animate = false) }
+        // Just imported: put the widgets back (not when a restore was already under way and this is its restart).
+        // While the welcome shows, its widgets step starts this instead, after saying what Android will ask.
+        if (pendingWidget == null && !welcoming) root.post { restoreNextWidget() }
     }
 
 
@@ -379,6 +384,7 @@ class MainActivity : VulcanActivity() {
         }
         setContentView(root)
         render()
+        showWelcome()
     }
 
     override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
@@ -435,6 +441,7 @@ class MainActivity : VulcanActivity() {
         if (handOffToHome()) return
         updateLocation()
         if (nightChanged()) rebuild()
+        refreshWelcome()
         setClockHidden(true)
         updateGlance()
         // PinActivity may have added an item while we were in the background.
@@ -529,6 +536,7 @@ class MainActivity : VulcanActivity() {
 
     override fun handleBack() {
         when {
+            welcoming -> welcomeBack()
             menu != null -> closeMenu()
             overlay != null -> backInOverlay()
             else -> drawer.hide()
@@ -769,6 +777,7 @@ class MainActivity : VulcanActivity() {
 
     fun itemView(item: Item, style: IconStyle): View? {
         if (item.isWidget) return widgetView(item)
+        if (item.isWidgetSlot) return widgetSlotView(item)
         if (item.isClock) return clockView()
         val (label, icon) = resolve(item) ?: return null
         val shown = if (item.folder && !looks.on("folderNames")) "" else label
@@ -1749,6 +1758,65 @@ class MainActivity : VulcanActivity() {
         d = sheet().setTitle(R.string.widgets).setView(scroll).create().also { it.show() }
     }
 
+    /** The provider an imported widget's spot asks for, if its app is installed. */
+    private fun slotProvider(slot: Item): AppWidgetProviderInfo? = ComponentName(slot.pkg, slot.cls).let { c ->
+        runCatching { awm.getInstalledProvidersForProfile(userOf(slot.user)) }.getOrNull()?.firstOrNull { it.provider == c }
+    }
+
+    /** An imported widget's spot: dashed outline, the widget's app icon and name, and a tap to add it. */
+    private fun widgetSlotView(item: Item): View {
+        val info = slotProvider(item)
+        val name = info?.loadLabel(packageManager) ?: item.cls.substringAfterLast('.')
+        val radius = maxOf(16f, looks.int("widgetRadius").toFloat()) * dp
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            val p = (8 * dp).toInt()
+            setPadding(p, p, p, p)
+            background = pressable(GradientDrawable().apply {
+                cornerRadius = radius
+                setColor(0x40000000)
+                setStroke((1.5f * dp).toInt(), 0x99FFFFFF.toInt(), 6 * dp, 4 * dp)
+            }, radius, Color.WHITE)
+            info?.loadIcon(this@MainActivity, resources.displayMetrics.densityDpi)?.let { d ->
+                addView(ImageView(context).apply { setImageDrawable(d) }, LinearLayout.LayoutParams((36 * dp).toInt(), (36 * dp).toInt()))
+            }
+            addView(text(name, 13f, Color.WHITE).apply {
+                maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; gravity = Gravity.CENTER
+                setShadowLayer(4 * dp, 0f, dp, 0x66000000)
+                setPadding(0, (6 * dp).toInt(), 0, 0)
+            })
+            addView(legend(getString(if (info == null) R.string.widget_slot_missing else R.string.widget_slot_add), 10f, 0xCCFFFFFF.toInt()).apply {
+                maxLines = 1; gravity = Gravity.CENTER
+                setShadowLayer(4 * dp, 0f, dp, 0x66000000)
+            })
+            contentDescription = getString(R.string.widget_slot_describe, name)
+            setOnClickListener { restoreWidget(item) }
+        }
+    }
+
+    /** An imported widget's spot while its new widget goes through Android's bind and setup screens; kept across restarts. */
+    private var pendingSlot: Item?
+        get() = store.data.getString("pendingSlot", "")!!.takeIf { it.isNotEmpty() }?.let { runCatching { itemsFromJson(it).firstOrNull() }.getOrNull() }
+        set(v) { store.data.edit().putString("pendingSlot", v?.let { itemsToJson(listOf(it)) } ?: "").apply() }
+
+    /** Puts a new widget from the same provider into an imported widget's spot. */
+    fun restoreWidget(slot: Item) {
+        val info = slotProvider(slot) ?: run { toast(R.string.widget_slot_missing_toast); return }
+        pendingSlot = slot
+        addWidget(info)
+    }
+
+    /**
+     * After an import: fills the widget spots one by one. Once the user allows Vulcan to add widgets ("Always allow"),
+     * each binds without asking; widgets with a setup screen show it. Stops at the first "no" or cancel.
+     */
+    fun restoreNextWidget() {
+        if (!store.data.getBoolean(RESTORING_WIDGETS, false)) return
+        val next = items.firstOrNull { it.isWidgetSlot && slotProvider(it) != null }
+        if (next == null) { store.data.edit().remove(RESTORING_WIDGETS).apply(); refreshWelcome() } else restoreWidget(next)
+    }
+
     private fun addWidget(info: AppWidgetProviderInfo) {
         val id = host.allocateAppWidgetId()
         pendingWidget = id to info
@@ -1778,6 +1846,14 @@ class MainActivity : VulcanActivity() {
             return
         }
         pendingWidget = null
+        pendingSlot?.let { slot ->
+            pendingSlot = null
+            val i = items.indexOfFirst { it.isWidgetSlot && it.page == slot.page && it.x == slot.x && it.y == slot.y }
+            if (i < 0) host.deleteAppWidgetId(id)
+            else { items[i] = Item(slot.page, slot.x, slot.y, slot.w, slot.h, widgetId = id); save(); render() }
+            restoreNextWidget()
+            return
+        }
         val w = ceil(info.minWidth / page.cellW.toFloat()).toInt().coerceIn(1, page.cols)
         val h = ceil(info.minHeight / page.cellH.toFloat()).toInt().coerceIn(1, page.rows)
         if (!addItem(Item(workspace.current, 0, 0, w, h, widgetId = id), quiet = true)) {
@@ -1789,6 +1865,9 @@ class MainActivity : VulcanActivity() {
     private fun cancelWidget() {
         pendingWidget?.let { host.deleteAppWidgetId(it.first) }
         pendingWidget = null
+        pendingSlot = null
+        store.data.edit().remove(RESTORING_WIDGETS).apply()
+        refreshWelcome()
     }
 
     fun resizeWidget(item: Item) {

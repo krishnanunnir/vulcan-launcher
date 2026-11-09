@@ -141,14 +141,9 @@ class SettingsActivity : VulcanActivity() {
         when (requestCode) {
             MainActivity.REQ_BACKUP -> runCatching { contentResolver.openOutputStream(uri, "wt")!!.use { it.write(store.export(home.apps.values.toList()).toByteArray()) } }
                 .onSuccess { toast(R.string.backup_saved) }.onFailure { toast(R.string.backup_failed, it.message) }
-            MainActivity.REQ_RESTORE -> runCatching { store.import(contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() }, home::mainActivity) }
-                .onSuccess { rejected ->
-                    if (rejected.isNotEmpty()) toast(R.string.skipped_settings, rejected.joinToString())
-                    // Widget IDs belong to the install that made them; drop the ones this install doesn't own.
-                    home.dropForeignWidgets()
-                    restartHome()
-                }.onFailure { toast(R.string.restore_failed, it.message) }
-            MainActivity.REQ_DOC -> importBackup(uri)
+            MainActivity.REQ_RESTORE -> restoreBackup(uri, ::restartHome)
+            // The same review (and widget) steps as the first run, over home: settings closes onto them.
+            MainActivity.REQ_DOC -> home.readForReview(uri)?.let { home.showImport(it); finish() }
         }
     }
 }
@@ -904,25 +899,37 @@ private fun SettingsActivity.backupPage(list: LinearLayout) {
     }))
 }
 
-/** Replaces the home layout (and grid settings) with an imported launcher backup's, after confirming. */
-private fun SettingsActivity.importBackup(uri: android.net.Uri) {
-    val (layout, settings) = runCatching { readLauncherBackup(this, uri) }.getOrElse { toast(getString(R.string.import_failed, it.message)); return }
-    val note = if (layout.skipped > 0) "\n\n" + resources.getQuantityString(R.plurals.import_skipped, layout.skipped, layout.skipped) else ""
-    dialog().setTitle(R.string.import_title)
-        .setMessage(getString(R.string.import_message, resources.getQuantityString(R.plurals.import_items, layout.items.size, layout.items.size),
-            resources.getQuantityString(R.plurals.import_settings, settings.size, settings.size)) + note)
-        .setPositiveButton(R.string.import_) { _, _ ->
-            home.items.filter { it.isWidget }.forEach { home.host.deleteAppWidgetId(it.widgetId) }
-            settings.forEach { (k, v) -> looks[k] = v }
-            looks["subgrid"] = if (layout.subgrid) "on" else "off"
-            val pages = (layout.items.filter { !isDock(it.page) }.maxOfOrNull { it.page } ?: 0) + 1
-            if (pages > looks.int("pages")) looks["pages"] = pages.coerceAtMost(9).toString()
-            store.save(layout.items, if (layout.subgrid) 2 else 1)
-            layout.items.flatMap { listOf(it) + it.children }.filter { it.isShortcut }.map { it.pkg to it.user }.distinct()
-                .forEach { (p, u) -> runCatching { home.launcherApps.pinShortcuts(p, layout.items.flatMap { listOf(it) + it.children }
-                    .filter { it.isShortcut && it.pkg == p && it.user == u }.map { it.shortcutId }, home.userOf(u)) } }
-            restartHome()
-        }.setNegativeButton(R.string.cancel, null).show()
+/** Replaces everything with a Vulcan backup file; [restart] then rebuilds home from what was stored. */
+fun VulcanActivity.restoreBackup(uri: android.net.Uri, restart: () -> Unit) {
+    runCatching { store.import(contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() }, home::mainActivity) }
+        .onSuccess { rejected ->
+            if (rejected.isNotEmpty()) toast(R.string.skipped_settings, rejected.joinToString())
+            // Widget IDs belong to the install that made them; drop the ones this install doesn't own.
+            home.dropForeignWidgets()
+            restart()
+        }.onFailure { toast(R.string.restore_failed, it.message) }
+}
+
+/** One plain paragraph: what replaces home, and what comes back differently or not at all. */
+fun VulcanActivity.importNote(layout: ImportedLayout, lead: Boolean = true, separator: String = " ") = listOfNotNull(
+    if (lead) resources.getQuantityString(R.plurals.import_items, layout.items.size, layout.items.size) else null,
+    if (layout.widgets > 0) resources.getQuantityString(R.plurals.import_widgets, layout.widgets, layout.widgets) else null,
+    if (layout.skipped > 0) resources.getQuantityString(R.plurals.import_skipped, layout.skipped, layout.skipped) else null,
+).joinToString(separator)
+
+/** Stores an imported layout and its grid settings in place of the current ones; home is rebuilt after (restart). */
+fun VulcanActivity.applyImport(layout: ImportedLayout, settings: Map<String, String>) {
+    home.items.filter { it.isWidget }.forEach { home.host.deleteAppWidgetId(it.widgetId) }
+    settings.forEach { (k, v) -> looks[k] = v }
+    looks["subgrid"] = if (layout.subgrid) "on" else "off"
+    val pages = (layout.items.filter { !isDock(it.page) }.maxOfOrNull { it.page } ?: 0) + 1
+    if (pages > looks.int("pages")) looks["pages"] = pages.coerceAtMost(9).toString()
+    store.save(layout.items, if (layout.subgrid) 2 else 1)
+    if (layout.widgets > 0) store.data.edit().putBoolean(RESTORING_WIDGETS, true).commit()
+    val all = layout.items.flatMap { listOf(it) + it.children }
+    all.filter { it.isShortcut }.map { it.pkg to it.user }.distinct().forEach { (p, u) ->
+        runCatching { home.launcherApps.pinShortcuts(p, all.filter { it.isShortcut && it.pkg == p && it.user == u }.map { it.shortcutId }, home.userOf(u)) }
+    }
 }
 
 /** What Vulcan may reach outside itself, each with its state; a row opens the Android page that changes it. */

@@ -71,9 +71,9 @@ Or [download the APK](https://github.com/krishnanunnir/vulcan-launcher/releases/
 You can bring your Nova home screen with you:
 
 1. In Nova, open **Nova Settings → Backup & import settings → Backup** and save the file.
-2. In Vulcan, long-press an empty spot on the home screen, then tap **Settings → Backup & restore → Import a launcher backup (.novabackup)…** and pick that file.
+2. The first time Vulcan opens, tap **Bring your Nova home screen** and pick that file. Later, it's in **Settings → Backup & restore → Import a launcher backup (.novabackup)…** (long-press an empty spot on the home screen for Settings).
 
-Your apps, folders, dock, grid size and most shortcuts come over. Widgets have to be added again.
+Your apps, folders, dock, grid size, most shortcuts and widgets come over. Each widget is made new in its old spot: Android asks once whether Vulcan may add widgets, and widgets with options (a clock face, a note) ask for them again. A widget you skip stays as a "Tap to add" spot. Nova's own widgets can't come over.
 
 ## Design your home screen with an AI assistant
 

@@ -14,6 +14,8 @@ import kotlin.math.roundToInt
 data class ImportRow(
     val id: Long, val title: String, val intent: String, val container: Long, val screen: Long,
     val cellX: Double, val cellY: Double, val spanX: Double, val spanY: Double, val itemType: Int, val profileId: Long, val rank: Int,
+    /** A widget's provider, "pkg/.Cls". */
+    val provider: String = "",
 )
 
 /** Package and class from an intent URI ("#Intent;…;component=pkg/.Cls;end"), or null when it names no component. */
@@ -32,12 +34,24 @@ fun intentShortcut(intent: String): Pair<String, String>? {
     return pkg to java.net.URLDecoder.decode(id.replace("+", "%2B"), "UTF-8")
 }
 
+/**
+ * A widget's spot from its provider ("pkg/.Cls"), filled with a new widget of that kind after the import. Null for the
+ * other launcher's own widgets ("pkg/#custom-widget-0"), which exist only inside it.
+ */
+fun widgetSlot(provider: String): Item? = intentComponent("component=$provider")?.takeIf { '#' !in it.second }
+    ?.let { (pkg, cls) -> Item(0, 0, 0, pkg = pkg, cls = cls, action = WIDGET_SLOT) }
+
+/** In Store.data: set by an import with widgets, until each spot is filled or the user stops (MainActivity.restoreNextWidget). */
+const val RESTORING_WIDGETS = "restoringWidgets"
+
 /** Result of converting an imported layout: items, whether it uses half cells, and how many rows couldn't be brought over. */
-class ImportedLayout(val items: List<Item>, val subgrid: Boolean, val skipped: Int)
+class ImportedLayout(val items: List<Item>, val subgrid: Boolean, val skipped: Int) {
+    val widgets get() = items.count { it.isWidgetSlot }
+}
 
 /**
- * Converts imported rows to Vulcan items. [screenRank] maps screen _id → page index. Widgets are skipped: their IDs belong
- * to the other launcher's widget host. Dock positions past [dockCols] go to later dock pages.
+ * Converts imported rows to Vulcan items. [screenRank] maps screen _id → page index. Widgets become [widgetSlot]s: their IDs
+ * belong to the other launcher's widget host, so new ones are made in their place. Dock positions past [dockCols] go to later dock pages.
  */
 fun importToItems(rows: List<ImportRow>, screenRank: Map<Long, Int>, dockCols: Int): ImportedLayout {
     val subgrid = rows.any { it.container == -100L && (it.cellX % 1 != 0.0 || it.cellY % 1 != 0.0 || it.spanX % 1 != 0.0 || it.spanY % 1 != 0.0) }
@@ -61,6 +75,7 @@ fun importToItems(rows: List<ImportRow>, screenRank: Map<Long, Int>, dockCols: I
                 // ponytail: an untitled imported folder is named in English (this is pure code, no resources); Nova always stores a title.
                 if (kids.isEmpty()) null else Item(0, 0, 0, folder = true, label = r.title.ifEmpty { "Folder" }, children = kids)
             }
+            4, 5 -> widgetSlot(r.provider)
             else -> leaf(r)
         }
         if (base == null) { skipped++; continue }
@@ -119,7 +134,7 @@ fun readLauncherBackup(context: Context, uri: Uri): Pair<ImportedLayout, Map<Str
                 fun l(n: String, def: Long = 0) = c.getColumnIndex(n).let { if (it < 0 || c.isNull(it)) def else c.getLong(it) }
                 while (c.moveToNext()) rows += ImportRow(l("_id"), s("title"), s("intent"), l("container"), l("screen"),
                     d("cellX"), d("cellY"), d("spanX").takeIf { it > 0 } ?: 1.0, d("spanY").takeIf { it > 0 } ?: 1.0,
-                    l("itemType").toInt(), l("profileId", -1), l("rank").toInt())
+                    l("itemType").toInt(), l("profileId", -1), l("rank").toInt(), s("appWidgetProvider"))
             }
             val settings = importedPrefs(prefs)
             val layout = importToItems(rows, ranks, settings["dockCols"]?.toInt() ?: 5)

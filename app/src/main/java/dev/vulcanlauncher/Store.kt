@@ -16,6 +16,9 @@ fun dockIndex(page: Int) = -1 - page
  * an app (pkg/cls/user), a widget (widgetId), a pinned shortcut (pkg + shortcutId),
  * a launcher action (action), an activity shortcut (pkg/cls + action "activity"), the clock (action "clock") or a folder (children).
  */
+/** [Item.action] of an imported widget's spot. */
+const val WIDGET_SLOT = "widgetSlot"
+
 data class Item(
     val page: Int,
     val x: Int,
@@ -37,9 +40,11 @@ data class Item(
     val isWidget get() = widgetId != -1
     val isShortcut get() = shortcutId.isNotEmpty()
     val isClock get() = action == "clock"
-    val isAction get() = action.isNotEmpty() && action != "activity" && !isClock
+    val isAction get() = action.isNotEmpty() && action != "activity" && !isClock && !isWidgetSlot
+    /** An imported widget's spot, waiting for a new widget from provider [pkg]/[cls] (see BackupImport). */
+    val isWidgetSlot get() = action == WIDGET_SLOT
     /** Keeps its own size when moved, and never goes in the dock or a folder. */
-    val isBlock get() = isWidget || isClock
+    val isBlock get() = isWidget || isClock || isWidgetSlot
     /** A plain app icon: can be merged into folders. */
     val isApp get() = pkg.isNotEmpty() && !isShortcut && !isWidget && !folder && action.isEmpty()
     val appKey get() = appKey(pkg, cls, user)

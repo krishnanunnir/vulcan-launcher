@@ -182,7 +182,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="icon_pack_unreadable">"Не удаётся прочитать этот набор значков"</string>
     <string name="import_">Импортировать</string>
     <string name="import_failed">Не удалось импортировать: %1$s</string>
-    <string name="import_message">%1$s и %2$s заменят вашу текущую раскладку.</string>
     <string name="import_title">Импортировать эту раскладку?</string>
     <string name="indicator_dots">Точки</string>
     <string name="indicator_line">Линия</string>
@@ -482,24 +481,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
         <item quantity="few">Создано %1$d папки</item>
         <item quantity="many">Создано %1$d папок</item>
         <item quantity="other">Создано %1$d папки</item>
-    </plurals>
-    <plurals name="import_skipped">
-        <item quantity="one">Не удалось перенести %1$d элемент (виджеты нужно добавить заново, некоторые старые ярлыки не поддерживаются).</item>
-        <item quantity="few">Не удалось перенести %1$d элемента (виджеты нужно добавить заново, некоторые старые ярлыки не поддерживаются).</item>
-        <item quantity="many">Не удалось перенести %1$d элементов (виджеты нужно добавить заново, некоторые старые ярлыки не поддерживаются).</item>
-        <item quantity="other">Не удалось перенести %1$d элемента (виджеты нужно добавить заново, некоторые старые ярлыки не поддерживаются).</item>
-    </plurals>
-    <plurals name="import_items">
-        <item quantity="one">%1$d элемент главного экрана</item>
-        <item quantity="few">%1$d элемента главного экрана</item>
-        <item quantity="many">%1$d элементов главного экрана</item>
-        <item quantity="other">%1$d элемента главного экрана</item>
-    </plurals>
-    <plurals name="import_settings">
-        <item quantity="one">%1$d настройка сетки</item>
-        <item quantity="few">%1$d настройки сетки</item>
-        <item quantity="many">%1$d настроек сетки</item>
-        <item quantity="other">%1$d настройки сетки</item>
     </plurals>
     <string name="set_drawerSearch">Строка поиска</string>
     <string name="drawerSearch_style">Как задано стилем</string>

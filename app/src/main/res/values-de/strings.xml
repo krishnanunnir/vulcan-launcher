@@ -182,7 +182,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="icon_pack_unreadable">"Dieses Symbolpaket kann nicht gelesen werden"</string>
     <string name="import_">Importieren</string>
     <string name="import_failed">Import fehlgeschlagen: %1$s</string>
-    <string name="import_message">%1$s und %2$s ersetzen dein aktuelles Layout.</string>
     <string name="import_title">Dieses Layout importieren?</string>
     <string name="indicator_dots">Punkte</string>
     <string name="indicator_line">Linie</string>
@@ -478,18 +477,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <plurals name="created_folders">
         <item quantity="one">%1$d Ordner erstellt</item>
         <item quantity="other">%1$d Ordner erstellt</item>
-    </plurals>
-    <plurals name="import_skipped">
-        <item quantity="one">%1$d Element kann nicht übernommen werden (Widgets müssen erneut hinzugefügt werden; einige Verknüpfungen im alten Format werden nicht unterstützt).</item>
-        <item quantity="other">%1$d Elemente können nicht übernommen werden (Widgets müssen erneut hinzugefügt werden; einige Verknüpfungen im alten Format werden nicht unterstützt).</item>
-    </plurals>
-    <plurals name="import_items">
-        <item quantity="one">%1$d Element auf dem Startbildschirm</item>
-        <item quantity="other">%1$d Elemente auf dem Startbildschirm</item>
-    </plurals>
-    <plurals name="import_settings">
-        <item quantity="one">%1$d Rastereinstellung</item>
-        <item quantity="other">%1$d Rastereinstellungen</item>
     </plurals>
     <string name="set_drawerSearch">Suchleiste</string>
     <string name="drawerSearch_style">Wo der Stil sie platziert</string>

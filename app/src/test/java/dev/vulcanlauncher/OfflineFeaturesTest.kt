@@ -51,15 +51,16 @@ class OfflineFeaturesTest {
     @Test
     fun importLayout() {
         fun row(id: Long, container: Long, screen: Long, x: Double, y: Double, type: Int = 0, intent: String = "#Intent;component=p$id/.A;end",
-                title: String = "", sx: Double = 1.0, sy: Double = 1.0, rank: Int = 0) =
-            ImportRow(id, title, intent, container, screen, x, y, sx, sy, type, -1, rank)
+                title: String = "", sx: Double = 1.0, sy: Double = 1.0, rank: Int = 0, provider: String = "") =
+            ImportRow(id, title, intent, container, screen, x, y, sx, sy, type, -1, rank, provider)
         val rows = listOf(
             row(1, -100, 10, 0.0, 0.0),                                   // app on the first screen
             row(2, -100, 20, 1.0, 2.0, type = 2, intent = "", title = "Tools"), // folder on the second screen
             row(3, 2, 0, 0.0, 0.0, rank = 1),
             row(4, 2, 0, 0.0, 0.0, rank = 0),
             row(5, -101, 6, 6.0, 0.0),                                    // dock position 6 with 5 per page → dock page 2, x 1
-            row(6, -100, 10, 2.0, 0.0, type = 4, intent = "", sx = 2.0, sy = 2.0), // widget: skipped
+            row(6, -100, 10, 2.0, 0.0, type = 4, intent = "", sx = 2.0, sy = 2.0, provider = "com.w/.Clock"), // widget: a spot for a new one
+            row(7, -100, 20, 0.0, 0.0, type = 4, intent = "", provider = "com.teslacoilsw.launcher/#custom-widget-0"), // Nova's own: skipped
         )
         val out = importToItems(rows, mapOf(10L to 0, 20L to 1), dockCols = 5)
         assertFalse(out.subgrid)
@@ -70,6 +71,9 @@ class OfflineFeaturesTest {
         assertEquals(Item(1, 1, 2, folder = true, label = "Tools", children = folder.children), folder)
         assertEquals(listOf("p4", "p3"), folder.children.map { it.pkg }) // ordered by rank
         assertEquals(Item(-2, 1, 0, pkg = "p5", cls = "p5.A"), out.items[2])
+        assertEquals(Item(0, 2, 0, 2, 2, pkg = "com.w", cls = "com.w.Clock", action = WIDGET_SLOT), out.items[3])
+        assertTrue(out.items[3].isWidgetSlot && out.items[3].isBlock && !out.items[3].isAction && !out.items[3].isApp)
+        assertEquals(1, out.widgets)
 
         val half = importToItems(listOf(row(1, -100, 10, 0.5, 1.5)), mapOf(10L to 0), 5)
         assertTrue(half.subgrid)
