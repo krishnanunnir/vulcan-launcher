@@ -24,194 +24,180 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono&display=swap" rel="stylesheet">
 <style>
   :root {
-    --housing: #E9E7E2; --raised: #F3F2EE; --well: #DEDBD5; --key: #D1CEC7;
-    --ink: #2A2A28; --ink-2: #595752; --hairline: #C9C6BF;
-    --signal: #E8721C; --signal-ink: #B85410;
-    --rim-hi: rgba(255,255,255,.75); --rim-lo: rgba(0,0,0,.10); --shade: rgba(0,0,0,.08);
-    --font: "Schibsted Grotesk", system-ui, sans-serif;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --housing: #2A2A28; --raised: #363632; --well: #222220; --key: #3E3E3A;
-      --ink: #E9E7E2; --ink-2: #A9A69F; --hairline: #4A4945;
-      --signal-ink: #E8721C;
-      --rim-hi: rgba(255,255,255,.10); --rim-lo: rgba(0,0,0,.35); --shade: rgba(0,0,0,.35);
-    }
-  }
-  :root[data-theme="dark"] {
-    --housing: #2A2A28; --raised: #363632; --well: #222220; --key: #3E3E3A;
-    --ink: #E9E7E2; --ink-2: #A9A69F; --hairline: #4A4945;
-    --signal-ink: #E8721C;
-    --rim-hi: rgba(255,255,255,.10); --rim-lo: rgba(0,0,0,.35); --shade: rgba(0,0,0,.35);
+    color-scheme: dark;
+    --bg: #0A0A09; --card: #121211; --card-2: #181816;
+    --ink: #F4F3EF; --ink-2: #9B998F; --ink-3: #827F77;
+    --line: rgba(255,255,255,.08); --line-2: rgba(255,255,255,.14);
+    --signal: #E8721C;
+    --font: "Geist", ui-sans-serif, system-ui, sans-serif;
+    --mono: "Geist Mono", ui-monospace, monospace;
   }
 
   * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
-  body { margin: 0; background: var(--housing); color: var(--ink); font: 400 17px/1.55 var(--font); }
+  html { -webkit-text-size-adjust: 100%; scroll-padding-top: 72px; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.6 var(--font); letter-spacing: -.01em;
+    -webkit-font-smoothing: antialiased; }
+  /* Faint dot grid, fading out below the hero. */
+  body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background: radial-gradient(rgba(255,255,255,.09) 1px, transparent 1px) 0 0 / 22px 22px;
+    -webkit-mask-image: linear-gradient(#000 0, #000 40%, transparent 95%); mask-image: linear-gradient(#000 0, #000 40%, transparent 95%); }
   ::selection { background: var(--signal); color: #fff; }
   a { color: inherit; text-underline-offset: .2em; text-decoration-thickness: 1px; }
-  a:focus-visible, .key:focus-visible { outline: 2px solid var(--signal-ink); outline-offset: 3px; }
+  a:focus-visible, .key:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
   img { display: block; max-width: 100%; }
   .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
   @media (max-width: 560px) { .wrap { padding: 0 16px; } }
 
-  /* Printed legends: small tracked capitals. */
-  .legend { font-size: 12px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
+  /* Small mono labels. */
+  .legend { font: 400 12px/1.4 var(--mono); letter-spacing: 0; color: var(--ink-2); }
+  .eyebrow { display: block; font: 400 13px/1 var(--mono); color: var(--ink-3); margin-bottom: 20px; }
 
-  /* A raised face: rim light along the top, shade along the bottom, soft lift. */
-  .face {
-    background: var(--raised); border-radius: 28px;
-    box-shadow: inset 0 1px 0 var(--rim-hi), inset 0 -1px 0 var(--rim-lo), 0 6px 18px -8px var(--shade);
-  }
-  /* A well pressed into the housing. */
-  .well {
-    background: var(--well); border-radius: 28px;
-    box-shadow: inset 0 2px 6px var(--shade), inset 0 -1px 0 var(--rim-hi);
-  }
+  .face { background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+  .well { background: linear-gradient(var(--card-2), var(--card)); border: 1px solid var(--line); border-radius: 18px; }
 
-  header.top { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
-  .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; font-weight: 500; }
-  .brand img { width: 32px; height: 32px; }
-  nav a { margin-left: 22px; text-decoration: none; color: var(--ink-2); font-size: 15px; }
+  /* Sticky, blurred top bar. */
+  .bar { position: sticky; top: 0; z-index: 10; background: rgba(10,10,9,.72); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--line); }
+  header.top { display: flex; align-items: center; justify-content: space-between; height: 60px; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 500; font-size: 15px; }
+  .brand img { width: 24px; height: 24px; }
+  nav { display: flex; align-items: center; gap: 24px; }
+  nav a { text-decoration: none; color: var(--ink-2); font-size: 14px; font-weight: 500; }
   nav a:hover { color: var(--ink); }
-  @media (max-width: 560px) { nav a:not(:last-child) { display: none; } }
+  nav .key { color: #0A0A09; min-height: 34px; padding: 0 14px; font-size: 14px; }
+  nav .gh { display: flex; }
+  @media (max-width: 700px) { nav a:not(.key, .gh) { display: none; } }
 
-  /* Hero: the nameplate and the phone. */
-  .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; padding: 40px 0 72px; }
-  .hero h1 { font-weight: 400; font-size: clamp(56px, 9vw, 112px); line-height: .95; letter-spacing: -.035em; margin: 0 0 24px; }
-  .hero p.lede { font-size: clamp(20px, 2.2vw, 24px); line-height: 1.4; max-width: 30ch; margin: 0 0 28px; }
-  .rating { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 0 0 36px; padding: 0; list-style: none; }
-  .rating li { display: flex; align-items: center; gap: 8px; }
-  .rating li:first-child::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--signal); }
+  /* Hero: centred, two lines, then the screens. */
+  .hero { text-align: center; padding: 88px 0 56px; }
+  .chips { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; margin: 0 0 28px; padding: 0; list-style: none; }
+  .chips li { display: flex; align-items: center; gap: 8px; }
+  .chips li:first-child::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 10px var(--signal); }
+  .hero h1 { font-weight: 400; font-size: clamp(42px, 7.4vw, 80px); line-height: 1.04; letter-spacing: -.035em; margin: 0 0 24px; }
+  .hero p.lede { font-size: clamp(17px, 1.8vw, 20px); color: var(--ink-2); max-width: 48ch; margin: 0 auto 36px; }
   .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .hero .actions { justify-content: center; }
   .key {
-    display: inline-flex; align-items: center; min-height: 48px; padding: 0 24px; border-radius: 999px;
-    text-decoration: none; font-weight: 500; font-size: 16px; transition: transform .15s ease-out;
+    display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 20px; border-radius: 10px;
+    text-decoration: none; font-weight: 500; font-size: 15px; transition: background .15s, border-color .15s, transform .15s;
   }
   .key:active { transform: translateY(1px); }
-  .key.dark { background: var(--ink); color: var(--housing); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 6px 14px -8px var(--shade); }
-  .key.plain { background: var(--raised); box-shadow: inset 0 1px 0 var(--rim-hi), inset 0 -1px 0 var(--rim-lo); }
+  .key.dark { background: var(--ink); color: #0A0A09; }
+  .key.dark:hover { background: #fff; }
+  .key.plain { background: rgba(255,255,255,.03); color: var(--ink); border: 1px solid var(--line-2); }
+  .key.plain:hover { background: rgba(255,255,255,.07); }
 
-  .phone { justify-self: center; width: min(340px, 78vw); padding: 10px; border-radius: 48px; background: #1a1918;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 40px 60px -30px rgba(0,0,0,.55), 0 12px 24px -12px rgba(0,0,0,.35); }
-  .phone img { border-radius: 38px; width: 100%; height: auto; aspect-ratio: 540 / 1170; }
-
-  @media (max-width: 860px) {
-    .hero { grid-template-columns: 1fr; gap: 40px; padding-top: 16px; }
-  }
-
-  /* Screens: a strip of shots set into a well. */
-  section { padding: 72px 0; }
-  h2 { font-weight: 400; font-size: clamp(32px, 4.4vw, 52px); line-height: 1.05; letter-spacing: -.025em; margin: 0 0 18px; max-width: 18ch; }
-  .intro { color: var(--ink-2); max-width: 58ch; margin: 0 0 40px; font-size: 18px; }
-  .screens { padding: 28px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; }
+  /* Showcase: the screens in a framed panel with a low glow. */
+  .showcase { position: relative; margin-top: 8px; }
+  .showcase::before { content: ""; position: absolute; inset: 10% 8% -4%; z-index: -1; filter: blur(70px);
+    background: radial-gradient(closest-side, rgba(232,114,28,.22), transparent); }
+  .screens { padding: 24px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px; }
   .screens figure { margin: 0; }
-  .screens img { border-radius: 22px; box-shadow: 0 10px 24px -14px rgba(0,0,0,.6); aspect-ratio: 540 / 1170; height: auto; width: 100%; }
-  .screens figcaption { margin-top: 14px; text-align: center; }
+  .screens img { border-radius: 18px; border: 1px solid var(--line); aspect-ratio: 540 / 1170; height: auto; width: 100%; }
+  .screens figcaption { margin-top: 12px; text-align: center; }
   @media (max-width: 860px) {
-    .screens { grid-template-columns: repeat(5, 62%); overflow-x: auto; scroll-snap-type: x mandatory; padding: 20px; }
+    .hero { padding-top: 56px; }
+    .screens { grid-template-columns: repeat(5, 62%); overflow-x: auto; scroll-snap-type: x mandatory; padding: 16px; }
     .screens figure { scroll-snap-align: center; }
   }
 
-  /* Privacy: the statement, then the permission list as a control panel. */
+  section { padding: 96px 0; border-top: 1px solid var(--line); }
+  h2 { font-weight: 400; font-size: clamp(30px, 4.2vw, 48px); line-height: 1.08; letter-spacing: -.03em; margin: 0 0 18px; max-width: 20ch; }
+  h2 .dim { color: var(--ink-3); }
+  .intro { color: var(--ink-2); max-width: 58ch; margin: 0 0 40px; font-size: 17px; }
+
   .privacy { display: grid; grid-template-columns: .9fr 1.1fr; gap: 48px; align-items: start; }
-  .privacy .big { font-size: clamp(32px, 4.4vw, 52px); }
-  .panel { padding: 8px 0; }
-  .row { display: grid; grid-template-columns: 1fr auto; gap: 4px 20px; padding: 18px 24px; align-items: baseline; }
-  .row + .row { border-top: 1px solid var(--hairline); margin-left: 24px; padding-left: 0; }
+  .panel { padding: 4px 0; }
+  .row { display: grid; grid-template-columns: 1fr auto; gap: 4px 20px; padding: 18px 22px; align-items: baseline; }
+  .row + .row { border-top: 1px solid var(--line); }
   .row b { font-weight: 500; }
-  .row span.when { color: var(--ink-2); font-size: 15px; white-space: nowrap; }
+  .row span.when { white-space: nowrap; }
   .row p { grid-column: 1 / -1; margin: 0; color: var(--ink-2); font-size: 15px; }
   @media (max-width: 860px) { .privacy { grid-template-columns: 1fr; } }
   @media (max-width: 560px) { .row { grid-template-columns: 1fr; } .row span.when { white-space: normal; } }
 
-  /* Comparison: a spec table on a raised face. */
-  .compare-wrap { padding: 8px 0; }
-  .compare { width: 100%; border-collapse: collapse; }
-  .compare th, .compare td { text-align: left; vertical-align: top; padding: 18px 24px; }
-  .compare thead th { padding-top: 14px; padding-bottom: 10px; }
-  .compare tbody tr { border-top: 1px solid var(--hairline); }
+  .compare-wrap { overflow: hidden; }
+  .compare { width: 100%; border-collapse: collapse; font-size: 15px; }
+  .compare th, .compare td { text-align: left; vertical-align: top; padding: 16px 22px; }
+  .compare thead th { background: rgba(255,255,255,.02); padding-top: 12px; padding-bottom: 12px; }
+  .compare tbody tr { border-top: 1px solid var(--line); }
   .compare tbody th { font-weight: 500; width: 22%; }
   .compare td { color: var(--ink-2); width: 46%; }
   .compare td.v { color: var(--ink); width: 32%; }
-  .note { color: var(--ink-2); font-size: 15px; max-width: 70ch; margin: 18px 0 0; }
+  .note { color: var(--ink-3); font-size: 14px; max-width: 70ch; margin: 18px 0 0; }
   @media (max-width: 700px) {
     .compare thead { display: none; }
     .compare tr, .compare th, .compare td { display: block; width: auto !important; }
-    .compare tbody th { padding: 18px 20px 6px; }
-    .compare td { padding: 4px 20px 6px; }
+    .compare tbody th { padding: 18px 18px 6px; }
+    .compare td { padding: 4px 18px 6px; }
     .compare td.v { padding-bottom: 18px; }
-    .compare td::before { content: attr(data-label); display: block; font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 2px; }
+    .compare td::before { content: attr(data-label); display: block; font: 400 11px/1.4 var(--mono); color: var(--ink-3); margin-bottom: 2px; }
   }
 
-  /* Nova: two steps. */
-  .steps { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; counter-reset: s; padding: 0; margin: 0; list-style: none; }
-  .steps li { padding: 28px; counter-increment: s; }
-  .steps li::before { content: counter(s); display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: 18px;
-    border-radius: 50%; background: var(--well); box-shadow: inset 0 2px 4px var(--shade); font-weight: 500; }
-  .steps strong { font-weight: 500; }
+  .steps { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; counter-reset: s; padding: 0; margin: 0; list-style: none; }
+  .steps li { padding: 24px; counter-increment: s; color: var(--ink-2); }
+  .steps li::before { content: "0" counter(s); display: block; margin-bottom: 16px; font: 400 13px/1 var(--mono); color: var(--signal); }
+  .steps strong { font-weight: 500; color: var(--ink); }
   @media (max-width: 700px) { .steps { grid-template-columns: 1fr; } }
 
-  /* Features: a two-column spec list. */
-  .features { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 56px; margin: 0; }
-  .features div { padding: 22px 0; border-top: 1px solid var(--hairline); }
-  .features dt { font-weight: 500; margin-bottom: 4px; }
-  .features dd { margin: 0; color: var(--ink-2); }
-  @media (max-width: 700px) { .features { grid-template-columns: 1fr; } }
+  /* Features: a bordered grid of cells. */
+  .features { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; gap: 1px; background: var(--line); }
+  .features div { padding: 24px; background: var(--bg); }
+  .features dt { font-weight: 500; margin-bottom: 6px; }
+  .features dd { margin: 0; color: var(--ink-2); font-size: 15px; }
+  @media (max-width: 860px) { .features { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .features { grid-template-columns: 1fr; } }
 
-  /* Closing: the wallpaper, full bleed inside a face. */
-  .closer { position: relative; overflow: hidden; border-radius: 32px; min-height: 420px; display: flex; align-items: flex-end;
-    background: #141312 url("wallpaper-dusk.jpg") center 58% / cover no-repeat; color: #F3F2EE; padding: 40px; }
-  .closer h2 { color: #fff; }
-  .closer p { max-width: 46ch; margin: 0 0 24px; color: rgba(243,242,238,.82); }
-  .closer .key.dark { background: #F3F2EE; color: #2A2A28; }
-  .closer .key.plain { background: rgba(255,255,255,.12); color: #F3F2EE; box-shadow: inset 0 1px 0 rgba(255,255,255,.18); }
-  @media (max-width: 560px) { .closer { padding: 28px 22px; min-height: 480px; } }
+  .closer { position: relative; overflow: hidden; border-radius: 18px; border: 1px solid var(--line); min-height: 420px; display: flex; align-items: flex-end;
+    background: linear-gradient(transparent 20%, rgba(10,10,9,.85)), #141312 url("wallpaper-dusk.jpg") center 58% / cover no-repeat; padding: 40px; }
+  .closer p { max-width: 46ch; margin: 0 0 24px; color: rgba(244,243,239,.8); }
+  .closer .key.plain { background: rgba(10,10,9,.35); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  @media (max-width: 560px) { .closer { padding: 28px 20px; min-height: 480px; } }
+  section.last { border-top: 0; padding-top: 0; }
 
-  footer { padding: 40px 0 56px; display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between; color: var(--ink-2); font-size: 15px; }
+  footer { border-top: 1px solid var(--line); padding: 32px 0 48px; display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between; color: var(--ink-3); font-size: 14px; }
 
   @media (prefers-reduced-motion: no-preference) {
-    .phone { animation: rise .9s cubic-bezier(.16,1,.3,1) both; }
-    @keyframes rise { from { transform: translateY(24px); opacity: .001; } }
+    .hero > *, .showcase { animation: rise .9s cubic-bezier(.16,1,.3,1) both; }
+    .showcase { animation-delay: .15s; }
+    @keyframes rise { from { transform: translateY(16px); opacity: .001; } }
   }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="bar"><div class="wrap">
   <header class="top">
-    <a class="brand" href="#"><img src="icon.svg" width="32" height="32" alt="">Vulcan</a>
+    <a class="brand" href="#"><img src="icon.svg" width="24" height="24" alt="">Vulcan</a>
     <nav>
       <a href="#screens">Screens</a>
       <a href="#compare">Vs Nova</a>
       <a href="#nova">From Nova</a>
-      <a href="https://github.com/krishnanunnir/vulcan-launcher">GitHub</a>
+      <a class="gh" href="https://github.com/krishnanunnir/vulcan-launcher" aria-label="Vulcan on GitHub"><svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></a>
+      <a class="key dark" href="https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk">Download</a>
     </nav>
   </header>
+</div></div>
+<div class="wrap">
 
   <main>
     <div class="hero">
-      <div>
-        <h1>Vulcan</h1>
-        <p class="lede">A home screen for Android that does what Nova does, with no internet access at all.</p>
-        <ul class="rating legend">
-          <li>No internet permission</li>
-          <li>No ads or trackers</li>
-          <li>Android 8+</li>
-        </ul>
-        <div class="actions">
-          <a class="key dark" href="https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk">Download the APK</a>
-          <a class="key plain" href="#nova">Coming from Nova?</a>
-        </div>
+      <ul class="chips legend">
+        <li>No internet permission</li>
+        <li>No ads or trackers</li>
+        <li>Android 8+</li>
+      </ul>
+      <h1>Nova's depth.<br>None of the phoning home.</h1>
+      <p class="lede">Vulcan is a home screen for Android that does what Nova does, with no internet access at all.</p>
+      <div class="actions">
+        <a class="key dark" href="https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk">Download the APK</a>
+        <a class="key plain" href="#nova">Coming from Nova?</a>
       </div>
-      <div class="phone"><img src="screenshots/home.jpg" width="540" height="1170" alt="Vulcan 0.18 home screen: the sunset launcher shortcut, mail and photos, five dock apps, and the search bar over a dusk wallpaper"></div>
     </div>
 
-    <section id="screens">
-      <h2>Built like an appliance, not a phone skin.</h2>
-      <p class="intro">Warm-grey panels, small printed labels, and one orange dot for whatever is live. Your wallpaper and your apps' own icons are left alone. Every Nova-style option is still in settings when you want it.</p>
+    <div class="showcase" id="screens">
       <div class="screens well">
         <figure><img src="screenshots/home.jpg" width="540" height="1170" loading="lazy" alt="Home screen with the sunset shortcut, apps, dock and search bar"><figcaption class="legend">Home</figcaption></figure>
         <figure><img src="screenshots/menu.jpg" width="540" height="1170" loading="lazy" alt="Long-press menu: widgets, shortcuts, wallpaper, pages, lock, settings"><figcaption class="legend">Long-press</figcaption></figure>
@@ -219,12 +205,13 @@
         <figure><img src="screenshots/settings.jpg" width="540" height="1170" loading="lazy" alt="Settings with the sunset logo, version 0.18, and grouped panels"><figcaption class="legend">Settings</figcaption></figure>
         <figure><img src="screenshots/look.jpg" width="540" height="1170" loading="lazy" alt="Look and feel settings with toggles and the theme colour"><figcaption class="legend">Look &amp; feel</figcaption></figure>
       </div>
-    </section>
+    </div>
 
     <section id="privacy">
       <div class="privacy">
         <div>
-          <h2 class="big">Nothing it does can leave your phone.</h2>
+          <span class="eyebrow">privacy</span>
+          <h2>Nothing it does <span class="dim">can leave your phone.</span></h2>
           <p class="intro">Vulcan doesn't ask Android for internet access, so it has no way to send anything anywhere. There are no ads, analytics or crash reports. That's in the app's permission list, where anyone can check it.</p>
         </div>
         <div class="panel face">
@@ -243,7 +230,8 @@
     </section>
 
     <section id="compare">
-      <h2>What Nova sends, and what Vulcan doesn't.</h2>
+      <span class="eyebrow">vs nova</span>
+      <h2>What Nova sends, <span class="dim">and what Vulcan doesn't.</span></h2>
       <p class="intro">Nova Launcher changed owners in 2022 and again in January 2026, and picked up ads and trackers along the way. This is what the current version contains.</p>
       <div class="face compare-wrap">
         <table class="compare">
@@ -265,7 +253,8 @@
     </section>
 
     <section id="nova">
-      <h2>Bring your Nova home screen with you.</h2>
+      <span class="eyebrow">switching</span>
+      <h2>Bring your Nova home screen <span class="dim">with you.</span></h2>
       <p class="intro">Your apps, folders, dock, grid size and most shortcuts come over. Widgets have to be added again.</p>
       <ol class="steps">
         <li class="face">In Nova, open <strong>Nova Settings → Backup &amp; import settings → Backup</strong> and save the file.</li>
@@ -274,7 +263,8 @@
     </section>
 
     <section id="features">
-      <h2>Nova's depth, kept out of the way.</h2>
+      <span class="eyebrow">features</span>
+      <h2>Nova's depth, <span class="dim">kept out of the way.</span></h2>
       <p class="intro">Sensible defaults out of the box. Everything else is in settings.</p>
       <dl class="features">
         <div><dt>Your layout</dt><dd>Grids up to 12 by 12, up to 9 pages, resizable widgets, and a dock you can hide or scroll.</dd></div>
@@ -286,10 +276,10 @@
       </dl>
     </section>
 
-    <section>
+    <section class="last">
       <div class="closer">
         <div>
-          <h2>Calm by default. Power when you want it.</h2>
+          <h2>Calm by default. <span class="dim" style="color:rgba(244,243,239,.6)">Power when you want it.</span></h2>
           <p>Get it on F-Droid or download the APK, then press Home and pick Vulcan. The dusk wallpaper is free to use.</p>
           <div class="actions">
             <a class="key dark" href="https://f-droid.org/packages/dev.vulcanlauncher/">Get it on F-Droid</a>
