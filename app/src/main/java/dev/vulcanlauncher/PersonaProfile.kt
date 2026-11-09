@@ -45,9 +45,13 @@ internal class PersonaProfile(private val activity: SettingsActivity, val person
         }, LayoutParams(-1, -2))
         @Suppress("DEPRECATION")
         setOnApplyWindowInsetsListener { _, insets ->
-            val cutout = if (android.os.Build.VERSION.SDK_INT >= 28) insets.displayCutout else null
-            setPadding(max(insets.systemWindowInsetLeft, cutout?.safeInsetLeft ?: 0), max(insets.systemWindowInsetTop, cutout?.safeInsetTop ?: 0),
-                max(insets.systemWindowInsetRight, cutout?.safeInsetRight ?: 0), insets.systemWindowInsetBottom)
+            if (android.os.Build.VERSION.SDK_INT >= 28) {
+                val cutout = insets.displayCutout
+                setPadding(max(insets.systemWindowInsetLeft, cutout?.safeInsetLeft ?: 0), max(insets.systemWindowInsetTop, cutout?.safeInsetTop ?: 0),
+                    max(insets.systemWindowInsetRight, cutout?.safeInsetRight ?: 0), insets.systemWindowInsetBottom)
+            } else {
+                setPadding(insets.systemWindowInsetLeft, insets.systemWindowInsetTop, insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
+            }
             insets
         }
     }

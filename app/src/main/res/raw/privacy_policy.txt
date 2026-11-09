@@ -1,0 +1,33 @@
+Vulcan Privacy Policy
+Updated: 7 November 2026
+
+Vulcan (dev.vulcanlauncher) is an Android home screen developed by Krishnanunni R and contributors. Privacy contact and support: krishnanunnir97@gmail.com.
+
+No data is sent to us
+Vulcan has no INTERNET permission and contains no advertising, analytics, crash-reporting or tracking SDKs. We do not receive, sell or transmit your personal data. Vulcan has no account or cloud service.
+
+Data used on your device
+Vulcan reads installed, launchable apps and Android profiles to display and open them. It stores your layout, settings, hidden apps, drawer groups, custom labels and icons, and counts of apps opened through Vulcan for local sorting and suggestions. These records stay in Android app-private storage.
+
+Optional contacts and calendar access lets Vulcan search contacts, show favourite contacts, and show upcoming events. Optional approximate location access reads a last-known location to calculate sunset and sunrise on the device. The coordinates are saved locally in settings. These permissions are requested when you enable the relevant feature and can be revoked in Android settings.
+
+Optional notification access reads active notifications, including their app, title and text, for badges, notification previews and media controls. Active notifications are held in memory rather than saved to a notification history. You can revoke this access in Android settings.
+
+Accessibility service
+Vulcan uses the AccessibilityService API only to perform a system action you request through a gesture or shortcut: screen lock, recent apps, notifications, quick settings or the power menu. The service cannot retrieve screen content and does not record interactions or collect or share personal data. It is optional, disabled until you enable it, and can be disabled in Android Accessibility settings. Vulcan shows a separate disclosure before directing you to enable this service.
+
+Files, backups and sharing
+You choose files through Android's system picker to import launcher backups or custom icons. Vulcan saves configuration and up to three rotating automatic backups in app-private storage. If a layout cannot be read, it may retain the unreadable layout locally for recovery.
+
+Backups you export are readable JSON files and may include app names and identifiers, layout, settings, locally saved coordinates and app launch counts. They are saved only to the destination you choose in Android's file picker. A cloud document provider you choose may upload the file under its own privacy policy. Anyone you give the file to can read it.
+
+When you share a contributor character card, the app you choose receives temporary read access to that card. When you ask for web or voice search, open a contact or app, set an alarm or timer, or choose a wallpaper provider or widget, Android passes the requested action and relevant information to that other app. That app's privacy policy applies. Vulcan does not send these requests to its developer.
+
+Retention and deletion
+Settings, layout, customizations, local launch counts and saved coordinates remain until you change or clear them. Revoking a permission stops future access but does not erase settings or files already saved. To remove all Vulcan app-private data, use Android Settings > Apps > Vulcan > Storage > Clear storage, or uninstall Vulcan. Android system backup is disabled for Vulcan. Exported backups and cards saved or shared outside Vulcan must be deleted separately from their chosen destinations.
+
+Security
+Vulcan relies on Android's app sandbox for local data protection. App-private files are not exposed to other apps by Vulcan, apart from temporary access to a character card when you explicitly share it. Exported backups are not encrypted by Vulcan; choose their destination and recipients carefully.
+
+Changes and questions
+This policy will be updated when Vulcan's data handling changes. Contact krishnanunnir97@gmail.com for privacy questions or support. Source code and issue tracker: https://github.com/krishnanunnir/vulcan-launcher.

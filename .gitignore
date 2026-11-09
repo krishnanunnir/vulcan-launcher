@@ -7,6 +7,9 @@ local.properties
 .DS_Store
 *.apk
 *.keystore
+*.jks
+*.aab
+*.pepk
 
 # Impeccable working files (screenshots, decision page)
 .impeccable/review/

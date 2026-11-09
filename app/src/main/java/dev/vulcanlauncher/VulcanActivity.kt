@@ -15,6 +15,38 @@ import java.util.Calendar
 
 /** What home (MainActivity) and the settings screen (SettingsActivity) share: settings, colours, dialogs. */
 abstract class VulcanActivity : Activity() {
+    override fun onCreate(state: android.os.Bundle?) {
+        super.onCreate(state)
+        // Android 16 no longer dispatches onBackPressed for apps targeting API 36.
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT
+            ) { handleBack() }
+        }
+    }
+
+    protected open fun handleBack() { finish() }
+
+    @Deprecated("Legacy Android Back dispatch")
+    @android.annotation.SuppressLint("GestureBackNavigation") // API 33+ uses the registered platform callback above.
+    override fun onBackPressed() { handleBack() }
+
+    /** Both gestures and the Permissions page show this before opening Android's grant screen. */
+    fun requestActionAccess() {
+        dialog().setTitle(R.string.accessibility_title)
+            .setMessage(R.string.accessibility_text)
+            .setPositiveButton(R.string.agree_open_settings) { _, _ ->
+                startActivity(android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+            .setNegativeButton(R.string.cancel, null).show()
+    }
+
+    fun showPrivacyPolicy() {
+        val policy = resources.openRawResource(R.raw.privacy_policy).bufferedReader().use { it.readText() }
+        dialog().setTitle(R.string.privacy_policy).setMessage(policy)
+            .setPositiveButton(R.string.ok, null).show()
+    }
+
     lateinit var store: Store
     lateinit var looks: Looks
     lateinit var root: FrameLayout

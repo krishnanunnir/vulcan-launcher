@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- Translations are intentionally partial: missing entries use English, as documented in README.
+         Keep these visible without blocking releases; placeholder/key correctness is unit-tested. -->
+    <issue id="MissingTranslation" severity="warning" />
+</lint>

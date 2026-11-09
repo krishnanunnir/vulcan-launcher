@@ -122,8 +122,7 @@ class SettingsActivity : VulcanActivity() {
         page?.let { out.putString("page", it); out.putInt("scroll", scroll?.scrollY ?: 0) }
     }
 
-    @Deprecated("Back closes an open search, then goes up a page")
-    override fun onBackPressed() { (panel?.tag as? Runnable)?.run() ?: finish() }
+    override fun handleBack() { (panel?.tag as? Runnable)?.run() ?: finish() }
 
     override fun finish() {
         super.finish()
@@ -291,6 +290,7 @@ private fun SettingsActivity.settingsHome(page: LinearLayout): (String) -> Unit 
         listItem(symbol("info", m3.onPrimaryContainer), getString(R.string.about), getString(R.string.version, versionName), tonalIcon = true) {
             dialog().setTitle(R.string.app_name).setIcon(R.mipmap.ic_launcher)
                 .setMessage(R.string.about_text)
+                .setNeutralButton(R.string.privacy_policy) { _, _ -> showPrivacyPolicy() }
                 .setPositiveButton(R.string.ok, null).show()
         },
     ))
@@ -940,7 +940,10 @@ private fun SettingsActivity.permissionsPage(list: LinearLayout) {
         setPadding((32 * dp).toInt(), (8 * dp).toInt(), (32 * dp).toInt(), 0)
     })
     panel(list, getString(R.string.perm_count, perms.count { it.on }, perms.size), perms.map { p ->
-        val open = { startActivity(Intent(p.action)) }
+        val open = {
+            if (p.action == Settings.ACTION_ACCESSIBILITY_SETTINGS && !p.on) requestActionAccess()
+            else startActivity(Intent(p.action))
+        }
         // Granted: a quiet check and a word. Not granted: the one button on the row.
         val state = if (p.on) LinearLayout(this).apply {
             gravity = Gravity.CENTER_VERTICAL

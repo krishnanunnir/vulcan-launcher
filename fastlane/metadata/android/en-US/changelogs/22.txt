@@ -1,0 +1,4 @@
+Prepared for Google Play with Android 16 support.
+Updated Back navigation for the app drawer and settings.
+Added an offline privacy policy in Settings > About.
+Clarified optional accessibility access before opening Android settings.

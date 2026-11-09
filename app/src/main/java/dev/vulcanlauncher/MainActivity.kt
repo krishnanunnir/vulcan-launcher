@@ -527,8 +527,7 @@ class MainActivity : VulcanActivity() {
         }
     }
 
-    @Deprecated("Launchers swallow back")
-    override fun onBackPressed() {
+    override fun handleBack() {
         when {
             menu != null -> closeMenu()
             overlay != null -> backInOverlay()
@@ -645,7 +644,9 @@ class MainActivity : VulcanActivity() {
     fun isPrivate(a: App) = a.info.user == privateUser
 
     /** Locks or unlocks Private Space; unlocking asks for the screen lock first. The profile broadcast then reloads the apps. */
-    fun setPrivateLocked(lock: Boolean) { privateUser?.let { runCatching { um.requestQuietModeEnabled(lock, it) } } }
+    fun setPrivateLocked(lock: Boolean) {
+        if (android.os.Build.VERSION.SDK_INT >= 35) privateUser?.let { runCatching { um.requestQuietModeEnabled(lock, it) } }
+    }
 
     /** Private Space (or a work profile) locked, unlocked, paused or resumed. */
     private val profileReceiver = object : android.content.BroadcastReceiver() {
@@ -1377,12 +1378,14 @@ class MainActivity : VulcanActivity() {
                 startShortcut(s.`package`, s.id, s.userHandle, anchor)
             }
         }
-        if (app != null && looks.on("popupNotifications")) // The newest only, as Launcher3 shows one notification at a time; long texts (promo SMS) filled the screen.
-        BadgeService.byPackage[app.pkg].orEmpty().sortedByDescending { it.postTime }.take(1).forEach { n ->
-            val title = n.notification.extras.getCharSequence("android.title") ?: ""
-            val body = n.notification.extras.getCharSequence("android.text") ?: ""
-            row(symbol("notifications"), title.toString(), body.toString(), long = { BadgeService.instance?.cancelNotification(n.key) }) {
-                runCatching { n.notification.contentIntent?.send() }
+        if (app != null && looks.on("popupNotifications")) {
+            // The newest only, as Launcher3 shows one notification at a time.
+            BadgeService.byPackage[app.pkg].orEmpty().sortedByDescending { it.postTime }.take(1).forEach { n ->
+                val title = n.notification.extras.getCharSequence("android.title") ?: ""
+                val body = n.notification.extras.getCharSequence("android.text") ?: ""
+                row(symbol("notifications"), title.toString(), body.toString(), long = { BadgeService.instance?.cancelNotification(n.key) }) {
+                    runCatching { n.notification.contentIntent?.send() }
+                }
             }
         }
         when {
@@ -1918,10 +1921,7 @@ class MainActivity : VulcanActivity() {
     private fun global(action: Int) {
         val svc = ActionService.instance
         if (svc != null) { svc.performGlobalAction(action); return }
-        dialog().setTitle(R.string.accessibility_title)
-            .setMessage(R.string.accessibility_text)
-            .setPositiveButton(R.string.open_settings) { _, _ -> startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-            .setNegativeButton(R.string.cancel, null).show()
+        requestActionAccess()
     }
 
     @Suppress("DEPRECATION")

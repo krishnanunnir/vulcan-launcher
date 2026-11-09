@@ -5,7 +5,6 @@
     <string name="about_text">Лаунчер не имеет доступа к сети: нет рекламы, аналитики и отслеживания. Всё остаётся на этом устройстве.</string>
     <string name="accent_amoled">Чёрный AMOLED (цвета обоев на чёрном)</string>
     <string name="accent_appliance">Appliance (тёплый серый, сигнальный оранжевый)</string>
-    <string name="accessibility_text">"Для блокировки экрана, открытия списка недавних приложений и меню питания нужна служба специальных возможностей Vulcan. Она не читает содержимое экрана, а только выполняет эти действия."</string>
     <string name="accessibility_title">Включите службу специальных возможностей</string>
     <string name="action_app_fallback">приложение</string>
     <string name="action_assistant">Ассистент</string>

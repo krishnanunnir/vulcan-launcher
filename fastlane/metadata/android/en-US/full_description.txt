@@ -1,16 +1,22 @@
-<p>A home screen for Android with the features people use Nova Launcher for, and <b>no internet access at all</b>: nothing it does can leave your phone. No ads, trackers or analytics.</p>
+<p>Make your Android home screen your own with Vulcan: a customizable launcher with no ads, trackers, analytics or internet permission.</p>
 
-<p>It looks like a well-made appliance rather than a phone skin: warm-grey panels (light or night), small printed labels, and one orange dot for whatever is live. Your wallpaper and your apps' own icons are left alone.</p>
+<p>Arrange apps and widgets, organize your drawer, and choose a look that fits your wallpaper. Vulcan works entirely on your device and needs no account.</p>
 
 <ul>
-<li><b>Arrange your home screen your way:</b> grids up to 12 by 12, up to 9 pages, subgrid positioning, resizable widgets, and a dock you can hide or scroll.</li>
-<li><b>Find apps fast:</b> an A to Z app drawer with the search bar at the bottom, a letter index, and tabs or folders to group apps. Hide the apps you don't want to see.</li>
-<li><b>Gestures:</b> swipe, double-tap, pinch or rotate on the home screen to open notifications, an app, the drawer, the screen lock and more. Each icon can have its own swipe-up action.</li>
-<li><b>Change the look:</b> icon packs, 15 icon shapes, your own icons and labels, folder styles, 13 page transitions, and a night mode that follows the system or a schedule.</li>
-<li><b>Long-press an app</b> for its shortcuts, notifications, app info or uninstall.</li>
-<li><b>Now page:</b> swipe right on the first page for the date, music controls, upcoming events and favourite contacts. Everything is read on the phone.</li>
-<li><b>Coming from Nova?</b> Import a .novabackup file: apps, folders, dock, grid size and most shortcuts come over.</li>
-<li><b>Back up</b> your whole setup to a readable file, which you can also hand to an AI assistant to design a layout for you.</li>
+<li><b>Your layout:</b> home grids up to 12 by 12, up to 9 pages, subgrid positioning, resizable widgets and a dock you can hide or scroll. Lock your layout to prevent accidental edits.</li>
+<li><b>Your apps, organized:</b> an alphabetical drawer with search, an optional letter index, tabs, folders and hidden apps.</li>
+<li><b>Useful search:</b> find apps with typo-tolerant matching or initials, app shortcuts and Android settings. Calculate sums and hand timers and alarms to your clock app.</li>
+<li><b>Gestures:</b> swipe, double-tap or pinch to open apps, notifications, the drawer and other actions. Give individual app icons a swipe-up action.</li>
+<li><b>Your style:</b> icon packs, themed icons on Android 13+, icon shapes, custom labels and icons, folder styles, colours and scheduled night mode.</li>
+<li><b>Now page:</b> optional music controls, upcoming calendar events and favourite contacts.</li>
+<li><b>Bring your layout:</b> import apps, folders, dock and grid settings from a Nova .novabackup file. Widgets need to be added again.</li>
+<li><b>Local backups:</b> export and restore your setup using a readable JSON file.</li>
 </ul>
 
-<p>Permissions that read personal data (contacts, calendar, location for sunset night mode) are only requested when you turn on the feature that needs them. Notification access and the accessibility service (for screen lock and recent apps) stay off until you enable them.</p>
+<p><b>Privacy and optional access</b><br>Vulcan has no internet permission or tracking SDKs. Contacts, calendar and approximate location are optional and used locally for the features you enable. Notification access is optional for badges, previews and media controls. Backups go to the destination you choose. External apps handle web and voice search when requested.</p>
+
+<p><b>Accessibility service</b><br>Vulcan uses the AccessibilityService API only for system actions you trigger through gestures or shortcuts: locking the screen, recent apps, notifications, quick settings and the power menu. It cannot retrieve screen content and does not record interactions or collect or share personal data. This access is optional and can be disabled in Android settings.</p>
+
+<p>Requires Android 8 or newer. Choose Vulcan in Android Settings &gt; Apps &gt; Default apps &gt; Home app. Switch back to another launcher at any time.</p>
+
+<p>Open source under the MIT license. Support: krishnanunnir97@gmail.com</p>

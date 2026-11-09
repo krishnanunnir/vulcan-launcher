@@ -5,7 +5,6 @@
     <string name="about_text">Ein Startbildschirm ohne Netzwerkzugriff: keine Werbung, keine Analyse, kein Tracking. Alles bleibt auf diesem Gerät.</string>
     <string name="accent_amoled">AMOLED-Schwarz (Hintergrundbildfarben auf Schwarz)</string>
     <string name="accent_appliance">Appliance (warmes Grau, Signalorange)</string>
-    <string name="accessibility_text">"Bildschirmsperre, zuletzt verwendete Apps und das Power-Menü benötigen Vulcans Bedienungshilfen-Dienst. Er liest keine Bildschirminhalte; er führt nur diese Aktionen aus."</string>
     <string name="accessibility_title">Bedienungshilfen-Dienst aktivieren</string>
     <string name="action_app_fallback">App</string>
     <string name="action_assistant">Assistent</string>

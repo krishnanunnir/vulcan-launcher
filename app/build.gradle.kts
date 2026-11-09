@@ -8,14 +8,14 @@ plugins {
 
 android {
     namespace = "dev.vulcanlauncher"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "dev.vulcanlauncher"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 21
-        versionName = "0.29"
+        targetSdk = 36
+        versionCode = 22
+        versionName = "0.30"
         // On-device gesture check (app/src/androidTest); a plain Instrumentation, no test libraries.
         testInstrumentationRunner = "dev.vulcanlauncher.DeviceCheck"
     }

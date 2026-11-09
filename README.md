@@ -7,7 +7,7 @@
 **A home screen for Android that does what Nova Launcher does, without ads, trackers or analytics.**<br>
 It has no internet access at all, so nothing it does can leave your phone.
 
-### A fully customizable launcher under 320 KB.
+### A fully customizable launcher under 350 KB.
 
 [![Latest release](https://img.shields.io/github/v/release/krishnanunnir/vulcan-launcher?label=release&color=E8721C)](https://github.com/krishnanunnir/vulcan-launcher/releases/latest)
 [![Android 8+](https://img.shields.io/badge/Android-8%2B-4E8F3A?logo=android&logoColor=white)](#install)
@@ -107,6 +107,8 @@ Anything that needs the network: weather, news, Google Discover, web search sugg
 </details>
 
 ## Privacy and permissions
+
+Read the [privacy policy](docs/privacy.html), also available offline in Settings → About → Privacy policy. Google Play preparation and submission steps are in [docs/play-store/RELEASE.md](docs/play-store/RELEASE.md).
 
 Vulcan has no internet permission, so it can't send anything anywhere. There are no ads, analytics or crash reports. Anyone can check the permission list of the APK.
 

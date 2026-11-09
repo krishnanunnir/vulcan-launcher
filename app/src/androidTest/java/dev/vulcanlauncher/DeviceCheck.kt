@@ -99,6 +99,7 @@ class DeviceCheck : Instrumentation() {
     private var failures = 0
 
     override fun onStart() {
+        if (mode == "openissues") return OpenIssueAuditCheck(this, issueCases).run()
         if (mode == "persona") return PersonaCheck(this).run()
         if (mode == "issues") return IssueReproCheck(this, issueCases).run()
         if (mode == "import") return importCheck()
@@ -106,9 +107,13 @@ class DeviceCheck : Instrumentation() {
         if (mode == "pages") return OverviewCheck(this).run()
         val looks = targetContext.getSharedPreferences("looks", Context.MODE_PRIVATE)
         val saved = looks.all.toMap()
+        var savedItems: List<Item>? = null
         try {
             looks.edit().putString("pages", "3").putString("infiniteScroll", "off").putString("scrollEffect", "simple").commit()
             a = launch()
+            // Gesture coordinates must not land on the first-run Launcher settings shortcut.
+            savedItems = a.items.toList()
+            runOnMainSync { a.items.clear(); a.save() }
             SystemClock.sleep(1500)
             val w = a.workspace.width.toFloat()
             val loc = IntArray(2).also { runOnMainSync { a.workspace.getLocationOnScreen(it) } }
@@ -119,7 +124,10 @@ class DeviceCheck : Instrumentation() {
             fun check(g: String, startPage: Int, target: Int, gesture: () -> Unit) {
                 GESTURE_KEYS.forEach { looks.edit().putString(it, "none").commit() }
                 looks.edit().putString("g_$g", "page:$target").commit()
-                runOnMainSync { a.closeOverlay(); a.drawer.hide(); a.workspace.snapTo(startPage, animate = false) }
+                // Rebuild installs live drawer/Now pull callbacks from the gesture settings, just as Settings does.
+                runOnMainSync { a.closeOverlay(); a.drawer.hide(); a.rebuild() }
+                waitForIdleSync()
+                runOnMainSync { a.workspace.snapTo(startPage, animate = false) }
                 waitForIdleSync(); SystemClock.sleep(300)
                 gesture()
                 waitForIdleSync(); SystemClock.sleep(600)
@@ -150,7 +158,8 @@ class DeviceCheck : Instrumentation() {
             log.append("ERROR ${e.stackTraceToString()}\n")
         } finally {
             looks.edit().clear().apply { saved.forEach { (k, v) -> putString(k, v.toString()) } }.commit()
-            runCatching { runOnMainSync { a.recreate() } }
+            savedItems?.let { items -> runOnMainSync { a.items = items.toMutableList(); a.save() } }
+            if (::a.isInitialized) runOnMainSync { a.recreate() }
         }
         finish(if (failures == 0) Activity.RESULT_OK else Activity.RESULT_CANCELED, Bundle().apply { putString("stream", log.toString()) })
     }

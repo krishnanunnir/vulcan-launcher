@@ -5,7 +5,7 @@ Requirements (macOS, Homebrew):
 ```sh
 brew install openjdk@21
 brew install --cask android-commandlinetools
-sdkmanager "platforms;android-35" "build-tools;35.0.0"
+sdkmanager "platforms;android-36" "build-tools;36.0.0"
 ```
 
 Gradle runs on the JDK in `JAVA_HOME`. Releases are built with JDK 21, the JDK on F-Droid's build server; F-Droid rebuilds each tag and compares it with the published APK, so use JDK 21 for releases. Create `local.properties` (it is git-ignored):
@@ -89,3 +89,7 @@ The approved sunset is shared by the app, settings and About, README, website, b
 - [docs/nova-reference.md](nova-reference.md): a snapshot of what static analysis of Nova Launcher 8.9.4 found, including its backup format. Used as a reference only; no Nova code is used here.
 
 The contributor rules (no network, every permission justified in the README) are in [CLAUDE.md](../CLAUDE.md).
+
+## Google Play
+
+Run `./gradlew testDebugUnitTest lintRelease bundleRelease` with the release signing configuration above. The signed bundle is `app/build/outputs/bundle/release/app-release.aab`. Follow [play-store/RELEASE.md](play-store/RELEASE.md) for the listing, signing enrollment, policy declarations and testing track. Run `python3 tools/prepare-play-assets.py` to export the public privacy policy and listing graphics. This does not upload or publish anything.

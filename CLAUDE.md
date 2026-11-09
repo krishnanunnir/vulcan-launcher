@@ -32,4 +32,4 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
 - Mark deliberate shortcuts with a `// ponytail:` comment that names the limit and the upgrade path.
 - Pure logic (geometry, parsing, settings mapping) goes in top-level functions with a JUnit test in `app/src/test`. View code isn't unit-tested.
 - When finishing a user-visible feature, update the README if it changes what Vulcan does, won't do or asks permission for.
-- `minSdk 26`, `targetSdk 35`, Java/Kotlin target 17.
+- `minSdk 26`, `targetSdk 36`, Java/Kotlin target 17.

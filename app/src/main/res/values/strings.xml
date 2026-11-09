@@ -479,7 +479,9 @@
     <string name="lock_needs_9">Screen lock needs Android 9</string>
     <string name="no_app_handles">No app handles this</string>
     <string name="accessibility_title">Turn on the accessibility service</string>
-    <string name="accessibility_text">Screen lock, recent apps and the power menu need Vulcan\'s accessibility service. It reads no screen content; it only performs these actions.</string>
+    <string name="accessibility_text">Vulcan uses the AccessibilityService API only when you trigger a gesture or shortcut to lock the screen, open recent apps, notifications, quick settings or the power menu.\n\nThe service does not read screen content, record your interactions, or collect or share personal data. It only performs the action you request. Access is optional; the rest of the launcher works without it. You can turn it off at any time in Android Accessibility settings.\n\nTap Agree and open settings to continue, then enable Vulcan actions.</string>
+    <string name="agree_open_settings">Agree and open settings</string>
+    <string name="privacy_policy">Privacy policy</string>
     <string name="open_settings">Open settings</string>
     <string name="backup_saved">Backup saved</string>
     <string name="backup_failed">Backup failed: %1$s</string>
