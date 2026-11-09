@@ -318,12 +318,25 @@ class MainActivity : VulcanActivity() {
             val overlay = looks.on("dockOverlay") && looks.dockOn && !landscape
             addView(workspace, LinearLayout.LayoutParams(-1, 0, 1f).apply { if (overlay) bottomMargin = -dockHeight })
             // Even for one page (it's gone then): a page added in the overview brings it in without a rebuild.
-            if (looks.str("indicator") != "none") addView(indicator, LinearLayout.LayoutParams(-1, (14 * dp).toInt()))
-            if (looks.on("swipeIndicator")) addView(TextView(context).apply {
-                text = "︿"
-                gravity = Gravity.CENTER
-                setTextColor(looks.color("labelColor"))
-                setOnClickListener { perform("drawer") }
+            // The strips between pages and dock pass their touches on to the pages, so swipes and double taps start there too (#68).
+            val toPages = View.OnTouchListener { v, e ->
+                val at = IntArray(2).also(v::getLocationInWindow)
+                val pages = IntArray(2).also(workspace::getLocationInWindow)
+                val ev = MotionEvent.obtain(e).apply { offsetLocation((at[0] - pages[0]).toFloat(), (at[1] - pages[1]).toFloat()) }
+                workspace.dispatchTouchEvent(ev).also { ev.recycle() }
+            }
+            if (looks.str("indicator") != "none") addView(indicator.apply { setOnTouchListener(toPages) }, LinearLayout.LayoutParams(-1, (14 * dp).toInt()))
+            if (looks.on("swipeIndicator")) addView(FrameLayout(context).apply {
+                setOnTouchListener(toPages)
+                // Only the arrow itself opens the drawer; it passes its touches on as well, so a swipe can start on it.
+                addView(TextView(context).apply {
+                    text = "︿"
+                    gravity = Gravity.CENTER
+                    setTextColor(looks.color("labelColor"))
+                    contentDescription = getString(R.string.action_drawer)
+                    setOnClickListener { perform("drawer") }
+                    setOnTouchListener { v, e -> toPages.onTouch(v, e); false }
+                }, FrameLayout.LayoutParams((64 * dp).toInt(), -1, Gravity.CENTER))
             }, LinearLayout.LayoutParams(-1, (20 * dp).toInt()))
             if (landscape && search in listOf("dockAbove", "dockBelow")) addView(searchBar())
             if (!landscape) addView(dockBox, LinearLayout.LayoutParams(-1, -2).apply {
