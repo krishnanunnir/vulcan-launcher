@@ -6,7 +6,7 @@ Prepared 7 November 2026. This is a submission kit, not evidence of Play approva
 
 The signed-in Google account currently opens developer registration. The account owner must create the account, review the Developer Distribution Agreement, pay the one-time US$25 registration fee, and complete Google's identity, contact and device verification. Do not send identity documents, payment details, passwords or signing passwords through chat.
 
-Create an **app**, default language **English (United States)**, name **Vulcan**, free, no ads. Package: `dev.vulcanlauncher`. Suggested category: **Personalization**. Public support email: `krishnanunnir97@gmail.com`. Website: `https://bizzaretor.com/vulcan-launcher/`.
+Create an **app**, default language **English (United States)**, name **Vulcan**, free, no ads. Package: `dev.vulcanlauncher`. Suggested category: **Personalization**. Public support email: `krishnanunnir97@gmail.com`. Website: `https://vulcanlauncher.dev/`.
 
 The owner must confirm the intended audience and distribution countries in Console; those business declarations have not been submitted. Do not invent an IARC rating: complete the questionnaire against the actual app. Vulcan has no accounts, purchases, advertising, user-to-user messaging, or developer-hosted content.
 
