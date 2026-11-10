@@ -1,0 +1,824 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vulcan designer</title>
+<meta name="description" content="Tweak Vulcan Launcher's settings with a live preview, then load the file on your phone. Runs in your browser; nothing is uploaded.">
+<link rel="icon" href="../favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono&family=Roboto:wght@300;400;500&family=Roboto+Condensed&family=Noto+Serif&display=swap" rel="stylesheet">
+<!-- Material Symbols (Apache-2.0, Google): generic glyphs for the preview's stand-in apps, only the ones used. -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,1,0&icon_names=account_balance_wallet,auto_awesome,battery_full,calculate,calendar_month,call,casino,chat,contacts,dark_mode,description,download,favorite,folder,folder_open,image,key,light_mode,link,mail,map,mic,music_note,partly_cloudy_day,pause,photo_camera,podcasts,public,radio,restart_alt,schedule,search,settings,signal_cellular_alt,smart_display,smart_toy,sticky_note_2,storefront,translate,videocam,wallpaper,wifi&display=block" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0A0A09; --card: #121211; --card-2: #181816; --card-3: #22221f;
+    --ink: #F4F3EF; --ink-2: #9B998F; --ink-3: #827F77;
+    --line: rgba(255,255,255,.08); --line-2: rgba(255,255,255,.14);
+    --signal: #E8721C; --on-signal: #1C0D02;
+    --font: "Geist", ui-sans-serif, system-ui, sans-serif;
+    --mono: "Geist Mono", ui-monospace, monospace;
+    --out: cubic-bezier(.16,1,.3,1); --spring: cubic-bezier(.34,1.56,.64,1);
+    --bar: 58px;
+  }
+  * { box-sizing: border-box; }
+  html { scrollbar-color: var(--card-3) transparent; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 400 14px/1.5 var(--font); letter-spacing: -.01em; -webkit-font-smoothing: antialiased; caret-color: var(--signal); }
+  ::selection { background: var(--signal); color: var(--on-signal); }
+  a { color: inherit; text-underline-offset: .2em; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  button, label, select { -webkit-tap-highlight-color: transparent; }
+  :focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation: none !important; transition: none !important; } }
+
+  header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 10px 20px; min-height: var(--bar); border-bottom: 1px solid var(--line); position: sticky; top: 0; background: rgba(10,10,9,.92); backdrop-filter: blur(10px); z-index: 5; }
+  header h1 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.02em; display: flex; align-items: center; gap: 10px; }
+  header h1 a { text-decoration: none; border-radius: 6px; }
+  header h1 img { display: block; width: 24px; height: 24px; border-radius: 6px; transition: transform .4s var(--spring); }
+  header h1 a:hover img { transform: rotate(-8deg) scale(1.1); }
+  .legend { font: 400 12px/1.4 var(--mono); color: var(--ink-2); }
+  .tools { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; align-items: center; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; background: var(--card-2); border: 1px solid var(--line-2); border-radius: 999px; padding: 7px 14px; cursor: pointer; white-space: nowrap; transition: background .2s, color .2s, transform .25s var(--spring); }
+  .btn:hover { background: var(--card-3); }
+  .btn:active { transform: scale(.96); }
+  .btn .ms { font-size: 18px; margin-left: -3px; }
+  .btn.ghost { background: none; border-color: transparent; color: var(--ink-2); }
+  .btn.ghost:hover { background: var(--card-2); color: var(--ink); }
+  .btn.primary { background: var(--signal); border-color: var(--signal); color: var(--on-signal); font-weight: 600; margin-left: 8px; }
+  .btn.primary:hover { background: #F58230; }
+
+  main { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(440px, 760px); min-height: calc(100% - var(--bar)); }
+
+  /* Preview: the phone stands in the light of its own wallpaper. */
+  .stage { position: sticky; top: var(--bar); height: calc(100vh - var(--bar)); display: flex; flex-direction: column; align-items: center; padding: 16px; gap: 14px; border-right: 1px solid var(--line); overflow: hidden; isolation: isolate; }
+  .stage::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--wall) center / cover no-repeat; filter: blur(80px) saturate(1.4); opacity: .32;
+    -webkit-mask-image: radial-gradient(closest-side, #000 35%, transparent); mask-image: radial-gradient(closest-side, #000 35%, transparent); }
+  .frame-box { flex: 1; width: 100%; display: flex; justify-content: center; align-items: center; min-height: 0; }
+  .frame { border-radius: 44px; padding: 10px; background: linear-gradient(#2B2B28, #161614); box-shadow: 0 0 0 1px var(--line-2), inset 0 1px 0 rgba(255,255,255,.14), 0 40px 80px -24px rgba(0,0,0,.75), 0 12px 24px rgba(0,0,0,.35); }
+  .frame.roll { animation: roll .6s var(--out); }
+  @keyframes roll { 0% { transform: rotate(0) scale(1); } 30% { transform: rotate(-3deg) scale(.97); } 60% { transform: rotate(2deg) scale(1.01); } 100% { transform: none; } }
+  .clip { border-radius: 34px; overflow: hidden; position: relative; }
+  .screen { width: 360px; height: 780px; position: relative; transform-origin: 0 0; background: #333 center / cover no-repeat; font-family: Roboto, system-ui, sans-serif; color: #fff; overflow: hidden; }
+  .screen.enter > :last-child { animation: rise .5s var(--out); }
+  @keyframes rise { from { transform: translateY(7%); opacity: 0; } }
+  .below { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .note { color: var(--ink-2); font-size: 12px; text-align: center; max-width: 400px; margin: 0; text-wrap: balance; }
+
+  .seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; background: var(--card-2); border: 1px solid var(--line); border-radius: 12px; }
+  .seg button { border: 0; background: none; border-radius: 9px; padding: 4px 11px; cursor: pointer; color: var(--ink-2); transition: background .2s, color .2s; }
+  .seg button:hover { color: var(--ink); }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); font-weight: 500; }
+  .views { border-radius: 999px; flex: none; background: rgba(24,24,22,.8); }
+  .views button { border-radius: 999px; padding: 5px 14px; }
+
+  /* Controls */
+  .panel { padding: 20px 24px 80px; min-width: 0; }
+  .cap { margin: 0 0 8px; font: 400 12px/1.4 var(--mono); color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
+  .looks { margin-bottom: 22px; }
+  .look-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .look { display: inline-flex; align-items: center; gap: 9px; padding: 6px 14px 6px 7px; border-radius: 999px; background: var(--card); border: 1px solid var(--line-2); cursor: pointer; transition: background .2s, transform .25s var(--spring); }
+  .look:hover { background: var(--card-3); }
+  .look:active { transform: scale(.96); }
+  .look i, .look .ms { width: 24px; height: 24px; flex: none; transition: transform .45s var(--spring); }
+  .look:hover i { transform: rotate(-14deg) scale(1.12); }
+  .look.shuffle { border-style: dashed; }
+  .look.shuffle .ms { font-size: 22px; line-height: 24px; text-align: center; color: var(--signal); }
+  .look.shuffle:hover .ms { transform: rotate(180deg); }
+  .statusbar { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+  .status { margin: 0; color: var(--ink-2); }
+  .status b { color: var(--ink); font-weight: 500; }
+  .status .err { color: #ff8a80; }
+  .link { background: none; border: 0; padding: 0; color: var(--ink-2); cursor: pointer; text-decoration: underline; text-underline-offset: .2em; white-space: nowrap; }
+  .link:hover { color: var(--ink); }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+  .tabs button { border: 1px solid var(--line-2); background: none; border-radius: 999px; padding: 5px 12px; cursor: pointer; color: var(--ink-2); white-space: nowrap; transition: background .2s, color .2s, border-color .2s; }
+  .tabs button:hover { color: var(--ink); border-color: var(--ink-3); }
+  .tabs button[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 500; }
+  .tabs button .n { display: inline-block; min-width: 16px; margin-left: 6px; padding: 0 5px; border-radius: 8px; background: var(--signal); color: var(--on-signal); font: 500 11px/16px var(--mono); text-align: center; }
+  .sec { background: var(--card); border: 1px solid var(--line); border-radius: 16px; margin-bottom: 14px; overflow: hidden; animation: rise .4s var(--out) backwards; }
+  .sec:nth-child(2) { animation-delay: .05s; } .sec:nth-child(n+3) { animation-delay: .1s; }
+  .sec h2 { margin: 0; padding: 14px 16px 4px; font: 400 12px/1.4 var(--mono); color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
+  .row { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(0, 1.3fr) 28px; gap: 12px; align-items: center; padding: 11px 16px; border-top: 1px solid var(--line); transition: background .2s; }
+  .row:hover { background: rgba(255,255,255,.02); }
+  .sec h2 + .row { border-top: 0; }
+  .row .t { font-weight: 500; }
+  .row .t small { display: block; font-weight: 400; color: var(--ink-3); font-size: 12px; line-height: 1.4; margin-top: 2px; }
+  .row .t .tag { font: 400 10px/1 var(--mono); color: var(--ink-3); border: 1px solid var(--line-2); border-radius: 4px; padding: 2px 4px; margin-left: 6px; vertical-align: 2px; white-space: nowrap; }
+  .row.changed .t::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--signal); margin-right: 7px; vertical-align: 1px; }
+  .reset { width: 28px; height: 28px; border-radius: 50%; border: 0; background: none; color: var(--ink-3); cursor: pointer; visibility: hidden; padding: 0; display: grid; place-items: center; transition: transform .4s var(--spring), background .2s, color .2s; }
+  .row.changed .reset { visibility: visible; }
+  .reset:hover { background: var(--card-3); color: var(--ink); transform: rotate(-90deg); }
+  .ctl { min-width: 0; }
+  .ctl select { appearance: none; width: 100%; background: var(--card-2) no-repeat; border: 1px solid var(--line-2); border-radius: 10px; padding: 7px 30px 7px 10px; cursor: pointer;
+    background-image: linear-gradient(45deg, transparent 50%, var(--ink-2) 50%), linear-gradient(135deg, var(--ink-2) 50%, transparent 50%); background-position: calc(100% - 16px) 55%, calc(100% - 11px) 55%; background-size: 5px 5px; }
+  .ctl select:hover { border-color: var(--ink-3); }
+  .switch { position: relative; width: 44px; height: 26px; border-radius: 13px; border: 0; background: var(--card-3); cursor: pointer; padding: 0; transition: background .2s; }
+  .switch::after { content: ""; position: absolute; left: 4px; top: 4px; width: 18px; height: 18px; border-radius: 50%; background: var(--ink-2); transition: transform .3s var(--spring), background .2s; }
+  .switch:active::after { transform: scaleX(1.2); }
+  .switch[aria-checked="true"] { background: var(--signal); }
+  .switch[aria-checked="true"]::after { transform: translateX(18px); background: #fff; }
+  .slider { display: flex; gap: 10px; align-items: center; }
+  .slider input { flex: 1; min-width: 0; appearance: none; -webkit-appearance: none; height: 24px; margin: 0; background: none; cursor: pointer; --p: 50%; }
+  .slider input::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(to right, var(--signal) var(--p), var(--card-3) var(--p)); }
+  .slider input::-moz-range-track { height: 6px; border-radius: 3px; background: var(--card-3); }
+  .slider input::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--signal); }
+  .slider input::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; margin-top: -6px; border-radius: 50%; background: var(--ink); box-shadow: 0 1px 4px rgba(0,0,0,.5); transition: transform .2s var(--spring); }
+  .slider input::-moz-range-thumb { width: 18px; height: 18px; border: 0; border-radius: 50%; background: var(--ink); box-shadow: 0 1px 4px rgba(0,0,0,.5); }
+  .slider input:active::-webkit-slider-thumb { transform: scale(1.25); }
+  .slider output { font: 400 12px var(--mono); color: var(--ink-2); min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .sw { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--line-2); cursor: pointer; padding: 0; transition: transform .25s var(--spring); }
+  .sw:hover { transform: scale(1.15); }
+  .sw[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .sw.sys { background: conic-gradient(#e8721c, #d0bcff, #a8c7fa, #b8e0a0, #e8721c); }
+  .sw.txt { width: auto; border-radius: 12px; padding: 0 9px; font-size: 11px; background: var(--card-2); color: var(--ink-2); }
+  .swatches input[type=color] { width: 28px; height: 26px; border: 0; padding: 0; background: none; cursor: pointer; }
+  .shapes { display: grid; grid-template-columns: repeat(auto-fill, 40px); gap: 6px; }
+  .shapes button { width: 40px; height: 40px; border-radius: 10px; border: 1px solid transparent; background: var(--card-2); cursor: pointer; display: grid; place-items: center; padding: 0; transition: background .2s, border-color .2s; }
+  .shapes i { width: 24px; height: 24px; background: var(--ink-3); transition: transform .3s var(--spring), background .2s; }
+  .shapes button:hover i { background: var(--ink); transform: scale(1.12); }
+  .shapes button[aria-pressed="true"] { border-color: var(--signal); background: rgba(232,114,28,.14); }
+  .shapes button[aria-pressed="true"] i { background: var(--signal); }
+
+  dialog { background: var(--card); color: var(--ink); border: 1px solid var(--line-2); border-radius: 20px; width: min(640px, calc(100% - 32px)); padding: 22px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+  dialog[open] { animation: rise .4s var(--out); }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  dialog textarea { width: 100%; height: 280px; background: var(--bg); color: var(--ink); border: 1px solid var(--line-2); border-radius: 10px; padding: 10px; font: 12px/1.5 var(--mono); }
+  dialog h3 { margin: 0 0 6px; font-size: 18px; font-weight: 600; letter-spacing: -.02em; }
+  dialog p { color: var(--ink-2); margin: 0 0 12px; }
+  .dlg-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+  #doneDlg { width: min(460px, calc(100% - 32px)); }
+  #doneDlg img { width: 48px; height: 48px; border-radius: 12px; margin-bottom: 14px; }
+  #doneDlg[open] img { animation: sun .7s var(--spring) .1s backwards; }
+  @keyframes sun { from { transform: translateY(14px) scale(.6); opacity: 0; } }
+  .steps { margin: 12px 0 0; padding: 0; list-style: none; counter-reset: s; }
+  .steps li { counter-increment: s; display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); color: var(--ink-2); }
+  .steps li::before { content: counter(s); width: 28px; height: 28px; border-radius: 50%; background: var(--card-3); color: var(--ink); display: grid; place-items: center; font: 500 13px var(--mono); }
+  .steps b { color: var(--ink); font-weight: 500; overflow-wrap: anywhere; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translate(-50%, 16px); display: flex; gap: 14px; align-items: center; max-width: calc(100% - 24px); background: var(--ink); color: var(--bg); padding: 9px 18px; border-radius: 999px; font-weight: 500; opacity: 0; transition: opacity .2s, transform .4s var(--out); pointer-events: none; z-index: 10; }
+  .toast.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+  .toast button { background: none; border: 0; padding: 0; font-weight: 600; color: #A4480A; cursor: pointer; text-decoration: underline; text-underline-offset: .2em; }
+  .drop { position: fixed; inset: 12px; z-index: 20; display: none; place-items: center; border: 2px dashed var(--signal); border-radius: 24px; background: rgba(10,10,9,.86); font-size: 18px; font-weight: 500; pointer-events: none; }
+  .drop.on { display: grid; }
+  .drop .ms { display: block; font-size: 40px; color: var(--signal); text-align: center; margin-bottom: 8px; }
+
+  /* Narrow: the phone stays in view above the settings, so a change is seen as it's made. */
+  @media (max-width: 860px) {
+    main { grid-template-columns: 1fr; }
+    header { position: static; }
+    .legend { display: none; }
+    .stage { top: 0; z-index: 4; height: 50vh; min-height: 300px; padding: 10px; gap: 8px; border-right: 0; border-bottom: 1px solid var(--line); background: var(--bg); }
+    .stage .note { display: none; }
+    .tabs { flex-wrap: nowrap; overflow-x: auto; margin-inline: -16px; padding-inline: 16px; scrollbar-width: none; }
+  }
+  @media (max-width: 560px) {
+    .row { grid-template-columns: 1fr 28px; } .row .ctl { grid-column: 1 / -1; grid-row: 2; } .panel { padding: 16px 16px 80px; }
+    header { padding: 10px 12px; } .tools { margin-left: 0; } .btn.ghost { padding: 7px 10px; }
+  }
+
+  /* Inside the phone: sizes are dp, 1dp = 1px before the frame's scale. */
+  .screen * { box-sizing: border-box; }
+  .col { position: absolute; inset: 0; display: flex; flex-direction: column; }
+  .sbar { height: 28px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; font-size: 13px; font-weight: 500; }
+  .grid { flex: 1; display: grid; padding: 4px 8px; min-height: 0; }
+  .cell { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; min-height: 0; position: relative; }
+  .ic { display: flex; align-items: center; justify-content: center; font-weight: 500; position: relative; flex: none; }
+  .icw { position: relative; flex: none; }
+  .lb { max-width: 100%; text-align: center; padding: 3px 2px 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; line-height: 1.2; word-break: break-word; }
+  .badge { position: absolute; display: flex; align-items: center; justify-content: center; font: 500 10px/1 Roboto, sans-serif; color: #fff; border-radius: 999px; z-index: 2; }
+  .dots { height: 22px; flex: none; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .dock { flex: none; position: relative; display: flex; align-items: center; }
+  .dock .slots { display: grid; width: 100%; position: relative; z-index: 1; }
+  .dockbg { position: absolute; z-index: 0; }
+  .search { flex: none; display: flex; align-items: center; gap: 10px; padding: 0 16px; height: 46px; margin: 6px 14px; font-size: 15px; }
+  .navh { height: 22px; flex: none; display: flex; align-items: center; justify-content: center; }
+  .navh i { width: 108px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.75); }
+  .ms { font-family: "Material Symbols Rounded"; font-weight: normal; font-style: normal; line-height: 1; letter-spacing: normal; text-transform: none; white-space: nowrap; direction: ltr; -webkit-font-feature-settings: "liga"; font-feature-settings: "liga"; -webkit-font-smoothing: antialiased; }
+  .widget { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 13px; padding: 6px; }
+  .clock { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; padding: 4px 16px; }
+  .layer { position: absolute; inset: 0; isolation: isolate; }
+  .col { isolation: isolate; }
+  .card { border-radius: 24px; padding: 16px 20px; margin: 0 16px 12px; }
+  .card h4 { margin: 0 0 10px; font-size: 14px; font-weight: 500; }
+</style>
+</head>
+<body>
+<header>
+  <h1><a href="../" aria-label="Vulcan home"><img src="../icon.png" alt=""></a><span>Vulcan designer</span></h1>
+  <span class="legend">Runs in your browser. Nothing is uploaded.</span>
+  <div class="tools">
+    <label class="btn ghost" tabindex="0" id="openLbl" title="Start from a backup made on your phone"><span class="ms" aria-hidden="true">folder_open</span>Open backup<input type="file" id="open" accept=".json,application/json" hidden></label>
+    <button class="btn ghost" id="share" title="Copy a link holding the changed settings"><span class="ms" aria-hidden="true">link</span>Share link</button>
+    <button class="btn ghost" id="ai" title="Copy your settings with instructions for an AI assistant, or paste its answer"><span class="ms" aria-hidden="true">auto_awesome</span>AI assistant</button>
+    <button class="btn primary" id="download"><span class="ms" aria-hidden="true">download</span><span id="dlText">Download style</span></button>
+  </div>
+</header>
+<main>
+  <section class="stage" aria-label="Preview">
+    <div class="seg views" role="group" aria-label="Screen shown" id="views"></div>
+    <div class="frame-box" id="frameBox"><div class="frame" id="frame"><div class="clip" id="clip"><div class="screen" id="screen"></div></div></div></div>
+    <div class="below">
+      <button class="btn" id="night" aria-pressed="false"></button>
+      <label class="btn" tabindex="0" id="wallLbl"><span class="ms" aria-hidden="true">wallpaper</span>Wallpaper<input type="file" id="wall" accept="image/*" hidden></label>
+    </div>
+    <p class="note">An approximation: app icons are stand-ins and the System colour is a guess, since both come from your phone. Drop a wallpaper or a backup anywhere on this page.</p>
+  </section>
+  <section class="panel" aria-label="Settings">
+    <div class="looks">
+      <h2 class="cap">Start from a look</h2>
+      <div class="look-row" id="looks"></div>
+    </div>
+    <div class="statusbar"><p class="status" id="status">Loading settings…</p><button class="link" id="resetAll">Reset all</button></div>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div id="groups"></div>
+  </section>
+</main>
+<dialog id="aiDlg" closedby="any">
+  <h3>Work on it with an AI assistant</h3>
+  <p>Copy this, add what you want ("warm and minimal, no labels, big icons"), and give it to any assistant. Paste its answer back here.</p>
+  <textarea id="aiText" spellcheck="false" aria-label="Settings and instructions for an assistant"></textarea>
+  <div class="dlg-actions">
+    <button class="btn ghost" id="aiClose">Close</button>
+    <button class="btn" id="aiCopy">Copy</button>
+    <button class="btn primary" id="aiApply">Apply pasted answer</button>
+  </div>
+</dialog>
+<dialog id="doneDlg" closedby="any">
+  <img src="../icon.png" alt="">
+  <h3>Downloaded. Now load it on your phone</h3>
+  <ol class="steps">
+    <li><span>Get <b id="doneName"></b> onto your phone.</span></li>
+    <li><span>In Vulcan, open <b>Settings → Backup &amp; restore → Restore from a file</b>.</span></li>
+    <li><span>Pick the file. <span id="doneKeeps"></span></span></li>
+  </ol>
+  <div class="dlg-actions"><button class="btn primary" id="doneClose">Done</button></div>
+</dialog>
+<div class="drop" id="drop"><div><span class="ms" aria-hidden="true">wallpaper</span>Drop a backup or a wallpaper</div></div>
+<div class="toast" id="toast" role="status"></div>
+<script>
+"use strict";
+const SCHEMA_URL = "../schema/vulcan-backup-2.json";
+const PUBLIC_SCHEMA = "https://bizzaretor.com/vulcan-launcher/schema/vulcan-backup-2.json";
+const GROUP_ORDER = ["Home screen", "Dock", "App drawer", "Folders", "Search", "Look & feel", "Notification badges", "Now page", "Night mode", "Gestures & inputs"];
+// Settings the preview draws; the rest change the phone's behaviour only.
+const DRAWN = new Set(("cols rows pages defaultPage iconSize labels labelSize labelColor labelFont labelLines labelShadow indicator searchBar searchStyle searchColor " +
+  "glanceStyle widgetRadius hideClock statusBar darkStatusIcons dock dockCols dockIconSize dockLabels dockBg dockColor dockAlpha dockShadow " +
+  "drawerStyle drawerSearch drawerCols drawerRows drawerIconSize drawerLabels drawerLabelSize drawerTheme drawerAlpha frequent " +
+  "folderPreview folderBg folderColor folderAlpha folderRadius folderNames folderLabelSize folderCols folderWindow folderFirstBig folderClip " +
+  "shape themedIcons iconShadow accent nightMode badges badgePos badgeSize badgeColor nowPage nowClock nowMedia nowCalendar nowContacts nowApps").split(" "));
+const GROUP_VIEW = { "App drawer": "drawer", "Folders": "folder", "Now page": "now" };
+const PRESETS = {
+  "Fresh install": {},
+  "Appliance": { accent: "appliance", dockBg: "housing", drawerStyle: "housing", folderBg: "disc", glanceStyle: "clock", searchBar: "off", indicator: "signal", cols: "4", pages: "3", dockCols: "4" },
+  "Calm": { labels: "off", iconSize: "56", dockBg: "none", searchBar: "off", indicator: "none", cols: "4", rows: "6", shape: "circle", folderBg: "circle", drawerStyle: "list" },
+  "Samsung-like": { cols: "4", rows: "5", iconSize: "64", shape: "squircle", searchBar: "off", indicator: "dots", dockBg: "none", drawerStyle: "pages", drawerCols: "4", drawerRows: "6", folderBg: "square" },
+  "AMOLED": { accent: "amoled", nightMode: "on", drawerTheme: "dark", drawerAlpha: "100", dockBg: "none", folderColor: "#000000", searchColor: "#212121", themedIcons: "on", labelColor: "#9E9E9E", labelShadow: "off" },
+  "Big and clear": { cols: "4", rows: "5", iconSize: "72", labelSize: "15", labelFont: "sans-serif-medium", labelLines: "2", dockIconSize: "72", dockCols: "4", drawerCols: "4", drawerIconSize: "68", drawerLabelSize: "15" },
+};
+const DEMO_APPS = ["Phone", "Messages", "Browser", "Camera", "Photos", "Mail", "Maps", "Calendar", "Clock", "Music", "Notes", "Files", "Calculator", "Contacts", "Settings", "Store", "Wallet", "Podcasts", "Recorder", "Health", "Translate", "Weather", "Docs", "Radio"];
+const PALETTE = ["#1E88E5", "#43A047", "#E53935", "#FB8C00", "#8E24AA", "#00897B", "#3949AB", "#D81B60", "#6D4C41", "#546E7A", "#F4511E", "#7CB342"];
+
+let props = {}, sections = [], S = {}, loaded = null, loadedName = "", view = "home", phoneDark = false, tab = "Home screen";
+let wallpaper = "../wallpaper-dusk.jpg", shown;
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// ---- Settings model ----
+const def = k => props[k] ? props[k].default : undefined;
+const val = k => S[k] !== undefined ? S[k] : def(k);
+const on = k => val(k) === "on";
+const num = k => parseInt(val(k), 10);
+function kind(p) {
+  const e = p.enum || (p.anyOf && p.anyOf[0].enum) || [];
+  if (p.anyOf && p.anyOf.some(a => a.type === "boolean")) return "bool";
+  if (p.anyOf && p.anyOf.some(a => a.pattern && a.pattern.includes("page:"))) return "action";
+  if (e.includes("#FFFFFF")) return "color";
+  if (e.length > 4 && e.every(v => /^\d+$/.test(v))) return "range";
+  return "enum";
+}
+const values = p => p.enum || p.anyOf[0].enum;
+const nameOf = (k, v) => (props[k]["x-names"] || {})[v] || v;
+function normalize(k, v) { if (v === true) return "on"; if (v === false) return "off"; return v == null ? v : String(v); }
+function accepts(k, v) {
+  const p = props[k]; if (!p) return typeof v === "string";
+  const vs = values(p);
+  if (vs.includes(v)) return true;
+  const kd = kind(p);
+  if (kd === "color") return /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v);
+  if (kd === "action") return /^page:[0-8]$/.test(v) || /^app:[^/]+\/[^/]+\/\d+$/.test(v);
+  return false;
+}
+/** Applies [obj] (settings, maybe hand- or AI-written) and returns the ones left out. */
+function applySettings(obj, replace) {
+  if (replace) S = {};
+  const bad = [];
+  for (const [k, raw] of Object.entries(obj || {})) {
+    const v = normalize(k, raw);
+    if (accepts(k, v)) S[k] = v; else bad.push(k + "=" + raw);
+  }
+  return bad;
+}
+/** Settings that differ from their defaults (and any extra stored ones, such as an icon pack). */
+function changed() { const o = {}; for (const k in S) if (S[k] !== def(k)) o[k] = S[k]; return o; }
+function fullSettings() { const o = {}; for (const k in props) o[k] = val(k); for (const k in S) if (!props[k]) o[k] = S[k]; return o; }
+
+// ---- Colours ----
+const night = () => { const m = val("nightMode"); return m === "on" ? true : m === "off" ? false : phoneDark; };
+function accent() { const a = val("accent"); return a === "appliance" ? "#E8721C" : a === "system" ? (night() ? "#D0BCFF" : "#6750A4") : a === "amoled" ? "#FFFFFF" : a; }
+function themedColor(k, light, dark) { const v = val(k); return v === "system" ? (night() ? dark : light) : v; }
+function alpha(hex, a) {
+  let h = hex.replace("#", ""); if (h.length === 8) h = h.slice(2);
+  const n = parseInt(h, 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`;
+}
+function rgbOf(hex) { let h = hex.replace("#", ""); if (h.length === 8) h = h.slice(2); return parseInt(h, 16); }
+function onColor(hex) { const n = rgbOf(hex); const l = (0.299 * (n >> 16 & 255) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)); return l > 150 ? "#1b1b1b" : "#ffffff"; }
+function hash(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); }
+
+// ---- Icons ----
+function poly(n, rot = -90) { const pts = []; for (let i = 0; i < n; i++) { const a = (rot + i * 360 / n) * Math.PI / 180; pts.push(`${(50 + 50 * Math.cos(a)).toFixed(1)}% ${(50 + 50 * Math.sin(a)).toFixed(1)}%`); } return `clip-path:polygon(${pts.join(",")})`; }
+function flower() { const pts = []; for (let i = 0; i < 64; i++) { const a = i / 64 * 2 * Math.PI; const r = 44 + 6 * Math.cos(8 * a); pts.push(`${(50 + r * Math.cos(a)).toFixed(1)}% ${(50 + r * Math.sin(a)).toFixed(1)}%`); } return `clip-path:polygon(${pts.join(",")})`; }
+function shapeCss(v = val("shape")) {
+  switch (v) {
+    case "circle": return "border-radius:50%";
+    case "square": return "border-radius:0";
+    case "rounded": return "border-radius:18%";
+    case "squircle": return "border-radius:34%";
+    case "teardrop": return "border-radius:50% 50% 12% 50%";
+    case "pebble": return "border-radius:46% 54% 50% 42% / 52% 44% 56% 48%";
+    case "flower": return flower();
+    case "vessel": return "border-radius:50% 50% 28% 28% / 40% 40% 24% 24%";
+    case "tapered": return "border-radius:42% 42% 30% 30%";
+    case "crop": return "clip-path:polygon(16% 0,84% 0,100% 16%,100% 84%,84% 100%,16% 100%,0 84%,0 16%)";
+    case "pentagon": return poly(5);
+    case "hexagon": return poly(6, 0);
+    case "heptagon": return poly(7);
+    case "octagon": return poly(8, 22.5);
+    default: return "border-radius:30%";
+  }
+}
+const SYMBOLS = {"Phone": "call", "Messages": "chat", "Browser": "public", "Camera": "photo_camera", "Photos": "image", "Mail": "mail", "Maps": "map", "Calendar": "calendar_month", "Clock": "schedule", "Music": "music_note", "Notes": "sticky_note_2", "Files": "folder", "Calculator": "calculate", "Contacts": "contacts", "Settings": "settings", "Store": "storefront", "Wallet": "account_balance_wallet", "Podcasts": "podcasts", "Recorder": "mic", "Health": "favorite", "Translate": "translate", "Weather": "partly_cloudy_day", "Docs": "description", "Radio": "radio"};
+// Real apps from a loaded backup: a generic glyph by what the name or package suggests, else the first letter.
+const SYMBOL_HINTS = [[/dial|phone|call/i, "call"], [/messag|sms|telegram|whatsapp|signal|chat/i, "chat"], [/chrome|firefox|browser|brave|opera/i, "public"],
+  [/camera/i, "photo_camera"], [/photo|gallery/i, "image"], [/mail|\.gm\b|gmail/i, "mail"], [/maps|osmand/i, "map"], [/calendar/i, "calendar_month"],
+  [/clock|alarm/i, "schedule"], [/music|spotify|player/i, "music_note"], [/youtube|video|tube/i, "smart_display"], [/setting/i, "settings"],
+  [/vending|store|market/i, "storefront"], [/wallet|pay/i, "account_balance_wallet"], [/notes|keep\b/i, "sticky_note_2"], [/files|myfiles/i, "folder"],
+  [/calc/i, "calculate"], [/contact/i, "contacts"], [/bitwarden|keepass|auth|password/i, "key"], [/docs|drive/i, "description"],
+  [/translat/i, "translate"], [/weather/i, "partly_cloudy_day"], [/claude|gemini|bard|chatgpt|assistant/i, "smart_toy"], [/meet|duo|tachyon|zoom/i, "videocam"],
+  [/podcast/i, "podcasts"], [/radio/i, "radio"], [/record/i, "mic"], [/health|fit/i, "favorite"]];
+function symbolFor(label, pkg) {
+  if (SYMBOLS[label]) return SYMBOLS[label];
+  const s = label + " " + (pkg || "");
+  for (const [re, n] of SYMBOL_HINTS) if (re.test(s)) return n;
+  return null;
+}
+function glyph(label, px, pkg) {
+  const n = symbolFor(label, pkg);
+  return n ? `<span class="ms" style="font-size:${Math.round(px * 1.25)}px">${n}</span>` : esc((label || "?").trim().charAt(0).toUpperCase());
+}
+function iconBox(label, size, badge, pkg) {
+  let bg, fg;
+  if (on("themedIcons")) { bg = night() ? "#1F1F1F" : "#D3E3FD"; fg = night() ? "#D3E3FD" : "#041E49"; }
+  else { const c = PALETTE[hash(label) % PALETTE.length]; bg = `linear-gradient(160deg, ${alpha(c, 1)}, ${alpha(c, .78)})`; fg = "#fff"; }
+  const shadow = on("iconShadow") ? "filter:drop-shadow(0 2px 2px rgba(0,0,0,.35));" : "";
+  return `<div class="icw" style="width:${size}px;height:${size}px;${shadow}"><div class="ic" style="width:${size}px;height:${size}px;background:${bg};color:${fg};font-size:${Math.round(size * .42)}px;${shapeCss()}">${glyph(label, size * .42, pkg)}</div>${badge ? badgeHtml(badge, size) : ""}</div>`;
+}
+function badgeHtml(count, size) {
+  const b = val("badges"); if (b === "off") return "";
+  const dot = b === "dots" || (b === "dynamic" && count > 9);
+  const sz = { small: [8, 14], medium: [11, 17], large: [14, 21] }[val("badgeSize")] || [11, 17];
+  const d = dot ? sz[0] : sz[1];
+  const p = val("badgePos"), off = -d * .25;
+  const pos = (p.startsWith("top") ? `top:${off}px;` : `bottom:${off}px;`) + (p.endsWith("Left") ? `left:${off}px;` : `right:${off}px;`);
+  const c = val("badgeColor");
+  return `<div class="badge" style="${pos}min-width:${d}px;height:${d}px;background:${c};color:${onColor(c)};font-size:${Math.round(d * .62)}px;padding:0 ${dot ? 0 : 4}px">${dot ? "" : count}</div>`;
+}
+function fontCss(sizeSp, color, shadow, lines) {
+  const f = val("labelFont");
+  const fam = f === "serif" ? '"Noto Serif", Georgia, serif' : f === "monospace" ? "ui-monospace, Menlo, monospace" : f === "sans-serif-condensed" ? '"Roboto Condensed", Roboto, sans-serif' : "Roboto, system-ui, sans-serif";
+  const w = f === "sans-serif-medium" ? 500 : f === "sans-serif-light" ? 300 : 400;
+  return `font-family:${fam};font-weight:${w};font-size:${sizeSp}px;color:${color};-webkit-line-clamp:${lines};${shadow ? "text-shadow:0 1px 3px rgba(0,0,0,.55);" : ""}`;
+}
+function appCell(label, size, opts = {}, pkg) {
+  const showLabel = opts.labels !== undefined ? opts.labels : on("labels");
+  const ls = opts.labelSize || num("labelSize");
+  const lc = opts.labelColor || val("labelColor");
+  const sh = opts.shadow !== undefined ? opts.shadow : on("labelShadow");
+  return `<div class="cell">${iconBox(label, size, opts.badge, pkg)}${showLabel ? `<div class="lb" style="${fontCss(ls, lc, sh, num("labelLines"))}">${esc(label)}</div>` : ""}</div>`;
+}
+function folderIcon(label, size, children, opts = {}) {
+  const bgKind = val("folderBg"), fc = themedColor("folderColor", "#F3EDE9", "#3A3633");
+  const inner = size * .8, mini = val("folderPreview") === "grid" ? inner * .42 : inner * .5;
+  const kids = (children.length ? children : ["A", "B", "C", "D"]).slice(0, 4);
+  const m = l => `<div class="ic" style="position:absolute;width:${mini}px;height:${mini}px;background:${PALETTE[hash(l) % PALETTE.length]};color:#fff;font-size:${mini * .45}px;${shapeCss()}">${glyph(l, mini * .45)}</div>`;
+  let art = "";
+  const c = size / 2 - mini / 2;
+  switch (val("folderPreview")) {
+    case "stack": kids.slice(0, 3).reverse().forEach((l, i) => { art += m(l).replace("position:absolute;", `position:absolute;left:${c + (2 - i) * size * .07 - size * .07}px;top:${c - (2 - i) * size * .07 + size * .07}px;`); }); break;
+    case "line": kids.slice(0, 3).forEach((l, i) => { art += m(l).replace("position:absolute;", `position:absolute;left:${size * .08 + i * (size * .84 - mini) / 2}px;top:${c}px;`); }); break;
+    case "fan": kids.slice(0, 3).forEach((l, i) => { art += m(l).replace("position:absolute;", `position:absolute;left:${c + (i - 1) * size * .16}px;top:${c}px;transform:rotate(${(i - 1) * 16}deg);`); }); break;
+    case "radial": kids.forEach((l, i) => { const a = i / kids.length * 2 * Math.PI - Math.PI / 2; art += m(l).replace("position:absolute;", `position:absolute;left:${c + Math.cos(a) * size * .2}px;top:${c + Math.sin(a) * size * .2}px;width:${mini * .8}px;height:${mini * .8}px;`); }); break;
+    default: {
+      const big = on("folderFirstBig");
+      kids.forEach((l, i) => {
+        const g = size * .06, s = mini, x = size / 2 + (i % 2 ? g / 2 : -s - g / 2), y = size / 2 + (i > 1 ? g / 2 : -s - g / 2);
+        if (big && i > 0) return;
+        art += m(l).replace("position:absolute;", big ? `position:absolute;left:${size * .18}px;top:${size * .18}px;width:${size * .64}px;height:${size * .64}px;` : `position:absolute;left:${x}px;top:${y}px;`);
+      });
+    }
+  }
+  let bg = "";
+  if (bgKind === "circle") bg = `<div style="position:absolute;inset:0;border-radius:50%;background:${alpha(fc, .55)}"></div>`;
+  else if (bgKind === "disc") bg = `<div style="position:absolute;inset:0;border-radius:50%;background:${fc};box-shadow:0 2px 4px rgba(0,0,0,.25)"></div>`;
+  else if (bgKind === "square") bg = `<div style="position:absolute;inset:0;${shapeCss()};background:${alpha(fc, .85)}"></div>`;
+  else if (bgKind === "platform") bg = `<div style="position:absolute;left:4%;right:4%;bottom:2%;height:30%;border-radius:50%;background:${alpha(fc, .6)}"></div>`;
+  const clip = on("folderClip") && bgKind !== "none" ? "overflow:hidden;border-radius:50%;" : "";
+  const showLabel = opts.labels !== undefined ? opts.labels : on("labels");
+  return `<div class="cell"><div class="icw" style="width:${size}px;height:${size}px;${clip}">${bg}${art}</div>${showLabel ? `<div class="lb" style="${fontCss(opts.labelSize || num("labelSize"), val("labelColor"), on("labelShadow"), num("labelLines"))}">${esc(label)}</div>` : ""}</div>`;
+}
+
+// ---- What's on home: the loaded backup's first page and dock, or a demo ----
+function appName(it) {
+  if (it.label) return it.label;
+  const apps = loaded && loaded.reference && loaded.reference.installedApps || [];
+  const a = apps.find(a => a.pkg === it.pkg && (!it.cls || a.cls === it.cls)) || apps.find(a => a.pkg === it.pkg);
+  if (a) return a.label;
+  if (it.action) return it.action;
+  return (it.pkg || "App").split(".").pop();
+}
+function homeItems() {
+  if (loaded && loaded.home && Array.isArray(loaded.home.items) && loaded.home.items.length) {
+    const sub = loaded.home.sub === 2 ? 2 : 1;
+    const page = Math.min(num("defaultPage"), Math.max(0, num("pages") - 1));
+    let grid = loaded.home.items.filter(i => i.page === page);
+    if (!grid.length) grid = loaded.home.items.filter(i => i.page === 0);
+    return { sub, grid, dock: loaded.home.items.filter(i => i.page === -1) };
+  }
+  const cols = num("cols"), rows = num("rows"), grid = [];
+  grid.push({ x: 0, y: 0, w: cols, h: Math.min(2, rows - 1), action: "clock" });
+  grid.push({ x: 0, y: rows - 1, folder: true, label: "Tools", children: ["Files", "Calculator", "Recorder", "Notes"].map(l => ({ label: l })) });
+  ["Maps", "Mail", "Calendar", "Music", "Notes", "Store", "Wallet", "Settings", "Weather", "Translate", "Docs"].slice(0, cols - 1).forEach((l, i) => grid.push({ x: i + 1, y: rows - 1, label: l }));
+  if (rows > 3) ["Contacts", "Podcasts", "Health"].slice(0, cols).forEach((l, i) => grid.push({ x: cols - 1 - i, y: rows - 2, label: l }));
+  const dock = ["Phone", "Messages", "Browser", "Camera", "Photos", "Clock", "Files", "Radio", "Music"].slice(0, num("dockCols")).map((l, i) => ({ x: i, label: l }));
+  return { sub: 1, grid, dock };
+}
+
+// ---- Screens ----
+function statusBar(lightIcons) {
+  if (val("statusBar") === "hide") return `<div style="height:12px;flex:none"></div>`;
+  const c = lightIcons ? "#fff" : "#1b1b1b";
+  return `<div class="sbar" style="color:${c}"><span>${on("hideClock") ? "" : "12:30"}</span><span class="ms" style="font-size:15px;letter-spacing:3px">signal_cellular_alt wifi battery_full</span></div>`;
+}
+function searchBar(where) {
+  if (val("searchBar") !== where) return "";
+  const r = { rect: 4, rounded: 14, pill: 999 }[val("searchStyle")];
+  const c = themedColor("searchColor", "#F3EDE9", "#2B2725");
+  const fg = onColor(c);
+  return `<div class="search" style="border-radius:${r}px;background:${alpha(c, .92)};color:${fg}"><span class="ms" style="font-size:20px">search</span><span style="flex:1;opacity:.7">Search</span><span class="ms" style="font-size:20px;opacity:.8">mic</span></div>`;
+}
+function indicator() {
+  const n = num("pages"), kindV = val("indicator"), cur = Math.min(num("defaultPage"), n - 1);
+  if (kindV === "none" || n < 2) return `<div class="dots"></div>`;
+  let h = "";
+  for (let i = 0; i < n; i++) {
+    const a = i === cur;
+    if (kindV === "line") h += `<i style="width:${a ? 20 : 10}px;height:3px;border-radius:2px;background:rgba(255,255,255,${a ? 1 : .4})"></i>`;
+    else if (kindV === "signal") h += `<i style="width:${a ? 16 : 6}px;height:${a ? 4 : 6}px;border-radius:3px;background:${a ? accent() : "rgba(255,255,255,.55)"}"></i>`;
+    else if (kindV === "dots") h += `<i style="width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,${a ? 1 : .35})"></i>`;
+    else h += `<i style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,${a ? .95 : .4})"></i>`;
+  }
+  return `<div class="dots">${h}</div>`;
+}
+function clockItem(h) {
+  const big = val("glanceStyle") === "clock" || (val("glanceStyle") === "style" && val("accent") === "appliance");
+  const c = val("labelColor"), sh = on("labelShadow") ? "text-shadow:0 1px 4px rgba(0,0,0,.45);" : "";
+  if (big) return `<div class="clock" style="color:${c};${sh}"><div style="font-weight:300;font-size:${Math.max(28, Math.min(96, h * .62))}px;line-height:1;letter-spacing:-.02em">12:30</div><div style="font-weight:500;font-size:13px;letter-spacing:.12em;padding-top:6px">WED 11 NOV · CHARGED</div></div>`;
+  return `<div class="clock" style="color:${c};${sh}"><div style="font-weight:500;font-size:22px">Wednesday, 11 November</div><div style="font-size:15px;opacity:.85;padding-top:2px">Charged</div></div>`;
+}
+function dockHtml(items) {
+  if (!on("dock")) return "";
+  const cols = num("dockCols"), size = num("dockIconSize"), labels = on("dockLabels");
+  const kindV = val("dockBg"), a = num("dockAlpha") / 100;
+  const dc = themedColor("dockColor", "#F3EDE9", "#2B2725");
+  const h = size + (labels ? 22 : 0) + 24;
+  let bg = "", inset = 6;
+  const shadow = on("dockShadow") ? "box-shadow:0 6px 18px rgba(0,0,0,.35);" : "";
+  if (kindV === "rect") bg = `left:0;right:0;top:0;bottom:0;background:${alpha(dc, a)};${shadow}`;
+  else if (kindV === "rounded") { bg = `left:10px;right:10px;top:2px;bottom:2px;border-radius:28px;background:${alpha(dc, a)};${shadow}`; inset = 16; }
+  else if (kindV === "card") { bg = `left:14px;right:14px;top:4px;bottom:4px;border-radius:16px;background:${alpha(dc, a)};${shadow}`; inset = 18; }
+  else if (kindV === "glass") { bg = `left:12px;right:12px;top:2px;bottom:2px;border-radius:30px;background:rgba(255,255,255,${.1 + a * .2});backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.2);${shadow}`; inset = 18; }
+  else if (kindV === "housing") { bg = `left:12px;right:12px;top:2px;bottom:2px;border-radius:999px;background:${night() ? "#2A2A28" : "#E9E7E2"};box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 4px 12px rgba(0,0,0,.3);`; inset = 22; }
+  const slots = Array(cols).fill("");
+  items.forEach((it, i) => { const x = it.x != null ? it.x : i; if (x < cols) slots[x] = cellFor(it, size, { labels, badge: x === 1 ? 3 : 0, labelColor: kindV === "housing" ? (night() ? "#E9E7E2" : "#2A2A28") : undefined, shadow: kindV === "housing" ? false : undefined }); });
+  return `<div class="dock" style="height:${h}px;padding:0 ${inset}px">${bg ? `<div class="dockbg" style="${bg}"></div>` : ""}<div class="slots" style="grid-template-columns:repeat(${cols},1fr)">${slots.map(s => s || "<div></div>").join("")}</div></div>`;
+}
+function cellFor(it, size, opts = {}) {
+  if (it.folder) return folderIcon(it.label || "Folder", size, (it.children || []).map(appName), opts);
+  return appCell(appName(it), size, opts, it.pkg || it.action);
+}
+function renderHome() {
+  const { sub, grid, dock } = homeItems();
+  const cols = num("cols") * sub, rows = num("rows") * sub, size = num("iconSize");
+  let cells = "", badgeLeft = 1;
+  for (const it of grid) {
+    const x = (it.x || 0) + 1, y = (it.y || 0) + 1, w = it.w || 1, h = it.h || 1;
+    if (x > cols || y > rows) continue;
+    const area = `grid-column:${x} / span ${Math.min(w, cols - x + 1)};grid-row:${y} / span ${Math.min(h, rows - y + 1)};`;
+    if (it.action === "clock") cells += `<div style="${area}min-height:0">${clockItem(h / sub * 100)}</div>`;
+    else if ((it.widgetId != null && it.widgetId !== -1) || it.action === "widgetSlot" || (it.w > 1 || it.h > 1) && !it.folder) {
+      const r = num("widgetRadius") || 18;
+      cells += `<div style="${area}padding:6px;min-height:0"><div class="widget" style="border-radius:${r}px;background:rgba(255,255,255,.16);backdrop-filter:blur(8px)">Widget</div></div>`;
+    } else cells += `<div style="${area}display:flex;min-width:0;min-height:0">${cellFor(it, size, { badge: !it.folder && badgeLeft-- > 0 ? 12 : 0 })}</div>`;
+  }
+  return `<div class="col">${statusBar(!on("darkStatusIcons"))}${searchBar("top")}<div class="grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr));grid-template-rows:repeat(${rows},minmax(0,1fr))">${cells}</div>${indicator()}${searchBar("bottom")}${searchBar("dockAbove")}${dockHtml(dock)}${searchBar("dockBelow")}<div class="navh"><i></i></div></div>`;
+}
+function drawerColors() {
+  const st = val("drawerStyle"), th = val("drawerTheme");
+  const dk = th === "dark" || (th === "auto" && night());
+  const a = num("drawerAlpha") / 100;
+  if (st === "housing") return { bg: dk ? "#2A2A28" : "#E9E7E2", fg: dk ? "#E9E7E2" : "#2A2A28", field: dk ? "#222220" : "#DEDBD5", blur: "" };
+  if (st === "glass") return { bg: `rgba(${dk ? "20,20,20" : "255,255,255"},${.25 + a * .3})`, fg: dk ? "#fff" : "#1b1b1b", field: `rgba(${dk ? "255,255,255,.12" : "0,0,0,.08"})`, blur: "backdrop-filter:blur(24px);" };
+  return { bg: dk ? `rgba(28,27,26,${a})` : `rgba(251,248,246,${a})`, fg: dk ? "#EDE7E3" : "#1D1B1A", field: dk ? "#2B2725" : "#EDE7E3", blur: a < 1 ? "backdrop-filter:blur(8px);" : "" };
+}
+function drawerApps() {
+  const apps = loaded && loaded.reference && loaded.reference.installedApps;
+  const names = apps && apps.length ? [...new Set(apps.map(a => a.label))] : DEMO_APPS.slice().sort();
+  return names;
+}
+function renderDrawer() {
+  const st = val("drawerStyle"), c = drawerColors(), cols = num("drawerCols"), rows = num("drawerRows"), size = num("drawerIconSize");
+  const ls = val("drawerLabelSize") === "home" ? num("labelSize") : num("drawerLabelSize");
+  const where = val("drawerSearch") === "style" ? (st === "housing" || st === "glass" ? "bottom" : "top") : val("drawerSearch");
+  const field = `<div class="search" style="border-radius:999px;background:${c.field};color:${c.fg};margin:10px 16px"><span class="ms" style="font-size:20px">search</span><span style="flex:1;opacity:.65">Search apps</span></div>`;
+  const opts = { labels: on("drawerLabels"), labelSize: ls, labelColor: c.fg, shadow: false };
+  const names = drawerApps();
+  const cellH = (780 - 28 - 70 - 22) / rows;
+  let body = "";
+  if (on("frequent") && val("drawerSort") !== "usage") {
+    body += `<div style="display:grid;grid-template-columns:repeat(${cols},1fr);height:${cellH}px;padding:0 8px">${["Messages", "Browser", "Camera", "Maps", "Mail", "Music", "Photos", "Phone"].slice(0, cols).map(n => appCell(n, size, opts)).join("")}</div><div style="height:1px;margin:4px 20px 8px;background:${alpha(c.fg.length === 7 ? c.fg : "#888888", .15)}"></div>`;
+  }
+  if (st === "list") body += names.slice(0, 14).map(n => `<div style="display:flex;align-items:center;gap:16px;padding:8px 20px">${iconBox(n, 40)}<span style="font-size:16px;color:${c.fg}">${esc(n)}</span></div>`).join("");
+  else {
+    const per = st === "pages" ? cols * (rows - (on("frequent") ? 1 : 0)) : cols * (rows + 1);
+    body += `<div style="display:grid;grid-template-columns:repeat(${cols},1fr);grid-auto-rows:${cellH}px;padding:0 8px">${names.slice(0, per).map(n => appCell(n, size, opts)).join("")}</div>`;
+    if (st === "pages") body += `<div class="dots" style="margin-top:auto">${[0, 1, 2].map(i => `<i style="width:6px;height:6px;border-radius:50%;background:${alpha("#888888", i ? .4 : 1)}"></i>`).join("")}</div>`;
+  }
+  const radius = st === "housing" || st === "glass" ? "border-radius:28px 28px 0 0;top:36px;" : "top:0;";
+  return `<div class="layer" style="background:rgba(0,0,0,${st === "glass" ? .15 : .3})"></div><div class="col" style="${radius}background:${c.bg};${c.blur}">${st === "housing" || st === "glass" ? `<div style="height:20px;flex:none;display:flex;justify-content:center;align-items:center"><i style="width:36px;height:4px;border-radius:2px;background:${alpha("#888888", .6)}"></i></div>` : statusBar(c.fg !== "#1D1B1A" && c.fg !== "#2A2A28" && c.fg !== "#1b1b1b")}${where === "top" ? field : ""}<div style="flex:1;overflow:hidden;display:flex;flex-direction:column">${body}</div>${where === "bottom" ? field : ""}<div class="navh"><i style="background:${alpha("#888888", .7)}"></i></div></div>`;
+}
+function renderFolder() {
+  const { grid, dock } = homeItems();
+  const f = [...grid, ...dock].find(i => i.folder);
+  const name = f ? (f.label || "Folder") : "Tools";
+  const kids = f && f.children && f.children.length ? f.children.map(appName) : ["Files", "Calculator", "Recorder", "Notes", "Translate", "Docs", "Weather"];
+  const fc = themedColor("folderColor", "#F3EDE9", "#2B2725"), fg = onColor(fc), a = num("folderAlpha") / 100;
+  const colsV = val("folderCols"), cols = colsV === "auto" ? Math.min(4, Math.max(3, Math.ceil(Math.sqrt(kids.length)))) : parseInt(colsV, 10);
+  const ls = val("folderLabelSize") === "home" ? num("labelSize") : num("folderLabelSize"), size = Math.min(num("iconSize"), 60);
+  const rowsV = val("folderRows"), rows = rowsV === "auto" ? Math.ceil(kids.length / cols) : Math.min(parseInt(rowsV, 10), Math.ceil(kids.length / cols));
+  const opts = { labels: true, labelSize: ls, labelColor: fg, shadow: false };
+  const gridHtml = `<div style="display:grid;grid-template-columns:repeat(${cols},1fr);grid-auto-rows:${size + ls * 1.4 + 16}px;max-height:${rows * (size + ls * 1.4 + 16)}px;overflow:hidden">${kids.map(n => appCell(n, size, opts)).join("")}</div>`;
+  const title = on("folderNames") ? `<div style="font-size:20px;color:${fg};padding:0 8px 12px;font-weight:400">${esc(name)}</div>` : "";
+  if (val("folderWindow") === "fullscreen")
+    return `<div class="layer" style="filter:blur(6px);opacity:.5">${renderHome()}</div><div class="col" style="background:${alpha(fc, a)};padding:80px 16px 0">${title}${gridHtml}</div>`;
+  const w = Math.min(340, cols * (size + 26) + 32);
+  return `<div class="layer">${renderHome()}</div><div class="layer" style="background:rgba(0,0,0,.35)"></div><div style="position:absolute;left:${(360 - w) / 2}px;width:${w}px;top:200px;border-radius:${num("folderRadius")}px;background:${alpha(fc, a)};padding:18px 16px;box-shadow:0 12px 40px rgba(0,0,0,.4)">${title}${gridHtml}</div>`;
+}
+function renderNow() {
+  if (!on("nowPage")) return `<div class="layer">${renderHome()}</div><div class="layer" style="display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);font-size:15px;padding:40px;text-align:center">The Now page is off.</div>`;
+  const dk = night(), surf = dk ? "#141312" : "#FBF8F6", card = dk ? "#2B2725" : "#F1ECE8", fg = dk ? "#EDE7E3" : "#1D1B1A", sub = dk ? "#B8B0AA" : "#5F5955", pr = accent() === "#FFFFFF" && !dk ? "#1D1B1A" : accent();
+  let h = "";
+  if (on("nowClock")) h += `<div style="padding:24px 28px 20px;color:${fg}"><div style="font-weight:300;font-size:57px;line-height:1">12:30</div><div style="color:${sub};font-size:16px;padding-top:4px">Wednesday, 11 November</div></div>`;
+  const cardH = (t, b) => `<div class="card" style="background:${card};color:${fg}"><h4 style="color:${pr}">${t}</h4>${b}</div>`;
+  if (on("nowMedia")) h += cardH("Media", `<div style="display:flex;align-items:center;gap:14px"><div style="width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#E8721C,#8E24AA)"></div><div style="flex:1"><div>Song title</div><div style="color:${sub};font-size:14px">Artist</div></div><div style="width:44px;height:44px;border-radius:50%;background:${pr};color:${onColor(pr)};display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:24px">pause</span></div></div>`);
+  if (on("nowCalendar")) h += cardH("Upcoming", ["Stand-up · Thu 9:30", "Dentist · Fri 16:00"].map(e => `<div style="display:flex;gap:12px;padding:4px 0"><i style="width:4px;border-radius:2px;background:${pr}"></i><div>${e.split(" · ")[0]}<div style="color:${sub};font-size:14px">${e.split(" · ")[1]}</div></div></div>`).join(""));
+  if (on("nowContacts")) h += cardH("Favourites", `<div style="display:flex;gap:14px">${["Asha", "Ben", "Chen", "Dev"].map(n => `<div style="text-align:center;font-size:12px;color:${sub}"><div style="width:48px;height:48px;border-radius:50%;background:${dk ? "#4A3A30" : "#FFDBC8"};color:${fg};display:flex;align-items:center;justify-content:center;font-size:20px">${n[0]}</div>${n}</div>`).join("")}</div>`);
+  if (on("nowApps")) h += cardH("Frequently used", `<div style="display:grid;grid-template-columns:repeat(5,1fr)">${["Messages", "Browser", "Camera", "Maps", "Mail"].map(n => appCell(n, 44, { labels: false })).join("")}</div>`);
+  return `<div class="col" style="background:${alpha(surf, .96)};padding-top:28px;overflow:hidden">${h}</div>`;
+}
+function render() {
+  const sc = $("#screen");
+  sc.style.backgroundImage = `url("${wallpaper}")`;
+  $(".stage").style.setProperty("--wall", `url("${wallpaper}")`);
+  sc.innerHTML = view === "drawer" ? `<div class="layer">${renderHome()}</div>${renderDrawer()}` : view === "folder" ? renderFolder() : view === "now" ? renderNow() : renderHome();
+  // A new screen rises into place; a changed setting just redraws.
+  if (view !== shown) { shown = view; sc.classList.remove("enter"); void sc.offsetWidth; sc.classList.add("enter"); }
+  fit();
+}
+function fit() {
+  const box = $("#frameBox"), w = box.clientWidth - 4, h = box.clientHeight - 4;
+  const s = Math.max(.25, Math.min(1.2, (w - 20) / 360, (h - 20) / 780));
+  $("#screen").style.transform = `scale(${s})`;
+  $("#clip").style.width = 360 * s + "px"; $("#clip").style.height = 780 * s + "px";
+  $("#clip").style.borderRadius = 34 * s + "px"; $("#frame").style.borderRadius = 34 * s + 10 + "px";
+}
+
+// ---- Controls ----
+function control(k) {
+  const p = props[k], v = val(k), kd = kind(p);
+  const set = nv => { S[k] = nv; update(k); };
+  const el = document.createElement("div"); el.className = "ctl";
+  if (kd === "bool") {
+    const b = document.createElement("button"); b.className = "switch"; b.setAttribute("role", "switch"); b.setAttribute("aria-checked", v === "on"); b.setAttribute("aria-label", p.title);
+    b.onclick = () => set(val(k) === "on" ? "off" : "on"); el.append(b);
+  } else if (kd === "range") {
+    const vs = values(p), wrap = document.createElement("div"); wrap.className = "slider";
+    const r = document.createElement("input"); r.type = "range"; r.min = 0; r.max = vs.length - 1; r.value = Math.max(0, vs.indexOf(v)); r.setAttribute("aria-label", p.title);
+    const o = document.createElement("output"); o.textContent = nameOf(k, v);
+    const fill = () => r.style.setProperty("--p", r.value / r.max * 100 + "%"); fill();
+    r.oninput = () => { fill(); o.textContent = nameOf(k, vs[r.value]); set(vs[r.value]); };
+    wrap.append(r, o); el.append(wrap);
+  } else if (kd === "color") {
+    const wrap = document.createElement("div"); wrap.className = "swatches";
+    for (const c of values(p)) {
+      const b = document.createElement("button");
+      b.className = "sw" + (c === "system" ? " sys" : /^#/.test(c) ? "" : " txt");
+      if (/^#/.test(c)) b.style.background = c; else if (c !== "system") b.textContent = nameOf(k, c);
+      b.title = nameOf(k, c); b.setAttribute("aria-label", nameOf(k, c)); b.setAttribute("aria-pressed", c === v);
+      b.onclick = () => set(c); wrap.append(b);
+    }
+    const pick = document.createElement("input"); pick.type = "color"; pick.title = "Any colour"; pick.setAttribute("aria-label", p.title + ": any colour");
+    pick.value = /^#[0-9a-fA-F]{6}$/.test(v) ? v : /^#[0-9a-fA-F]{8}$/.test(v) ? "#" + v.slice(3) : "#E8721C";
+    pick.onchange = () => set(pick.value.toUpperCase()); wrap.append(pick); el.append(wrap);
+  } else if (k === "shape") {
+    // Shapes are picked by eye, not by name.
+    const wrap = document.createElement("div"); wrap.className = "shapes";
+    for (const x of values(p)) {
+      const b = document.createElement("button"); b.title = nameOf(k, x); b.setAttribute("aria-label", nameOf(k, x)); b.setAttribute("aria-pressed", x === v);
+      b.innerHTML = `<i style="${shapeCss(x)}"></i>`; b.onclick = () => set(x); wrap.append(b);
+    }
+    el.append(wrap);
+  } else {
+    let vs = values(p).slice();
+    const names = vs.map(x => nameOf(k, x));
+    if (kd !== "action" && vs.length <= 4 && names.join("").length < 34) {
+      const seg = document.createElement("div"); seg.className = "seg";
+      vs.forEach((x, i) => { const b = document.createElement("button"); b.textContent = names[i]; b.setAttribute("aria-pressed", x === v); b.onclick = () => set(x); seg.append(b); });
+      el.append(seg);
+    } else {
+      const s = document.createElement("select"); s.setAttribute("aria-label", p.title);
+      vs.forEach((x, i) => s.add(new Option(names[i], x)));
+      if (kd === "action") for (let i = 0; i < 9; i++) s.add(new Option(`Go to page ${i + 1}`, "page:" + i));
+      if (![...s.options].some(o => o.value === v)) s.add(new Option(v.startsWith("app:") ? "Open " + v.split("/")[0].slice(4) : v, v));
+      s.value = v; s.onchange = () => set(s.value); el.append(s);
+    }
+  }
+  return el;
+}
+function row(k) {
+  const p = props[k], r = document.createElement("div");
+  r.className = "row" + (val(k) !== p.default ? " changed" : ""); r.dataset.key = k;
+  const info = (p.description || "").replace(/^[^.]*\.\s*/, "").replace(/\s*Values:.*$/, "");
+  const t = document.createElement("div"); t.className = "t";
+  t.innerHTML = esc(p.title) + (DRAWN.has(k) ? "" : `<span class="tag" title="Changes how the phone behaves; not drawn in the preview">phone only</span>`) + (info ? `<small>${esc(info)}</small>` : "");
+  const reset = document.createElement("button"); reset.className = "reset"; reset.title = "Back to " + nameOf(k, p.default); reset.setAttribute("aria-label", "Reset " + p.title); reset.innerHTML = '<span class="ms" style="font-size:18px">restart_alt</span>';
+  reset.onclick = () => { delete S[k]; update(k); };
+  r.append(t, control(k), reset);
+  return r;
+}
+function buildTabs() {
+  const tabs = $("#tabs"); tabs.innerHTML = "";
+  const groups = GROUP_ORDER.map(g => sections.find(s => s.group === g)).filter(Boolean).concat(sections.filter(s => !GROUP_ORDER.includes(s.group)));
+  for (const g of groups) {
+    const n = g.sections.flatMap(s => s.keys).filter(k => val(k) !== def(k)).length;
+    const b = document.createElement("button"); b.setAttribute("role", "tab"); b.setAttribute("aria-selected", g.group === tab);
+    b.innerHTML = esc(g.title) + (n ? `<span class="n">${n}</span>` : "");
+    b.onclick = () => { tab = g.group; view = GROUP_VIEW[tab] || "home"; buildTabs(); buildGroup(); buildViews(); render(); save(); };
+    tabs.append(b);
+  }
+}
+function buildGroup() {
+  const box = $("#groups"); box.innerHTML = "";
+  const g = sections.find(s => s.group === tab); if (!g) return;
+  for (const s of g.sections) {
+    const sec = document.createElement("div"); sec.className = "sec";
+    sec.innerHTML = `<h2>${esc(s.title || g.title)}</h2>`;
+    s.keys.filter(k => props[k]).forEach(k => sec.append(row(k)));
+    box.append(sec);
+  }
+}
+const VIEWS = { home: "Home", drawer: "App drawer", folder: "Folder", now: "Now page" };
+function buildViews() {
+  const box = $("#views"); box.innerHTML = "";
+  for (const v in VIEWS) { const b = document.createElement("button"); b.textContent = VIEWS[v]; b.setAttribute("aria-pressed", v === view); b.onclick = () => { view = v; buildViews(); render(); }; box.append(b); }
+}
+function update(k) {
+  const r = document.querySelector(`.row[data-key="${k}"]`), a = document.activeElement, had = r && r.contains(a);
+  // A slider being dragged stays in place; any other row is rebuilt and keeps keyboard focus.
+  if (had && a.type === "range") r.classList.toggle("changed", val(k) !== def(k));
+  else if (r) { const n = row(k); r.replaceWith(n); if (had) { const f = n.querySelector('.ctl [aria-pressed="true"], .switch, select, .ctl input'); if (f) f.focus(); } }
+  buildTabs(); render(); save(); status();
+}
+function status(extra) {
+  const n = Object.keys(changed()).length;
+  const src = loaded ? `<b>${esc(loadedName)}</b> loaded (${(loaded.home && loaded.home.items || []).length} home items)` : "Starting from a fresh install";
+  $("#status").innerHTML = `${src} · ${n ? `<b>${n}</b> setting${n > 1 ? "s" : ""} changed` : "no changes"}${extra ? " · " + extra : ""}`;
+  $("#dlText").textContent = loaded ? "Download backup" : "Download style";
+  $("#download").title = loaded ? "Your backup with these settings: layout, tabs and hidden apps kept" : "Settings only: restoring it keeps the phone's layout";
+}
+function save() { try { localStorage.setItem("vulcan-designer", JSON.stringify({ S, tab })); } catch (e) {} }
+
+// ---- Files, links, presets, AI ----
+function refresh(extra) { buildTabs(); buildGroup(); buildViews(); render(); save(); status(extra); }
+/** Shows [t]; with [before] (settings as they were) it offers Undo, since presets, Shuffle and Reset replace many settings at once. */
+function toast(t, before) {
+  const el = $("#toast"); el.textContent = t;
+  if (before) { const b = document.createElement("button"); b.textContent = "Undo"; b.onclick = () => { S = before; refresh(); el.classList.remove("on"); }; el.append(b); }
+  el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), before ? 6000 : 2200);
+}
+const SHUFFLED = "shape accent labels labelFont dockBg indicator searchBar searchStyle folderBg folderPreview glanceStyle themedIcons drawerStyle".split(" ");
+function applyPreset(name) {
+  const before = { ...S };
+  // A preset starts from the defaults for the look, keeping behaviour settings (gestures, search, badges) as they were.
+  for (const k of Object.keys(S)) if (DRAWN.has(k) && !["pages", "defaultPage", "badges", "nowPage", "nowMedia", "nowCalendar", "nowContacts", "nowApps", "nowClock", "nightMode"].includes(k)) delete S[k];
+  applySettings(PRESETS[name]); refresh(); toast(name, before);
+}
+function shuffle() {
+  const before = { ...S };
+  for (const k of SHUFFLED) if (props[k]) { const vs = values(props[k]); S[k] = vs[Math.floor(Math.random() * vs.length)]; }
+  refresh(); toast("Shuffled", before);
+  const f = $("#frame"); f.classList.remove("roll"); void f.offsetWidth; f.classList.add("roll");
+}
+function buildLooks() {
+  const box = $("#looks");
+  for (const name in PRESETS) {
+    const p = PRESETS[name], c = p.accent === "amoled" ? "#F4F3EF" : p.accent === "appliance" ? "#E8721C" : PALETTE[hash(name) % PALETTE.length];
+    const b = document.createElement("button"); b.className = "look"; b.innerHTML = `<i style="background:${c};${shapeCss(p.shape || def("shape"))}"></i>${esc(name)}`;
+    b.onclick = () => applyPreset(name); box.append(b);
+  }
+  const s = document.createElement("button"); s.className = "look shuffle"; s.title = "Random shapes, colours and styles"; s.innerHTML = '<span class="ms" aria-hidden="true">casino</span>Shuffle'; s.onclick = shuffle; box.append(s);
+}
+function download(name, text) {
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type: "application/json" })); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function styleDoc() { return { "$schema": PUBLIC_SCHEMA, format: "vulcan-backup-2", settings: fullSettings() }; }
+function openFile(file) {
+  file.text().then(t => {
+    let d; try { d = JSON.parse(t); } catch (e) { return status(`<span class="err">${esc(file.name)} isn't JSON</span>`); }
+    if (d.format !== "vulcan-backup-2") return status(`<span class="err">${esc(file.name)} isn't a Vulcan backup (Settings → Backup & restore → Back up to a file)</span>`);
+    loaded = d; loadedName = file.name;
+    const bad = applySettings(d.settings, true);
+    buildTabs(); buildGroup(); render(); save();
+    status(bad.length ? `<span class="err">left out: ${esc(bad.join(", "))}</span>` : "");
+  });
+}
+function encodeHash(o) { return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+function decodeHash(s) { return JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g, "+").replace(/_/g, "/"))))); }
+function aiText() {
+  return `I use Vulcan Launcher on Android. Below are its settings as JSON. Change them to make this style: <describe the look you want>.
+
+Rules: keep the same JSON shape ({"settings": {...}}), use only keys and values allowed by the JSON Schema at ${PUBLIC_SCHEMA} (each setting lists its allowed "enum" values; colour settings also take #RRGGBB), and reply with the JSON only.
+
+${JSON.stringify({ settings: fullSettings() }, null, 2)}`;
+}
+
+// ---- Start ----
+fetch(SCHEMA_URL).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(schema => {
+  props = schema.properties.settings.properties;
+  sections = schema["x-sections"] || [];
+  try { const d = JSON.parse(localStorage.getItem("vulcan-designer") || "null"); if (d) { applySettings(d.S, true); tab = d.tab || tab; view = GROUP_VIEW[tab] || "home"; } } catch (e) {}
+  const m = location.hash.match(/^#s=(.+)$/);
+  if (m) { try { applySettings(decodeHash(m[1]), true); toast("Shared style loaded"); } catch (e) { toast("That link's style couldn't be read"); } history.replaceState(null, "", location.pathname); }
+  buildLooks(); nightLabel(); refresh();
+}).catch(e => { $("#status").innerHTML = `<span class="err">Couldn't load the settings list (${esc(e.message)}). Open this page from a web server, not as a file.</span>`; });
+
+$("#open").onchange = e => { if (e.target.files[0]) openFile(e.target.files[0]); e.target.value = ""; };
+$("#openLbl").onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#open").click(); } };
+document.addEventListener("dragover", e => { e.preventDefault(); $("#drop").classList.add("on"); });
+document.addEventListener("dragleave", e => { if (!e.relatedTarget) $("#drop").classList.remove("on"); });
+document.addEventListener("drop", e => { e.preventDefault(); $("#drop").classList.remove("on"); const f = e.dataTransfer.files[0]; if (f) f.type.startsWith("image/") ? setWall(f) : openFile(f); });
+function setWall(f) { const r = new FileReader(); r.onload = () => { wallpaper = r.result; render(); }; r.readAsDataURL(f); }
+$("#wall").onchange = e => { if (e.target.files[0]) setWall(e.target.files[0]); };
+$("#wallLbl").onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#wall").click(); } };
+$("#resetAll").onclick = () => { const before = { ...S }; S = {}; if (loaded) applySettings(loaded.settings, true); refresh(); toast(loaded ? "Back to the loaded file" : "Back to a fresh install", before); };
+$("#download").onclick = () => {
+  if (loaded) { const d = JSON.parse(JSON.stringify(loaded)); d["$schema"] = PUBLIC_SCHEMA; d.settings = fullSettings(); download(loadedName.replace(/\.json$/i, "") + "-styled.json", JSON.stringify(d, null, 2)); }
+  else download("vulcan-style.json", JSON.stringify(styleDoc(), null, 2));
+  $("#doneName").textContent = loaded ? loadedName.replace(/\.json$/i, "") + "-styled.json" : "vulcan-style.json";
+  $("#doneKeeps").textContent = loaded ? "Your layout, tabs and hidden apps come with it." : "It holds settings only, so your phone keeps its layout.";
+  $("#doneDlg").showModal();
+};
+$("#doneClose").onclick = () => $("#doneDlg").close();
+$("#share").onclick = () => {
+  const url = location.origin + location.pathname + "#s=" + encodeHash(changed());
+  navigator.clipboard.writeText(url).then(() => toast("Link copied: it holds settings only"), () => prompt("Copy this link", url));
+};
+$("#ai").onclick = () => { $("#aiText").value = aiText(); $("#aiDlg").showModal(); };
+$("#aiClose").onclick = () => $("#aiDlg").close();
+$("#aiCopy").onclick = () => navigator.clipboard.writeText($("#aiText").value).then(() => toast("Copied"));
+$("#aiApply").onclick = () => {
+  const t = $("#aiText").value, a = t.indexOf("{"), b = t.lastIndexOf("}");
+  let d; try { d = JSON.parse(t.slice(a, b + 1)); } catch (e) { return toast("No JSON found in the pasted text"); }
+  const bad = applySettings(d.settings || d, true);
+  $("#aiDlg").close(); buildTabs(); buildGroup(); render(); save();
+  status(bad.length ? `<span class="err">left out: ${esc(bad.join(", "))}</span>` : "answer applied");
+};
+function nightLabel() { $("#night").setAttribute("aria-pressed", phoneDark); $("#night").innerHTML = `<span class="ms" aria-hidden="true">${phoneDark ? "dark_mode" : "light_mode"}</span>Phone in ${phoneDark ? "dark" : "light"} mode`; }
+$("#night").onclick = () => { phoneDark = !phoneDark; nightLabel(); render(); };
+window.addEventListener("resize", fit);
+</script>
+</body>
+</html>
