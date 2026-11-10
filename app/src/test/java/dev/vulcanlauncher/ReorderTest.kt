@@ -42,12 +42,4 @@ class ReorderTest {
         // Moving among the cards shown leaves the hidden ones where they were.
         assertEquals(listOf("apps", "calendar", "media", "contacts"), reorderWithin(NOW_CARDS, listOf("media", "contacts", "apps"), 2, 0))
     }
-
-    @Test
-    fun calendarWindow() {
-        assertEquals(500L, calendarEnd("today", 100L, 500L))
-        assertEquals(100L + 3 * 86_400_000L, calendarEnd("3", 100L, 500L))
-        assertEquals("7", legacySetting("nowCalendar", "on"))
-        assertEquals("on", legacySetting("nowMedia", "on"))
-    }
 }

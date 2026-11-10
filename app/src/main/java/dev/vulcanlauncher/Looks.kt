@@ -175,9 +175,7 @@ val LOOKS = listOf(
     onOff(NOW, "nowPage", R.string.set_nowPage, true, R.string.set_nowPage_info),
     onOff(NOW, "nowClock", R.string.set_nowClock, true),
     onOff(NOW, "nowMedia", R.string.set_nowMedia, true, R.string.set_nowMedia_info),
-    // How far ahead the upcoming events card looks; "off" hides it. Before 0.31 it was on/off, on being the next 7 days.
-    Choice(NOW, "nowCalendar", R.string.set_nowCalendar, "off", listOf("off", "today", "3", "7", "14"),
-        listOf(R.string.off, R.string.now_window_today, R.string.now_window_3, R.string.now_window_7, R.string.now_window_14)),
+    onOff(NOW, "nowCalendar", R.string.set_nowCalendar, false, R.string.set_nowCalendar_info),
     onOff(NOW, "nowContacts", R.string.set_nowContacts, false, R.string.set_nowContacts_info),
     onOff(NOW, "nowApps", R.string.set_nowApps, true),
 ) + GESTURE_KEYS.indices.map { Choice(GESTURES, GESTURE_KEYS[it], GESTURE_NAMES[it], GESTURE_DEFAULTS[it], ACTIONS, ACTION_NAMES, action = true) } + listOf(
@@ -229,16 +227,13 @@ val SECTIONS: Map<String, List<Pair<Int, List<String>>>> = mapOf(
     ),
     NOW to listOf(
         R.string.sec_general to listOf("nowPage", "nowClock"),
-        R.string.sec_cards to listOf("nowMedia", "nowCalendar", "@calendars", "nowContacts", "nowApps", "@nowCards"),
+        R.string.sec_cards to listOf("nowMedia", "nowCalendar", "nowContacts", "nowApps", "@nowCards"),
     ),
     GESTURES to listOf(
         R.string.sec_buttons to listOf("homeButton", "homeFirst"),
         R.string.sec_gestures to GESTURE_KEYS,
     ),
 )
-
-/** A value an older version stored that this one names differently: "nowCalendar" was on/off before 0.31. */
-fun legacySetting(key: String, value: String) = if (key == "nowCalendar" && value == "on") "7" else value
 
 /** Defaults before 0.16, for settings whose default changed then. "glance" on becomes a clock item ([MainActivity.build]). */
 val PRE_NOVA_DEFAULTS = mapOf("cols" to "4", "pages" to "3", "searchBar" to "off", "glance" to "on", "dockCols" to "4", "drawerStyle" to "housing")
@@ -248,7 +243,6 @@ class Looks(context: Context) {
     private val prefs = context.getSharedPreferences("looks", Context.MODE_PRIVATE).apply {
         // Before 0.16 the home button had its own values; "default" is now the "defaultpage" action.
         if (getString("homeButton", null) == "default") edit().putString("homeButton", "defaultpage").apply()
-        getString("nowCalendar", null)?.let { v -> legacySetting("nowCalendar", v).takeIf { it != v }?.let { edit().putString("nowCalendar", it).apply() } }
     }
 
     /**

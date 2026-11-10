@@ -533,17 +533,6 @@
     </plurals>
     <string name="move_apps_move">Move here</string>
     <string name="move_apps_keep">Keep in both</string>
-    <string name="now_window_today">Today</string>
-    <string name="now_window_3">Next 3 days</string>
-    <string name="now_window_7">Next 7 days</string>
-    <string name="now_window_14">Next 14 days</string>
-    <string name="now_calendars">Calendars</string>
-    <string name="now_calendars_info">Which calendars show, and all-day events</string>
-    <string name="now_all_day_events">All-day events</string>
-    <plurals name="now_more_events">
-        <item quantity="one">%1$d more</item>
-        <item quantity="other">%1$d more</item>
-    </plurals>
     <string name="sec_cards">Cards</string>
     <string name="sec_general">General</string>
     <string name="now_cards_info">Cards with nothing to show stay hidden. Hold a card on the Now page to move it.</string>

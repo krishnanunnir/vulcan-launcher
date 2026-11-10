@@ -374,8 +374,6 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
         "@dock" -> listItem(null, getString(R.string.group_dock), getString(R.string.cat_dock)) { showPage(DOCK_GROUP) }
         "@hidden" -> listItem(null, getString(R.string.hidden_apps), getString(R.string.hidden_apps_info)) { hideAppsMenu() }
         "@groups" -> listItem(null, getString(R.string.drawer_groups), getString(R.string.drawer_groups_info)) { showPage(GROUPS) }
-        "@calendars" -> listItem(null, getString(R.string.now_calendars), getString(R.string.now_calendars_info)) { chooseCalendars() }
-            .apply { if (looks.str("nowCalendar") == "off") alpha = 0.5f }
         // Not a setting: says how cards come and go, and how to move them.
         "@nowCards" -> text(getString(R.string.now_cards_info), 14f, m3.onSurfaceVariant).apply { setPadding((16 * dp).toInt(), (12 * dp).toInt(), (24 * dp).toInt(), (12 * dp).toInt()) }
         "@colors" -> listItem(null, getString(R.string.custom_colors),
@@ -456,7 +454,7 @@ private fun SettingsActivity.applyChoice(c: Choice, value: String) {
     home.stale = true
     val perm = when {
         value == "on" && c.key in listOf("contactSearch", "nowContacts") -> android.Manifest.permission.READ_CONTACTS
-        value != "off" && c.key == "nowCalendar" -> android.Manifest.permission.READ_CALENDAR
+        value == "on" && c.key == "nowCalendar" -> android.Manifest.permission.READ_CALENDAR
         c.key == "nightMode" && value == "sun" -> android.Manifest.permission.ACCESS_COARSE_LOCATION
         else -> null
     }
@@ -747,32 +745,6 @@ fun VulcanActivity.chooseFavourites() {
 fun VulcanActivity.hideAppsMenu() = appSwitches(getString(R.string.hide_apps), store.strings("hidden")) {
     store.putStrings("hidden", it)
     home.drawer.refresh()
-}
-
-/** Picks the calendars the Now page's upcoming events come from, and whether all-day events show. */
-private fun SettingsActivity.chooseCalendars() {
-    if (!granted(android.Manifest.permission.READ_CALENDAR)) { requestPermissions(arrayOf(android.Manifest.permission.READ_CALENDAR), MainActivity.REQ_PERMISSION); return }
-    val cals = ArrayList<Pair<Long, String>>()
-    runCatching {
-        contentResolver.query(android.provider.CalendarContract.Calendars.CONTENT_URI,
-            arrayOf(android.provider.CalendarContract.Calendars._ID, android.provider.CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, android.provider.CalendarContract.Calendars.ACCOUNT_NAME),
-            null, null, android.provider.CalendarContract.Calendars.ACCOUNT_NAME)?.use { c ->
-            while (c.moveToNext()) {
-                val name = c.getString(1).orEmpty(); val account = c.getString(2).orEmpty()
-                cals += c.getLong(0) to if (account.isEmpty() || account == name) name else "$name · $account"
-            }
-        }
-    }
-    // Stored as the calendars left out, so one added later shows until it's unticked.
-    val hidden = store.strings(NOW_HIDDEN_CALENDARS)
-    val checked = BooleanArray(cals.size + 1) { if (it == 0) store.data.getBoolean(NOW_ALL_DAY, true) else cals[it - 1].first.toString() !in hidden }
-    sheet().setTitle(R.string.now_calendars)
-        .setMultiChoiceItems((listOf(getString(R.string.now_all_day_events)) + cals.map { it.second }).toTypedArray(), checked) { _, i, on -> checked[i] = on }
-        .setPositiveButton(R.string.ok) { _, _ ->
-            store.data.edit().putBoolean(NOW_ALL_DAY, checked[0]).apply()
-            store.putStrings(NOW_HIDDEN_CALENDARS, cals.filterIndexed { i, _ -> !checked[i + 1] }.map { it.first.toString() })
-        }
-        .setNegativeButton(R.string.cancel, null).show()
 }
 
 // ---- Drawer groups (tabs and folders) ----

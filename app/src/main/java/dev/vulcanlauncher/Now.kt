@@ -48,14 +48,8 @@ fun <T> reorderWithin(all: List<T>, shown: List<T>, from: Int, to: Int): List<T>
     return all.map { if (it in set) order.next() else it }
 }
 
-/** The end of the "Upcoming events" window ("today", or a number of days) from [now]; [endOfToday] is tonight's midnight. */
-fun calendarEnd(window: String, now: Long, endOfToday: Long): Long =
-    if (window == "today") endOfToday else now + (window.toIntOrNull() ?: 7) * 86_400_000L
-
-/** data keys for the Now page: the card order, the calendars left out, and whether all-day events show. */
+/** data key: the Now page's card order. */
 const val NOW_ORDER = "nowOrder"
-const val NOW_HIDDEN_CALENDARS = "nowHiddenCalendars"
-const val NOW_ALL_DAY = "nowAllDay"
 
 @SuppressLint("SetTextI18n", "ClickableViewAccessibility")
 fun MainActivity.showNow(slide: Boolean = true) {
@@ -129,24 +123,13 @@ fun MainActivity.showNow(slide: Boolean = true) {
     }
 
     fun calendar(): View? {
-        val window = looks.str("nowCalendar")
-        if (window == "off") return null
+        if (!looks.on("nowCalendar")) return null
         if (!granted(Manifest.permission.READ_CALENDAR)) return card(getString(R.string.now_upcoming), ask(Manifest.permission.READ_CALENDAR, getString(R.string.now_allow_calendar)))
         val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val now = System.currentTimeMillis()
-        val endOfToday = java.util.Calendar.getInstance().apply {
-            set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0); set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
-            add(java.util.Calendar.DAY_OF_MONTH, 1)
-        }.timeInMillis
         val uri = CalendarContract.Instances.CONTENT_URI.buildUpon().also {
-            ContentUris.appendId(it, now); ContentUris.appendId(it, calendarEnd(window, now, endOfToday))
+            ContentUris.appendId(it, now); ContentUris.appendId(it, now + 7 * 86_400_000L)
         }.build()
-        // The calendars ticked under Now page › Calendars (all of them until some are unticked), and all-day events unless left out.
-        val skip = store.strings(NOW_HIDDEN_CALENDARS).mapNotNull { it.toLongOrNull() }
-        val where = listOfNotNull(
-            skip.takeIf { it.isNotEmpty() }?.let { "${CalendarContract.Instances.CALENDAR_ID} NOT IN (${it.joinToString()})" },
-            if (store.data.getBoolean(NOW_ALL_DAY, true)) null else "${CalendarContract.Instances.ALL_DAY}=0",
-        ).joinToString(" AND ").ifEmpty { null }
         val fmt = SimpleDateFormat(datePattern("EEEjmm"), Locale.getDefault())
         // All-day events are stored as UTC midnights, so they're compared and shown in UTC.
         val dayFmt = SimpleDateFormat("EEE", Locale.getDefault()).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
@@ -155,17 +138,14 @@ fun MainActivity.showNow(slide: Boolean = true) {
                 clear(); set(l.get(java.util.Calendar.YEAR), l.get(java.util.Calendar.MONTH), l.get(java.util.Calendar.DAY_OF_MONTH))
             }.timeInMillis
         }
-        val max = 8
-        var more = 0
         runCatching {
             contentResolver.query(uri, arrayOf(CalendarContract.Instances.EVENT_ID, CalendarContract.Instances.TITLE, CalendarContract.Instances.BEGIN,
                 CalendarContract.Instances.END, CalendarContract.Instances.ALL_DAY),
-                where, null, "${CalendarContract.Instances.BEGIN} ASC")?.use { c ->
-                while (c.moveToNext()) {
+                null, null, "${CalendarContract.Instances.BEGIN} ASC")?.use { c ->
+                while (c.moveToNext() && body.childCount < 5) {
                     val id = c.getLong(0)
                     val allDay = c.getInt(4) == 1
                     if (allDay && c.getLong(3) <= todayUtc) continue // ended before today
-                    if (body.childCount >= max) { more++; continue }
                     val whenText = if (allDay) getString(R.string.now_all_day, dayFmt.format(Date(c.getLong(2)))) else fmt.format(Date(c.getLong(2)))
                     body.addView(LinearLayout(this).apply {
                         gravity = Gravity.CENTER_VERTICAL
@@ -183,10 +163,6 @@ fun MainActivity.showNow(slide: Boolean = true) {
             }
         }
         if (body.childCount == 0) return null
-        if (more > 0) body.addView(text(resources.getQuantityString(R.plurals.now_more_events, more, more), 14f).apply {
-            setTextColor(m3.primary); setPadding(pad, pad / 2, 0, 0)
-            setOnClickListener { runCatching { startActivity(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CALENDAR)) } }
-        })
         return card(getString(R.string.now_upcoming), body)
     }
 
