@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 646 250" width="646" height="250" role="img" aria-label="Style it in the Vulcan designer">
+  <!-- Same canvas and plate as the F-Droid and Obtainium badges, so the three sit level in the README. -->
+  <rect x="43.500" y="43.500" width="559" height="163" rx="16" fill="#0A0A09" stroke="#A6A6A6" stroke-width="3"/>
+  <g transform="translate(70 70) scale(1.5278)">
+    <rect width="72" height="72" rx="16" fill="#2A2A28"/>
+    <g transform="translate(-18 -18)">
+      <path fill="#E8721C" d="M30.08,58.44 A23.92,23.92 0 0 1 77.92,58.44 Z"/>
+      <path fill="none" stroke="#E9E7E2" stroke-width="5.06" stroke-linecap="round" d="M31.92,66.720 H76.08"/>
+    </g>
+  </g>
+  <g fill="#fff" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+    <text x="208" y="97" font-size="27" font-weight="600" letter-spacing="1" textLength="232" lengthAdjust="spacingAndGlyphs">STYLE IT IN THE</text>
+    <text x="205" y="172" font-size="76" font-weight="500" textLength="340" lengthAdjust="spacingAndGlyphs">Designer</text>
+  </g>
+</svg>

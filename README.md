@@ -16,6 +16,7 @@ It has no internet access at all, so nothing it does can leave your phone.
 
 <a href="https://f-droid.org/packages/dev.vulcanlauncher/"><img src="https://f-droid.org/badge/get-it-on.png" height="66" alt="Get it on F-Droid"></a>
 <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/krishnanunnir/vulcan-launcher"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" height="66" alt="Get it on Obtainium"></a>
+<a href="https://vulcanlauncher.dev/design/"><img src="docs/design/badge.svg" height="66" alt="Style it in the Vulcan designer"></a>
 <br>
 <a href="https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk"><img src="https://img.shields.io/badge/Download%20APK-E8721C?style=for-the-badge&logo=android&logoColor=white" height="44" alt="Download the latest Vulcan APK"></a>
 &nbsp;
