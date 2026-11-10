@@ -80,6 +80,14 @@ enum class HomeState { NORMAL, OVERVIEW, DRAG }
 fun menuX(left: Int, right: Int, w: Int, width: Int, margin: Int) =
     (if (left + w <= width - margin) left else right - w).coerceIn(margin, maxOf(margin, width - w - margin))
 
+/**
+ * How many finished icons (about 110 kB each) the in-memory cache holds: roughly a sixteenth of the heap, between
+ * 64 and 256 icons (about 7 to 28 MB). Bounded, so entries are evicted one by one instead of the whole cache being
+ * dropped whenever home is hidden.
+ */
+fun iconCacheCapacity(maxMemoryBytes: Long): Int =
+    ((maxMemoryBytes / 16) / (110 * 1024)).coerceIn(64, 256).toInt()
+
 class MainActivity : VulcanActivity() {
     companion object {
         const val HOST_ID = 1024
@@ -143,7 +151,9 @@ class MainActivity : VulcanActivity() {
     var dragMoved = false
         private set
     private var barHidden = false
-    private val iconCache = HashMap<String, Drawable>()
+    /** Bounded and thread-safe (LruCache locks internally), so prefetch can fill it off the UI thread. */
+    private val iconCache = android.util.LruCache<String, Drawable>(iconCacheCapacity(Runtime.getRuntime().maxMemory()))
+    private val iconLoader = java.util.concurrent.Executors.newSingleThreadExecutor()
     /** Icons and labels kept on disk across starts, so loading them doesn't open every app's APK. Set with [icons]. */
     private lateinit var appCache: AppCache
 
@@ -221,7 +231,7 @@ class MainActivity : VulcanActivity() {
         overlay = null; overlayClosed = {}; menu = null; dragSource = null
         // Home's state, its outline and a drag's extra page were the old views' too.
         springAnim?.cancel(); spring = 0f; homeState = HomeState.NORMAL; dragPage = null; plusPage = null
-        iconCache.clear(); badgeIcons.clear(); widgetFrames.clear()
+        iconCache.evictAll(); badgeIcons.clear(); widgetFrames.clear()
         build()
         workspace.snapTo(page.coerceAtMost(looks.pages - 1), animate = false)
         if (dialogs.any { it.isShowing }) dialogScrim(true)
@@ -439,13 +449,14 @@ class MainActivity : VulcanActivity() {
     }
 
     /**
-     * Once home is out of sight, forget icons no view shows (drawer apps scrolled past, ~110 kB each); they're read back
-     * from [appCache] when next needed. Their pixels are freed only by a GC, which otherwise came seconds to minutes
-     * later or not before the next drawer open; with the ~7 MB Java heap one costs a few ms.
+     * Memory pressure: drop the oldest half of the icon cache when home hides, and all of it only under a complete
+     * trim. Emptying it on every hide meant the next drawer open decoded every icon again on the UI thread, which
+     * is what made scrolling lag until the icons were cached once more. The disk [appCache] stays the fallback.
      */
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (level >= TRIM_MEMORY_UI_HIDDEN) { iconCache.clear(); System.gc() }
+        if (level >= TRIM_MEMORY_COMPLETE) iconCache.evictAll()
+        else if (level >= TRIM_MEMORY_UI_HIDDEN) iconCache.snapshot().keys.take(iconCache.size() / 2).forEach(iconCache::remove)
     }
 
     override fun onResume() {
@@ -579,8 +590,8 @@ class MainActivity : VulcanActivity() {
         apps = profiles.filter { it != privateUser || !privateLocked }.flatMap { user -> launcherApps.getActivityList(null, user).map { App(it, serial(user), appCache::label) } }
             .filter { it.pkg != packageName }.associateBy { it.key }
         customs = store.obj("custom")
-        if (changed == null) { iconCache.clear(); appCache.keepOnly(apps.keys) }
-        else { iconCache.keys.removeAll { it.substringBefore('/') in changed }; appCache.forget(changed) }
+        if (changed == null) { iconCache.evictAll(); appCache.keepOnly(apps.keys) }
+        else { iconCache.snapshot().keys.filter { it.substringBefore('/') in changed }.forEach(iconCache::remove); appCache.forget(changed) }
     }
 
     /**
@@ -647,10 +658,18 @@ class MainActivity : VulcanActivity() {
     }
 
     fun label(a: App): String = customs.optJSONObject(a.key)?.optString("label")?.takeIf { it.isNotEmpty() } ?: a.title
-    fun icon(a: App): Drawable = iconCache.getOrPut(a.key) {
-        val custom = customs.optJSONObject(a.key)?.optString("icon") ?: ""
-        // Icons.get always ends in a flat bitmap.
-        BitmapDrawable(resources, appCache.icon(a, custom) { (icons.get(a.pkg, a.cls, custom) { a.info.getBadgedIcon(0) } as BitmapDrawable).bitmap })
+    fun icon(a: App): Drawable = iconCache.get(a.key) ?: run {
+        val custom = synchronized(customs) { customs.optJSONObject(a.key)?.optString("icon") } ?: ""
+        // Icons.get always ends in a flat bitmap. Decoded outside any lock: prefetch runs this on a worker thread
+        // while the UI thread may decode the same icon, so a duplicate decode is merged by the put below.
+        val d = BitmapDrawable(resources, appCache.icon(a, custom) { (icons.get(a.pkg, a.cls, custom) { a.info.getBadgedIcon(0) } as BitmapDrawable).bitmap })
+        iconCache.put(a.key, d); d
+    }
+
+    /** Warms the icons of [apps] on a worker thread, so scrolling the drawer does not decode them on the UI thread. */
+    fun prefetchIcons(apps: Collection<App>) {
+        val missing = apps.filter { iconCache.get(it.key) == null }
+        if (missing.isNotEmpty()) iconLoader.execute { missing.forEach(::icon) }
     }
     /** Main activity of [pkg] in profile [user], for apps a backup names by package only. */
     fun mainActivity(pkg: String, user: Long): String? {
