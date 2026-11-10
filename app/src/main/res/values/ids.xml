@@ -3,4 +3,6 @@
 <resources>
     <item name="action_menu" type="id" />
     <item name="action_move" type="id" />
+    <item name="action_move_up" type="id" />
+    <item name="action_move_down" type="id" />
 </resources>

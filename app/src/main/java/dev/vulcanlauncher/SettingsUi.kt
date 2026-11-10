@@ -374,6 +374,10 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
         "@dock" -> listItem(null, getString(R.string.group_dock), getString(R.string.cat_dock)) { showPage(DOCK_GROUP) }
         "@hidden" -> listItem(null, getString(R.string.hidden_apps), getString(R.string.hidden_apps_info)) { hideAppsMenu() }
         "@groups" -> listItem(null, getString(R.string.drawer_groups), getString(R.string.drawer_groups_info)) { showPage(GROUPS) }
+        "@calendars" -> listItem(null, getString(R.string.now_calendars), getString(R.string.now_calendars_info)) { chooseCalendars() }
+            .apply { if (looks.str("nowCalendar") == "off") alpha = 0.5f }
+        // Not a setting: says how cards come and go, and how to move them.
+        "@nowCards" -> text(getString(R.string.now_cards_info), 14f, m3.onSurfaceVariant).apply { setPadding((16 * dp).toInt(), (12 * dp).toInt(), (24 * dp).toInt(), (12 * dp).toInt()) }
         "@colors" -> listItem(null, getString(R.string.custom_colors),
             resources.getQuantityString(R.plurals.custom_colors_set, looks.colors().size, looks.colors().size)) { showPage(COLORS) }
         else -> byKey[key]?.let(::row) // null: hidden for now (night hours)
@@ -452,7 +456,7 @@ private fun SettingsActivity.applyChoice(c: Choice, value: String) {
     home.stale = true
     val perm = when {
         value == "on" && c.key in listOf("contactSearch", "nowContacts") -> android.Manifest.permission.READ_CONTACTS
-        value == "on" && c.key == "nowCalendar" -> android.Manifest.permission.READ_CALENDAR
+        value != "off" && c.key == "nowCalendar" -> android.Manifest.permission.READ_CALENDAR
         c.key == "nightMode" && value == "sun" -> android.Manifest.permission.ACCESS_COARSE_LOCATION
         else -> null
     }
@@ -638,7 +642,8 @@ private fun MainActivity.pickPackIcon(pkg: String, onPicked: (String) -> Unit) {
 /** Every app with a checkbox, for hiding apps or filling a drawer group; [onSave] gets the apps checked. */
 /** [others]: each app's other groups, shown under its name so a tab's apps can be picked from those not yet sorted (#55). */
 fun VulcanActivity.appSwitches(title: String, on: Collection<String>, others: Map<String, List<String>> = emptyMap(), onSave: (List<String>) -> Unit) {
-    val list = home.apps.values.sortedWith(compareBy(labelOrder()) { home.label(it) })
+    val all = home.apps.values.sortedWith(compareBy(labelOrder()) { home.label(it) })
+    var list = all
     val chosen = on.toMutableSet()
     val adapter = object : BaseAdapter() {
         override fun getCount() = list.size
@@ -667,8 +672,26 @@ fun VulcanActivity.appSwitches(title: String, on: Collection<String>, others: Ma
         }
     }
     val lv = android.widget.ListView(this).apply { this.adapter = adapter; divider = null }
-    sheet().setTitle(title).setView(lv)
-        .setPositiveButton(R.string.save) { _, _ -> onSave(list.map { it.key }.filter { it in chosen }) }
+    // A long app list is quicker to search than to scroll. Ticks survive the filter: they're kept by app, not by row.
+    val search = field("", getString(R.string.search_apps)).apply {
+        addTextChangedListener(object : android.text.TextWatcher {
+            override fun afterTextChanged(e: android.text.Editable?) {
+                val q = e.toString().trim()
+                list = if (q.isEmpty()) all else all.filter { matchScore(home.label(it), q) > 0 }
+                adapter.notifyDataSetChanged()
+            }
+            override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, af: Int) {}
+            override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
+        })
+    }
+    val box = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        addView(search, LinearLayout.LayoutParams(-1, -2).apply { setMargins((24 * dp).toInt(), (4 * dp).toInt(), (24 * dp).toInt(), (8 * dp).toInt()) })
+        // A fixed height: inside a dialog a weighted list can measure to nothing. Most of the screen, as the list was.
+        addView(lv, LinearLayout.LayoutParams(-1, (resources.displayMetrics.heightPixels * 0.62f).toInt()))
+    }
+    sheet().setTitle(title).setView(box)
+        .setPositiveButton(R.string.save) { _, _ -> onSave(all.map { it.key }.filter { it in chosen }) }
         .setNegativeButton(R.string.cancel, null).show()
 }
 
@@ -726,6 +749,32 @@ fun VulcanActivity.hideAppsMenu() = appSwitches(getString(R.string.hide_apps), s
     home.drawer.refresh()
 }
 
+/** Picks the calendars the Now page's upcoming events come from, and whether all-day events show. */
+private fun SettingsActivity.chooseCalendars() {
+    if (!granted(android.Manifest.permission.READ_CALENDAR)) { requestPermissions(arrayOf(android.Manifest.permission.READ_CALENDAR), MainActivity.REQ_PERMISSION); return }
+    val cals = ArrayList<Pair<Long, String>>()
+    runCatching {
+        contentResolver.query(android.provider.CalendarContract.Calendars.CONTENT_URI,
+            arrayOf(android.provider.CalendarContract.Calendars._ID, android.provider.CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, android.provider.CalendarContract.Calendars.ACCOUNT_NAME),
+            null, null, android.provider.CalendarContract.Calendars.ACCOUNT_NAME)?.use { c ->
+            while (c.moveToNext()) {
+                val name = c.getString(1).orEmpty(); val account = c.getString(2).orEmpty()
+                cals += c.getLong(0) to if (account.isEmpty() || account == name) name else "$name · $account"
+            }
+        }
+    }
+    // Stored as the calendars left out, so one added later shows until it's unticked.
+    val hidden = store.strings(NOW_HIDDEN_CALENDARS)
+    val checked = BooleanArray(cals.size + 1) { if (it == 0) store.data.getBoolean(NOW_ALL_DAY, true) else cals[it - 1].first.toString() !in hidden }
+    sheet().setTitle(R.string.now_calendars)
+        .setMultiChoiceItems((listOf(getString(R.string.now_all_day_events)) + cals.map { it.second }).toTypedArray(), checked) { _, i, on -> checked[i] = on }
+        .setPositiveButton(R.string.ok) { _, _ ->
+            store.data.edit().putBoolean(NOW_ALL_DAY, checked[0]).apply()
+            store.putStrings(NOW_HIDDEN_CALENDARS, cals.filterIndexed { i, _ -> !checked[i + 1] }.map { it.first.toString() })
+        }
+        .setNegativeButton(R.string.cancel, null).show()
+}
+
 // ---- Drawer groups (tabs and folders) ----
 
 fun VulcanActivity.saveGroups(groups: List<Group>) {
@@ -741,16 +790,34 @@ private fun SettingsActivity.groupsPage(list: LinearLayout) {
     val groups = home.drawer.groups()
     fun row(icon: String, title: String, info: String, onClick: (View) -> Unit) =
         listItem(symbol(icon, m3.onPrimaryContainer), title, info, tonalIcon = true, onClick = onClick)
-    fun groupRows(type: String, icon: String) = groups.filter { it.type == type }.map { g ->
-        row(icon, g.name, resources.getQuantityString(R.plurals.group_apps, g.apps.size, g.apps.size)) { editGroup(g) }
+    // Each tab and folder has a handle to drag it into a new place in its list, as Nova's (and Move up/down for TalkBack).
+    fun groupRows(type: String, icon: String): List<View> {
+        val ofType = groups.filter { it.type == type }
+        val rows = ofType.map { g -> row(icon, g.name, resources.getQuantityString(R.plurals.group_apps, g.apps.size, g.apps.size)) { editGroup(g) } }
+        val reorder = Reorder(this, rows) { from, to -> saveGroups(reorderGroups(home.drawer.groups(), type, from, to)) }
+        if (rows.size > 1) rows.forEach { (it as LinearLayout).addView(reorder.handle(it), LinearLayout.LayoutParams(-2, -2).apply { marginStart = (8 * dp).toInt() }) }
+        return rows
     }
+    // All apps leads the tabs; it can be hidden while there's another tab for the drawer to open on.
+    val hasTabs = groups.any { it.type == "tab" }
+    val allShown = !store.data.getBoolean(ALL_HIDDEN, false) || !hasTabs
+    val allToggle = Toggle(this, allShown)
+    val allRow = listItem(symbol("apps", m3.onPrimaryContainer), getString(R.string.tab_all),
+        getString(if (!hasTabs) R.string.tab_all_needs_tab else if (allShown) R.string.tab_all_shown else R.string.tab_all_hidden),
+        trailing = allToggle, tonalIcon = true) {
+        if (!hasTabs) return@listItem
+        allToggle.checked = !allToggle.checked
+        store.data.edit().putBoolean(ALL_HIDDEN, !allToggle.checked).apply()
+        home.drawer.refresh()
+        refresh()
+    }.apply { if (!hasTabs) allToggle.alpha = 0.38f }
     val tabs = groupRows("tab", "tabs")
     val folders = groupRows("folder", "folder")
-    if (tabs.isNotEmpty()) panel(list, getString(R.string.groups_panel_tabs), tabs)
-    if (folders.isNotEmpty()) panel(list, getString(R.string.groups_panel_folders), folders)
     if (groups.isEmpty()) list.addView(text(getString(R.string.groups_empty), 14f, m3.onSurfaceVariant).apply {
         setPadding((32 * dp).toInt(), (8 * dp).toInt(), (32 * dp).toInt(), 0)
     })
+    panel(list, getString(R.string.groups_panel_tabs), listOf(allRow) + tabs)
+    if (folders.isNotEmpty()) panel(list, getString(R.string.groups_panel_folders), folders)
     panel(list, getString(R.string.groups_panel_add), listOf(
         row("tabs", getString(R.string.new_tab), getString(R.string.new_tab_info)) { newGroup("tab") },
         row("folder", getString(R.string.new_folder), getString(R.string.new_folder_info)) { newGroup("folder") },
@@ -769,12 +836,26 @@ private fun VulcanActivity.askName(title: String, current: String, onName: (Stri
 private fun SettingsActivity.newGroup(type: String) = askName(getString(if (type == "tab") R.string.new_tab else R.string.new_folder), "") { name ->
     val groups = home.drawer.groups()
     if (groups.any { it.name == name }) { toast(getString(R.string.group_exists)); return@askName }
-    chooseApps(name, emptyList(), groupsOfApps(groups, null)) { saveGroups(groups + Group(name, type, it)) }
+    chooseApps(name, emptyList(), groups, name) { apps, rest -> saveGroups(rest + Group(name, type, apps)) }
 }
 
-/** A group's apps: those still ticked keep their place (a tab's arranged order), new ones go at the end. */
-private fun VulcanActivity.chooseApps(title: String, current: List<String>, others: Map<String, List<String>>, onDone: (List<String>) -> Unit) =
-    appSwitches(title, current, others) { chosen -> onDone(current.filter { it in chosen } + chosen.filter { it !in current }) }
+/**
+ * Group [name]'s apps: those still ticked keep their place (a tab's arranged order), new ones go at the end. New ones that
+ * are in other groups too can be moved here in one go, leaving those groups ([onDone] gets [groups] with them taken out).
+ */
+private fun VulcanActivity.chooseApps(title: String, current: List<String>, groups: List<Group>, name: String, onDone: (List<String>, List<Group>) -> Unit) {
+    val others = groupsOfApps(groups, name)
+    appSwitches(title, current, others) { chosen ->
+        val apps = current.filter { it in chosen } + chosen.filter { it !in current }
+        val shared = chosen.filter { it !in current && it in others }.toSet()
+        if (shared.isEmpty()) return@appSwitches onDone(apps, groups)
+        sheet().setTitle(R.string.move_apps_title)
+            .setMessage(resources.getQuantityString(R.plurals.move_apps_message, shared.size, shared.size))
+            .setPositiveButton(R.string.move_apps_move) { _, _ -> onDone(apps, withoutApps(groups, shared, name)) }
+            .setNegativeButton(R.string.move_apps_keep) { _, _ -> onDone(apps, groups) }
+            .show()
+    }
+}
 
 fun VulcanActivity.editGroup(g: Group) {
     val groups = home.drawer.groups()
@@ -786,7 +867,9 @@ fun VulcanActivity.editGroup(g: Group) {
         ?.let { Triple(symbol(sym), getString(title)) { saveGroups(it) } }
     val actions = listOfNotNull(
         Triple(symbol("edit"), getString(R.string.rename)) { askName(getString(R.string.rename), g.name) { replace(g.copy(name = it)) } },
-        Triple(symbol("apps"), getString(R.string.choose_apps)) { chooseApps(g.name, g.apps, groupsOfApps(groups, g.name)) { replace(g.copy(apps = it)) } },
+        Triple(symbol("apps"), getString(R.string.choose_apps)) {
+            chooseApps(g.name, g.apps, groups, g.name) { apps, rest -> saveGroups(rest.map { if (it.name == g.name) it.copy(apps = apps) else it }) }
+        },
         if (g.type == "tab") Triple(symbol("drag"), getString(R.string.arrange_apps)) { arrangeTab(g.name, g.apps) } else null,
         // A tab's own colour, as Nova's: it fills the tab while it's selected (Drawer.buildTabs). No setting of its own (#49).
         if (g.type == "tab") Triple(colorDot(g.color?.let(Color::parseColor) ?: tabFill()), getString(R.string.tab_color)) {

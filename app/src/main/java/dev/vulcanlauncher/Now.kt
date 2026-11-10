@@ -35,19 +35,42 @@ fun VulcanActivity.granted(permission: String) = checkSelfPermission(permission)
 /** The locale's own pattern for a date skeleton ("EEEEdMMMM" is "Monday, 19 October" in English, "Montag, 19. Oktober" in German). */
 private fun datePattern(skeleton: String) = android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), skeleton)
 
+/** The Now page's cards, in their default order. The date and time always lead, above them. */
+val NOW_CARDS = listOf("media", "calendar", "contacts", "apps")
+
+/** The card order saved as "a,b,c": unknown ids dropped, cards it doesn't name (added since) at the end. */
+fun nowOrder(saved: String?): List<String> = (saved.orEmpty().split(',').filter { it in NOW_CARDS } + NOW_CARDS).distinct()
+
+/** [all] with the [shown] items (a subset, in [all]'s order) reordered, the one at [from] moved to [to]; the rest keep their places. */
+fun <T> reorderWithin(all: List<T>, shown: List<T>, from: Int, to: Int): List<T> {
+    val order = moveItem(shown, from, to).iterator()
+    val set = shown.toSet()
+    return all.map { if (it in set) order.next() else it }
+}
+
+/** The end of the "Upcoming events" window ("today", or a number of days) from [now]; [endOfToday] is tonight's midnight. */
+fun calendarEnd(window: String, now: Long, endOfToday: Long): Long =
+    if (window == "today") endOfToday else now + (window.toIntOrNull() ?: 7) * 86_400_000L
+
+/** data keys for the Now page: the card order, the calendars left out, and whether all-day events show. */
+const val NOW_ORDER = "nowOrder"
+const val NOW_HIDDEN_CALENDARS = "nowHiddenCalendars"
+const val NOW_ALL_DAY = "nowAllDay"
+
 @SuppressLint("SetTextI18n", "ClickableViewAccessibility")
 fun MainActivity.showNow(slide: Boolean = true) {
     drawer.hide()
     val pad = (16 * dp).toInt()
     val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, insets.top + pad, pad, insets.bottom + pad) }
     // M3 filled cards on a translucent surface.
-    fun card(title: String, body: View) = list.addView(LinearLayout(this).apply {
+    fun card(title: String, body: View): View = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         background = rounded(m3.surfaceContainer, 24 * dp)
         setPadding(pad + pad / 4, pad, pad + pad / 4, pad + pad / 4)
         addView(text(title, 14f, m3.primary, medium = true).apply { setPadding(0, 0, 0, pad * 3 / 4) })
         addView(body)
-    }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = pad * 3 / 4 })
+        layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = pad * 3 / 4 }
+    }
     fun text(s: CharSequence, size: Float = 15f) = text(s, size, m3.onSurface)
     fun action(label: String, onClick: () -> Unit) = LinearLayout(this).apply { addView(tonalButton(label, onClick)) }
     fun ask(permission: String, why: String) = action(why) { requestPermissions(arrayOf(permission), MainActivity.REQ_PERMISSION) }
@@ -62,16 +85,18 @@ fun MainActivity.showNow(slide: Boolean = true) {
         addView(TextClock(context).apply { format12Hour = datePattern("EEEEdMMMM"); format24Hour = format12Hour; textSize = 16f; setTextColor(m3.onSurfaceVariant) })
     })
 
-    if (looks.on("nowMedia")) {
+    // As Nova's "show when media is playing": a card with nothing to show stays away, so the page keeps only what's live.
+    fun media(): View? {
+        if (!looks.on("nowMedia")) return null
         val sessions = runCatching {
             getSystemService(MediaSessionManager::class.java).getActiveSessions(ComponentName(this, BadgeService::class.java))
         }
         val c = sessions.getOrNull()?.firstOrNull()
-        card(getString(R.string.now_media), when {
+        return card(getString(R.string.now_media), when {
             sessions.isFailure -> action(getString(R.string.now_notification_access)) {
                 startActivity(Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
             }
-            c == null -> text(getString(R.string.now_nothing_playing))
+            c == null -> return null
             else -> LinearLayout(this).apply {
                 gravity = Gravity.CENTER_VERTICAL
                 val md = c.metadata
@@ -95,7 +120,7 @@ fun MainActivity.showNow(slide: Boolean = true) {
                     contentDescription = getString(if (playing) R.string.media_pause else R.string.media_play)
                     scaleType = ImageView.ScaleType.CENTER
                     background = pressable(rounded(m3.primary, 24 * dp), 24 * dp, m3.onPrimary)
-                    setOnClickListener { if (playing) c.transportControls.pause() else c.transportControls.play(); overlayExit = null; closeOverlay(); showNow(slide = false) }
+                    setOnClickListener { if (playing) c.transportControls.pause() else c.transportControls.play(); reopenNow() }
                 }, LinearLayout.LayoutParams((48 * dp).toInt(), (48 * dp).toInt()))
                 addView(iconButton("next", getString(R.string.media_next), m3.onSurfaceVariant) { c.transportControls.skipToNext() })
                 setOnClickListener { c.sessionActivity?.let { runCatching { it.send() } } }
@@ -103,13 +128,25 @@ fun MainActivity.showNow(slide: Boolean = true) {
         })
     }
 
-    if (looks.on("nowCalendar")) card(getString(R.string.now_upcoming), if (!granted(Manifest.permission.READ_CALENDAR)) ask(Manifest.permission.READ_CALENDAR, getString(R.string.now_allow_calendar))
-    else LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
+    fun calendar(): View? {
+        val window = looks.str("nowCalendar")
+        if (window == "off") return null
+        if (!granted(Manifest.permission.READ_CALENDAR)) return card(getString(R.string.now_upcoming), ask(Manifest.permission.READ_CALENDAR, getString(R.string.now_allow_calendar)))
+        val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val now = System.currentTimeMillis()
+        val endOfToday = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0); set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+            add(java.util.Calendar.DAY_OF_MONTH, 1)
+        }.timeInMillis
         val uri = CalendarContract.Instances.CONTENT_URI.buildUpon().also {
-            ContentUris.appendId(it, now); ContentUris.appendId(it, now + 7 * 86_400_000L)
+            ContentUris.appendId(it, now); ContentUris.appendId(it, calendarEnd(window, now, endOfToday))
         }.build()
+        // The calendars ticked under Now page › Calendars (all of them until some are unticked), and all-day events unless left out.
+        val skip = store.strings(NOW_HIDDEN_CALENDARS).mapNotNull { it.toLongOrNull() }
+        val where = listOfNotNull(
+            skip.takeIf { it.isNotEmpty() }?.let { "${CalendarContract.Instances.CALENDAR_ID} NOT IN (${it.joinToString()})" },
+            if (store.data.getBoolean(NOW_ALL_DAY, true)) null else "${CalendarContract.Instances.ALL_DAY}=0",
+        ).joinToString(" AND ").ifEmpty { null }
         val fmt = SimpleDateFormat(datePattern("EEEjmm"), Locale.getDefault())
         // All-day events are stored as UTC midnights, so they're compared and shown in UTC.
         val dayFmt = SimpleDateFormat("EEE", Locale.getDefault()).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
@@ -118,16 +155,19 @@ fun MainActivity.showNow(slide: Boolean = true) {
                 clear(); set(l.get(java.util.Calendar.YEAR), l.get(java.util.Calendar.MONTH), l.get(java.util.Calendar.DAY_OF_MONTH))
             }.timeInMillis
         }
+        val max = 8
+        var more = 0
         runCatching {
             contentResolver.query(uri, arrayOf(CalendarContract.Instances.EVENT_ID, CalendarContract.Instances.TITLE, CalendarContract.Instances.BEGIN,
                 CalendarContract.Instances.END, CalendarContract.Instances.ALL_DAY),
-                null, null, "${CalendarContract.Instances.BEGIN} ASC")?.use { c ->
-                while (c.moveToNext() && childCount < 5) {
+                where, null, "${CalendarContract.Instances.BEGIN} ASC")?.use { c ->
+                while (c.moveToNext()) {
                     val id = c.getLong(0)
                     val allDay = c.getInt(4) == 1
                     if (allDay && c.getLong(3) <= todayUtc) continue // ended before today
+                    if (body.childCount >= max) { more++; continue }
                     val whenText = if (allDay) getString(R.string.now_all_day, dayFmt.format(Date(c.getLong(2)))) else fmt.format(Date(c.getLong(2)))
-                    addView(LinearLayout(context).apply {
+                    body.addView(LinearLayout(this).apply {
                         gravity = Gravity.CENTER_VERTICAL
                         setPadding(0, pad / 3, 0, pad / 3)
                         background = pressable(null, 8 * dp)
@@ -142,13 +182,18 @@ fun MainActivity.showNow(slide: Boolean = true) {
                 }
             }
         }
-        if (childCount == 0) addView(text(getString(R.string.now_no_events), 14f).apply { setTextColor(m3.onSurfaceVariant) })
-    })
+        if (body.childCount == 0) return null
+        if (more > 0) body.addView(text(resources.getQuantityString(R.plurals.now_more_events, more, more), 14f).apply {
+            setTextColor(m3.primary); setPadding(pad, pad / 2, 0, 0)
+            setOnClickListener { runCatching { startActivity(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CALENDAR)) } }
+        })
+        return card(getString(R.string.now_upcoming), body)
+    }
 
-    if (looks.on("nowContacts")) card(getString(R.string.now_favourites), if (!granted(Manifest.permission.READ_CONTACTS)) ask(Manifest.permission.READ_CONTACTS, getString(R.string.now_allow_contacts))
-    else HorizontalScrollView(this).apply {
-        val row = LinearLayout(context)
-        addView(row)
+    fun contacts(): View? {
+        if (!looks.on("nowContacts")) return null
+        if (!granted(Manifest.permission.READ_CONTACTS)) return card(getString(R.string.now_favourites), ask(Manifest.permission.READ_CONTACTS, getString(R.string.now_allow_contacts)))
+        val row = LinearLayout(this)
         runCatching {
             contentResolver.query(ContactsContract.Contacts.CONTENT_URI,
                 arrayOf(ContactsContract.Contacts._ID, ContactsContract.Contacts.LOOKUP_KEY, ContactsContract.Contacts.DISPLAY_NAME_PRIMARY, ContactsContract.Contacts.PHOTO_THUMBNAIL_URI),
@@ -159,17 +204,35 @@ fun MainActivity.showNow(slide: Boolean = true) {
                 }
             }
         }
-        if (row.childCount == 0) row.addView(text(getString(R.string.now_star_contacts), 14f).apply { setTextColor(m3.onSurfaceVariant) })
-    })
+        if (row.childCount == 0) return null
+        return card(getString(R.string.now_favourites), HorizontalScrollView(this).apply { addView(row) })
+    }
 
-    if (looks.on("nowApps")) {
+    fun apps(): View? {
+        if (!looks.on("nowApps")) return null
         val counts = launches()
         val top = apps.values.filter { counts.optInt(it.key) > 0 }.sortedByDescending { counts.optInt(it.key) }.take(8)
-        if (top.isNotEmpty()) card(getString(R.string.now_frequent), LinearLayout(this).apply {
+        if (top.isEmpty()) return null
+        return card(getString(R.string.now_frequent), LinearLayout(this).apply {
             val st = style("").let { IconStyle(it.sizePx * 3 / 4, false, it.labelSize, panelText, false, false) }
             top.forEach { app -> addView(IconView(context, label(app), icon(app), st, badgeStyle(), app.pkg).apply { setOnClickListener { v -> launch(app, v) } },
                 LinearLayout.LayoutParams(0, (st.sizePx + 16 * dp).toInt(), 1f)) }
         })
+    }
+
+    val order = nowOrder(store.data.getString(NOW_ORDER, null))
+    val shown = order.mapNotNull { id -> when (id) { "media" -> media(); "calendar" -> calendar(); "contacts" -> contacts(); else -> apps() }?.let { id to it } }
+    shown.forEach { list.addView(it.second) }
+    // Hold a card (its title or any part that isn't a button) and drag it to a new place; the order is kept.
+    val reorder = Reorder(this, shown.map { it.second }) { from, to ->
+        store.data.edit().putString(NOW_ORDER, reorderWithin(order, shown.map { it.first }, from, to).joinToString(",")).apply()
+        reopenNow()
+    }
+    for ((_, v) in shown) {
+        var downY = 0f
+        val hold = View.OnTouchListener { _, ev -> if (ev.actionMasked == MotionEvent.ACTION_DOWN) downY = ev.rawY; reorder.onTouch(ev) }
+        val start = View.OnLongClickListener { if (shown.size > 1) reorder.begin(v, downY); shown.size > 1 }
+        listOf(v, (v as LinearLayout).getChildAt(0)).forEach { it.setOnTouchListener(hold); it.setOnLongClickListener(start) }
     }
 
     val panel = NowPanel(this).apply {
@@ -184,6 +247,12 @@ fun MainActivity.showNow(slide: Boolean = true) {
     // Slides in from the left, the way the swipe right that opened it points; a live pull (pullNow) moves it itself.
     panel.progress = 0f
     if (slide) panel.settle(true)
+}
+
+/** Builds the open Now page again in place (after play/pause or a card moved), keeping it open. */
+fun MainActivity.reopenNow() {
+    overlayExit = null; closeOverlay(); showNow(slide = false)
+    (overlay as? NowPanel)?.progress = 1f
 }
 
 /**

@@ -38,12 +38,12 @@ The wallpaper in the screenshots is [docs/wallpaper-dusk.jpg](docs/wallpaper-dus
 ## Features
 
 - **Arrange your home screen your way:** grids up to 12 by 12, up to 9 pages, resizable widgets, and a dock you can hide or scroll. Lock the layout to prevent accidental icon and page edits.
-- **Find apps fast:** an A to Z app drawer with search, an optional letter index, and tabs (swipe sideways to switch) or folders to group apps. Arrange the drawer and each tab in your own order, and pin favourites above the tabs. Hide the apps you don't want to see.
+- **Find apps fast:** an A to Z app drawer with search, an optional letter index, and tabs or folders to group apps. Swipe sideways and the next tab slides in under your finger; drag tabs and folders into place, and hide the All apps tab if your tabs cover everything. Arrange the drawer and each tab in your own order, and pin favourites above the tabs, on every tab. Hide the apps you don't want to see.
 - **Search does more:** it forgives typos ("whtsapp") and finds apps by initials ("gm" for Google Maps). It also finds app shortcuts ("new tab") and Android settings pages ("wifi"), works out sums ("12*3-4", tap to copy), and sets timers and alarms ("timer 5m", "alarm 7:30pm") in your clock app.
 - **Use gestures:** swipe, double-tap or pinch on the home screen to open notifications, an app, the app drawer, the screen lock and more. Each app icon or folder can have its own swipe-up action too, and gestures can lock the layout or pause work apps.
 - **Change the look:** icon packs, themed one-colour icons (Android 13+), icon shapes, your own icons (from a pack, another app or a photo, for apps and folders) and labels, folder styles, and a night mode that follows the system or a schedule.
 - **Long-press an app** for its shortcuts, notifications, app info or uninstall.
-- **Swipe right on the first page** for the Now page: the date, music controls, upcoming events and favourite contacts.
+- **Swipe right on the first page** for the Now page: the date, music controls, upcoming events (from the calendars you pick, as far ahead as you choose) and favourite contacts. Cards with nothing to show stay hidden, and you hold a card to move it.
 - **Back up** your whole setup to a file and restore it later.
 - **Meet the contributors:** tap someone in Settings → Contributors to see their illustrated persona, contribution and personality. Share their character card through Android’s share sheet. Everything is generated on your device and needs no new permission.
 

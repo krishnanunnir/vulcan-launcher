@@ -520,6 +520,33 @@
     <string name="folder_sort">Sort A to Z</string>
     <string name="no_apps_match">No apps match “%1$s”</string>
     <string name="tab_all">All apps</string>
+    <string name="drag_to_reorder">Drag to reorder</string>
+    <string name="tab_all_hide">Hide this tab</string>
+    <string name="tab_all_hide_info">Apps in no other tab are still found by search</string>
+    <string name="tab_all_shown">Shown first in the drawer</string>
+    <string name="tab_all_hidden">Hidden. Apps in no other tab are still found by search</string>
+    <string name="tab_all_needs_tab">Add a tab first: the drawer needs one tab to show</string>
+    <string name="move_apps_title">Move them here?</string>
+    <plurals name="move_apps_message">
+        <item quantity="one">%1$d of these apps is also in another group.</item>
+        <item quantity="other">%1$d of these apps are also in other groups.</item>
+    </plurals>
+    <string name="move_apps_move">Move here</string>
+    <string name="move_apps_keep">Keep in both</string>
+    <string name="now_window_today">Today</string>
+    <string name="now_window_3">Next 3 days</string>
+    <string name="now_window_7">Next 7 days</string>
+    <string name="now_window_14">Next 14 days</string>
+    <string name="now_calendars">Calendars</string>
+    <string name="now_calendars_info">Which calendars show, and all-day events</string>
+    <string name="now_all_day_events">All-day events</string>
+    <plurals name="now_more_events">
+        <item quantity="one">%1$d more</item>
+        <item quantity="other">%1$d more</item>
+    </plurals>
+    <string name="sec_cards">Cards</string>
+    <string name="sec_general">General</string>
+    <string name="now_cards_info">Cards with nothing to show stay hidden. Hold a card on the Now page to move it.</string>
     <string name="tab_work">Work</string>
     <string name="tab_private">Private</string>
     <string name="private_space">Private Space</string>

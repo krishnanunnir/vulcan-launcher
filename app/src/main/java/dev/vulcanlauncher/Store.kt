@@ -261,7 +261,7 @@ fun readableBackupFiles(root: JSONObject, cls: (pkg: String, user: Long) -> Stri
     val looks = HashMap<String, String>()
     root.optJSONObject("settings")?.let { s ->
         for (k in s.keys()) {
-            val v = when (val raw = s.get(k)) { true -> "on"; false -> "off"; else -> raw.toString() }
+            val v = legacySetting(k, when (val raw = s.get(k)) { true -> "on"; false -> "off"; else -> raw.toString() })
             if (LOOKS.firstOrNull { it.key == k }?.accepts(v) != false) looks[k] = v else rejected += "$k=$v"
         }
     }

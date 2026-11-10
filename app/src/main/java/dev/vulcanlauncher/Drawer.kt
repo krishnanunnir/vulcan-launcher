@@ -189,6 +189,9 @@ fun smartGroups(groups: List<Group>, byName: Map<String, List<String>>): Triple<
     return Triple(out, made, added)
 }
 
+/** data key: All apps is left out of the drawer's tabs. */
+const val ALL_HIDDEN = "hideAllTab"
+
 /** Tag on a drawer view that shows an app, so GridView can hand it back for another app. */
 private const val APP_VIEW = "app"
 
@@ -236,11 +239,25 @@ class Drawer(private val a: MainActivity) {
     private var entries = listOf<Entry>()
     private var tab = ""
     private var showHidden = false
-    private val adapter = Adapter()
+    private val adapter = Adapter({ entries }, { grid })
+    /** The neighbouring tab's apps, shown beside the list while a sideways swipe moves it. */
+    private var peekEntries = listOf<Entry>()
+    private val peekAdapter = Adapter({ peekEntries }, { peek })
+    /** [peekEntries]' tab key, or null while no swipe shows one. */
+    private var peekTab: String? = null
+    /** The apps of any tab, as [refresh] last worked them out; a swipe asks it for the neighbouring tab's. */
+    private var entriesOf: (String) -> List<Entry> = { emptyList() }
+    /** The tab the drawer opens on: All apps, or the first tab when All apps is hidden. */
+    private var homeTab = ""
     private val tabs = LinearLayout(a)
     private val tabScroll = HorizontalScrollView(a).apply { isHorizontalScrollBarEnabled = false; addView(tabs) }
     private val grid = GridView(a).apply {
         // Glass and housing: no scrollbar; rows fade out at the edges instead of being cut by the status bar or search bar.
+        if (styleName == "glass" || styleName == "housing") { isVerticalScrollBarEnabled = false; isVerticalFadingEdgeEnabled = true; setFadingEdgeLength((32 * a.dp).toInt()) }
+    }
+    private val peek = GridView(a).apply {
+        visibility = View.GONE
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         if (styleName == "glass" || styleName == "housing") { isVerticalScrollBarEnabled = false; isVerticalFadingEdgeEnabled = true; setFadingEdgeLength((32 * a.dp).toInt()) }
     }
     /** Shown when a search matches no app or contact. */
@@ -387,7 +404,7 @@ class Drawer(private val a: MainActivity) {
         if (!bottomBar) addView(bar, barParams)
         tabs.setPadding(pad - (4 * a.dp).toInt(), if (bottomBar || fromBottom) pad / 2 else 0, pad, (8 * a.dp).toInt())
         val content = FrameLayout(a)
-        if (styleName == "pages") content.addView(pager) else content.addView(grid)
+        if (styleName == "pages") content.addView(pager) else { content.addView(peek); content.addView(grid) }
         content.addView(empty, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER).apply { setMargins(pad * 2, 0, pad * 2, 0) })
         if (letterIndex) content.addView(index, FrameLayout.LayoutParams((28 * a.dp).toInt(), -1, Gravity.END))
         if (fromBottom) addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -443,17 +460,23 @@ class Drawer(private val a: MainActivity) {
         @Deprecated("Required override") override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
     }
 
+    /** The list's layout, shared by the swipe's neighbouring tab so the two line up. */
+    private fun GridView.lay() {
+        numColumns = cols
+        // Grid styles: the row height holds the air between rows.
+        verticalSpacing = if (styleName == "list") (16 * a.dp).toInt() else 0
+        val side = ((if (bottomBar) 12 else 8) * a.dp).toInt()
+        // Room at the end (the right, or the left in right-to-left languages) for the letter index.
+        setPaddingRelative(side, (if (bottomBar) 16 * a.dp else 8 * a.dp).toInt(), if (letterIndex) (28 * a.dp).toInt() else side, (8 * a.dp).toInt())
+        clipToPadding = false
+    }
+
     init {
+        peek.apply { lay(); adapter = peekAdapter; selector = android.graphics.drawable.ColorDrawable(0) }
         grid.apply {
-            numColumns = cols
+            lay()
             // The stock selector is a sharp full-cell rectangle that flashes on a long press; a rounded state layer instead.
             selector = a.pressable(null, 16 * a.dp)
-            // Grid styles: the row height holds the air between rows.
-            verticalSpacing = if (styleName == "list") (16 * a.dp).toInt() else 0
-            val side = ((if (bottomBar) 12 else 8) * a.dp).toInt()
-            // Room at the end (the right, or the left in right-to-left languages) for the letter index.
-            setPaddingRelative(side, (if (bottomBar) 16 * a.dp else 8 * a.dp).toInt(), if (letterIndex) (28 * a.dp).toInt() else side, (8 * a.dp).toInt())
-            clipToPadding = false
             adapter = this@Drawer.adapter
             setOnScrollListener(object : android.widget.AbsListView.OnScrollListener {
                 // As Launcher3: a finger scrolling the list puts the keyboard away (the query stays).
@@ -473,17 +496,31 @@ class Drawer(private val a: MainActivity) {
             var startX = 0f
             var startY = 0f
             var sideways = false
+            var sideStart = 0f
+            var sideVelocity: android.view.VelocityTracker? = null
             setOnTouchListener { _, ev ->
                 // GridView keeps a tap alive until the finger leaves the whole list, so a sideways swipe that started on
-                // an icon would open it on release. Sideways is no tap: cancel it, and ignore the rest of that touch.
-                // A sideways swipe moves to the next or previous tab.
+                // an icon would open it on release. Sideways is no tap: cancel it, and the rest of that touch moves the tabs:
+                // the list follows the finger with the next or previous tab beside it, as pages do.
                 if (ev.actionMasked == MotionEvent.ACTION_DOWN) sideways = false
                 else if (sideways) {
-                    if (ev.actionMasked == MotionEvent.ACTION_UP) swipeTab(ev.x - startX)
+                    sideVelocity?.addMovement(MotionEvent.obtain(ev).also { it.setLocation(ev.rawX, ev.rawY) })
+                    when (ev.actionMasked) {
+                        MotionEvent.ACTION_MOVE -> dragTabs(ev.rawX - sideStart)
+                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                            sideVelocity?.computeCurrentVelocity(1000)
+                            val vx = if (ev.actionMasked == MotionEvent.ACTION_UP) sideVelocity?.xVelocity ?: 0f else 0f
+                            sideVelocity?.recycle(); sideVelocity = null
+                            releaseTabs(ev.rawX - sideStart, vx)
+                        }
+                    }
                     return@setOnTouchListener true
                 }
                 if (ev.actionMasked == MotionEvent.ACTION_MOVE && !closing && abs(ev.x - startX) > touchSlop && abs(ev.x - startX) > abs(ev.y - startY)) {
                     sideways = true
+                    sideStart = ev.rawX // follow from here, without jumping the slop
+                    sideVelocity?.recycle(); sideVelocity = android.view.VelocityTracker.obtain()
+                    tabAnim?.cancel()
                     MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; onTouchEvent(it); it.recycle() }
                     return@setOnTouchListener true
                 }
@@ -592,7 +629,7 @@ class Drawer(private val a: MainActivity) {
         if (visible) return
         if (search.text.isNotEmpty()) search.text.clear()
         val reset = !a.looks.on("rememberPosition")
-        if (reset) { tab = ""; if (styleName == "pages") pager.snapTo(0, animate = false) }
+        if (reset) { tab = homeTab; if (styleName == "pages") pager.snapTo(0, animate = false) }
         if (inputs() != shown) refresh()
         if (reset) grid.setSelection(if (fromBottom) adapter.count - 1 else 0)
     }
@@ -688,32 +725,40 @@ class Drawer(private val a: MainActivity) {
         val workTab = a.looks.on("workTab") && work.isNotEmpty()
         val private = a.apps.values.filter { a.isPrivate(it) }.map { it.key }.toSet()
         val privateTab = a.privateUser != null
-        if (tab == "work" && !workTab || tab == "private" && !privateTab ||
-            tab.isNotEmpty() && tab != "work" && tab != "private" && groups.none { it.name == tab && it.type == "tab" }) tab = ""
+        // All apps can be hidden while there's a tab to show instead; its folders then show on that tab.
+        homeTab = groups.firstOrNull { it.type == "tab" }?.takeIf { a.store.data.getBoolean(ALL_HIDDEN, false) }?.name ?: ""
+        if (tab == "work" && !workTab || tab == "private" && !privateTab || tab == "" && homeTab != "" ||
+            tab.isNotEmpty() && tab != "work" && tab != "private" && groups.none { it.name == tab && it.type == "tab" }) tab = homeTab
+        val keepInAll = a.looks.on("keepInAll")
+        val foldersFirst = a.looks.on("foldersFirst")
+        val keys = ordered.map { it.key }
+        entriesOf = { t ->
+            val list = tabApps(keys, groups, t, hidden, showHidden, keepInAll, work, workTab, private, sort == "manual").mapNotNull { a.apps[it] }.map { Entry.AppE(it) }
+            val folders = if (t == homeTab) groups.filter { it.type == "folder" }.map { Entry.FolderE(it) } else emptyList()
+            if (foldersFirst) folders + list else list + folders
+        }
         entries = if (q.isNotEmpty()) {
             // Best match first; sortedByDescending is stable, so equal matches keep the drawer's order.
             quick(q) + ordered.filter { showHidden || it.key !in hidden }.map { it to matchScore(a.label(it), q) }
                 .filter { it.second > 0 }.sortedByDescending { it.second }.map { Entry.AppE(it.first) } +
                 shortcutHits(q, hidden) + settingsHits(q) +
                 contacts(q) + if (a.looks.on("webSearch")) listOf(Entry.WebE(q)) else emptyList()
-        } else {
-            val keys = tabApps(ordered.map { it.key }, groups, tab, hidden, showHidden, a.looks.on("keepInAll"), work, workTab, private, sort == "manual")
-            val list = keys.mapNotNull { a.apps[it] }.map { Entry.AppE(it) }
-            val folders = if (tab == "") groups.filter { it.type == "folder" }.map { Entry.FolderE(it) } else emptyList()
-            if (a.looks.on("foldersFirst")) folders + list else list + folders
-        }
-        buildFrequent(if (q.isEmpty() && tab == "" && a.looks.on("frequent"))
+        } else entriesOf(tab)
+        // As Nova: the row sits above the tabs and stays whichever tab is open.
+        buildFrequent(if (q.isEmpty() && a.looks.on("frequent"))
             frequentApps(a.store.strings("favourites").toList(), a.apps.keys.associateWith { launches.optInt(it) },
                 { it in a.apps && it !in hidden && it !in private }, gridCols).mapNotNull { a.apps[it] } else emptyList())
         // Glass and housing: search results sit just above the bottom search bar, under the thumb.
         grid.isStackFromBottom = fromBottom || bottomBar && q.isNotEmpty()
-        index.visibility = if (q.isEmpty() && entries.isNotEmpty()) View.VISIBLE else View.GONE
+        // No index for a list that fits on one screen: there's nothing to jump to.
+        index.visibility = if (q.isEmpty() && entries.size > cols * rows) View.VISIBLE else View.GONE
         empty.text = a.getString(R.string.no_apps_match, q)
         empty.visibility = if (q.isNotEmpty() && entries.none { it !is Entry.WebE }) View.VISIBLE else View.GONE
         buildTabs(groups, workTab, privateTab, q.isEmpty())
         privateBar.visibility = if (q.isEmpty() && tab == "private") View.VISIBLE else View.GONE
         if (privateBar.visibility == View.VISIBLE) buildPrivateBar()
         if (styleName == "pages") buildPages() else adapter.notifyDataSetChanged()
+        index.invalidate() // its letters are the new list's
     }
 
     /** Up to four matching contacts, when contact search is on and the user granted access. */
@@ -790,16 +835,71 @@ class Drawer(private val a: MainActivity) {
     /** The tab keys in chip order, as [buildTabs] last laid them out; empty while the chips are hidden. */
     private var tabKeys = listOf<String>()
 
-    /** A sideways swipe of [dx] px over the list: a finger moving left goes to the next tab (right in right-to-left). */
-    private fun swipeTab(dx: Float) {
-        if (abs(dx) < 48 * a.dp) return
+    private var tabAnim: android.animation.ValueAnimator? = null
+
+    /**
+     * A sideways swipe [dx] px so far: the list follows the finger and the tab it's heading for slides in beside it. A
+     * finger moving left brings the next tab (the previous one in right-to-left), wrapping round at the ends.
+     */
+    private fun dragTabs(dx: Float) {
         val rtl = root.layoutDirection == View.LAYOUT_DIRECTION_RTL
-        swipedTab(tabKeys, tab, (dx < 0) != rtl)?.let { tab = it; refresh() }
+        val next = swipedTab(tabKeys, tab, (dx < 0) != rtl)
+        if (next == null) { grid.translationX = dx / 4; return } // one tab: a little give, nowhere to go
+        if (next != peekTab) {
+            peekTab = next
+            peekEntries = entriesOf(next)
+            peek.isStackFromBottom = fromBottom
+            peekAdapter.notifyDataSetChanged()
+            peek.setSelection(if (fromBottom) peekAdapter.count - 1 else 0)
+            peek.visibility = View.VISIBLE
+        }
+        val w = grid.width.toFloat()
+        grid.translationX = dx
+        peek.translationX = dx + if (dx < 0) w else -w
+        index.alpha = 1 - minOf(1f, abs(dx) / (w / 3))
+    }
+
+    /** Let go after [dragTabs]: on to the next tab if pulled a third of the way or flung that way ([vx] px/s), else back. */
+    private fun releaseTabs(dx: Float, vx: Float) {
+        val w = grid.width.toFloat()
+        val fling = 500 * a.dp
+        val flung = abs(vx) > fling
+        val go = peekTab != null && (if (flung) vx * dx > 0 else abs(dx) > w / 3)
+        val to = if (go) (if (dx < 0) -w else w) else 0f
+        tabAnim?.cancel()
+        tabAnim = android.animation.ValueAnimator.ofFloat(grid.translationX, to).apply {
+            duration = (120 + 160 * abs(to - grid.translationX) / maxOf(1f, w)).toLong()
+            interpolator = EASE
+            addUpdateListener {
+                val x = it.animatedValue as Float
+                grid.translationX = x
+                if (peekTab != null) peek.translationX = x + if (dx < 0) w else -w
+            }
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                var cancelled = false
+                override fun onAnimationCancel(x: android.animation.Animator) { cancelled = true }
+                override fun onAnimationEnd(x: android.animation.Animator) {
+                    if (cancelled) return
+                    val landed = peekTab
+                    if (go && landed != null) {
+                        tab = landed
+                        refresh()
+                        grid.setSelection(if (fromBottom) adapter.count - 1 else 0)
+                        grid.tick()
+                    }
+                    grid.translationX = 0f
+                    peek.visibility = View.GONE
+                    peekTab = null
+                    index.alpha = 1f
+                }
+            })
+            start()
+        }
     }
 
     private fun buildTabs(groups: List<Group>, workTab: Boolean, privateTab: Boolean, show: Boolean) {
         tabs.removeAllViews()
-        val names = listOf("" to a.getString(R.string.tab_all)) + (if (workTab) listOf("work" to a.getString(R.string.tab_work)) else emptyList()) +
+        val names = (if (homeTab == "") listOf("" to a.getString(R.string.tab_all)) else emptyList()) + (if (workTab) listOf("work" to a.getString(R.string.tab_work)) else emptyList()) +
             (if (privateTab) listOf("private" to a.getString(R.string.tab_private)) else emptyList()) +
             groups.filter { it.type == "tab" }.map { it.name to it.name }
         tabScroll.visibility = if (show && names.size > 1) View.VISIBLE else View.GONE
@@ -829,6 +929,13 @@ class Drawer(private val a: MainActivity) {
                 layoutParams = LinearLayout.LayoutParams(-2, (32 * a.dp).toInt()).apply { marginStart = (8 * a.dp).toInt() }
                 setOnClickListener { tab = key; refresh() }
                 if (key != "" && key != "work" && key != "private") setOnLongClickListener { a.editGroup(groups.first { it.name == key }); true }
+                // All apps can be hidden once there's a tab of the user's own to open on instead.
+                if (key == "" && groups.any { it.type == "tab" }) setOnLongClickListener {
+                    a.pickList(title, listOf(a.symbol("hide") to a.getString(R.string.tab_all_hide)), summaries = listOf(a.getString(R.string.tab_all_hide_info))) {
+                        a.store.data.edit().putBoolean(ALL_HIDDEN, true).apply(); refresh()
+                    }
+                    true
+                }
             })
         }
     }
@@ -998,7 +1105,10 @@ class Drawer(private val a: MainActivity) {
         }
     }
 
-    private inner class Adapter : BaseAdapter(), SectionIndexer {
+    /** A list of [source]'s entries in [host]: the drawer's own, or the neighbouring tab's during a swipe. */
+    private inner class Adapter(private val source: () -> List<Entry>, private val host: () -> GridView) : BaseAdapter(), SectionIndexer {
+        private val entries get() = source()
+        private val grid get() = host()
         private fun letter(e: Entry) = when (e) {
             is Entry.AppE -> indexLetter(a.label(e.app))
             is Entry.FolderE -> "▤"
