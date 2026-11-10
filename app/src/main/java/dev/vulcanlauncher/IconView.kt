@@ -121,10 +121,12 @@ class IconView(context: Context, label: CharSequence, icon: Drawable, style: Ico
     private val text: TextView? = if (!style.labels) null else TextView(context).apply {
             text = label
             maxLines = if (style.horizontal) 1 else style.lines
+            // Every label takes all its lines, so a one-line label's icon lines up with a two-line one's (#75).
+            minLines = maxLines
             typeface = if (style.font == "system") Typeface.DEFAULT else Typeface.create(style.font, Typeface.NORMAL)
             ellipsize = android.text.TextUtils.TruncateAt.END
             textSize = style.labelSize
-            gravity = if (style.horizontal) Gravity.START else Gravity.CENTER
+            gravity = if (style.horizontal) Gravity.START else Gravity.TOP or Gravity.CENTER_HORIZONTAL
             // A little air between icon and label; touching labels look cramped.
             if (style.horizontal) setPadding(style.sizePx / 3, 0, 0, 0) else setPadding(0, style.sizePx / 10, 0, 0)
             if (style.shadow) setShadowLayer(4f, 0f, 1f, 0xAA000000.toInt())

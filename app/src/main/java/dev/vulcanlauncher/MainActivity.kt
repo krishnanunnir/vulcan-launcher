@@ -800,7 +800,8 @@ class MainActivity : VulcanActivity() {
             setOnClickListener { open(item, it) }
             onSwipe = when {
                 item.folder && folderSwipeOpens(item.swipe, looks.on("folderSwipe")) -> { { openFolder(item) } }
-                item.swipe.isNotEmpty() -> { { perform(item.swipe) } }
+                // A folder's "none" only opts out of Swipe to open; like an app with no action, the swipe goes to home (#71).
+                item.swipe.isNotEmpty() && item.swipe != "none" -> { { perform(item.swipe) } }
                 else -> null
             }
             iconViews += this
@@ -1905,14 +1906,16 @@ class MainActivity : VulcanActivity() {
         val cell = v.parent as? CellLayout ?: return
         // The clock: any size from two cells wide and one tall.
         val info = if (item.isClock) null else awm.getAppWidgetInfo(item.widgetId) ?: return
-        val canW = info == null || info.resizeMode and AppWidgetProviderInfo.RESIZE_HORIZONTAL != 0
-        val canH = info == null || info.resizeMode and AppWidgetProviderInfo.RESIZE_VERTICAL != 0
-        val minW = if (!canW) item.w else if (info == null) minOf(2 * sub, item.w)
+        // As Nova, every widget resizes both ways, whatever its resizeMode says (#74). Along an axis it declares
+        // resizable it keeps its minResize; along one it doesn't, it can shrink to a single cell.
+        val fitsW = info != null && info.resizeMode and AppWidgetProviderInfo.RESIZE_HORIZONTAL != 0
+        val fitsH = info != null && info.resizeMode and AppWidgetProviderInfo.RESIZE_VERTICAL != 0
+        val minW = if (info == null) minOf(2 * sub, item.w) else if (!fitsW) 1
             else ceil(info.minResizeWidth.coerceAtLeast(1) / cell.cellW.toFloat()).toInt().coerceIn(1, item.w)
-        val minH = if (!canH) item.h else if (info == null) minOf(sub, item.h)
+        val minH = if (info == null) minOf(sub, item.h) else if (!fitsH) 1
             else ceil(info.minResizeHeight.coerceAtLeast(1) / cell.cellH.toFloat()).toInt().coerceIn(1, item.h)
-        if (getSystemService(android.view.accessibility.AccessibilityManager::class.java).isTouchExplorationEnabled) resizeByList(cell, item, v, minW, minH, canW, canH)
-        else showResize(cell, item, v, minW, minH, canW, canH)
+        if (getSystemService(android.view.accessibility.AccessibilityManager::class.java).isTouchExplorationEnabled) resizeByList(cell, item, v, minW, minH, true, true)
+        else showResize(cell, item, v, minW, minH, true, true)
     }
 
     /** TalkBack can't drag the resize handles: the sizes that fit from the widget's top corner, as a list. */

@@ -456,7 +456,10 @@ class Drawer(private val a: MainActivity) {
             clipToPadding = false
             adapter = this@Drawer.adapter
             setOnScrollListener(object : android.widget.AbsListView.OnScrollListener {
-                override fun onScrollStateChanged(v: android.widget.AbsListView, state: Int) {}
+                // As Launcher3: a finger scrolling the list puts the keyboard away (the query stays).
+                override fun onScrollStateChanged(v: android.widget.AbsListView, state: Int) {
+                    if (state == android.widget.AbsListView.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL) hideKeyboard()
+                }
                 override fun onScroll(v: android.widget.AbsListView, first: Int, visible: Int, total: Int) {
                     if (!index.dragging) index.current = this@Drawer.adapter.getSectionForPosition(first)
                 }
@@ -503,6 +506,8 @@ class Drawer(private val a: MainActivity) {
                             }
                         } else {
                             closing = true; held = true; downY = ev.rawY; stop()
+                            // As Launcher3, the keyboard goes as the drag down starts, not once the drawer is gone (#73).
+                            hideKeyboard()
                             // The list sees no more of this touch: cancel it, or its pending long press lifts an app.
                             MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; onTouchEvent(it); it.recycle() }
                         }
@@ -600,6 +605,9 @@ class Drawer(private val a: MainActivity) {
     private fun gone() {
         root.alpha = 1f
         for (i in 0 until root.childCount) root.getChildAt(i).alpha = 1f
+        // Every close ends here, whatever started it: the keyboard mustn't stay up over home (#73).
+        // Before GONE, which takes the focus and leaves the keyboard behind.
+        hideKeyboard()
         root.visibility = View.GONE
         root.semBlur(0, 0, 0f)
         a.content.alpha = 1f
@@ -642,12 +650,17 @@ class Drawer(private val a: MainActivity) {
         return open
     }
 
+    /** Puts the keyboard away and takes the focus off search, as Launcher3's ExtendedEditText.hideKeyboard. */
+    private fun hideKeyboard() {
+        a.getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(search.windowToken, 0)
+        search.clearFocus()
+    }
+
     /** [animate] false for a drag leaving the drawer: it must be out of the way at once. */
     fun hide(animate: Boolean = true) {
         if (!visible) return
-        a.getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(search.windowToken, 0)
+        hideKeyboard()
         search.text.clear()
-        search.clearFocus()
         shortcuts = null
         showHidden = false
         if (animate) settle(open = false)

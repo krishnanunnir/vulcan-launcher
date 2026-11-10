@@ -178,9 +178,11 @@ class Workspace(context: Context) : ViewGroup(context) {
         if (width == 0) return
         // As Launcher3: pages on screen mid-swipe draw from a hardware layer, so the transition effect moves a cached
         // texture instead of redrawing every icon each frame. At rest no page holds one.
-        val moving = l % width != 0
+        val w = width
+        val moving = l % w != 0
+        // [w], not `width`: inside apply that's the page's own, 0 for a page not laid out yet (the overview's new one) (#70).
         for (i in 0 until childCount) getChildAt(i).apply {
-            val o = (i * width - l) / width.toFloat()
+            val o = (i * w - l) / w.toFloat()
             applyTransform(if (gap > 0f) PageTransform() else pageTransform(effect, o))
             if (gap > 0f) translationX = gap * o.coerceIn(-1f, 1f)
             val type = if (moving && abs(o) < 1f) LAYER_TYPE_HARDWARE else LAYER_TYPE_NONE
