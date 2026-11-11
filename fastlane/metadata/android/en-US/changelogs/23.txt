@@ -1,0 +1,8 @@
+Give the designer button a soft glow
+Add a designer call to action to the home page
+Point site links at vulcanlauncher.dev
+Site: designer page with live preview, looks, shuffle and undo
+Drop the Now page calendar window and Calendars picker
+Drawer tabs that follow the finger, drag to reorder, Now page cards
+Fix effect crash, folder swipe, keyboard, widget resize, label alignment
+Add 0.29 keys: icon_from_app, action_locklayout, action_work, action_open_folder, no_work_profile
