@@ -204,7 +204,7 @@ class MainActivity : VulcanActivity() {
         }
         // Widget IDs no item holds (the process died mid-flow, a pin failed, an undo bar was cut short) still get
         // updates from their providers: free them.
-        val held = items.flatMap { it.widgetIds } + listOfNotNull(pendingWidget?.first)
+        val held = items.flatMap { it.widgetIds } + nowCards().flatMap { it.widgetIds } + listOfNotNull(pendingWidget?.first)
         host.appWidgetIds.filter { it !in held }.forEach(host::deleteAppWidgetId)
         launcherApps.registerCallback(appsCallback)
         val dateFilter = android.content.IntentFilter(Intent.ACTION_DATE_CHANGED).apply {
@@ -827,7 +827,7 @@ class MainActivity : VulcanActivity() {
             views[item] = v
             viewItems[v] = item
         }
-        widgetFrames.keys.retainAll(items.flatMap { it.widgetIds }.toSet())
+        widgetFrames.keys.retainAll((items + nowCards()).flatMap { it.widgetIds }.toSet())
         updateBadges()
         updateGlance()
         folderFx.settle()
@@ -888,7 +888,7 @@ class MainActivity : VulcanActivity() {
     private val widgetFrames = HashMap<Int, WidgetFrame>()
 
     @Suppress("DEPRECATION")
-    private fun widgetView(item: Item): View? {
+    fun widgetView(item: Item): View? {
         val info = awm.getAppWidgetInfo(item.widgetId) ?: return null
         // A frame that was in a stack still sits in it, moved aside or hidden.
         widgetFrames[item.widgetId]?.let { (it.parent as? ViewGroup)?.removeView(it); it.translationX = 0f; it.visibility = View.VISIBLE; return it }
@@ -1831,7 +1831,13 @@ class MainActivity : VulcanActivity() {
      * widgets under it, A to Z, and closes the last one opened (#18). For one app ([pkg], or only one has widgets), its
      * widgets alone.
      */
-    fun pickWidget(pkg: String? = null) {
+    /** The widget being added goes on a Now page card, not home. */
+    // ponytail: in memory only, so a widget whose setup outlives the process lands on home instead
+    private var widgetToNow = false
+
+    /** [toNow]: for a Now page card. */
+    fun pickWidget(pkg: String? = null, toNow: Boolean = false) {
+        widgetToNow = toNow
         val order = labelOrder()
         val page = pages[workspace.current]
         val groups = awm.installedProviders.filter { pkg == null || it.provider.packageName == pkg }.groupBy { it.provider.packageName }
@@ -1992,6 +1998,12 @@ class MainActivity : VulcanActivity() {
             return
         }
         pendingWidget = null
+        if (widgetToNow) {
+            widgetToNow = false
+            saveNowCards(nowCards() + Item(0, 0, 0, widgetId = id))
+            if (overlay is NowPanel) reopenNow()
+            return
+        }
         pendingSlot?.let { slot ->
             pendingSlot = null
             val i = items.indexOfFirst { it.isWidgetSlot && it.page == slot.page && it.x == slot.x && it.y == slot.y }

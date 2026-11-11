@@ -504,6 +504,10 @@
     <string name="now_favourites">Favourites</string>
     <string name="now_allow_contacts">Allow contacts access</string>
     <string name="now_star_contacts">Star contacts in your contacts app to see them here</string>
+    <string name="now_add_card">Add a card</string>
+    <string name="now_card_apps">Apps</string>
+    <string name="now_card_widget">Widget</string>
+    <string name="now_remove_card">Remove this card?</string>
     <string name="now_frequent">Frequently used</string>
     <string name="now_now">Now</string>
     <string name="charging">Charging · %1$d%%</string>

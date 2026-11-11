@@ -44,7 +44,7 @@ The wallpaper in the screenshots is [docs/wallpaper-dusk.jpg](docs/wallpaper-dus
 - **Use gestures:** swipe, double-tap or pinch on the home screen to open notifications, an app, the app drawer, the screen lock and more. Any of them can open an app shortcut, such as Direct dial to a contact or a new browser tab. Each app icon or folder can have its own swipe-up action too, and gestures can lock the layout or pause work apps.
 - **Change the look:** icon packs, themed one-colour icons (Android 13+), icon shapes, your own icons (from a pack, another app or a photo, for apps and folders) and labels, folder styles, and a night mode that follows the system or a schedule.
 - **Long-press an app** for its shortcuts, notifications, app info or uninstall.
-- **Swipe right on the first page** for the Now page: the date, music controls, upcoming events and favourite contacts. Cards with nothing to show stay hidden, and you hold a card to move it.
+- **Swipe right on the first page** for the Now page: the date, music controls, upcoming events and favourite contacts. Add cards of your own, a row of apps or a widget, with **Add a card** at the bottom. Cards with nothing to show stay hidden, and you hold a card to move it.
 - **Back up** your whole setup to a file and restore it later.
 - **Meet the contributors:** tap someone in Settings → Contributors to see their illustrated persona, contribution and personality. Share their character card through Android’s share sheet. Everything is generated on your device and needs no new permission.
 

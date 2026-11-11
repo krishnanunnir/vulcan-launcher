@@ -38,8 +38,34 @@ private fun datePattern(skeleton: String) = android.text.format.DateFormat.getBe
 /** The Now page's cards, in their default order. The date and time always lead, above them. */
 val NOW_CARDS = listOf("media", "calendar", "contacts", "apps")
 
-/** The card order saved as "a,b,c": unknown ids dropped, cards it doesn't name (added since) at the end. */
-fun nowOrder(saved: String?): List<String> = (saved.orEmpty().split(',').filter { it in NOW_CARDS } + NOW_CARDS).distinct()
+/** The card order saved as "a,b,c" over the built-in and [custom] cards: unknown ids dropped, cards it doesn't name (added since) at the end. */
+fun nowOrder(saved: String?, custom: List<String> = emptyList()): List<String> =
+    (NOW_CARDS + custom).let { all -> (saved.orEmpty().split(',').filter { it in all } + all).distinct() }
+
+/** data key: the Now page's own cards, as items: one widget, or an item holding a row of apps as its children. */
+const val NOW_CUSTOM = "nowCustom"
+
+/** A card's id in the card order. Cards aren't edited, only added and removed, so their content names them. */
+fun nowCardId(card: Item) = if (card.isWidget) "w${card.widgetId}" else "a" + card.children.joinToString(",") { it.appKey }.hashCode()
+
+fun MainActivity.nowCards(): List<Item> = runCatching { itemsFromJson(store.data.getString(NOW_CUSTOM, null) ?: "[]") }.getOrDefault(emptyList())
+fun MainActivity.saveNowCards(cards: List<Item>) = store.data.edit().putString(NOW_CUSTOM, itemsToJson(cards)).apply()
+
+/** Adds a card of apps picked from a list, or of a widget (through the widget picker, see placeWidget). */
+fun MainActivity.addNowCard() {
+    sheet().setTitle(R.string.now_add_card).setItems(arrayOf(getString(R.string.now_card_apps), getString(R.string.now_card_widget))) { _, which ->
+        if (which == 1) { pickWidget(toNow = true); return@setItems }
+        val list = apps.values.sortedWith(compareBy(labelOrder()) { label(it) })
+        val checked = BooleanArray(list.size)
+        sheet().setTitle(R.string.now_card_apps)
+            .setMultiChoiceItems(list.map { label(it) }.toTypedArray(), checked) { _, i, on -> checked[i] = on }
+            .setPositiveButton(R.string.ok) { _, _ ->
+                val picked = list.filterIndexed { i, _ -> checked[i] }.map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) }
+                if (picked.isNotEmpty()) { saveNowCards(nowCards() + Item(0, 0, 0, children = picked)); reopenNow() }
+            }
+            .setNegativeButton(R.string.cancel, null).show()
+    }.show()
+}
 
 /** [all] with the [shown] items (a subset, in [all]'s order) reordered, the one at [from] moved to [to]; the rest keep their places. */
 fun <T> reorderWithin(all: List<T>, shown: List<T>, from: Int, to: Int): List<T> {
@@ -57,11 +83,18 @@ fun MainActivity.showNow(slide: Boolean = true) {
     val pad = (16 * dp).toInt()
     val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, insets.top + pad, pad, insets.bottom + pad) }
     // M3 filled cards on a translucent surface.
-    fun card(title: String, body: View): View = LinearLayout(this).apply {
+    /** [onRemove]: a card of your own, with a button that removes it. */
+    fun card(title: String, body: View, onRemove: (() -> Unit)? = null): View = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         background = rounded(m3.surfaceContainer, 24 * dp)
         setPadding(pad + pad / 4, pad, pad + pad / 4, pad + pad / 4)
-        addView(text(title, 14f, m3.primary, medium = true).apply { setPadding(0, 0, 0, pad * 3 / 4) })
+        val heading = text(title, 14f, m3.primary, medium = true).apply { setPadding(0, 0, 0, pad * 3 / 4) }
+        if (onRemove == null) addView(heading)
+        else addView(LinearLayout(context).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            addView(heading, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(iconButton("close", getString(R.string.remove)) { onRemove() })
+        })
         addView(body)
         layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = pad * 3 / 4 }
     }
@@ -196,9 +229,50 @@ fun MainActivity.showNow(slide: Boolean = true) {
         })
     }
 
-    val order = nowOrder(store.data.getString(NOW_ORDER, null))
-    val shown = order.mapNotNull { id -> when (id) { "media" -> media(); "calendar" -> calendar(); "contacts" -> contacts(); else -> apps() }?.let { id to it } }
+    // A widget card whose app was uninstalled goes.
+    val cards = nowCards().filter { !it.isWidget || awm.getAppWidgetInfo(it.widgetId) != null }.also { if (it.size != nowCards().size) saveNowCards(it) }
+    fun custom(c: Item): View? {
+        val remove = {
+            dialog().setMessage(R.string.now_remove_card).setPositiveButton(R.string.remove) { _, _ ->
+                saveNowCards(nowCards().filter { nowCardId(it) != nowCardId(c) })
+                if (c.isWidget) host.deleteAppWidgetId(c.widgetId)
+                reopenNow()
+            }.setNegativeButton(R.string.cancel, null).show(); Unit
+        }
+        if (c.isWidget) {
+            val info = awm.getAppWidgetInfo(c.widgetId) ?: return null
+            val frame = widgetView(c) ?: return null
+            frame.layoutParams = LinearLayout.LayoutParams(-1, maxOf(info.minHeight, (64 * dp).toInt()))
+            return card(info.loadLabel(packageManager), frame, remove)
+        }
+        val shownApps = c.children.mapNotNull { child -> resolve(child)?.let { child to it } }
+        if (shownApps.isEmpty()) return null
+        val st = style("").let { IconStyle(it.sizePx * 3 / 4, true, it.labelSize, panelText, false, false) }
+        val rows = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            // Six to a row, as the frequent apps card; a short last row keeps the same spacing.
+            shownApps.chunked(6).forEach { row ->
+                addView(LinearLayout(context).apply {
+                    row.forEach { (child, li) ->
+                        addView(IconView(context, li.first, li.second, st, badgeStyle(), child.pkg).apply { setOnClickListener { v -> open(child, v) } },
+                            LinearLayout.LayoutParams(0, (st.sizePx + 40 * dp).toInt(), 1f))
+                    }
+                    repeat(6 - row.size) { addView(View(context), LinearLayout.LayoutParams(0, 0, 1f)) }
+                })
+            }
+        }
+        return card(shownApps[0].second.first.toString(), rows, remove)
+    }
+
+    val order = nowOrder(store.data.getString(NOW_ORDER, null), cards.map(::nowCardId))
+    val shown = order.mapNotNull { id ->
+        when (id) {
+            "media" -> media(); "calendar" -> calendar(); "contacts" -> contacts(); "apps" -> apps()
+            else -> cards.firstOrNull { nowCardId(it) == id }?.let(::custom)
+        }?.let { id to it }
+    }
     shown.forEach { list.addView(it.second) }
+    list.addView(action(getString(R.string.now_add_card)) { addNowCard() }.apply { gravity = Gravity.CENTER_HORIZONTAL })
     // Hold a card (its title or any part that isn't a button) and drag it to a new place; the order is kept.
     val reorder = Reorder(this, shown.map { it.second }) { from, to ->
         store.data.edit().putString(NOW_ORDER, reorderWithin(order, shown.map { it.first }, from, to).joinToString(",")).apply()
@@ -250,7 +324,7 @@ fun MainActivity.pullNow(px: Float, vx: Float, end: Boolean): Boolean {
  * home sharpening behind it; let go past a third of the width, or fling, and it closes, otherwise it springs back.
  */
 @SuppressLint("ViewConstructor")
-private class NowPanel(private val a: MainActivity) : FrameLayout(a) {
+class NowPanel(private val a: MainActivity) : FrameLayout(a) {
     private var anim: android.animation.ValueAnimator? = null
 
     /** 0: off to the left, 1: open. Home sinks back and shifts a little right with it. */

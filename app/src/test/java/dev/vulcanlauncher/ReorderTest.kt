@@ -1,6 +1,7 @@
 package dev.vulcanlauncher
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ReorderTest {
@@ -39,6 +40,16 @@ class ReorderTest {
     fun nowCardOrder() {
         assertEquals(NOW_CARDS, nowOrder(null))
         assertEquals(listOf("apps", "media", "calendar", "contacts"), nowOrder("apps,bogus,media"))
+        // Your own cards join the order: new ones at the end, a removed one's id dropped.
+        val w = Item(0, 0, 0, widgetId = 12)
+        val a = Item(0, 0, 0, children = listOf(Item(0, 0, 0, pkg = "p", cls = "c")))
+        val ids = listOf(nowCardId(w), nowCardId(a))
+        assertEquals(NOW_CARDS + ids, nowOrder(null, ids))
+        assertEquals(listOf(ids[1], "apps") + NOW_CARDS.dropLast(1) + ids[0], nowOrder("${ids[1]},apps,w99", ids))
+        assertEquals(NOW_CARDS, nowOrder("${ids[1]}", emptyList()))
+        // An app card's id follows its apps, so it stays put across restarts.
+        assertEquals(nowCardId(a), nowCardId(a.copy()))
+        assertTrue(nowCardId(a) != nowCardId(Item(0, 0, 0, children = listOf(Item(0, 0, 0, pkg = "q", cls = "c")))))
         // Moving among the cards shown leaves the hidden ones where they were.
         assertEquals(listOf("apps", "calendar", "media", "contacts"), reorderWithin(NOW_CARDS, listOf("media", "contacts", "apps"), 2, 0))
     }
