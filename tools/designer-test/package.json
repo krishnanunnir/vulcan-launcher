@@ -1,0 +1,10 @@
+{
+  "name": "vulcan-designer-test",
+  "private": true,
+  "scripts": {
+    "test": "node --test designer.test.cjs"
+  },
+  "devDependencies": {
+    "playwright-core": "1.63.0"
+  }
+}

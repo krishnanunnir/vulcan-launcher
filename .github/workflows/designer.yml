@@ -1,0 +1,41 @@
+name: Designer preview
+
+on:
+  push:
+    paths:
+      - 'docs/design/**'
+      - 'docs/schema/**'
+      - 'tools/designer-test/**'
+      - '.github/workflows/designer.yml'
+  pull_request:
+    paths:
+      - 'docs/design/**'
+      - 'docs/schema/**'
+      - 'tools/designer-test/**'
+      - '.github/workflows/designer.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    defaults:
+      run:
+        working-directory: tools/designer-test
+    env:
+      VULCAN_BROWSER: ${{ matrix.browser }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: tools/designer-test/package-lock.json
+      - run: npm ci
+      - run: npx playwright-core install --with-deps "$VULCAN_BROWSER"
+      - run: npm test

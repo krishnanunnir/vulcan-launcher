@@ -229,11 +229,15 @@
   .cell { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; min-height: 0; position: relative; }
   .ic { display: flex; align-items: center; justify-content: center; font-weight: 500; position: relative; flex: none; }
   .icw { position: relative; flex: none; }
-  .lb { max-width: 100%; text-align: center; padding: 3px 2px 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; line-height: 1.2; word-break: break-word; }
+  .cell-icon { position: relative; flex: none; }
+  .cell-icon > .icw { position: absolute; top: 0; left: 0; transform-origin: top left; }
+  /* Reserve every configured label line, so wrapping doesn't move the icon above it. */
+  .lb { flex: none; max-width: 100%; height: calc(var(--label-lines) * 1.2em + 3px); text-align: center; padding: 3px 2px 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; line-height: 1.2; word-break: break-word; -webkit-line-clamp: var(--label-lines); }
   .badge { position: absolute; display: flex; align-items: center; justify-content: center; font: 500 10px/1 Roboto, sans-serif; color: #fff; border-radius: 999px; z-index: 2; }
+  .drawer-list-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dots { height: 22px; flex: none; display: flex; align-items: center; justify-content: center; gap: 6px; }
   .dock { flex: none; position: relative; display: flex; align-items: center; }
-  .dock .slots { display: grid; width: 100%; position: relative; z-index: 1; }
+  .dock .slots { display: grid; width: 100%; height: 100%; position: relative; z-index: 1; }
   .dockbg { position: absolute; z-index: 0; }
   .search { flex: none; display: flex; align-items: center; gap: 10px; padding: 0 16px; height: 46px; margin: 6px 14px; font-size: 15px; }
   .navh { height: 22px; flex: none; display: flex; align-items: center; justify-content: center; }
@@ -479,16 +483,20 @@ function badgeHtml(count, size) {
 }
 function fontCss(sizeSp, color, shadow, lines) {
   const f = val("labelFont");
-  const fam = f === "serif" ? '"Noto Serif", Georgia, serif' : f === "monospace" ? "ui-monospace, Menlo, monospace" : f === "sans-serif-condensed" ? '"Roboto Condensed", Roboto, sans-serif' : "Roboto, system-ui, sans-serif";
+  const fam = f === "serif" ? "'Noto Serif', Georgia, serif" : f === "monospace" ? "ui-monospace, Menlo, monospace" : f === "sans-serif-condensed" ? "'Roboto Condensed', Roboto, sans-serif" : "Roboto, system-ui, sans-serif";
   const w = f === "sans-serif-medium" ? 500 : f === "sans-serif-light" ? 300 : 400;
-  return `font-family:${fam};font-weight:${w};font-size:${sizeSp}px;color:${color};-webkit-line-clamp:${lines};${shadow ? "text-shadow:0 1px 3px rgba(0,0,0,.55);" : ""}`;
+  return `font-family:${fam};font-weight:${w};font-size:${sizeSp}px;color:${color};--label-lines:${lines};${shadow ? "text-shadow:0 1px 3px rgba(0,0,0,.55);" : ""}`;
+}
+function iconCell(size, art, label) {
+  return `<div class="cell"><div class="cell-icon" style="width:${size}px;height:${size}px">${art}</div>${label}</div>`;
 }
 function appCell(label, size, opts = {}, pkg) {
   const showLabel = opts.labels !== undefined ? opts.labels : on("labels");
   const ls = opts.labelSize || num("labelSize");
   const lc = opts.labelColor || val("labelColor");
   const sh = opts.shadow !== undefined ? opts.shadow : on("labelShadow");
-  return `<div class="cell">${iconBox(label, size, opts.badge, pkg)}${showLabel ? `<div class="lb" style="${fontCss(ls, lc, sh, num("labelLines"))}">${esc(label)}</div>` : ""}</div>`;
+  const text = showLabel ? `<div class="lb" style="${fontCss(ls, lc, sh, num("labelLines"))}">${esc(label)}</div>` : "";
+  return iconCell(size, iconBox(label, size, opts.badge, pkg), text);
 }
 function folderIcon(label, size, children, opts = {}) {
   const bgKind = val("folderBg"), fc = themedColor("folderColor", "#F3EDE9", "#3A3633");
@@ -518,7 +526,8 @@ function folderIcon(label, size, children, opts = {}) {
   else if (bgKind === "platform") bg = `<div style="position:absolute;left:4%;right:4%;bottom:2%;height:30%;border-radius:50%;background:${alpha(fc, .6)}"></div>`;
   const clip = on("folderClip") && bgKind !== "none" ? "overflow:hidden;border-radius:50%;" : "";
   const showLabel = opts.labels !== undefined ? opts.labels : on("labels");
-  return `<div class="cell"><div class="icw" style="width:${size}px;height:${size}px;${clip}">${bg}${art}</div>${showLabel ? `<div class="lb" style="${fontCss(opts.labelSize || num("labelSize"), val("labelColor"), on("labelShadow"), num("labelLines"))}">${esc(label)}</div>` : ""}</div>`;
+  const text = showLabel ? `<div class="lb" style="${fontCss(opts.labelSize || num("labelSize"), val("labelColor"), on("labelShadow"), num("labelLines"))}">${esc(label)}</div>` : "";
+  return iconCell(size, `<div class="icw" style="width:${size}px;height:${size}px;${clip}">${bg}${art}</div>`, text);
 }
 
 // ---- What's on home: the loaded backup's default page and dock, or a demo ----
@@ -627,7 +636,7 @@ function dockHtml(items) {
   const cols = num("dockCols"), size = num("dockIconSize"), labels = on("dockLabels");
   const kindV = val("dockBg"), a = num("dockAlpha") / 100;
   const dc = themedColor("dockColor", "#F3EDE9", "#2B2725");
-  const h = size + (labels ? 22 : 0) + 24;
+  const h = size + (labels ? num("labelSize") * num("labelLines") * 1.2 + 3 : 0) + 24;
   let bg = "", inset = 6;
   const shadow = on("dockShadow") ? "box-shadow:0 6px 18px rgba(0,0,0,.35);" : "";
   if (kindV === "rect") bg = `left:0;right:0;top:0;bottom:0;background:${alpha(dc, a)};${shadow}`;
@@ -637,7 +646,7 @@ function dockHtml(items) {
   else if (kindV === "housing") { bg = `left:12px;right:12px;top:2px;bottom:2px;border-radius:999px;background:${night() ? "#2A2A28" : "#E9E7E2"};box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 4px 12px rgba(0,0,0,.3);`; inset = 22; }
   const slots = Array(cols).fill("");
   items.forEach((it, i) => { const x = it.x != null ? it.x : i; if (x < cols) slots[x] = cellFor(it, size, { labels, badge: x === 1 ? 3 : 0, labelColor: kindV === "housing" ? (night() ? "#E9E7E2" : "#2A2A28") : undefined, shadow: kindV === "housing" ? false : undefined }); });
-  return `<div class="dock" style="height:${h}px;padding:0 ${inset}px">${bg ? `<div class="dockbg" style="${bg}"></div>` : ""}<div class="slots" style="grid-template-columns:repeat(${cols},1fr)">${slots.map(s => s || "<div></div>").join("")}</div></div>`;
+  return `<div class="dock" style="height:${h}px;padding:0 ${inset}px">${bg ? `<div class="dockbg" style="${bg}"></div>` : ""}<div class="slots" style="grid-template-columns:repeat(${cols},minmax(0,1fr));grid-template-rows:minmax(0,1fr)">${slots.map(s => s || "<div></div>").join("")}</div></div>`;
 }
 function cellFor(it, size, opts = {}) {
   if (it.folder) return folderIcon(it.label || "Folder", size, (it.children || []).map(appName), opts);
@@ -655,7 +664,7 @@ function renderHome() {
     else if ((it.widgetId != null && it.widgetId !== -1) || it.action === "widgetSlot") {
       const r = num("widgetRadius") || 18;
       cells += `<div style="${area}padding:6px;min-height:0"><div class="widget" style="border-radius:${r}px;background:rgba(255,255,255,.16);backdrop-filter:blur(8px)">Widget</div></div>`;
-    } else cells += `<div style="${area}display:grid;min-width:0;min-height:0">${cellFor(it, size, { badge: !it.folder && badgeLeft-- > 0 ? 12 : 0 })}</div>`;
+    } else cells += `<div style="${area}display:grid;grid-template-rows:minmax(0,1fr);min-width:0;min-height:0">${cellFor(it, size, { badge: !it.folder && badgeLeft-- > 0 ? 12 : 0 })}</div>`;
   }
   return `<div class="col">${statusBar(!on("darkStatusIcons"))}${searchBar("top")}<div class="grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr));grid-template-rows:repeat(${rows},minmax(0,1fr))">${cells}</div>${indicator()}${searchBar("bottom")}${searchBar("dockAbove")}${dockHtml(dock)}${searchBar("dockBelow")}<div class="navh"><i></i></div></div>`;
 }
@@ -682,12 +691,12 @@ function renderDrawer() {
   const cellH = (780 - 28 - 70 - 22) / rows;
   let body = "";
   if (on("frequent") && val("drawerSort") !== "usage") {
-    body += `<div style="display:grid;grid-template-columns:repeat(${cols},1fr);height:${cellH}px;padding:0 8px">${["Messages", "Browser", "Camera", "Maps", "Mail", "Music", "Photos", "Phone"].slice(0, cols).map(n => appCell(n, size, opts)).join("")}</div><div style="height:1px;margin:4px 20px 8px;background:${alpha(c.fg.length === 7 ? c.fg : "#888888", .15)}"></div>`;
+    body += `<div style="display:grid;grid-template-columns:repeat(${cols},minmax(0,1fr));grid-template-rows:minmax(0,1fr);height:${cellH}px;padding:0 8px">${["Messages", "Browser", "Camera", "Maps", "Mail", "Music", "Photos", "Phone"].slice(0, cols).map(n => appCell(n, size, opts)).join("")}</div><div style="height:1px;margin:4px 20px 8px;background:${alpha(c.fg.length === 7 ? c.fg : "#888888", .15)}"></div>`;
   }
-  if (st === "list") body += names.slice(0, 14).map(n => `<div style="display:flex;align-items:center;gap:16px;padding:8px 20px">${iconBox(n, 40)}<span style="font-size:16px;color:${c.fg}">${esc(n)}</span></div>`).join("");
+  if (st === "list") body += names.slice(0, 14).map(n => `<div style="display:flex;align-items:center;gap:16px;padding:8px 20px">${iconBox(n, 40)}<span class="drawer-list-label" style="font-size:16px;color:${c.fg}">${esc(n)}</span></div>`).join("");
   else {
     const per = st === "pages" ? cols * (rows - (on("frequent") ? 1 : 0)) : cols * (rows + 1);
-    body += `<div style="display:grid;grid-template-columns:repeat(${cols},1fr);grid-auto-rows:${cellH}px;padding:0 8px">${names.slice(0, per).map(n => appCell(n, size, opts)).join("")}</div>`;
+    body += `<div style="display:grid;grid-template-columns:repeat(${cols},minmax(0,1fr));grid-auto-rows:${cellH}px;padding:0 8px">${names.slice(0, per).map(n => appCell(n, size, opts)).join("")}</div>`;
     if (st === "pages") body += `<div class="dots" style="margin-top:auto">${[0, 1, 2].map(i => `<i style="width:6px;height:6px;border-radius:50%;background:${alpha("#888888", i ? .4 : 1)}"></i>`).join("")}</div>`;
   }
   const radius = st === "housing" || st === "glass" ? "border-radius:28px 28px 0 0;top:36px;" : "top:0;";
@@ -703,12 +712,13 @@ function renderFolder() {
   const ls = val("folderLabelSize") === "home" ? num("labelSize") : num("folderLabelSize"), size = Math.min(num("iconSize"), 60);
   const rowsV = val("folderRows"), rows = rowsV === "auto" ? Math.ceil(kids.length / cols) : Math.min(parseInt(rowsV, 10), Math.ceil(kids.length / cols));
   const opts = { labels: true, labelSize: ls, labelColor: fg, shadow: false };
-  const gridHtml = `<div style="display:grid;grid-template-columns:repeat(${cols},1fr);grid-auto-rows:${size + ls * 1.4 + 16}px;max-height:${rows * (size + ls * 1.4 + 16)}px;overflow:hidden">${kids.map(n => appCell(n, size, opts)).join("")}</div>`;
-  const title = on("folderNames") ? `<div style="font-size:20px;color:${fg};padding:0 8px 12px;font-weight:400">${esc(name)}</div>` : "";
+  const rowHeight = size + ls * num("labelLines") * 1.2 + 16;
+  const gridHtml = `<div style="display:grid;grid-template-columns:repeat(${cols},minmax(0,1fr));grid-auto-rows:${rowHeight}px;max-height:${rows * rowHeight}px;overflow:auto">${kids.map(n => appCell(n, size, opts)).join("")}</div>`;
+  const title = on("folderNames") ? `<div style="font-size:20px;color:${fg};padding:0 8px 12px;font-weight:400;overflow-wrap:anywhere">${esc(name)}</div>` : "";
   if (val("folderWindow") === "fullscreen")
     return `<div class="layer" style="filter:blur(6px);opacity:.5">${renderHome()}</div><div class="col" style="background:${alpha(fc, a)};padding:80px 16px 0">${title}${gridHtml}</div>`;
   const w = Math.min(340, cols * (size + 26) + 32);
-  return `<div class="layer">${renderHome()}</div><div class="layer" style="background:rgba(0,0,0,.35)"></div><div style="position:absolute;left:${(360 - w) / 2}px;width:${w}px;top:200px;border-radius:${num("folderRadius")}px;background:${alpha(fc, a)};padding:18px 16px;box-shadow:0 12px 40px rgba(0,0,0,.4)">${title}${gridHtml}</div>`;
+  return `<div class="layer">${renderHome()}</div><div class="layer" style="background:rgba(0,0,0,.35)"></div><div style="position:absolute;left:${(360 - w) / 2}px;width:${w}px;top:50%;transform:translateY(-50%);max-height:calc(100% - 56px);display:flex;flex-direction:column;border-radius:${num("folderRadius")}px;background:${alpha(fc, a)};padding:18px 16px;box-shadow:0 12px 40px rgba(0,0,0,.4)">${title}${gridHtml}</div>`;
 }
 function renderNow() {
   if (!on("nowPage")) return `<div class="layer">${renderHome()}</div><div class="layer" style="display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);font-size:15px;padding:40px;text-align:center">The Now page is off.</div>`;
@@ -719,7 +729,7 @@ function renderNow() {
   if (on("nowMedia")) h += cardH("Media", `<div style="display:flex;align-items:center;gap:14px"><div style="width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#E8721C,#8E24AA)"></div><div style="flex:1"><div>Song title</div><div style="color:${sub};font-size:14px">Artist</div></div><div style="width:44px;height:44px;border-radius:50%;background:${pr};color:${onColor(pr)};display:flex;align-items:center;justify-content:center"><span class="ms" style="font-size:24px">pause</span></div></div>`);
   if (on("nowCalendar")) h += cardH("Upcoming", ["Stand-up · Thu 9:30", "Dentist · Fri 16:00"].map(e => `<div style="display:flex;gap:12px;padding:4px 0"><i style="width:4px;border-radius:2px;background:${pr}"></i><div>${e.split(" · ")[0]}<div style="color:${sub};font-size:14px">${e.split(" · ")[1]}</div></div></div>`).join(""));
   if (on("nowContacts")) h += cardH("Favourites", `<div style="display:flex;gap:14px">${["Asha", "Ben", "Chen", "Dev"].map(n => `<div style="text-align:center;font-size:12px;color:${sub}"><div style="width:48px;height:48px;border-radius:50%;background:${dk ? "#4A3A30" : "#FFDBC8"};color:${fg};display:flex;align-items:center;justify-content:center;font-size:20px">${n[0]}</div>${n}</div>`).join("")}</div>`);
-  if (on("nowApps")) h += cardH("Frequently used", `<div style="display:grid;grid-template-columns:repeat(5,1fr)">${["Messages", "Browser", "Camera", "Maps", "Mail"].map(n => appCell(n, 44, { labels: false })).join("")}</div>`);
+  if (on("nowApps")) h += cardH("Frequently used", `<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-rows:52px">${["Messages", "Browser", "Camera", "Maps", "Mail"].map(n => appCell(n, 44, { labels: false })).join("")}</div>`);
   return `<div class="col" style="background:${alpha(surf, .96)};padding-top:28px;overflow:hidden">${h}</div>`;
 }
 function render() {
@@ -727,9 +737,28 @@ function render() {
   sc.style.backgroundImage = `url("${wallpaper}")`;
   $(".stage").style.setProperty("--wall", `url("${wallpaper}")`);
   sc.innerHTML = view === "drawer" ? `<div class="layer">${renderHome()}</div>${renderDrawer()}` : view === "folder" ? renderFolder() : view === "now" ? renderNow() : renderHome();
+  fitPreviewIcons(sc);
   // A new screen rises into place; a changed setting just redraws.
   if (view !== shown) { shown = view; sc.classList.remove("enter"); void sc.offsetWidth; sc.classList.add("enter"); }
   fit();
+}
+function fitPreviewIcons(screen) {
+  // Mirror Android's fitIcon. Measure the unscaled cells before changing the artwork.
+  const fits = Array.from(screen.querySelectorAll(".cell-icon"), slot => {
+    const cell = slot.parentElement, label = slot.nextElementSibling;
+    const size = slot.offsetWidth, w = cell.clientWidth, h = cell.clientHeight;
+    const labelHeight = label?.offsetHeight ?? 0;
+    const withLabel = Math.min(size, w * .875, h - labelHeight);
+    const hideLabel = label && withLabel < size / 2;
+    const fitted = hideLabel || !label ? Math.min(size, w * .875, h * .875) : withLabel;
+    return { slot, label, hideLabel, size, fitted: Math.max(0, fitted) };
+  });
+  for (const { slot, label, hideLabel, size, fitted } of fits) {
+    if (hideLabel) label.style.display = "none";
+    if (fitted === size) continue;
+    slot.style.width = slot.style.height = fitted + "px";
+    slot.firstElementChild.style.transform = `scale(${fitted / size})`;
+  }
 }
 function fit() {
   const box = $("#frameBox"), w = box.clientWidth - 4, h = box.clientHeight - 4;
