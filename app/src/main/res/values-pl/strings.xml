@@ -726,7 +726,7 @@
     <string name="welcome_home_set">Ustaw jako aplikację ekranu głównego</string>
     <string name="welcome_not_now">Nie teraz</string>
     <string name="welcome_setup_title">Przenieś swój ekran główny</string>
-    <string name="welcome_setup_body">Wybierz kopię zapasową Nova, aby przenieść aplikacje, foldery, dok, siatkę i widżety.</string>
+    <string name="welcome_setup_body">Wybierz kopię zapasową Nova, aby przenieść aplikacje, foldery, dock, siatkę i widżety.</string>
     <string name="welcome_nova">Importuj z Nova</string>
     <string name="welcome_restore">Przywróć kopię zapasową Vulcan</string>
     <string name="welcome_fresh">Zacznij od nowa</string>
