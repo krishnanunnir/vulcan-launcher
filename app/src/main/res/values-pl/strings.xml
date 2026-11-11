@@ -316,10 +316,6 @@
     <string name="cat_badges">Kropki i liczniki powiadomień</string>
     <string name="cat_gestures">Przesunięcia, dotknięcia, uszczypnięcia i przycisk główny</string>
     <string name="cat_now">Karty na stronie Now</string>
-    <string name="panel_layout">Układ</string>
-    <string name="panel_appearance">Wygląd</string>
-    <string name="panel_interaction">Interakcja</string>
-    <string name="panel_apps">Aplikacje</string>
     <string name="panel_launcher">Launcher</string>
     <string name="hidden_apps">Ukryte aplikacje</string>
     <string name="hidden_apps_info">Ukryj aplikacje w szufladzie</string>
@@ -408,7 +404,6 @@
     <string name="reset">Resetuj</string>
     <string name="import_failed">Import nie powiódł się: %1$s</string>
     <string name="import_title">Zaimportować ten układ?</string>
-    <string name="import_message">Układy %1$s oraz %2$s zastąpią Twój obecny układ.</string>
     <string name="import_">Importuj</string>
     <string name="picker_restarted">Aplikacja Vulcan została uruchomiona ponownie podczas wybierania. Spróbuj ponownie</string>
     <string name="no_web_search_app">Brak aplikacji obsługującej wyszukiwanie w sieci</string>
@@ -558,12 +553,6 @@
         <item quantity="few">%1$d elementy ekranu głównego</item>
         <item quantity="many">%1$d elementów ekranu głównego</item>
         <item quantity="other">%1$d elementu ekranu głównego</item>
-    </plurals>
-    <plurals name="import_settings">
-        <item quantity="one">%1$d ustawienie siatki</item>
-        <item quantity="few">%1$d ustawienia siatki</item>
-        <item quantity="many">%1$d ustawień siatki</item>
-        <item quantity="other">%1$d ustawienia siatki</item>
     </plurals>
     <string name="custom_colors">Własne kolory</string>
     <string name="custom_colors_info">Każdy z kolorów zastępuje barwę motywu w każdym widoku. Zresetuj dowolny z nich, aby przywrócić pierwotny styl.</string>
