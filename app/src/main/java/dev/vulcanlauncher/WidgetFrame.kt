@@ -104,8 +104,35 @@ class WidgetStack(context: Context, private val frames: List<View>, private var 
 
     override fun onInterceptTouchEvent(ev: MotionEvent) = track(ev) || super.onInterceptTouchEvent(ev)
 
-    // DOWN on a part of the widget no child takes lands here: taken, so a sideways swipe from there still flips.
+    // DOWN on a part of the widget no child takes lands here: taken, so a sideways swipe from there still flips. Taps
+    // belong to the widget's own views; TalkBack flips with the scroll actions below.
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(ev: MotionEvent): Boolean { track(ev); return true }
+
+    /** Shows widget [to] at once (TalkBack's scroll actions, which its touch exploration needs instead of the swipe). */
+    private fun flipTo(to: Int) {
+        anim?.end()
+        shown = (to + frames.size) % frames.size
+        offset = 0f
+        invalidate()
+        onFlip(shown)
+        announceForAccessibility(context.getString(R.string.page_of, shown + 1, frames.size))
+    }
+
+    override fun getAccessibilityClassName(): CharSequence = android.widget.HorizontalScrollView::class.java.name
+
+    override fun onInitializeAccessibilityNodeInfo(info: android.view.accessibility.AccessibilityNodeInfo) {
+        super.onInitializeAccessibilityNodeInfo(info)
+        info.isScrollable = true
+        info.addAction(android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD)
+        info.addAction(android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_BACKWARD)
+    }
+
+    override fun performAccessibilityAction(action: Int, args: android.os.Bundle?): Boolean = when (action) {
+        android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD -> { flipTo(shown + 1); true }
+        android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD -> { flipTo(shown - 1); true }
+        else -> super.performAccessibilityAction(action, args)
+    }
 
     /** A fifth of the width, or a [flick], flips to the neighbour; less springs back. */
     private fun settle(released: Boolean, flick: Boolean) {
