@@ -761,4 +761,25 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
         <item quantity="many">%1$d из этих приложений уже есть в других группах.</item>
         <item quantity="other">%1$d из этих приложений уже есть в других группах.</item>
     </plurals>
+    <string name="share_style_link">Поделиться ссылкой</string>
+    <string name="share_style_info">Скопируйте или отправьте ссылку с настройками в формате Designer</string>
+    <string name="share_style_message">Ссылка содержит только поддерживаемые настройки, которые вы изменили по сравнению со значениями по умолчанию. Приложения, виджеты и элементы главного экрана в неё не входят.</string>
+    <string name="share_style_copy">Скопировать ссылку</string>
+    <string name="share_style_send">Поделиться</string>
+    <string name="apply_style_link">Импорт по ссылке</string>
+    <string name="apply_style_info">Вставьте ссылку из Vulcan или Vulcan Designer</string>
+    <string name="apply_style_hint">Вставьте ссылку на стиль</string>
+    <string name="apply_style_paste">Вставить</string>
+    <string name="apply_style_review">Проверить</string>
+    <string name="apply_style_invalid">Вставьте корректную ссылку на стиль Vulcan Designer.</string>
+    <string name="apply_style_empty_clipboard">В буфере обмена нет ссылки.</string>
+    <string name="apply_style_no_changes">В этой ссылке нет настроек, которые нужно изменить</string>
+    <string name="apply_style_apply">Применить</string>
+    <string name="apply_style_done">Стиль применён</string>
+    <plurals name="apply_style_confirm">
+        <item quantity="one">Применить %1$d настройку из этой ссылки? Элементы главного экрана сохранятся, но из-за изменения сетки могут сместиться.</item>
+        <item quantity="few">Применить %1$d настройки из этой ссылки? Элементы главного экрана сохранятся, но из-за изменения сетки могут сместиться.</item>
+        <item quantity="many">Применить %1$d настроек из этой ссылки? Элементы главного экрана сохранятся, но из-за изменения сетки могут сместиться.</item>
+        <item quantity="other">Применить %1$d настройки из этой ссылки? Элементы главного экрана сохранятся, но из-за изменения сетки могут сместиться.</item>
+    </plurals>
 </resources>

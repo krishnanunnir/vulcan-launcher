@@ -726,4 +726,23 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
         <item quantity="one">%1$d dieser Apps ist auch in anderen Gruppen.</item>
         <item quantity="other">%1$d dieser Apps sind auch in anderen Gruppen.</item>
     </plurals>
+    <string name="share_style_link">Als Link teilen</string>
+    <string name="share_style_info">Kopiere oder sende deine Einstellungen als Designer-Link</string>
+    <string name="share_style_message">Der Link enthält nur unterstützte Einstellungen, deren Werte du gegenüber den Standardwerten geändert hast. Apps, Widgets und Elemente des Startbildschirms sind nicht enthalten.</string>
+    <string name="share_style_copy">Link kopieren</string>
+    <string name="share_style_send">Teilen</string>
+    <string name="apply_style_link">Aus einem Link importieren</string>
+    <string name="apply_style_info">Füge einen Link aus Vulcan oder dem Vulcan Designer ein</string>
+    <string name="apply_style_hint">Stil-Link einfügen</string>
+    <string name="apply_style_paste">Einfügen</string>
+    <string name="apply_style_review">Prüfen</string>
+    <string name="apply_style_invalid">Füge einen gültigen Designer-Stil-Link ein.</string>
+    <string name="apply_style_empty_clipboard">In der Zwischenablage ist kein Link.</string>
+    <string name="apply_style_no_changes">Dieser Link enthält keine Einstellungen, die geändert werden müssen.</string>
+    <string name="apply_style_apply">Anwenden</string>
+    <string name="apply_style_done">Stil angewendet</string>
+    <plurals name="apply_style_confirm">
+        <item quantity="one">%1$d Einstellung aus diesem Link anwenden? Deine Startbildschirm-Elemente bleiben gespeichert, aber Rasteränderungen können sie verschieben.</item>
+        <item quantity="other">%1$d Einstellungen aus diesem Link anwenden? Deine Startbildschirm-Elemente bleiben gespeichert, aber Rasteränderungen können sie verschieben.</item>
+    </plurals>
 </resources>
