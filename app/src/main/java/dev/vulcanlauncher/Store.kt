@@ -172,12 +172,13 @@ class Store(private val context: Context) {
         return readableBackup(looks, items, sub, data, apps.map { Triple(it.title, it.pkg, it.cls) to it.serial }, context::getString).toString(2)
     }
 
+    data class RestoreResult(val replacedLayout: Boolean, val rejected: List<String>)
+
     /**
-     * Replaces the configuration with a backup made by [export] (or by hand, or an AI assistant), or by an older version.
-     * [cls] finds the main activity of a package, for apps written without one. Returns the settings it left out because
-     * their values aren't allowed. Throws on a file that isn't a backup.
+     * Replaces the configuration from a backup, or merges the settings from an older Designer style file.
+     * [cls] finds the main activity for apps written without one. Throws on an unrecognised file.
      */
-    fun import(json: String, cls: (pkg: String, user: Long) -> String? = { _, _ -> null }): List<String> {
+    fun import(json: String, cls: (pkg: String, user: Long) -> String? = { _, _ -> null }): RestoreResult {
         val root = JSONObject(json)
         // Read the whole file before writing anything, so a bad one leaves the current setup untouched.
         val (files, rejected) = when (root.optString("format")) {
@@ -190,11 +191,13 @@ class Store(private val context: Context) {
         }
         // ponytail: three commits, not one transaction; an I/O failure between them can mix old and new files. The layout
         // carries its own subgrid factor, so its positions still read right; only grid sizes could be the old ones (fitItems copes)
-        for ((name, values) in files) context.getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear().apply {
+        val replacedLayout = "layout" in files
+        for ((name, values) in files) context.getSharedPreferences(name, Context.MODE_PRIVATE).edit().apply {
+            if (replacedLayout) clear()
             // data keeps its flags as booleans; the backup has them as "true"/"false"
             values.forEach { (k, v) -> if (name == "data" && (v == "true" || v == "false")) putBoolean(k, v == "true") else putString(k, v) }
         }.commit()
-        return rejected
+        return RestoreResult(replacedLayout, rejected)
     }
 
     fun reset() = FILES.forEach { context.getSharedPreferences(it, Context.MODE_PRIVATE).edit().clear().commit() }
@@ -253,8 +256,9 @@ fun readableBackup(looks: Map<String, String>, items: List<Item>, sub: Int, data
         })))
 
 /**
- * The three preference files a readable backup restores to, and the "key=value" settings left out because the value isn't
- * allowed. true/false are taken as on/off. [cls] fills in the main activity of apps written with only a package.
+ * The preference files a readable backup restores to, and the "key=value" settings left out because the value isn't
+ * allowed. A legacy Designer style file only supplies looks. [cls] fills in the main activity for apps written with
+ * only a package.
  */
 fun readableBackupFiles(root: JSONObject, cls: (pkg: String, user: Long) -> String?): Pair<Map<String, Map<String, String>>, List<String>> {
     val rejected = ArrayList<String>()
@@ -264,6 +268,10 @@ fun readableBackupFiles(root: JSONObject, cls: (pkg: String, user: Long) -> Stri
             val v = when (val raw = s.get(k)) { true -> "on"; false -> "off"; else -> raw.toString() }
             if (LOOKS.firstOrNull { it.key == k }?.accepts(v) != false) looks[k] = v else rejected += "$k=$v"
         }
+    }
+    if (!root.has("home") && !root.has("data")) {
+        require(root.optJSONObject("settings") != null) { "Missing settings" }
+        return mapOf("looks" to looks) to rejected
     }
     val home = root.optJSONObject("home") ?: JSONObject()
     fun fill(i: Item): Item = i.copy(cls = if (i.isApp && i.cls.isEmpty()) cls(i.pkg, i.user).orEmpty() else i.cls, children = i.children.map(::fill))

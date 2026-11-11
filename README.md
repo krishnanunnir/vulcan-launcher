@@ -76,6 +76,10 @@ You can bring your Nova home screen with you:
 
 Your apps, folders, dock, grid size, most shortcuts and widgets come over. Each widget is made new in its old spot: Android asks once whether Vulcan may add widgets, and widgets with options (a clock face, a note) ask for them again. A widget you skip stays as a "Tap to add" spot. Nova's own widgets can't come over.
 
+## Share your style
+
+To share your style, go to **Settings → Style → Share as a URL** and copy or send the link. It opens in [Vulcan Designer](https://vulcanlauncher.dev/design/) for a browser preview. To apply a link from the app or Designer, go to **Settings → Backup & restore → Import from URL**, paste the link, and review the settings before applying them offline. The link applies the supported settings it contains and preserves your apps, folders and widgets. Use a backup file to move a whole setup.
+
 ## Design your home screen with an AI assistant
 
 A Vulcan backup is a plain JSON file that explains itself, so you can hand it to an AI assistant (or edit it yourself) and load the result:

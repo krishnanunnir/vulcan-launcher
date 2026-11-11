@@ -273,7 +273,9 @@ private fun SettingsActivity.settingsHome(page: LinearLayout): (String) -> Unit 
     }
     // As Nova 8.9.4's two tabs: what goes where, then how it looks.
     panel(list, getString(R.string.settings), listOf(HOME, DRAWER, FOLDERS, SEARCH_GROUP, GESTURES, NOW, BADGES).map(::category))
-    panel(list, getString(R.string.panel_style), listOf(LOOK, NIGHT).map(::category))
+    panel(list, getString(R.string.panel_style), listOf(LOOK, NIGHT).map(::category) +
+        listItem(symbol("link", m3.onPrimaryContainer), getString(R.string.share_style_link),
+            getString(R.string.share_style_info), tonalIcon = true) { shareStyle() })
     panel(list, getString(R.string.panel_launcher), listOf(
         listItem(symbol("archive", m3.onPrimaryContainer), getString(R.string.backup_restore), getString(R.string.backup_restore_info), tonalIcon = true) { showPage(BACKUP) },
         listItem(symbol("shield", m3.onPrimaryContainer), getString(R.string.permissions), getString(R.string.permissions_info), tonalIcon = true) { showPage(PERMISSIONS) },
@@ -933,14 +935,15 @@ private fun SettingsActivity.backupPage(list: LinearLayout) {
             dialog().setMessage(getString(R.string.restore_auto_confirm, saved))
                 .setPositiveButton(R.string.restore) { _, _ ->
                     runCatching { store.import(f.readText(), home::mainActivity) }
-                        .onSuccess { home.dropForeignWidgets(); restartHome() }
+                        .onSuccess { if (it.replacedLayout) home.dropForeignWidgets(); restartHome() }
                         .onFailure { toast(getString(R.string.restore_failed, it.message)) }
                 }.setNegativeButton(R.string.cancel, null).show()
         }
     }.ifEmpty { listOf(row("clock", R.string.restore_auto_none, getString(R.string.restore_auto_none_info), null)) }
-    panel(list, getString(R.string.backup_panel_restore), listOf(row("refresh", R.string.restore_from_file, getString(R.string.restore_from_file_info)) {
-        pickFile(MainActivity.REQ_RESTORE)
-    }) + autoRows)
+    panel(list, getString(R.string.backup_panel_restore), listOf(
+        row("refresh", R.string.restore_from_file, getString(R.string.restore_from_file_info)) { pickFile(MainActivity.REQ_RESTORE) },
+        row("link", R.string.apply_style_link, getString(R.string.apply_style_info)) { pasteStyle() },
+    ) + autoRows)
     panel(list, getString(R.string.backup_panel_other), listOf(row("archive", R.string.import_launcher_backup, getString(R.string.import_launcher_backup_info)) {
         pickFile(MainActivity.REQ_DOC)
     }))
@@ -954,13 +957,13 @@ private fun SettingsActivity.backupPage(list: LinearLayout) {
     }))
 }
 
-/** Replaces everything with a Vulcan backup file; [restart] then rebuilds home from what was stored. */
+/** Restores a backup or applies an older style file, then [restart] rebuilds home. */
 fun VulcanActivity.restoreBackup(uri: android.net.Uri, restart: () -> Unit) {
     runCatching { store.import(contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() }, home::mainActivity) }
-        .onSuccess { rejected ->
-            if (rejected.isNotEmpty()) toast(R.string.skipped_settings, rejected.joinToString())
+        .onSuccess { result ->
+            if (result.rejected.isNotEmpty()) toast(R.string.skipped_settings, result.rejected.joinToString())
             // Widget IDs belong to the install that made them; drop the ones this install doesn't own.
-            home.dropForeignWidgets()
+            if (result.replacedLayout) home.dropForeignWidgets()
             restart()
         }.onFailure { toast(R.string.restore_failed, it.message) }
 }

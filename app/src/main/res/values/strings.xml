@@ -656,6 +656,25 @@
     <string name="restore_auto_none_info">Vulcan saves one a day on this phone and keeps the last three</string>
     <string name="restore_auto_confirm">Replace the layout and settings with the automatic backup from %1$s?</string>
     <string name="restore">Restore</string>
+    <string name="share_style_link">Share as a URL</string>
+    <string name="share_style_info">Copy or send your settings as a Designer link</string>
+    <string name="share_style_message">The link holds supported settings you changed from their defaults. It leaves out your apps, widgets and home screen items.</string>
+    <string name="share_style_copy">Copy link</string>
+    <string name="share_style_send">Share</string>
+    <string name="apply_style_link">Import from URL</string>
+    <string name="apply_style_info">Paste a link from Vulcan or Vulcan Designer</string>
+    <string name="apply_style_hint">Paste the style link</string>
+    <string name="apply_style_paste">Paste</string>
+    <string name="apply_style_review">Review</string>
+    <string name="apply_style_invalid">Paste a valid Vulcan Designer style link.</string>
+    <string name="apply_style_empty_clipboard">There’s no link on your clipboard.</string>
+    <string name="apply_style_no_changes">No settings to change in this link</string>
+    <string name="apply_style_apply">Apply</string>
+    <string name="apply_style_done">Style applied</string>
+    <plurals name="apply_style_confirm">
+        <item quantity="one">Apply %1$d setting from this link? Your home screen items stay saved, though grid changes can move them.</item>
+        <item quantity="other">Apply %1$d settings from this link? Your home screen items stay saved, though grid changes can move them.</item>
+    </plurals>
     <string name="import_launcher_backup">Import from another launcher</string>
     <string name="import_launcher_backup_info">Brings over a home screen from a .novabackup file</string>
     <string name="reset_defaults_info">Removes every setting and the whole home screen layout</string>

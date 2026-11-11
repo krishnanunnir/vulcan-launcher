@@ -92,6 +92,20 @@ class StoreTest {
     }
 
     @Test
+    fun settingsOnlyDesignerFileDoesNotSupplyLayoutOrDrawerData() {
+        val style = org.json.JSONObject("""{"format":"vulcan-backup-2","settings":{"labels":false,"cols":"100"}}""")
+        val (files, rejected) = readableBackupFiles(style) { _, _ -> error("A style has no apps") }
+        assertEquals(mapOf("looks" to mapOf("labels" to "off")), files)
+        assertEquals(listOf("cols=100"), rejected)
+
+        // A real backup can intentionally restore an empty home.
+        style.put("home", org.json.JSONObject("""{"items":[]}"""))
+        val (backup, _) = readableBackupFiles(style) { _, _ -> null }
+        assertEquals("[]", backup["layout"]?.get("items"))
+        assertEquals(emptyMap<String, String>(), backup["data"])
+    }
+
+    @Test
     fun backupDataIsReadableJson() {
         val groups = """[{"name":"Social","type":"tab","apps":["a/A/0"]}]"""
         val doc = readableBackup(emptyMap(), emptyList(), 1, mapOf("groups" to groups, "pendingWidget" to ""), emptyList()) { "s$it" }

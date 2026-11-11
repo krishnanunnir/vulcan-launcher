@@ -103,6 +103,7 @@ class Symbol(private val name: String, private val color: Int, private val size:
             "hide" -> { eye(); line(4f, 4f, 20f, 20f) }
             "folder" -> poly(3f, 6.5f, 3.5f, 5f, 9.5f, 5f, 11.5f, 7.5f, 20.5f, 7.5f, 21f, 9f, 21f, 18.5f, 20f, 19.5f, 4f, 19.5f, 3f, 18.5f, close = true)
             "download" -> { line(12f, 4f, 12f, 15f); poly(7f, 10f, 12f, 15f, 17f, 10f); line(5f, 20f, 19f, 20f) }
+            "link" -> { rect(3f, 8f, 13f, 16f, 4f); rect(11f, 8f, 21f, 16f, 4f); line(8f, 12f, 16f, 12f) }
             "stop" -> { circle(12f, 12f, 9f); rect(9f, 9f, 15f, 15f, 1f, filled = true) }
             "notifications" -> {
                 path { moveTo(6f, 17f); lineTo(6f, 11f); arcTo(RectF(6f, 5f, 18f, 17f), 180f, 180f); lineTo(18f, 17f) }

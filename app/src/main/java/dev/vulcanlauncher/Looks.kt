@@ -259,6 +259,7 @@ class Looks(context: Context) {
     operator fun get(c: Choice): String = prefs.getString(c.key, c.default)!!
     operator fun set(c: Choice, value: String) = prefs.edit().putString(c.key, value).apply()
     operator fun set(key: String, value: String) = prefs.edit().putString(key, value).apply()
+    fun applyStyle(settings: Map<String, String>) = prefs.edit().apply { settings.forEach { (k, v) -> putString(k, v) } }.apply()
 
     /** Every stored value, to tell whether any changed. */
     fun all(): Map<String, *> = prefs.all

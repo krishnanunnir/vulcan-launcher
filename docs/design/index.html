@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vulcan designer</title>
-<meta name="description" content="Tweak Vulcan Launcher's settings with a live preview, then load the file on your phone. Runs in your browser; nothing is uploaded.">
+<meta name="description" content="Tweak Vulcan Launcher's settings with a live preview, then import the style on your phone. Runs in your browser; nothing is uploaded.">
 <link rel="icon" href="../favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" href="../icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -47,6 +47,7 @@
   .btn.ghost:hover { background: var(--card-2); color: var(--ink); }
   .btn.primary { background: var(--signal); border-color: var(--signal); color: var(--on-signal); font-weight: 700; }
   .btn.primary:hover { background: #F58230; }
+  .btn[hidden] { display: none; }
   .tools .primary { margin-left: 6px; }
 
   main { display: grid; grid-template-columns: minmax(330px, .83fr) minmax(490px, 1fr); min-height: calc(100% - var(--bar)); }
@@ -252,9 +253,9 @@
   <div class="tools">
     <button class="btn ghost" id="openBtn" title="Start from a backup made on your phone"><span class="ms" aria-hidden="true">folder_open</span>Open backup</button>
     <input type="file" id="open" accept=".json,application/json" hidden>
-    <button class="btn ghost" id="share" title="Copy a link holding the changed settings"><span class="ms" aria-hidden="true">link</span>Share link</button>
     <button class="btn ghost" id="ai" title="Copy your settings with instructions for an AI assistant, or paste its answer"><span class="ms" aria-hidden="true">auto_awesome</span>AI assistant</button>
-    <button class="btn primary" id="download"><span class="ms" aria-hidden="true">download</span><span id="dlText">Download style</span></button>
+    <button class="btn primary" id="share" title="Copy a link holding the changed settings"><span class="ms" aria-hidden="true">link</span>Share link</button>
+    <button class="btn primary" id="download" hidden><span class="ms" aria-hidden="true">download</span>Download backup</button>
   </div>
 </header>
 <main>
@@ -275,7 +276,7 @@
     <div class="panel-inner">
       <div class="intro">
         <h1 id="designer-title">Vulcan designer</h1>
-        <p>Try a look or open your backup. See your changes live, then download the result for your phone. Files stay in your browser.</p>
+        <p>Try a look or open your backup. To apply a style on your phone, copy its link and open <b>Settings → Backup &amp; restore → Import from URL</b> in Vulcan. Files stay in your browser.</p>
       </div>
       <section class="looks" aria-labelledby="looks-title">
         <div class="section-head">
@@ -288,7 +289,10 @@
         <div class="editor-head">
           <div class="section-head">
             <h2 id="settings-title">Fine-tune settings</h2>
-            <button class="link" id="resetAll">Reset all</button>
+            <div>
+              <button class="link" id="closeBackup" hidden>Close backup</button>
+              <button class="link" id="resetAll">Reset all</button>
+            </div>
           </div>
           <p class="status" id="status" role="status">Loading settings…</p>
         </div>
@@ -304,6 +308,7 @@
   <h3 id="ai-title">Work on it with an AI assistant</h3>
   <p>Copy this, add what you want ("warm and minimal, no labels, big icons"), and give it to any assistant. Paste its answer back here.</p>
   <textarea id="aiText" spellcheck="false" aria-label="Settings and instructions for an assistant"></textarea>
+  <p id="aiStatus" role="status"></p>
   <div class="dlg-actions">
     <button class="btn ghost" id="aiClose">Close</button>
     <button class="btn" id="aiCopy">Copy</button>
@@ -316,7 +321,7 @@
   <ol class="steps">
     <li><span>Get <b id="doneName"></b> onto your phone.</span></li>
     <li><span>In Vulcan, open <b>Settings → Backup &amp; restore → Restore from a file</b>.</span></li>
-    <li><span>Pick the file. <span id="doneKeeps"></span></span></li>
+    <li><span>Pick the file to restore its layout, settings and drawer data.</span></li>
   </ol>
   <div class="dlg-actions"><button class="btn primary" id="doneClose">Done</button></div>
 </dialog>
@@ -326,9 +331,10 @@
 "use strict";
 const SCHEMA_URL = "../schema/vulcan-backup-2.json";
 const PUBLIC_SCHEMA = "https://vulcanlauncher.dev/schema/vulcan-backup-2.json";
+const STORAGE_KEY = "vulcan-designer";
 const GROUP_ORDER = ["Home screen", "Dock", "App drawer", "Folders", "Search", "Look & feel", "Notification badges", "Now page", "Night mode", "Gestures & inputs"];
 // Settings the preview draws; the rest change the phone's behaviour only.
-const DRAWN = new Set(("cols rows pages defaultPage iconSize labels labelSize labelColor labelFont labelLines labelShadow indicator searchBar searchStyle searchColor " +
+const DRAWN = new Set(("cols rows pages defaultPage subgrid iconSize labels labelSize labelColor labelFont labelLines labelShadow indicator searchBar searchStyle searchColor " +
   "glanceStyle widgetRadius hideClock statusBar darkStatusIcons dock dockCols dockIconSize dockLabels dockBg dockColor dockAlpha dockShadow " +
   "drawerStyle drawerSearch drawerCols drawerRows drawerIconSize drawerLabels drawerLabelSize drawerTheme drawerAlpha frequent " +
   "folderPreview folderBg folderColor folderAlpha folderRadius folderNames folderLabelSize folderCols folderWindow folderFirstBig folderClip " +
@@ -353,7 +359,7 @@ const LOOK_DETAILS = {
 const DEMO_APPS = ["Phone", "Messages", "Browser", "Camera", "Photos", "Mail", "Maps", "Calendar", "Clock", "Music", "Notes", "Files", "Calculator", "Contacts", "Settings", "Store", "Wallet", "Podcasts", "Recorder", "Health", "Translate", "Weather", "Docs", "Radio"];
 const PALETTE = ["#1E88E5", "#43A047", "#E53935", "#FB8C00", "#8E24AA", "#00897B", "#3949AB", "#D81B60", "#6D4C41", "#546E7A", "#F4511E", "#7CB342"];
 
-let props = {}, sections = [], S = {}, loaded = null, loadedName = "", view = "home", phoneDark = false, tab = "Home screen";
+let props = {}, sections = [], S = {}, loaded = null, loadedName = "", draftSaved = true, view = "home", phoneDark = false, tab = "Home screen";
 let wallpaper = "../wallpaper-dusk.jpg", shown;
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -375,7 +381,8 @@ const values = p => p.enum || p.anyOf[0].enum;
 const nameOf = (k, v) => (props[k]["x-names"] || {})[v] || v;
 function normalize(k, v) { if (v === true) return "on"; if (v === false) return "off"; return v == null ? v : String(v); }
 function accepts(k, v) {
-  const p = props[k]; if (!p) return typeof v === "string";
+  if (!Object.hasOwn(props, k)) return typeof v === "string";
+  const p = props[k];
   const vs = values(p);
   if (vs.includes(v)) return true;
   const kd = kind(p);
@@ -396,6 +403,9 @@ function applySettings(obj, replace) {
 /** Settings that differ from their defaults (and any extra stored ones, such as an icon pack). */
 function changed() { const o = {}; for (const k in S) if (S[k] !== def(k)) o[k] = S[k]; return o; }
 function fullSettings() { const o = {}; for (const k in props) o[k] = val(k); for (const k in S) if (!props[k]) o[k] = S[k]; return o; }
+function isPortableSetting(key, value) {
+  return Object.hasOwn(props, key) && typeof value === "string" && !value.startsWith("app:") && accepts(key, value);
+}
 
 // ---- Colours ----
 const night = () => { const m = val("nightMode"); return m === "on" ? true : m === "off" ? false : phoneDark; };
@@ -511,7 +521,7 @@ function folderIcon(label, size, children, opts = {}) {
   return `<div class="cell"><div class="icw" style="width:${size}px;height:${size}px;${clip}">${bg}${art}</div>${showLabel ? `<div class="lb" style="${fontCss(opts.labelSize || num("labelSize"), val("labelColor"), on("labelShadow"), num("labelLines"))}">${esc(label)}</div>` : ""}</div>`;
 }
 
-// ---- What's on home: the loaded backup's first page and dock, or a demo ----
+// ---- What's on home: the loaded backup's default page and dock, or a demo ----
 function appName(it) {
   if (it.label) return it.label;
   const apps = loaded && loaded.reference && loaded.reference.installedApps || [];
@@ -520,13 +530,56 @@ function appName(it) {
   if (it.action) return it.action;
   return (it.pkg || "App").split(".").pop();
 }
+// Match Android's layoutIn and fitItems. Keep the original coordinates in the backup.
+function fitBackupItems(sub) {
+  const pages = num("pages"), cols = num("cols") * sub, rows = num("rows") * sub;
+  const dockPages = num("dockPages"), dockCols = num("dockCols");
+  const savedSub = loaded.home.sub ?? (normalize("subgrid", loaded.settings?.subgrid) === "on" ? 2 : 1);
+  const scale = sub / savedSub;
+  const items = (loaded.home.items ?? []).map(item => {
+    const { x, y } = item;
+    const w = item.w ?? 1, h = item.h ?? 1;
+    if (item.page < 0) return { ...item, w, h };
+    return { ...item, x: Math.trunc(x * scale), y: Math.trunc(y * scale),
+      w: Math.max(1, Math.trunc(w * scale)), h: Math.max(1, Math.trunc(h * scale)) };
+  });
+  const fits = ({ page, x, y, w, h }) => page < 0
+    ? page >= -dockPages && x + w <= dockCols && y === 0
+    : page < pages && x + w <= cols && y + h <= rows;
+  const placed = items.filter(fits);
+  const free = ({ page, x, y, w, h }) => !placed.some(i => i.page === page &&
+    x < i.x + i.w && i.x < x + w && y < i.y + i.h && i.y < y + h);
+  function firstFree(item) {
+    if (item.page < 0 && item.w === 1) {
+      for (let page = -1; page >= -dockPages; page--) {
+        for (let x = 0; x < dockCols; x++) {
+          const spot = { ...item, page, x, y: 0 };
+          if (free(spot)) return spot;
+        }
+      }
+    }
+    const w = Math.min(item.w, cols), h = Math.min(item.h, rows);
+    const pageOrder = Array.from({ length: pages }, (_, page) => page);
+    if (item.page >= 0 && item.page < pages) pageOrder.unshift(...pageOrder.splice(item.page, 1));
+    for (const page of pageOrder) {
+      for (let y = 0; y <= rows - h; y++) {
+        for (let x = 0; x <= cols - w; x++) {
+          const spot = { ...item, page, x, y, w, h };
+          if (free(spot)) return spot;
+        }
+      }
+    }
+    return item;
+  }
+  for (const item of items) if (!fits(item)) placed.push(firstFree(item));
+  return placed.filter(fits);
+}
 function homeItems() {
-  if (loaded && loaded.home && Array.isArray(loaded.home.items) && loaded.home.items.length) {
-    const sub = loaded.home.sub === 2 ? 2 : 1;
-    const page = Math.min(num("defaultPage"), Math.max(0, num("pages") - 1));
-    let grid = loaded.home.items.filter(i => i.page === page);
-    if (!grid.length) grid = loaded.home.items.filter(i => i.page === 0);
-    return { sub, grid, dock: loaded.home.items.filter(i => i.page === -1) };
+  if (loaded) {
+    const sub = on("subgrid") ? 2 : 1;
+    const page = Math.min(num("defaultPage"), num("pages") - 1);
+    const items = fitBackupItems(sub);
+    return { sub, grid: items.filter(i => i.page === page), dock: items.filter(i => i.page === -1) };
   }
   const cols = num("cols"), rows = num("rows"), grid = [];
   grid.push({ x: 0, y: 0, w: cols, h: Math.min(2, rows - 1), action: "clock" });
@@ -599,10 +652,10 @@ function renderHome() {
     if (x > cols || y > rows) continue;
     const area = `grid-column:${x} / span ${Math.min(w, cols - x + 1)};grid-row:${y} / span ${Math.min(h, rows - y + 1)};`;
     if (it.action === "clock") cells += `<div style="${area}min-height:0">${clockItem(h / sub * 100)}</div>`;
-    else if ((it.widgetId != null && it.widgetId !== -1) || it.action === "widgetSlot" || (it.w > 1 || it.h > 1) && !it.folder) {
+    else if ((it.widgetId != null && it.widgetId !== -1) || it.action === "widgetSlot") {
       const r = num("widgetRadius") || 18;
       cells += `<div style="${area}padding:6px;min-height:0"><div class="widget" style="border-radius:${r}px;background:rgba(255,255,255,.16);backdrop-filter:blur(8px)">Widget</div></div>`;
-    } else cells += `<div style="${area}display:flex;min-width:0;min-height:0">${cellFor(it, size, { badge: !it.folder && badgeLeft-- > 0 ? 12 : 0 })}</div>`;
+    } else cells += `<div style="${area}display:grid;min-width:0;min-height:0">${cellFor(it, size, { badge: !it.folder && badgeLeft-- > 0 ? 12 : 0 })}</div>`;
   }
   return `<div class="col">${statusBar(!on("darkStatusIcons"))}${searchBar("top")}<div class="grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr));grid-template-rows:repeat(${rows},minmax(0,1fr))">${cells}</div>${indicator()}${searchBar("bottom")}${searchBar("dockAbove")}${dockHtml(dock)}${searchBar("dockBelow")}<div class="navh"><i></i></div></div>`;
 }
@@ -697,9 +750,15 @@ function control(k) {
   } else if (kd === "range") {
     const vs = values(p), wrap = document.createElement("div"); wrap.className = "slider";
     const r = document.createElement("input"); r.type = "range"; r.min = 0; r.max = vs.length - 1; r.value = Math.max(0, vs.indexOf(v)); r.setAttribute("aria-label", p.title);
-    const o = document.createElement("output"); o.textContent = nameOf(k, v);
-    const fill = () => r.style.setProperty("--p", r.value / r.max * 100 + "%"); fill();
-    r.oninput = () => { fill(); o.textContent = nameOf(k, vs[r.value]); set(vs[r.value]); };
+    const o = document.createElement("output");
+    const showValue = () => {
+      const label = nameOf(k, vs[r.value]);
+      o.textContent = label;
+      r.setAttribute("aria-valuetext", label);
+      r.style.setProperty("--p", r.value / r.max * 100 + "%");
+    };
+    showValue();
+    r.oninput = () => { showValue(); set(vs[r.value]); };
     wrap.append(r, o); el.append(wrap);
   } else if (kd === "color") {
     const wrap = document.createElement("div"); wrap.className = "swatches";
@@ -828,12 +887,29 @@ function update(k) {
 }
 function status(extra) {
   const n = Object.keys(changed()).length;
-  const src = loaded ? `<b>${esc(loadedName)}</b> loaded (${(loaded.home && loaded.home.items || []).length} home items)` : "Starting from a fresh install";
-  $("#status").innerHTML = `${src} · ${n ? `<b>${n}</b> setting${n > 1 ? "s" : ""} changed` : "no changes"}${extra ? " · " + extra : ""}`;
-  $("#dlText").textContent = loaded ? "Download backup" : "Download style";
-  $("#download").title = loaded ? "Your backup with these settings: layout, tabs and hidden apps kept" : "Settings only: restoring it keeps the phone's layout";
+  const src = loaded ? `<b>${esc(loadedName)}</b> loaded (${loaded.home.items?.length ?? 0} home items)` : "Starting from a fresh install";
+  const draftWarning = loaded && !draftSaved ? ' · <span class="err">Download your backup before reloading. This browser couldn’t save the draft.</span>' : "";
+  $("#status").innerHTML = `${src} · ${n ? `<b>${n}</b> setting${n > 1 ? "s" : ""} changed` : "no changes"}${extra ? " · " + extra : ""}${draftWarning}`;
+  $("#download").hidden = $("#closeBackup").hidden = !loaded;
+  $("#share").classList.toggle("primary", !loaded);
+  $("#share").classList.toggle("ghost", !!loaded);
 }
-function save() { try { localStorage.setItem("vulcan-designer", JSON.stringify({ S, tab })); } catch (e) {} }
+function save() {
+  if (loaded) {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ S, tab, loaded, loadedName }));
+      draftSaved = true;
+    } catch (e) {
+      clearBackupDraft();
+      draftSaved = false;
+    }
+  } else {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ S, tab })); } catch (e) {}
+  }
+}
+function clearBackupDraft() {
+  try { sessionStorage.removeItem(STORAGE_KEY); } catch (e) {}
+}
 
 // ---- Files, links, presets, AI ----
 function refresh(extra) { buildTabs(); buildGroup(); buildViews(); render(); save(); status(extra); }
@@ -873,34 +949,95 @@ function download(name, text) {
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type: "application/json" })); a.download = name; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
-function styleDoc() { return { "$schema": PUBLIC_SCHEMA, format: "vulcan-backup-2", settings: fullSettings() }; }
-function openFile(file) {
-  file.text().then(t => {
-    let d; try { d = JSON.parse(t); } catch (e) { return status(`<span class="err">${esc(file.name)} isn't JSON</span>`); }
-    if (d.format !== "vulcan-backup-2") return status(`<span class="err">${esc(file.name)} isn't a Vulcan backup (Settings → Backup & restore → Back up to a file)</span>`);
-    loaded = d; loadedName = file.name;
-    const bad = applySettings(d.settings, true);
-    buildTabs(); buildGroup(); render(); save();
-    status(bad.length ? `<span class="err">left out: ${esc(bad.join(", "))}</span>` : "");
-  });
+const isObject = v => !!v && typeof v === "object" && !Array.isArray(v);
+function hasBackupLayout(d) {
+  return isObject(d.home) && (d.home.sub == null || d.home.sub === 1 || d.home.sub === 2) &&
+    (d.home.items === undefined || Array.isArray(d.home.items) && d.home.items.every(item => isObject(item) &&
+      [item.page, item.x, item.y].every(Number.isInteger) &&
+      [item.w ?? 1, item.h ?? 1].every(n => Number.isInteger(n) && n > 0) &&
+      (item.children == null || Array.isArray(item.children) && item.children.every(isObject))));
+}
+async function openFile(file) {
+  let content;
+  try { content = await file.text(); } catch (e) { return status(`<span class="err">Couldn't read ${esc(file.name)}</span>`); }
+  let d;
+  try { d = JSON.parse(content); } catch (e) { return status(`<span class="err">${esc(file.name)} isn't JSON</span>`); }
+  const isBackup = isObject(d) && hasBackupLayout(d);
+  const isStyle = isObject(d) && !Object.hasOwn(d, "home") && !Object.hasOwn(d, "data") && isObject(d.settings);
+  if (d?.format !== "vulcan-backup-2" || (!isBackup && !isStyle) || (d.settings != null && !isObject(d.settings))) {
+    return status(`<span class="err">${esc(file.name)} isn't a Vulcan backup (Settings → Backup & restore → Back up to a file)</span>`);
+  }
+  if (!isBackup) clearBackupDraft();
+  loaded = isBackup ? d : null;
+  loadedName = isBackup ? file.name : "";
+  $("#toast").classList.remove("on");
+  const bad = applySettings(d.settings, true);
+  refresh(bad.length ? `<span class="err">left out: ${esc(bad.join(", "))}</span>` : isStyle ? "Style loaded" : "");
+}
+function restoreDraft(storageName) {
+  try {
+    const d = JSON.parse(window[storageName].getItem(STORAGE_KEY));
+    if (!d) return;
+    if (d.loaded && hasBackupLayout(d.loaded)) {
+      loaded = d.loaded;
+      loadedName = d.loadedName;
+    }
+    applySettings(d.S, true);
+    if (sections.some(s => s.group === d.tab)) tab = d.tab;
+    view = GROUP_VIEW[tab] || "home";
+  } catch (e) {}
 }
 function encodeHash(o) { return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
 function decodeHash(s) { return JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g, "+").replace(/_/g, "/"))))); }
+function loadSharedStyle() {
+  const match = location.hash.match(/^#s=(.+)$/);
+  if (!match) return false;
+  history.replaceState(null, "", location.pathname + location.search);
+  try {
+    const settings = decodeHash(match[1]);
+    if (!isObject(settings)) throw new Error("Expected a settings object");
+    applySettings(settings, true);
+    clearBackupDraft();
+    loaded = null;
+    loadedName = "";
+    toast("Shared style loaded");
+    return true;
+  } catch (e) {
+    toast("That link's style couldn't be read");
+    return false;
+  }
+}
 function aiText() {
-  return `I use Vulcan Launcher on Android. Below are its settings as JSON. Change them to make this style: <describe the look you want>.
+  const settings = Object.fromEntries(Object.keys(props).map(k => [k, val(k)]).filter(([k, v]) => isPortableSetting(k, v)));
+  return `I use Vulcan Launcher on Android. Use my current settings below to make this style: <describe the look you want>.
 
-Rules: keep the same JSON shape ({"settings": {...}}), use only keys and values allowed by the JSON Schema at ${PUBLIC_SCHEMA} (each setting lists its allowed "enum" values; colour settings also take #RRGGBB), and reply with the JSON only.
+Reply with one JSON object in the form {"settings": {...}}. Include only settings you want to change. Use the keys and values in ${PUBLIC_SCHEMA}. Colour settings also accept #RRGGBB.
 
-${JSON.stringify({ settings: fullSettings() }, null, 2)}`;
+${JSON.stringify({ settings }, null, 2)}`;
+}
+function readAiSettings(text) {
+  let answer;
+  try {
+    answer = JSON.parse(text);
+  } catch (e) {
+    const fenced = text.match(/```(?:json)?[^\S\r\n]*\r?\n([\s\S]*?)```/i);
+    try {
+      answer = JSON.parse(fenced ? fenced[1] : text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
+    } catch (e) { return null; }
+  }
+  if (!isObject(answer)) return null;
+  const settings = Object.hasOwn(answer, "settings") ? answer.settings : answer;
+  return isObject(settings) ? settings : null;
 }
 
 // ---- Start ----
 fetch(SCHEMA_URL).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(schema => {
   props = schema.properties.settings.properties;
   sections = schema["x-sections"] || [];
-  try { const d = JSON.parse(localStorage.getItem("vulcan-designer") || "null"); if (d) { applySettings(d.S, true); if (sections.some(s => s.group === d.tab)) tab = d.tab; view = GROUP_VIEW[tab] || "home"; } } catch (e) {}
-  const m = location.hash.match(/^#s=(.+)$/);
-  if (m) { try { applySettings(decodeHash(m[1]), true); toast("Shared style loaded"); } catch (e) { toast("That link's style couldn't be read"); } history.replaceState(null, "", location.pathname); }
+  restoreDraft("localStorage");
+  restoreDraft("sessionStorage");
+  loadSharedStyle();
+  window.addEventListener("hashchange", () => { if (loadSharedStyle()) refresh(); });
   buildLooks(); nightLabel(); refresh();
 }).catch(e => { $("#status").innerHTML = `<span class="err">Couldn't load the settings list (${esc(e.message)}). Open this page from a web server, not as a file.</span>`; });
 
@@ -914,27 +1051,74 @@ function setWall(f) { const r = new FileReader(); r.onload = () => { wallpaper =
 $("#wall").onchange = e => { if (e.target.files[0]) setWall(e.target.files[0]); };
 $("#wallBtn").onclick = () => $("#wall").click();
 $("#resetAll").onclick = () => { const before = { ...S }; S = {}; if (loaded) applySettings(loaded.settings, true); refresh(); toast(loaded ? "Back to the loaded file" : "Back to a fresh install", before); };
+$("#closeBackup").onclick = () => {
+  clearBackupDraft();
+  loaded = null;
+  loadedName = "";
+  S = {};
+  tab = "Home screen";
+  view = "home";
+  restoreDraft("localStorage");
+  $("#toast").classList.remove("on");
+  refresh();
+  $("#openBtn").focus();
+};
 $("#download").onclick = () => {
-  if (loaded) { const d = JSON.parse(JSON.stringify(loaded)); d["$schema"] = PUBLIC_SCHEMA; d.settings = fullSettings(); download(loadedName.replace(/\.json$/i, "") + "-styled.json", JSON.stringify(d, null, 2)); }
-  else download("vulcan-style.json", JSON.stringify(styleDoc(), null, 2));
-  $("#doneName").textContent = loaded ? loadedName.replace(/\.json$/i, "") + "-styled.json" : "vulcan-style.json";
-  $("#doneKeeps").textContent = loaded ? "Your layout, tabs and hidden apps come with it." : "It holds settings only, so your phone keeps its layout.";
+  if (!loaded) return;
+  const fileName = loadedName.replace(/\.json$/i, "") + "-styled.json";
+  const backup = { ...loaded, $schema: PUBLIC_SCHEMA, settings: fullSettings() };
+  download(fileName, JSON.stringify(backup, null, 2));
+  $("#doneName").textContent = fileName;
   $("#doneDlg").showModal();
 };
 $("#doneClose").onclick = () => $("#doneDlg").close();
 $("#share").onclick = () => {
-  const url = location.origin + location.pathname + "#s=" + encodeHash(changed());
-  navigator.clipboard.writeText(url).then(() => toast("Link copied: it holds settings only"), () => prompt("Copy this link", url));
+  // A backup can also hold device-specific values (like cached location) in settings. Only share portable schema entries.
+  const settings = Object.fromEntries(Object.entries(changed()).filter(([k, v]) => isPortableSetting(k, v)));
+  const url = location.origin + location.pathname + "#s=" + encodeHash(settings);
+  const copyManually = () => prompt("Copy this style link. In Vulcan, open Backup & restore → Import from URL.", url);
+  if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => toast("Link copied. In Vulcan, open Backup & restore → Import from URL."), copyManually);
+  else copyManually();
 };
-$("#ai").onclick = () => { $("#aiText").value = aiText(); $("#aiDlg").showModal(); };
+$("#ai").onclick = () => {
+  $("#aiText").value = aiText();
+  $("#aiStatus").textContent = "";
+  $("#aiDlg").showModal();
+};
 $("#aiClose").onclick = () => $("#aiDlg").close();
-$("#aiCopy").onclick = () => navigator.clipboard.writeText($("#aiText").value).then(() => toast("Copied"));
+$("#aiCopy").onclick = async () => {
+  const field = $("#aiText");
+  try {
+    await navigator.clipboard.writeText(field.value);
+    $("#aiStatus").textContent = "Copied";
+  } catch (e) {
+    field.focus();
+    field.select();
+    $("#aiStatus").textContent = "Copy the selected text.";
+  }
+};
 $("#aiApply").onclick = () => {
-  const t = $("#aiText").value, a = t.indexOf("{"), b = t.lastIndexOf("}");
-  let d; try { d = JSON.parse(t.slice(a, b + 1)); } catch (e) { return toast("No JSON found in the pasted text"); }
-  const bad = applySettings(d.settings || d, true);
-  $("#aiDlg").close(); buildTabs(); buildGroup(); render(); save();
-  status(bad.length ? `<span class="err">left out: ${esc(bad.join(", "))}</span>` : "answer applied");
+  const settings = readAiSettings($("#aiText").value);
+  if (!settings) {
+    $("#aiStatus").textContent = 'Paste a JSON object with a "settings" object.';
+    return;
+  }
+  const updates = {}, skipped = [];
+  for (const [key, raw] of Object.entries(settings)) {
+    const value = ["string", "boolean", "number"].includes(typeof raw) ? normalize(key, raw) : null;
+    if (!isPortableSetting(key, value)) skipped.push(key);
+    else if (value !== val(key)) updates[key] = value;
+  }
+  const warning = skipped.length ? "Left out unsupported settings: " + skipped.join(", ") + "." : "";
+  if (!Object.keys(updates).length) {
+    $("#aiStatus").textContent = warning || "There are no settings to change.";
+    return;
+  }
+  const before = { ...S };
+  Object.assign(S, updates);
+  $("#aiDlg").close();
+  refresh(warning ? `<span class="err">${esc(warning)}</span>` : "AI answer applied");
+  toast("AI answer applied", before);
 };
 function nightLabel() { $("#night").setAttribute("aria-pressed", phoneDark); $("#night").innerHTML = `<span class="ms" aria-hidden="true">${phoneDark ? "dark_mode" : "light_mode"}</span>${phoneDark ? "Dark mode" : "Light mode"}`; }
 $("#night").onclick = () => { phoneDark = !phoneDark; nightLabel(); render(); };
