@@ -204,7 +204,7 @@ class MainActivity : VulcanActivity() {
         }
         // Widget IDs no item holds (the process died mid-flow, a pin failed, an undo bar was cut short) still get
         // updates from their providers: free them.
-        val held = items.filter { it.isWidget }.map { it.widgetId } + listOfNotNull(pendingWidget?.first)
+        val held = items.flatMap { it.widgetIds } + listOfNotNull(pendingWidget?.first)
         host.appWidgetIds.filter { it !in held }.forEach(host::deleteAppWidgetId)
         launcherApps.registerCallback(appsCallback)
         val dateFilter = android.content.IntentFilter(Intent.ACTION_DATE_CHANGED).apply {
@@ -647,7 +647,7 @@ class MainActivity : VulcanActivity() {
         // system has already deleted its widgets.
         override fun onPackageRemoved(pkg: String, user: UserHandle) {
             reloadItems()
-            items = removePackage(items, pkg, serial(user)).filter { !it.isWidget || awm.getAppWidgetInfo(it.widgetId) != null }.toMutableList()
+            items = keepWidgets(removePackage(items, pkg, serial(user))) { awm.getAppWidgetInfo(it) != null }.toMutableList()
             save()
             reload(listOf(pkg))
         }
@@ -827,7 +827,7 @@ class MainActivity : VulcanActivity() {
             views[item] = v
             viewItems[v] = item
         }
-        widgetFrames.keys.retainAll(items.filter { it.isWidget }.map { it.widgetId }.toSet())
+        widgetFrames.keys.retainAll(items.flatMap { it.widgetIds }.toSet())
         updateBadges()
         updateGlance()
         folderFx.settle()
@@ -853,7 +853,7 @@ class MainActivity : VulcanActivity() {
     }
 
     fun itemView(item: Item, style: IconStyle): View? {
-        if (item.isWidget) return widgetView(item)
+        if (item.isWidget) return if (item.children.isEmpty()) widgetView(item) else stackView(item)
         if (item.isWidgetSlot) return widgetSlotView(item)
         if (item.isClock) return clockView()
         val (label, icon) = resolve(item) ?: return null
@@ -890,7 +890,8 @@ class MainActivity : VulcanActivity() {
     @Suppress("DEPRECATION")
     private fun widgetView(item: Item): View? {
         val info = awm.getAppWidgetInfo(item.widgetId) ?: return null
-        widgetFrames[item.widgetId]?.let { return it }
+        // A frame that was in a stack still sits in it, moved aside or hidden.
+        widgetFrames[item.widgetId]?.let { (it.parent as? ViewGroup)?.removeView(it); it.translationX = 0f; it.visibility = View.VISIBLE; return it }
         val hv: AppWidgetHostView = host.createView(applicationContext, item.widgetId, info)
         hv.addOnLayoutChangeListener { v, l, t, r, b, ol, ot, or, ob ->
             if (r - l != or - ol || b - t != ob - ot) {
@@ -909,6 +910,40 @@ class MainActivity : VulcanActivity() {
                 clipToOutline = true
             }
         }.also { widgetFrames[item.widgetId] = it }
+    }
+
+    /** Which widget of each stack shows, by the stack's first widget id; back to the first after a restart. */
+    private val stackShown = HashMap<Int, Int>()
+
+    /** The widget a stack shows now (a lone widget's own). */
+    fun shownWidget(item: Item) = item.widgetIds.getOrElse(stackShown[item.widgetId] ?: 0) { item.widgetId }
+
+    private fun stackView(item: Item): View? {
+        val shown = item.widgetIds.mapNotNull { id -> widgetView(Item(0, 0, 0, widgetId = id))?.let { id to it } }
+        if (shown.size < 2) return shown.firstOrNull()?.second
+        val start = shown.indexOfFirst { it.first == shownWidget(item) }.coerceAtLeast(0)
+        return WidgetStack(this, shown.map { it.second }, start, looks.color("labelColor")) { stackShown[item.widgetId] = item.widgetIds.indexOf(shown[it].first) }
+    }
+
+    /** The same-size widget a dragged widget is over: dropped there, they stack. */
+    fun stackTarget(cell: CellLayout, px: Float, py: Float, payload: Any?): Item? {
+        val moving = payload as? Item
+        if (!dragMoved || moving == null || !moving.isWidget) return null
+        val (fx, fy) = cell.cellAt(px, py)
+        return cell.viewAt(fx, fy)?.let { viewItems[it] }?.takeIf { it != moving && it.isWidget && it.w == moving.w && it.h == moving.h }
+    }
+
+    /** Takes the shown widget out of its stack to the first free spot (this page first), as a widget of its own. */
+    fun unstack(item: Item) {
+        val id = shownWidget(item)
+        val spot = firstFreeSpot(items.filter { !isDock(it.page) }, looks.pages, looks.cols * sub, looks.rows * sub, item.w, item.h, item.page)
+        if (spot == null) { toast(R.string.no_room); return }
+        items[items.indexOf(item)] = item.withWidgets(item.widgetIds - id)!!
+        items += Item(spot.page, spot.x, spot.y, item.w, item.h, widgetId = id)
+        stackShown.remove(item.widgetId)
+        save()
+        render()
+        workspace.snapTo(spot.page)
     }
 
     /** Moves a home item to the first free spot on a page picked from a list: the TalkBack way to move it. */
@@ -1017,7 +1052,12 @@ class MainActivity : VulcanActivity() {
                 edgeFlip(if (isDock(cell.page)) dock else workspace, e.x, cell.width)
                 val merge = mergeTarget(cell, e.x, e.y, e.localState)
                 folderFx.hover(cell, merge)
-                cell.landing = if (merge != null || !dragMoved) null else landing(cell, e.x, e.y, e.localState)
+                val stack = stackTarget(cell, e.x, e.y, e.localState)
+                cell.landing = when {
+                    stack != null -> Rect(stack.x, stack.y, stack.x + stack.w, stack.y + stack.h)
+                    merge != null || !dragMoved -> null
+                    else -> landing(cell, e.x, e.y, e.localState)
+                }
             }
             DragEvent.ACTION_DRAG_EXITED -> { folderFx.hover(cell, null); cell.landing = null }
             DragEvent.ACTION_DROP -> { folderFx.clearHover(); return@OnDragListener drop(cell, e.x, e.y, e.localState) }
@@ -1392,6 +1432,16 @@ class MainActivity : VulcanActivity() {
         val child = asChild(payload)
         val target = mergeTarget(cell, px, py, payload)
         if (child != null && target != null) { dropped = true; mergeIntoFolder(target, child, payload); return true }
+        stackTarget(cell, px, py, payload)?.let { onto ->
+            dropped = true
+            val moving = payload as Item
+            items.remove(moving)
+            items[items.indexOf(onto)] = onto.withWidgets(onto.widgetIds + moving.widgetIds)!!
+            root.confirm()
+            save()
+            render()
+            return true
+        }
         val spot = landing(cell, px, py, payload) ?: return false
         dropped = true
         val placed = (asItem(payload) ?: child ?: return false).copy(page = cell.page, x = spot.left, y = spot.top, w = spot.width(), h = spot.height())
@@ -1420,7 +1470,7 @@ class MainActivity : VulcanActivity() {
         items.remove(item)
         save()
         showUndo(item) {
-            if (item.isWidget) host.deleteAppWidgetId(item.widgetId)
+            item.widgetIds.forEach(host::deleteAppWidgetId)
             if (item.isShortcut) syncPins(item.pkg, item.user)
         }
     }
@@ -1488,9 +1538,10 @@ class MainActivity : VulcanActivity() {
                 if (!item.isBlock) tile("edit", getString(R.string.edit)) { editItem(item) }
                 if (item.folder) folderActions(item).forEach { (sym, title, click) -> tile(sym, title, click) }
                 if (item.isBlock) tile("resize", getString(R.string.resize)) { resizeWidget(item) }
-                if (item.isWidget && awm.getAppWidgetInfo(item.widgetId)?.configure != null) tile("settings", getString(R.string.settings)) {
-                    runCatching { host.startAppWidgetConfigureActivityForResult(this, item.widgetId, 0, REQ_RECONFIG, null) }
+                if (item.isWidget && awm.getAppWidgetInfo(shownWidget(item))?.configure != null) tile("settings", getString(R.string.settings)) {
+                    runCatching { host.startAppWidgetConfigureActivityForResult(this, shownWidget(item), 0, REQ_RECONFIG, null) }
                 }
+                if (item.isWidget && item.children.isNotEmpty()) tile("widgets", getString(R.string.unstack)) { unstack(item) }
                 if (item.isClock) {
                     val big = views[item]?.tag == true
                     tile("clock", getString(if (big) R.string.glanceStyle_date else R.string.glanceStyle_clock)) {
@@ -2128,7 +2179,7 @@ class MainActivity : VulcanActivity() {
     /** After a restore: widget IDs belong to the install that made them; drop the ones this install doesn't own. */
     fun dropForeignWidgets() {
         val s = looks.sub // the restored setting; load converts the restored layout to it
-        store.save(store.load(s).filter { !it.isWidget || awm.getAppWidgetInfo(it.widgetId) != null }, s)
+        store.save(keepWidgets(store.load(s)) { awm.getAppWidgetInfo(it) != null }, s)
     }
 
     // ---- Activity results ----

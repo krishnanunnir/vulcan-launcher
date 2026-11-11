@@ -6,6 +6,28 @@ import org.junit.Test
 
 class StoreTest {
     @Test
+    fun widgetStacks() {
+        val a = Item(1, 2, 0, 4, 2, widgetId = 7)
+        val stack = a.withWidgets(a.widgetIds + listOf(8, 9))!!
+        assertEquals(listOf(7, 8, 9), stack.widgetIds)
+        assertEquals(Triple(1, 2, 4), Triple(stack.page, stack.x, stack.w))
+        // Survives the store, so the stack is still whole after a restart or a backup.
+        assertEquals(listOf(7, 8, 9), itemsFromJson(itemsToJson(listOf(stack)))[0].widgetIds)
+        // Unstacking the front widget leaves the rest; the last one left is a plain widget.
+        assertEquals(listOf(8, 9), stack.withWidgets(stack.widgetIds - 7)!!.widgetIds)
+        assertEquals(emptyList<Item>(), stack.withWidgets(listOf(9))!!.children)
+        assertEquals(null, stack.withWidgets(emptyList()))
+        assertEquals(emptyList<Int>(), Item(0, 0, 0, pkg = "p", cls = "c").widgetIds)
+        // An uninstalled provider takes its widget out of the stack; the stack goes when nothing is left.
+        val app = Item(0, 0, 0, pkg = "p", cls = "c")
+        assertEquals(listOf(listOf(7, 9), emptyList()), keepWidgets(listOf(stack, app)) { it != 8 }.map { it.widgetIds })
+        assertEquals(listOf(app), keepWidgets(listOf(stack, app)) { false })
+        assertEquals(listOf(9), keepWidgets(listOf(stack)) { it == 9 }[0].widgetIds)
+        // An app's removal never touches a stack (its children have no package).
+        assertEquals(listOf(stack), removePackage(listOf(stack), "", 0))
+    }
+
+    @Test
     fun badItemIsDroppedNotTheLayout() {
         val json = """[{"page":0,"x":0,"y":0,"pkg":"a","cls":"b"}, {"page":"oops"}, 7,
             {"page":1,"x":0,"y":0,"folder":true,"children":[{"x":1}, {"page":0,"x":0,"y":0,"pkg":"c"}]}]"""

@@ -15,6 +15,7 @@ fun dockIndex(page: Int) = -1 - page
  * One thing placed on a home page, the dock or inside a folder:
  * an app (pkg/cls/user), a widget (widgetId), a pinned shortcut (pkg + shortcutId),
  * a launcher action (action), an activity shortcut (pkg/cls + action "activity"), the clock (action "clock") or a folder (children).
+ * A widget's children are the other widgets stacked with it.
  */
 /** [Item.action] of an imported widget's spot. */
 const val WIDGET_SLOT = "widgetSlot"
@@ -48,7 +49,17 @@ data class Item(
     /** A plain app icon: can be merged into folders. */
     val isApp get() = pkg.isNotEmpty() && !isShortcut && !isWidget && !folder && action.isEmpty()
     val appKey get() = appKey(pkg, cls, user)
+    /** A widget's ids, the rest of its stack included (in [children]); none for anything else. */
+    val widgetIds get() = if (isWidget) listOf(widgetId) + children.map { it.widgetId } else emptyList()
 }
+
+/** This widget holding the stack [ids] (the first one fronts it in the layout), or null when none are left. */
+fun Item.withWidgets(ids: List<Int>): Item? =
+    ids.firstOrNull()?.let { copy(widgetId = it, children = ids.drop(1).map { id -> Item(0, 0, 0, widgetId = id) }) }
+
+/** [items] keeping only the widgets [valid] accepts; a stack loses the rest, and goes when none are left. */
+fun keepWidgets(items: List<Item>, valid: (Int) -> Boolean): List<Item> =
+    items.mapNotNull { if (it.isWidget) it.withWidgets(it.widgetIds.filter(valid)) else it }
 
 fun appKey(pkg: String, cls: String, user: Long) = "$pkg/$cls/$user"
 

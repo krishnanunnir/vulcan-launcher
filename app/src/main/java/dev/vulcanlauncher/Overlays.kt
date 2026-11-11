@@ -389,7 +389,7 @@ fun MainActivity.removePageAt(i: Int, then: () -> Unit = { reopenOverview() }) {
     val default = looks.int("defaultPage")
     val doRemove = {
         val (kept, gone) = removePage(items, i)
-        gone.filter { it.isWidget }.forEach { host.deleteAppWidgetId(it.widgetId) }
+        gone.flatMap { it.widgetIds }.forEach(host::deleteAppWidgetId)
         items = kept.toMutableList()
         gone.filter { it.isShortcut }.forEach { syncPins(it.pkg, it.user) }
         save()

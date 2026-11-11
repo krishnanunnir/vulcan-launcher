@@ -951,7 +951,7 @@ private fun SettingsActivity.backupPage(list: LinearLayout) {
     panel(list, getString(R.string.backup_panel_reset), listOf(row("delete", R.string.reset_defaults, getString(R.string.reset_defaults_info)) {
         dialog().setMessage(R.string.reset_confirm)
             .setPositiveButton(R.string.reset) { _, _ ->
-                home.items.filter { it.isWidget }.forEach { home.host.deleteAppWidgetId(it.widgetId) }
+                home.items.flatMap { it.widgetIds }.forEach(home.host::deleteAppWidgetId)
                 store.reset()
                 restartHome()
             }.setNegativeButton(R.string.cancel, null).show()
@@ -978,7 +978,7 @@ fun VulcanActivity.importNote(layout: ImportedLayout, lead: Boolean = true, sepa
 
 /** Stores an imported layout and its grid settings in place of the current ones; home is rebuilt after (restart). */
 fun VulcanActivity.applyImport(layout: ImportedLayout, settings: Map<String, String>) {
-    home.items.filter { it.isWidget }.forEach { home.host.deleteAppWidgetId(it.widgetId) }
+    home.items.flatMap { it.widgetIds }.forEach(home.host::deleteAppWidgetId)
     settings.forEach { (k, v) -> looks[k] = v }
     looks["subgrid"] = if (layout.subgrid) "on" else "off"
     val pages = (layout.items.filter { !isDock(it.page) }.maxOfOrNull { it.page } ?: 0) + 1

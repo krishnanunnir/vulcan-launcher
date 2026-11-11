@@ -211,6 +211,12 @@ class Workspace(context: Context) : ViewGroup(context) {
         return false
     }
 
+    /** True when the point is on a widget stack of the current page. */
+    private fun onStack(x: Float, y: Float): Boolean {
+        val page = getChildAt(current) as? ViewGroup ?: return false
+        return (0 until page.childCount).map(page::getChildAt).any { it is WidgetStack && it.visibility == View.VISIBLE && x >= it.left && x < it.right && y >= it.top && y < it.bottom }
+    }
+
     /** True when the point is on a widget of the current page holding a list that can still scroll [dir] (1: down). */
     private fun widgetScrolls(x: Float, y: Float, dir: Int): Boolean {
         val page = getChildAt(current) as? ViewGroup ?: return false
@@ -260,7 +266,9 @@ class Workspace(context: Context) : ViewGroup(context) {
                     val dx = abs(ev.x - downX)
                     val dy = abs(ev.y - downY)
                     // The page starts moving from where the finger is now, not jumping the slop it took to decide.
-                    if (dx > pageSlop && dx > dy) { mode = HORIZONTAL; fromPage = current; startScroll += (ev.x - downX).toInt() }
+                    // Sideways on a widget stack: left to the stack, which flips its widgets.
+                    if (dx > pageSlop && dx > dy && onStack(downX, downY)) mode = CHILD
+                    else if (dx > pageSlop && dx > dy) { mode = HORIZONTAL; fromPage = current; startScroll += (ev.x - downX).toInt() }
                     // Up from an icon with its own swipe action: left to the icon, even when the first move is a long one.
                     // On a widget list that can still scroll that way (calendar, inbox): left to the widget (#50).
                     else if (dy > slop && dy > dx) mode = if (ev.y < downY && swipesItself(downX, downY) ||
