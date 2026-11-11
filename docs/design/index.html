@@ -9,23 +9,23 @@
 <link rel="icon" href="../icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono&family=Roboto:wght@300;400;500&family=Roboto+Condensed&family=Noto+Serif&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono&family=Roboto:wght@300;400;500&family=Roboto+Condensed&family=Noto+Serif&display=swap" rel="stylesheet">
 <!-- Material Symbols (Apache-2.0, Google): generic glyphs for the preview's stand-in apps, only the ones used. -->
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,1,0&icon_names=account_balance_wallet,auto_awesome,battery_full,calculate,calendar_month,call,casino,chat,contacts,dark_mode,description,download,favorite,folder,folder_open,image,key,light_mode,link,mail,map,mic,music_note,partly_cloudy_day,pause,photo_camera,podcasts,public,radio,restart_alt,schedule,search,settings,signal_cellular_alt,smart_display,smart_toy,sticky_note_2,storefront,translate,videocam,wallpaper,wifi&display=block" rel="stylesheet">
 <style>
   :root {
     color-scheme: dark;
-    --bg: #0A0A09; --card: #121211; --card-2: #181816; --card-3: #22221f;
-    --ink: #F4F3EF; --ink-2: #9B998F; --ink-3: #827F77;
+    --bg: #10100f; --card: #191816; --card-2: #22201d; --card-3: #302d29;
+    --ink: #F4F3EF; --ink-2: #B9B3AA; --ink-3: #A59E94;
     --line: rgba(255,255,255,.08); --line-2: rgba(255,255,255,.14);
     --signal: #E8721C; --on-signal: #1C0D02;
     --font: "Geist", ui-sans-serif, system-ui, sans-serif;
     --mono: "Geist Mono", ui-monospace, monospace;
     --out: cubic-bezier(.16,1,.3,1); --spring: cubic-bezier(.34,1.56,.64,1);
-    --bar: 58px;
+    --bar: 68px;
   }
   * { box-sizing: border-box; }
-  html { scrollbar-color: var(--card-3) transparent; }
+  html { scrollbar-color: var(--card-3) transparent; scroll-padding-top: calc(var(--bar) + 12px); }
   html, body { height: 100%; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 400 14px/1.5 var(--font); letter-spacing: -.01em; -webkit-font-smoothing: antialiased; caret-color: var(--signal); }
   ::selection { background: var(--signal); color: var(--on-signal); }
@@ -35,76 +35,89 @@
   :focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
   @media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation: none !important; transition: none !important; } }
 
-  header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 10px 20px; min-height: var(--bar); border-bottom: 1px solid var(--line); position: sticky; top: 0; background: rgba(10,10,9,.92); backdrop-filter: blur(10px); z-index: 5; }
-  header h1 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.02em; display: flex; align-items: center; gap: 10px; }
-  header h1 a { text-decoration: none; border-radius: 6px; }
-  header h1 img { display: block; width: 24px; height: 24px; border-radius: 6px; transition: transform .4s var(--spring); }
-  header h1 a:hover img { transform: rotate(-8deg) scale(1.1); }
-  .legend { font: 400 12px/1.4 var(--mono); color: var(--ink-2); }
-  .tools { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; align-items: center; }
-  .btn { display: inline-flex; align-items: center; gap: 6px; background: var(--card-2); border: 1px solid var(--line-2); border-radius: 999px; padding: 7px 14px; cursor: pointer; white-space: nowrap; transition: background .2s, color .2s, transform .25s var(--spring); }
+  .topbar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 20px; min-height: var(--bar); padding: 10px clamp(16px, 3vw, 42px); border-bottom: 1px solid var(--line); background: var(--bg); }
+  .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-size: 16px; font-weight: 600; }
+  .brand img { width: 32px; height: 32px; border-radius: 8px; }
+  .brand:hover span { text-decoration: underline; }
+  .tools { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .btn { display: inline-flex; min-height: 38px; justify-content: center; align-items: center; gap: 7px; background: var(--card-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 6px 12px; cursor: pointer; white-space: nowrap; transition: background .2s, color .2s; }
   .btn:hover { background: var(--card-3); }
-  .btn:active { transform: scale(.96); }
-  .btn .ms { font-size: 18px; margin-left: -3px; }
+  .btn .ms { font-size: 18px; }
   .btn.ghost { background: none; border-color: transparent; color: var(--ink-2); }
   .btn.ghost:hover { background: var(--card-2); color: var(--ink); }
-  .btn.primary { background: var(--signal); border-color: var(--signal); color: var(--on-signal); font-weight: 600; margin-left: 8px; }
+  .btn.primary { background: var(--signal); border-color: var(--signal); color: var(--on-signal); font-weight: 700; }
   .btn.primary:hover { background: #F58230; }
+  .tools .primary { margin-left: 6px; }
 
-  main { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(440px, 760px); min-height: calc(100% - var(--bar)); }
+  main { display: grid; grid-template-columns: minmax(330px, .83fr) minmax(490px, 1fr); min-height: calc(100% - var(--bar)); }
 
-  /* Preview: the phone stands in the light of its own wallpaper. */
-  .stage { position: sticky; top: var(--bar); height: calc(100vh - var(--bar)); display: flex; flex-direction: column; align-items: center; padding: 16px; gap: 14px; border-right: 1px solid var(--line); overflow: hidden; isolation: isolate; }
-  .stage::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--wall) center / cover no-repeat; filter: blur(80px) saturate(1.4); opacity: .32;
-    -webkit-mask-image: radial-gradient(closest-side, #000 35%, transparent); mask-image: radial-gradient(closest-side, #000 35%, transparent); }
-  .frame-box { flex: 1; width: 100%; display: flex; justify-content: center; align-items: center; min-height: 0; }
-  .frame { border-radius: 44px; padding: 10px; background: linear-gradient(#2B2B28, #161614); box-shadow: 0 0 0 1px var(--line-2), inset 0 1px 0 rgba(255,255,255,.14), 0 40px 80px -24px rgba(0,0,0,.75), 0 12px 24px rgba(0,0,0,.35); }
+  /* The wallpaper lights the preview area while the editor keeps a fixed palette. */
+  .stage { position: sticky; top: var(--bar); height: calc(100dvh - var(--bar)); min-height: 410px; display: flex; flex-direction: column; align-items: center; padding: 22px clamp(16px, 3vw, 42px) 16px; gap: 12px; border-right: 1px solid var(--line); background: #171513; overflow: hidden; isolation: isolate; }
+  .stage::before, .stage::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+  .stage::before { background: var(--wall) center 44% / cover no-repeat; filter: blur(44px) saturate(1.25); opacity: .6;
+    mask-image: radial-gradient(ellipse 70% 55%, #000 12%, transparent 96%); }
+  .stage::after { background: radial-gradient(circle, rgba(244,243,239,.21) 1px, transparent 1.3px) center / 22px 22px; mask-image: radial-gradient(ellipse 85% 74%, transparent 26%, #000 90%); }
+  .stage-title { width: 100%; margin: 0; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .stage-title::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 12px rgba(232,114,28,.55); }
+  .frame-box { flex: 1; width: 100%; display: grid; place-items: center; min-height: 0; }
+  .frame { padding: 10px; background: linear-gradient(150deg, #51463e, #151413 72%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.19), 0 30px 70px -18px rgba(0,0,0,.85), 0 6px 18px rgba(0,0,0,.4); }
   .frame.roll { animation: roll .6s var(--out); }
   @keyframes roll { 0% { transform: rotate(0) scale(1); } 30% { transform: rotate(-3deg) scale(.97); } 60% { transform: rotate(2deg) scale(1.01); } 100% { transform: none; } }
-  .clip { border-radius: 34px; overflow: hidden; position: relative; }
+  .clip { overflow: hidden; position: relative; }
   .screen { width: 360px; height: 780px; position: relative; transform-origin: 0 0; background: #333 center / cover no-repeat; font-family: Roboto, system-ui, sans-serif; color: #fff; overflow: hidden; }
   .screen.enter > :last-child { animation: rise .5s var(--out); }
   @keyframes rise { from { transform: translateY(7%); opacity: 0; } }
-  .below { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
-  .note { color: var(--ink-2); font-size: 12px; text-align: center; max-width: 400px; margin: 0; text-wrap: balance; }
+  .preview-tools, .below { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .preview-tools .btn { background: #201d19; }
+  .preview-tools .btn:hover { background: var(--card-3); }
+  .note { color: var(--ink-2); font-size: 12px; text-align: center; max-width: 40ch; margin: 0; }
 
-  .seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; background: var(--card-2); border: 1px solid var(--line); border-radius: 12px; }
-  .seg button { border: 0; background: none; border-radius: 9px; padding: 4px 11px; cursor: pointer; color: var(--ink-2); transition: background .2s, color .2s; }
+  .seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+  .seg button { border: 0; background: none; border-radius: 5px; padding: 4px 10px; cursor: pointer; color: var(--ink-2); transition: background .2s, color .2s; }
   .seg button:hover { color: var(--ink); }
-  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); font-weight: 500; }
-  .views { border-radius: 999px; flex: none; background: rgba(24,24,22,.8); }
-  .views button { border-radius: 999px; padding: 5px 14px; }
+  .seg button[aria-pressed="true"] { background: var(--card-3); color: var(--ink); font-weight: 600; }
+  .views { flex: none; background: #171513; border-color: var(--line-2); }
+  .views button { padding: 6px 10px; }
+  .views button[aria-pressed="true"] { background: #493021; color: #FFD2AD; }
 
-  /* Controls */
-  .panel { padding: 20px 24px 80px; min-width: 0; }
-  .cap { margin: 0 0 8px; font: 400 12px/1.4 var(--mono); color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
-  .looks { margin-bottom: 22px; }
-  .look-row { display: flex; flex-wrap: wrap; gap: 8px; }
-  .look { display: inline-flex; align-items: center; gap: 9px; padding: 6px 14px 6px 7px; border-radius: 999px; background: var(--card); border: 1px solid var(--line-2); cursor: pointer; transition: background .2s, transform .25s var(--spring); }
-  .look:hover { background: var(--card-3); }
-  .look:active { transform: scale(.96); }
-  .look i, .look .ms { width: 24px; height: 24px; flex: none; transition: transform .45s var(--spring); }
-  .look:hover i { transform: rotate(-14deg) scale(1.12); }
-  .look.shuffle { border-style: dashed; }
-  .look.shuffle .ms { font-size: 22px; line-height: 24px; text-align: center; color: var(--signal); }
-  .look.shuffle:hover .ms { transform: rotate(180deg); }
-  .statusbar { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
-  .status { margin: 0; color: var(--ink-2); }
+  /* Editor */
+  .panel { padding: clamp(24px, 4vw, 48px) clamp(20px, 3.2vw, 48px) 64px; min-width: 0; }
+  .panel-inner { max-width: 960px; margin-inline: auto; }
+  .intro { margin-bottom: 28px; }
+  h1 { margin: 0 0 8px; font-size: clamp(30px, 3.4vw, 50px); font-weight: 600; line-height: 1.06; letter-spacing: -.055em; text-wrap: balance; }
+  .intro p { max-width: 45ch; margin: 0; color: var(--ink-2); font-size: 15px; }
+  .looks { margin-bottom: 26px; }
+  .section-head { display: flex; gap: 8px 16px; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .section-head h2 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -.025em; }
+  .look-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .look { display: flex; align-items: center; text-align: left; gap: 9px; min-height: 58px; padding: 8px 10px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); cursor: pointer; transition: background .2s, border-color .2s; }
+  .look:hover { background: var(--card-2); border-color: var(--line-2); }
+  .look:active { background: var(--card-3); }
+  .look-mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; flex: none; background: color-mix(in srgb, var(--look-color) 15%, #201e1b); }
+  .look-mark i { width: 18px; height: 18px; background: var(--look-color); }
+  .look-name { display: block; font-weight: 600; line-height: 1.2; }
+  .look small { display: block; color: var(--ink-3); line-height: 1.25; margin-top: 4px; }
+  #shuffle .ms { color: var(--signal); }
+  .editor-head { padding-top: 16px; border-top: 1px solid var(--line-2); }
+  .editor-head .section-head { margin-bottom: 4px; }
+  .status { margin: 0 0 14px; color: var(--ink-2); overflow-wrap: anywhere; }
   .status b { color: var(--ink); font-weight: 500; }
   .status .err { color: #ff8a80; }
-  .link { background: none; border: 0; padding: 0; color: var(--ink-2); cursor: pointer; text-decoration: underline; text-underline-offset: .2em; white-space: nowrap; }
+  .link { background: none; border: 0; padding: 6px 0; color: var(--ink-2); cursor: pointer; text-decoration: underline; text-underline-offset: .2em; white-space: nowrap; }
   .link:hover { color: var(--ink); }
-  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
-  .tabs button { border: 1px solid var(--line-2); background: none; border-radius: 999px; padding: 5px 12px; cursor: pointer; color: var(--ink-2); white-space: nowrap; transition: background .2s, color .2s, border-color .2s; }
-  .tabs button:hover { color: var(--ink); border-color: var(--ink-3); }
-  .tabs button[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 500; }
-  .tabs button .n { display: inline-block; min-width: 16px; margin-left: 6px; padding: 0 5px; border-radius: 8px; background: var(--signal); color: var(--on-signal); font: 500 11px/16px var(--mono); text-align: center; }
-  .sec { background: var(--card); border: 1px solid var(--line); border-radius: 16px; margin-bottom: 14px; overflow: hidden; animation: rise .4s var(--out) backwards; }
-  .sec:nth-child(2) { animation-delay: .05s; } .sec:nth-child(n+3) { animation-delay: .1s; }
-  .sec h2 { margin: 0; padding: 14px 16px 4px; font: 400 12px/1.4 var(--mono); color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
+  .editor-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 4px; align-content: start; }
+  .tabs button { display: flex; gap: 5px; align-items: center; min-height: 34px; border: 1px solid transparent; background: none; border-radius: 7px; padding: 4px 9px; cursor: pointer; color: var(--ink-2); white-space: nowrap; text-align: left; transition: background .2s, color .2s; }
+  .tabs button:hover { color: var(--ink); background: var(--card); }
+  .tabs button[aria-selected="true"] { background: #35251b; color: #FFD2AD; border-color: #63412a; font-weight: 600; }
+  .tabs button .n { min-width: 18px; padding: 0 4px; border-radius: 4px; background: var(--card-3); color: var(--ink); font: 500 11px/18px var(--mono); text-align: center; }
+  .tabs button[aria-selected="true"] .n { background: #63412a; color: #FFE2CB; }
+  #groups { min-width: 0; }
+  .sec { background: var(--card); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
+  .sec h3 { margin: 0; padding: 12px 16px; font-size: 14px; font-weight: 600; background: var(--card-2); border-bottom: 1px solid var(--line); }
   .row { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(0, 1.3fr) 28px; gap: 12px; align-items: center; padding: 11px 16px; border-top: 1px solid var(--line); transition: background .2s; }
   .row:hover { background: rgba(255,255,255,.02); }
-  .sec h2 + .row { border-top: 0; }
+  .sec h3 + .row { border-top: 0; }
   .row .t { font-weight: 500; }
   .row .t small { display: block; font-weight: 400; color: var(--ink-3); font-size: 12px; line-height: 1.4; margin-top: 2px; }
   .row .t .tag { font: 400 10px/1 var(--mono); color: var(--ink-3); border: 1px solid var(--line-2); border-radius: 4px; padding: 2px 4px; margin-left: 6px; vertical-align: 2px; white-space: nowrap; }
@@ -166,18 +179,45 @@
   .drop.on { display: grid; }
   .drop .ms { display: block; font-size: 40px; color: var(--signal); text-align: center; margin-bottom: 8px; }
 
-  /* Narrow: the phone stays in view above the settings, so a change is seen as it's made. */
+  @media (min-width: 1180px) {
+    .editor-body { grid-template-columns: 148px minmax(0, 1fr); gap: 14px; }
+    .tabs { display: grid; position: sticky; top: calc(var(--bar) + 12px); align-self: start; }
+    .tabs button { justify-content: space-between; }
+  }
   @media (max-width: 860px) {
-    main { grid-template-columns: 1fr; }
-    header { position: static; }
-    .legend { display: none; }
-    .stage { top: 0; z-index: 4; height: 50vh; min-height: 300px; padding: 10px; gap: 8px; border-right: 0; border-bottom: 1px solid var(--line); background: var(--bg); }
+    :root { --preview-height: clamp(230px, 33dvh, 330px); }
+    html { scroll-padding-top: calc(var(--preview-height) + 12px); }
+    main { grid-template-columns: minmax(0, 1fr); }
+    .topbar { position: static; }
+    .stage { top: 0; z-index: 4; height: var(--preview-height); min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(146px, 1fr); grid-template-rows: auto minmax(0, 1fr); column-gap: 12px; row-gap: 4px; padding: 12px 16px; border-right: 0; border-bottom: 1px solid var(--line-2); }
+    .stage-title { grid-column: 1 / -1; }
+    .frame-box { height: 100%; }
+    .preview-tools { flex-direction: column; align-items: stretch; justify-self: center; }
+    .views { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .views button { min-height: 34px; padding-inline: 8px; }
+    .below .btn { flex: 1; }
     .stage .note { display: none; }
-    .tabs { flex-wrap: nowrap; overflow-x: auto; margin-inline: -16px; padding-inline: 16px; scrollbar-width: none; }
+    .panel { padding: 24px 16px 64px; }
   }
   @media (max-width: 560px) {
-    .row { grid-template-columns: 1fr 28px; } .row .ctl { grid-column: 1 / -1; grid-row: 2; } .panel { padding: 16px 16px 80px; }
-    header { padding: 10px 12px; } .tools { margin-left: 0; } .btn.ghost { padding: 7px 10px; }
+    .topbar { padding: 10px 12px; gap: 8px; }
+    .tools { justify-content: space-between; width: 100%; }
+    .tools .btn { padding-inline: 5px; font-size: 12px; }
+    .tools .primary { margin-left: 0; padding-inline: 7px; }
+    .tools .btn .ms { display: none; }
+    .views button { padding-inline: 3px; font-size: 12px; }
+    .intro { margin-bottom: 20px; }
+    .look-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tabs { flex-wrap: nowrap; overflow-x: auto; padding: 3px; margin: -3px; }
+    .tabs button { min-height: 40px; }
+    .row { grid-template-columns: minmax(0, 1fr) 28px; }
+    .row .ctl { grid-column: 1 / -1; grid-row: 2; }
+  }
+  @media (max-height: 520px) {
+    .stage, .tabs { position: static; }
+  }
+  @media (max-width: 860px) and (max-height: 520px) {
+    html { scroll-padding-top: 12px; }
   }
 
   /* Inside the phone: sizes are dp, 1dp = 1px before the frame's scale. */
@@ -207,38 +247,61 @@
 </style>
 </head>
 <body>
-<header>
-  <h1><a href="../" aria-label="Vulcan home"><img src="../icon.png" alt=""></a><span>Vulcan designer</span></h1>
-  <span class="legend">Runs in your browser. Nothing is uploaded.</span>
+<header class="topbar">
+  <a class="brand" href="../"><img src="../icon.png" alt=""><span>Vulcan</span></a>
   <div class="tools">
-    <label class="btn ghost" tabindex="0" id="openLbl" title="Start from a backup made on your phone"><span class="ms" aria-hidden="true">folder_open</span>Open backup<input type="file" id="open" accept=".json,application/json" hidden></label>
+    <button class="btn ghost" id="openBtn" title="Start from a backup made on your phone"><span class="ms" aria-hidden="true">folder_open</span>Open backup</button>
+    <input type="file" id="open" accept=".json,application/json" hidden>
     <button class="btn ghost" id="share" title="Copy a link holding the changed settings"><span class="ms" aria-hidden="true">link</span>Share link</button>
     <button class="btn ghost" id="ai" title="Copy your settings with instructions for an AI assistant, or paste its answer"><span class="ms" aria-hidden="true">auto_awesome</span>AI assistant</button>
     <button class="btn primary" id="download"><span class="ms" aria-hidden="true">download</span><span id="dlText">Download style</span></button>
   </div>
 </header>
 <main>
-  <section class="stage" aria-label="Preview">
-    <div class="seg views" role="group" aria-label="Screen shown" id="views"></div>
-    <div class="frame-box" id="frameBox"><div class="frame" id="frame"><div class="clip" id="clip"><div class="screen" id="screen"></div></div></div></div>
-    <div class="below">
-      <button class="btn" id="night" aria-pressed="false"></button>
-      <label class="btn" tabindex="0" id="wallLbl"><span class="ms" aria-hidden="true">wallpaper</span>Wallpaper<input type="file" id="wall" accept="image/*" hidden></label>
+  <section class="stage" aria-labelledby="preview-title">
+    <h2 class="stage-title" id="preview-title">Live preview</h2>
+    <div class="frame-box" id="frameBox"><div class="frame" id="frame"><div class="clip" id="clip"><div class="screen" id="screen" aria-hidden="true"></div></div></div></div>
+    <div class="preview-tools">
+      <div class="seg views" role="group" aria-label="Screen shown" id="views"></div>
+      <div class="below">
+        <button class="btn" id="night" aria-label="Dark mode preview" aria-pressed="false"></button>
+        <button class="btn" id="wallBtn"><span class="ms" aria-hidden="true">wallpaper</span>Wallpaper</button>
+        <input type="file" id="wall" accept="image/*" hidden>
+      </div>
     </div>
-    <p class="note">An approximation: app icons are stand-ins and the System colour is a guess, since both come from your phone. Drop a wallpaper or a backup anywhere on this page.</p>
+    <p class="note">App icons and system colours are approximations.</p>
   </section>
-  <section class="panel" aria-label="Settings">
-    <div class="looks">
-      <h2 class="cap">Start from a look</h2>
-      <div class="look-row" id="looks"></div>
+  <section class="panel" aria-labelledby="designer-title">
+    <div class="panel-inner">
+      <div class="intro">
+        <h1 id="designer-title">Vulcan designer</h1>
+        <p>Try a look or open your backup. See your changes live, then download the result for your phone. Files stay in your browser.</p>
+      </div>
+      <section class="looks" aria-labelledby="looks-title">
+        <div class="section-head">
+          <h2 id="looks-title">Start from a look</h2>
+          <button class="btn ghost" id="shuffle" title="Random shapes, colours and styles"><span class="ms" aria-hidden="true">casino</span>Shuffle</button>
+        </div>
+        <div class="look-row" id="looks"></div>
+      </section>
+      <section aria-labelledby="settings-title">
+        <div class="editor-head">
+          <div class="section-head">
+            <h2 id="settings-title">Fine-tune settings</h2>
+            <button class="link" id="resetAll">Reset all</button>
+          </div>
+          <p class="status" id="status" role="status">Loading settings…</p>
+        </div>
+        <div class="editor-body">
+          <div class="tabs" role="tablist" aria-label="Settings categories" id="tabs"></div>
+          <div id="groups" role="tabpanel" tabindex="0"></div>
+        </div>
+      </section>
     </div>
-    <div class="statusbar"><p class="status" id="status">Loading settings…</p><button class="link" id="resetAll">Reset all</button></div>
-    <div class="tabs" role="tablist" id="tabs"></div>
-    <div id="groups"></div>
   </section>
 </main>
-<dialog id="aiDlg" closedby="any">
-  <h3>Work on it with an AI assistant</h3>
+<dialog id="aiDlg" closedby="any" aria-labelledby="ai-title">
+  <h3 id="ai-title">Work on it with an AI assistant</h3>
   <p>Copy this, add what you want ("warm and minimal, no labels, big icons"), and give it to any assistant. Paste its answer back here.</p>
   <textarea id="aiText" spellcheck="false" aria-label="Settings and instructions for an assistant"></textarea>
   <div class="dlg-actions">
@@ -247,9 +310,9 @@
     <button class="btn primary" id="aiApply">Apply pasted answer</button>
   </div>
 </dialog>
-<dialog id="doneDlg" closedby="any">
+<dialog id="doneDlg" closedby="any" aria-labelledby="done-title">
   <img src="../icon.png" alt="">
-  <h3>Downloaded. Now load it on your phone</h3>
+  <h3 id="done-title">Downloaded. Now load it on your phone</h3>
   <ol class="steps">
     <li><span>Get <b id="doneName"></b> onto your phone.</span></li>
     <li><span>In Vulcan, open <b>Settings → Backup &amp; restore → Restore from a file</b>.</span></li>
@@ -278,6 +341,14 @@ const PRESETS = {
   "Samsung-like": { cols: "4", rows: "5", iconSize: "64", shape: "squircle", searchBar: "off", indicator: "dots", dockBg: "none", drawerStyle: "pages", drawerCols: "4", drawerRows: "6", folderBg: "square" },
   "AMOLED": { accent: "amoled", nightMode: "on", drawerTheme: "dark", drawerAlpha: "100", dockBg: "none", folderColor: "#000000", searchColor: "#212121", themedIcons: "on", labelColor: "#9E9E9E", labelShadow: "off" },
   "Big and clear": { cols: "4", rows: "5", iconSize: "72", labelSize: "15", labelFont: "sans-serif-medium", labelLines: "2", dockIconSize: "72", dockCols: "4", drawerCols: "4", drawerIconSize: "68", drawerLabelSize: "15" },
+};
+const LOOK_DETAILS = {
+  "Fresh install": ["Vulcan defaults", "#E8721C"],
+  "Appliance": ["Framed panels", "#E8721C"],
+  "Calm": ["Unlabelled icons", "#9CBCAE"],
+  "Samsung-like": ["Paged app drawer", "#A8C7FA"],
+  "AMOLED": ["Black panels", "#F4F3EF"],
+  "Big and clear": ["Large icons and text", "#D0BCFF"],
 };
 const DEMO_APPS = ["Phone", "Messages", "Browser", "Camera", "Photos", "Mail", "Maps", "Calendar", "Clock", "Music", "Notes", "Files", "Calculator", "Contacts", "Settings", "Store", "Wallet", "Podcasts", "Recorder", "Health", "Translate", "Weather", "Docs", "Radio"];
 const PALETTE = ["#1E88E5", "#43A047", "#E53935", "#FB8C00", "#8E24AA", "#00897B", "#3949AB", "#D81B60", "#6D4C41", "#546E7A", "#F4511E", "#7CB342"];
@@ -609,7 +680,7 @@ function render() {
 }
 function fit() {
   const box = $("#frameBox"), w = box.clientWidth - 4, h = box.clientHeight - 4;
-  const s = Math.max(.25, Math.min(1.2, (w - 20) / 360, (h - 20) / 780));
+  const s = Math.max(0, Math.min(1.2, (w - 20) / 360, (h - 20) / 780));
   $("#screen").style.transform = `scale(${s})`;
   $("#clip").style.width = 360 * s + "px"; $("#clip").style.height = 780 * s + "px";
   $("#clip").style.borderRadius = 34 * s + "px"; $("#frame").style.borderRadius = 34 * s + 10 + "px";
@@ -678,23 +749,56 @@ function row(k) {
   r.append(t, control(k), reset);
   return r;
 }
-function buildTabs() {
-  const tabs = $("#tabs"); tabs.innerHTML = "";
+const verticalTabs = matchMedia("(min-width: 1180px)");
+function orientTabs() {
+  $("#tabs").setAttribute("aria-orientation", verticalTabs.matches ? "vertical" : "horizontal");
+}
+function buildTabs(focus = false) {
+  const tabs = $("#tabs");
+  tabs.replaceChildren();
+  orientTabs();
   const groups = GROUP_ORDER.map(g => sections.find(s => s.group === g)).filter(Boolean).concat(sections.filter(s => !GROUP_ORDER.includes(s.group)));
-  for (const g of groups) {
+  groups.forEach((g, index) => {
     const n = g.sections.flatMap(s => s.keys).filter(k => val(k) !== def(k)).length;
-    const b = document.createElement("button"); b.setAttribute("role", "tab"); b.setAttribute("aria-selected", g.group === tab);
-    b.innerHTML = esc(g.title) + (n ? `<span class="n">${n}</span>` : "");
-    b.onclick = () => { tab = g.group; view = GROUP_VIEW[tab] || "home"; buildTabs(); buildGroup(); buildViews(); render(); save(); };
+    const selected = g.group === tab;
+    const b = document.createElement("button");
+    b.id = "settings-tab-" + index;
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-controls", "groups");
+    b.setAttribute("aria-selected", selected);
+    b.tabIndex = selected ? 0 : -1;
+    b.innerHTML = esc(g.title) + (n ? `<span class="n" aria-label="${n} changed">${n}</span>` : "");
+    const select = next => {
+      tab = next.group;
+      view = GROUP_VIEW[tab] || "home";
+      buildTabs(true); buildGroup(); buildViews(); render(); save();
+    };
+    b.onclick = () => select(g);
+    b.onkeydown = e => {
+      const forward = verticalTabs.matches ? "ArrowDown" : "ArrowRight";
+      const backward = verticalTabs.matches ? "ArrowUp" : "ArrowLeft";
+      let next;
+      if (e.key === forward) next = (index + 1) % groups.length;
+      else if (e.key === backward) next = (index + groups.length - 1) % groups.length;
+      else if (e.key === "Home") next = 0;
+      else if (e.key === "End") next = groups.length - 1;
+      else return;
+      e.preventDefault();
+      select(groups[next]);
+    };
     tabs.append(b);
-  }
+    if (selected) {
+      $("#groups").setAttribute("aria-labelledby", b.id);
+      if (focus) b.focus();
+    }
+  });
 }
 function buildGroup() {
   const box = $("#groups"); box.innerHTML = "";
   const g = sections.find(s => s.group === tab); if (!g) return;
   for (const s of g.sections) {
     const sec = document.createElement("div"); sec.className = "sec";
-    sec.innerHTML = `<h2>${esc(s.title || g.title)}</h2>`;
+    sec.innerHTML = `<h3>${esc(s.title || g.title)}</h3>`;
     s.keys.filter(k => props[k]).forEach(k => sec.append(row(k)));
     box.append(sec);
   }
@@ -702,7 +806,18 @@ function buildGroup() {
 const VIEWS = { home: "Home", drawer: "App drawer", folder: "Folder", now: "Now page" };
 function buildViews() {
   const box = $("#views"); box.innerHTML = "";
-  for (const v in VIEWS) { const b = document.createElement("button"); b.textContent = VIEWS[v]; b.setAttribute("aria-pressed", v === view); b.onclick = () => { view = v; buildViews(); render(); }; box.append(b); }
+  for (const v in VIEWS) {
+    const b = document.createElement("button");
+    b.textContent = VIEWS[v];
+    b.setAttribute("aria-pressed", v === view);
+    b.onclick = () => {
+      view = v;
+      box.querySelector('[aria-pressed="true"]')?.setAttribute("aria-pressed", "false");
+      b.setAttribute("aria-pressed", "true");
+      render();
+    };
+    box.append(b);
+  }
 }
 function update(k) {
   const r = document.querySelector(`.row[data-key="${k}"]`), a = document.activeElement, had = r && r.contains(a);
@@ -744,11 +859,15 @@ function shuffle() {
 function buildLooks() {
   const box = $("#looks");
   for (const name in PRESETS) {
-    const p = PRESETS[name], c = p.accent === "amoled" ? "#F4F3EF" : p.accent === "appliance" ? "#E8721C" : PALETTE[hash(name) % PALETTE.length];
-    const b = document.createElement("button"); b.className = "look"; b.innerHTML = `<i style="background:${c};${shapeCss(p.shape || def("shape"))}"></i>${esc(name)}`;
-    b.onclick = () => applyPreset(name); box.append(b);
+    const [description, color] = LOOK_DETAILS[name];
+    const shape = shapeCss(PRESETS[name].shape || def("shape"));
+    const b = document.createElement("button");
+    b.className = "look";
+    b.style.setProperty("--look-color", color);
+    b.innerHTML = `<span class="look-mark" aria-hidden="true"><i style="${shape}"></i></span><span><span class="look-name">${esc(name)}</span><small>${esc(description)}</small></span>`;
+    b.onclick = () => applyPreset(name);
+    box.append(b);
   }
-  const s = document.createElement("button"); s.className = "look shuffle"; s.title = "Random shapes, colours and styles"; s.innerHTML = '<span class="ms" aria-hidden="true">casino</span>Shuffle'; s.onclick = shuffle; box.append(s);
 }
 function download(name, text) {
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type: "application/json" })); a.download = name; a.click();
@@ -779,20 +898,21 @@ ${JSON.stringify({ settings: fullSettings() }, null, 2)}`;
 fetch(SCHEMA_URL).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(schema => {
   props = schema.properties.settings.properties;
   sections = schema["x-sections"] || [];
-  try { const d = JSON.parse(localStorage.getItem("vulcan-designer") || "null"); if (d) { applySettings(d.S, true); tab = d.tab || tab; view = GROUP_VIEW[tab] || "home"; } } catch (e) {}
+  try { const d = JSON.parse(localStorage.getItem("vulcan-designer") || "null"); if (d) { applySettings(d.S, true); if (sections.some(s => s.group === d.tab)) tab = d.tab; view = GROUP_VIEW[tab] || "home"; } } catch (e) {}
   const m = location.hash.match(/^#s=(.+)$/);
   if (m) { try { applySettings(decodeHash(m[1]), true); toast("Shared style loaded"); } catch (e) { toast("That link's style couldn't be read"); } history.replaceState(null, "", location.pathname); }
   buildLooks(); nightLabel(); refresh();
 }).catch(e => { $("#status").innerHTML = `<span class="err">Couldn't load the settings list (${esc(e.message)}). Open this page from a web server, not as a file.</span>`; });
 
 $("#open").onchange = e => { if (e.target.files[0]) openFile(e.target.files[0]); e.target.value = ""; };
-$("#openLbl").onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#open").click(); } };
+$("#openBtn").onclick = () => $("#open").click();
+$("#shuffle").onclick = shuffle;
 document.addEventListener("dragover", e => { e.preventDefault(); $("#drop").classList.add("on"); });
 document.addEventListener("dragleave", e => { if (!e.relatedTarget) $("#drop").classList.remove("on"); });
 document.addEventListener("drop", e => { e.preventDefault(); $("#drop").classList.remove("on"); const f = e.dataTransfer.files[0]; if (f) f.type.startsWith("image/") ? setWall(f) : openFile(f); });
 function setWall(f) { const r = new FileReader(); r.onload = () => { wallpaper = r.result; render(); }; r.readAsDataURL(f); }
 $("#wall").onchange = e => { if (e.target.files[0]) setWall(e.target.files[0]); };
-$("#wallLbl").onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#wall").click(); } };
+$("#wallBtn").onclick = () => $("#wall").click();
 $("#resetAll").onclick = () => { const before = { ...S }; S = {}; if (loaded) applySettings(loaded.settings, true); refresh(); toast(loaded ? "Back to the loaded file" : "Back to a fresh install", before); };
 $("#download").onclick = () => {
   if (loaded) { const d = JSON.parse(JSON.stringify(loaded)); d["$schema"] = PUBLIC_SCHEMA; d.settings = fullSettings(); download(loadedName.replace(/\.json$/i, "") + "-styled.json", JSON.stringify(d, null, 2)); }
@@ -816,9 +936,10 @@ $("#aiApply").onclick = () => {
   $("#aiDlg").close(); buildTabs(); buildGroup(); render(); save();
   status(bad.length ? `<span class="err">left out: ${esc(bad.join(", "))}</span>` : "answer applied");
 };
-function nightLabel() { $("#night").setAttribute("aria-pressed", phoneDark); $("#night").innerHTML = `<span class="ms" aria-hidden="true">${phoneDark ? "dark_mode" : "light_mode"}</span>Phone in ${phoneDark ? "dark" : "light"} mode`; }
+function nightLabel() { $("#night").setAttribute("aria-pressed", phoneDark); $("#night").innerHTML = `<span class="ms" aria-hidden="true">${phoneDark ? "dark_mode" : "light_mode"}</span>${phoneDark ? "Dark mode" : "Light mode"}`; }
 $("#night").onclick = () => { phoneDark = !phoneDark; nightLabel(); render(); };
-window.addEventListener("resize", fit);
+verticalTabs.addEventListener("change", orientTabs);
+new ResizeObserver(fit).observe($("#frameBox"));
 </script>
 </body>
 </html>
