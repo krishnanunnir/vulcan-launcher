@@ -206,6 +206,10 @@ class MainActivity : VulcanActivity() {
         val held = items.filter { it.isWidget }.map { it.widgetId } + listOfNotNull(pendingWidget?.first)
         host.appWidgetIds.filter { it !in held }.forEach(host::deleteAppWidgetId)
         launcherApps.registerCallback(appsCallback)
+        val dateFilter = android.content.IntentFilter(Intent.ACTION_DATE_CHANGED).apply {
+            addAction(Intent.ACTION_TIME_CHANGED); addAction(Intent.ACTION_TIMEZONE_CHANGED) }
+        if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(dateReceiver, dateFilter, RECEIVER_NOT_EXPORTED)
+        else registerReceiver(dateReceiver, dateFilter)
         if (android.os.Build.VERSION.SDK_INT >= 34) registerReceiver(profileReceiver,
             android.content.IntentFilter(Intent.ACTION_PROFILE_AVAILABLE).apply { addAction(Intent.ACTION_PROFILE_UNAVAILABLE) }, RECEIVER_NOT_EXPORTED)
         BadgeService.onChange = { pkgs -> runOnUiThread { if (pkgs.isNotEmpty()) { updateBadges(pkgs); drawer.refreshBadges() }; updateGlance() } }
@@ -428,6 +432,7 @@ class MainActivity : VulcanActivity() {
         super.onDestroy()
         if (!::launcherApps.isInitialized) return // handed off to home in onCreate
         launcherApps.unregisterCallback(appsCallback)
+        unregisterReceiver(dateReceiver)
         if (android.os.Build.VERSION.SDK_INT >= 34) unregisterReceiver(profileReceiver)
         BadgeService.onChange = {}
         torchWatch?.let { getSystemService(android.hardware.camera2.CameraManager::class.java).unregisterTorchCallback(it) }
@@ -590,6 +595,10 @@ class MainActivity : VulcanActivity() {
         apps = profiles.filter { it != privateUser || !privateLocked }.flatMap { user -> launcherApps.getActivityList(null, user).map { App(it, serial(user), appCache::label) } }
             .filter { it.pkg != packageName }.associateBy { it.key }
         customs = store.obj("custom")
+        // ponytail: personal profile only (PackageManager sees one user); a work-profile calendar keeps its static icon.
+        dateIcons = packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), PackageManager.GET_META_DATA)
+            .mapNotNull { r -> r.activityInfo.let { ai -> ai.metaData?.getInt("${ai.packageName}.dynamic_icons")?.takeIf { it != 0 }?.let { "${ai.packageName}/${ai.name}" to it } } }
+            .toMap()
         if (changed == null) { iconCache.evictAll(); appCache.keepOnly(apps.keys) }
         else { iconCache.snapshot().keys.filter { it.substringBefore('/') in changed }.forEach(iconCache::remove); appCache.forget(changed) }
     }
@@ -662,8 +671,32 @@ class MainActivity : VulcanActivity() {
         val custom = synchronized(customs) { customs.optJSONObject(a.key)?.optString("icon") } ?: ""
         // Icons.get always ends in a flat bitmap. Decoded outside any lock: prefetch runs this on a worker thread
         // while the UI thread may decode the same icon, so a duplicate decode is merged by the put below.
-        val d = BitmapDrawable(resources, appCache.icon(a, custom) { (icons.get(a.pkg, a.cls, custom) { a.info.getBadgedIcon(0) } as BitmapDrawable).bitmap })
+        val dated = dateIcons["${a.pkg}/${a.cls}"]?.takeIf { a.info.user == Process.myUserHandle() }
+        val day = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_MONTH)
+        // A date icon's disk entry also holds the day it shows, so tomorrow draws afresh.
+        val d = BitmapDrawable(resources, appCache.icon(a, if (dated == null) custom else "$custom|day$day") {
+            (icons.get(a.pkg, a.cls, custom) { dated?.let { dateIcon(a, it, day) } ?: a.info.getBadgedIcon(0) } as BitmapDrawable).bitmap
+        })
         iconCache.put(a.key, d); d
+    }
+
+    /** Launcher activities that draw today's date ("<pkg>.dynamic_icons" meta-data: 31 drawables), to their array. */
+    private var dateIcons: Map<String, Int> = emptyMap()
+
+    /** Day [day]'s drawable from [a]'s dynamic-icon [array], as Launcher3 picks it for Google Calendar. */
+    private fun dateIcon(a: App, array: Int, day: Int): Drawable? = runCatching {
+        val res = packageManager.getResourcesForApplication(a.info.applicationInfo)
+        val ids = res.obtainTypedArray(array)
+        val id = try { ids.getResourceId(day - 1, 0) } finally { ids.recycle() }
+        res.getDrawableForDensity(id, resources.displayMetrics.densityDpi, null)
+    }.getOrNull()
+
+    /** Midnight or a clock/time-zone change: date icons redraw with the new day. */
+    private val dateReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(c: android.content.Context, i: Intent) {
+            if (dateIcons.isEmpty()) return
+            loadApps(dateIcons.keys.map { it.substringBefore('/') }.distinct()); drawer.invalidate(); render()
+        }
     }
 
     /** Warms the icons of [apps] on a worker thread, so scrolling the drawer does not decode them on the UI thread. */
