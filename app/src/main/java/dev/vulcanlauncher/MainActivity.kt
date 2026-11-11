@@ -700,6 +700,10 @@ class MainActivity : VulcanActivity() {
     }
 
     /** Warms the icons of [apps] on a worker thread, so scrolling the drawer does not decode them on the UI thread. */
+    /** [a]'s icon if it's in memory; else null, and [ready] gets it on the UI thread once loaded off it. */
+    fun iconLater(a: App, ready: (Drawable) -> Unit): Drawable? = iconCache.get(a.key) ?: null.also {
+        iconLoader.execute { val d = icon(a); runOnUiThread { ready(d) } }
+    }
     fun prefetchIcons(apps: Collection<App>) {
         val missing = apps.filter { iconCache.get(it.key) == null }
         if (missing.isNotEmpty()) iconLoader.execute { missing.forEach(::icon) }
@@ -1992,6 +1996,10 @@ class MainActivity : VulcanActivity() {
             when (which) {
                 0 -> pickAction(getString(R.string.launcher_action)) { addItem(Item(0, 0, 0, sub, sub, action = it)) }
                 1 -> {
+                    if (!launcherApps.hasShortcutHostPermission()) {
+                        toast(R.string.shortcut_requires_home)
+                        return@setItems
+                    }
                     val list = packageManager.queryIntentActivities(Intent(Intent.ACTION_CREATE_SHORTCUT), 0)
                         .sortedWith(compareBy(labelOrder()) { it.loadLabel(packageManager).toString() })
                     // Each with its app's icon and name: shortcut names alone ("Contact", "Direct dial") don't say whose they are.
@@ -2125,7 +2133,14 @@ class MainActivity : VulcanActivity() {
             REQ_SHORTCUT -> if (ok && data != null) {
                 val req = launcherApps.getPinItemRequest(data)
                 // ponytail: pre-Android 8 style EXTRA_SHORTCUT_INTENT results aren't stored; every current app uses pin requests
-                if (req != null && addPinned(this, req)) reloadItems()
+                // The user can change the default Home app while the external picker is open.
+                val added = try {
+                    req != null && addPinned(this, req)
+                } catch (_: SecurityException) {
+                    toast(R.string.shortcut_requires_home)
+                    false
+                }
+                if (added) reloadItems()
             }
             REQ_DOC -> data?.data?.takeIf { ok }?.let { onDocument?.invoke(it) ?: restarted() }.also { onDocument = null }
             REQ_ICON -> data?.data?.takeIf { ok }?.let { uri ->

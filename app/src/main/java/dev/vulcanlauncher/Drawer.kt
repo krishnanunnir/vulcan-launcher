@@ -13,13 +13,52 @@ import android.widget.BaseAdapter
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.GridView
-import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.SectionIndexer
 import android.widget.TextView
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.abs
+
+/** Lays out drawer chips in reading order, wrapping at the width of the drawer. */
+private class DrawerTabs(context: android.content.Context, private val gap: Int, private val chipHeight: Int) : ViewGroup(context) {
+    private val positions = mutableListOf<android.graphics.Rect>()
+    var chipToReveal: View? = null
+
+    override fun onMeasure(widthSpec: Int, heightSpec: Int) {
+        val width = MeasureSpec.getSize(widthSpec)
+        val rowWidth = (width - paddingStart - paddingEnd).coerceAtLeast(0)
+        val childWidth = MeasureSpec.makeMeasureSpec(rowWidth, MeasureSpec.AT_MOST)
+        val childHeight = MeasureSpec.makeMeasureSpec(chipHeight, MeasureSpec.EXACTLY)
+        var x = 0
+        var y = paddingTop
+        positions.clear()
+        for (i in 0 until childCount) {
+            val chip = getChildAt(i)
+            chip.measure(childWidth, childHeight)
+            if (x > 0 && x + chip.measuredWidth > rowWidth) {
+                x = 0
+                y += chipHeight + gap
+            }
+            val start = paddingStart + x
+            val left = if (layoutDirection == LAYOUT_DIRECTION_RTL) width - start - chip.measuredWidth else start
+            positions.add(android.graphics.Rect(left, y, left + chip.measuredWidth, y + chipHeight))
+            x += chip.measuredWidth + gap
+        }
+        setMeasuredDimension(width, resolveSize(y + (if (childCount == 0) 0 else chipHeight) + paddingBottom, heightSpec))
+    }
+
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        positions.forEachIndexed { i, bounds -> getChildAt(i).layout(bounds.left, bounds.top, bounds.right, bounds.bottom) }
+        chipToReveal?.let { chip ->
+            chipToReveal = null
+            chip.post { chip.requestRectangleOnScreen(android.graphics.Rect(0, 0, chip.width, chip.height), true) }
+        }
+    }
+
+    override fun generateDefaultLayoutParams() = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
+}
 
 /** A drawer tab or drawer folder: [type] is "tab" or "folder"; [apps] are app keys; [color] a tab's own "#RRGGBB", null for the theme's. */
 data class Group(val name: String, val type: String, val apps: List<String>, val color: String? = null)
@@ -249,8 +288,15 @@ class Drawer(private val a: MainActivity) {
     private var entriesOf: (String) -> List<Entry> = { emptyList() }
     /** The tab the drawer opens on: All apps, or the first tab when All apps is hidden. */
     private var homeTab = ""
-    private val tabs = LinearLayout(a)
-    private val tabScroll = HorizontalScrollView(a).apply { isHorizontalScrollBarEnabled = false; addView(tabs) }
+    private val tabs = DrawerTabs(a, (8 * a.dp).toInt(), (32 * a.dp).toInt())
+    private val tabScroll = object : ScrollView(a) {
+        override fun onMeasure(widthSpec: Int, heightSpec: Int) {
+            // Keep the grid usable even with dozens of tabs or in a short window.
+            val available = View.MeasureSpec.getSize(heightSpec)
+            val limit = minOf((128 * a.dp).toInt(), available / 3)
+            super.onMeasure(widthSpec, View.MeasureSpec.makeMeasureSpec(limit, View.MeasureSpec.AT_MOST))
+        }
+    }.apply { addView(tabs, FrameLayout.LayoutParams(-1, -2)) }
     private val grid = GridView(a).apply {
         // Glass and housing: no scrollbar; rows fade out at the edges instead of being cut by the status bar or search bar.
         if (styleName == "glass" || styleName == "housing") { isVerticalScrollBarEnabled = false; isVerticalFadingEdgeEnabled = true; setFadingEdgeLength((32 * a.dp).toInt()) }
@@ -354,6 +400,9 @@ class Drawer(private val a: MainActivity) {
             if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
                 ignoring = progress < 1f || held
                 if (ignoring && anim != null && !settlingOpen) return false
+                // Land the previous swipe before hit testing a touch on the moving grids. Not elsewhere: landing rebuilds the
+                // chips and frequent row, and the new views aren't laid out yet, so a tap on them would hit nothing.
+                if (!ignoring) (grid.parent as? View)?.takeIf { ev.y >= it.top && ev.y < it.bottom }?.let { tabAnim?.end() }
             }
             return ignoring || super.dispatchTouchEvent(ev)
         }
@@ -402,7 +451,7 @@ class Drawer(private val a: MainActivity) {
         search.setOnTouchListener(pullClose)
         val barParams = LinearLayout.LayoutParams(-1, ((if (bottomBar) 48 else 56) * a.dp).toInt()).apply { setMargins(pad, pad / 2, pad, pad / 2) }
         if (!bottomBar) addView(bar, barParams)
-        tabs.setPadding(pad - (4 * a.dp).toInt(), if (bottomBar || fromBottom) pad / 2 else 0, pad, (8 * a.dp).toInt())
+        tabs.setPaddingRelative(pad + (4 * a.dp).toInt(), if (bottomBar || fromBottom) pad / 2 else 0, pad, (8 * a.dp).toInt())
         val content = FrameLayout(a)
         if (styleName == "pages") content.addView(pager) else { content.addView(peek); content.addView(grid) }
         content.addView(empty, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER).apply { setMargins(pad * 2, 0, pad * 2, 0) })
@@ -481,10 +530,17 @@ class Drawer(private val a: MainActivity) {
             setOnScrollListener(object : android.widget.AbsListView.OnScrollListener {
                 // As Launcher3: a finger scrolling the list puts the keyboard away (the query stays).
                 override fun onScrollStateChanged(v: android.widget.AbsListView, state: Int) {
-                    if (state == android.widget.AbsListView.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL) hideKeyboard()
+                    scrolling = state != android.widget.AbsListView.OnScrollListener.SCROLL_STATE_IDLE
+                    // Only with the field focused: hiding is a call to the input method, on every scroll that starts.
+                    if (state == android.widget.AbsListView.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL && search.hasFocus()) hideKeyboard()
                 }
+                // onScroll comes every frame; the letter changes only with the first row or the list (a new sections array).
+                var last: Pair<Int, Array<String>>? = null
                 override fun onScroll(v: android.widget.AbsListView, first: Int, visible: Int, total: Int) {
-                    if (!index.dragging) index.current = this@Drawer.adapter.getSectionForPosition(first)
+                    val now = first to this@Drawer.adapter.getSections()
+                    if (index.dragging || now == last) return
+                    last = now
+                    index.current = this@Drawer.adapter.getSectionForPosition(first)
                 }
             })
             setOnItemClickListener { _, v, pos, _ -> this@Drawer.adapter.getItem(pos)?.let { open(it, v) } }
@@ -498,42 +554,56 @@ class Drawer(private val a: MainActivity) {
             var sideways = false
             var sideStart = 0f
             var sideVelocity: android.view.VelocityTracker? = null
+            fun track(tracker: android.view.VelocityTracker?, ev: MotionEvent) {
+                tracker?.let {
+                    val sample = MotionEvent.obtain(ev)
+                    sample.setLocation(ev.rawX, ev.rawY)
+                    it.addMovement(sample)
+                    sample.recycle()
+                }
+            }
             setOnTouchListener { _, ev ->
                 // GridView keeps a tap alive until the finger leaves the whole list, so a sideways swipe that started on
                 // an icon would open it on release. Sideways is no tap: cancel it, and the rest of that touch moves the tabs:
                 // the list follows the finger with the next or previous tab beside it, as pages do.
                 if (ev.actionMasked == MotionEvent.ACTION_DOWN) sideways = false
                 else if (sideways) {
-                    sideVelocity?.addMovement(MotionEvent.obtain(ev).also { it.setLocation(ev.rawX, ev.rawY) })
+                    track(sideVelocity, ev)
+                    val dx = ev.rawX - sideStart
                     when (ev.actionMasked) {
-                        MotionEvent.ACTION_MOVE -> dragTabs(ev.rawX - sideStart)
+                        MotionEvent.ACTION_MOVE -> dragTabs(dx)
                         MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                             sideVelocity?.computeCurrentVelocity(1000)
-                            val vx = if (ev.actionMasked == MotionEvent.ACTION_UP) sideVelocity?.xVelocity ?: 0f else 0f
+                            val cancelled = ev.actionMasked == MotionEvent.ACTION_CANCEL
+                            val vx = sideVelocity?.xVelocity ?: 0f
                             sideVelocity?.recycle(); sideVelocity = null
-                            releaseTabs(ev.rawX - sideStart, vx)
+                            sideways = false
+                            if (!cancelled) dragTabs(dx)
+                            releaseTabs(dx, vx, cancelled)
                         }
                     }
                     return@setOnTouchListener true
                 }
                 if (ev.actionMasked == MotionEvent.ACTION_MOVE && !closing && abs(ev.x - startX) > touchSlop && abs(ev.x - startX) > abs(ev.y - startY)) {
                     sideways = true
-                    sideStart = ev.rawX // follow from here, without jumping the slop
-                    sideVelocity?.recycle(); sideVelocity = android.view.VelocityTracker.obtain()
-                    tabAnim?.cancel()
+                    val dx = ev.x - startX
+                    sideStart = ev.rawX - dx + if (dx > 0) touchSlop else -touchSlop
+                    sideVelocity?.recycle()
+                    sideVelocity = android.view.VelocityTracker.obtain().also { track(it, ev) }
+                    velocity?.recycle(); velocity = null
                     MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; onTouchEvent(it); it.recycle() }
+                    dragTabs(ev.rawX - sideStart)
                     return@setOnTouchListener true
                 }
                 // Pull down from the top of the list: the drawer follows the finger and closes on release (or searches).
                 // In screen coordinates too, so a flick's speed isn't halved by the moving list.
-                fun track(t: android.view.VelocityTracker?) = t?.let { v -> MotionEvent.obtain(ev).also { it.setLocation(ev.rawX, ev.rawY); v.addMovement(it); it.recycle() } }
-                track(velocity)
+                track(velocity, ev)
                 when (ev.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         // Screen coordinates: the list moves with the sheet, so its own would halve the pull.
                         downY = ev.rawY; closing = false
                         startX = ev.x; startY = ev.y
-                        velocity?.recycle(); velocity = android.view.VelocityTracker.obtain().also { track(it) }
+                        velocity?.recycle(); velocity = android.view.VelocityTracker.obtain().also { track(it, ev) }
                     }
                     MotionEvent.ACTION_MOVE -> if (!closing && ev.rawY - downY > 24 * a.dp && !canScrollVertically(-1)) {
                         if (a.looks.on("pullToSearch")) {
@@ -550,11 +620,17 @@ class Drawer(private val a: MainActivity) {
                         }
                     }
                 }
-                if (!closing) return@setOnTouchListener false
+                if (!closing) {
+                    if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
+                        velocity?.recycle(); velocity = null
+                    }
+                    return@setOnTouchListener false
+                }
                 if (ev.actionMasked == MotionEvent.ACTION_MOVE) setProgress(1 - (ev.rawY - downY) / travel())
                 if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
                     velocity?.computeCurrentVelocity(1000)
                     release(-(velocity?.yVelocity ?: 0f), 0.7f)
+                    velocity?.recycle(); velocity = null
                     closing = false; held = false
                 }
                 true
@@ -640,6 +716,7 @@ class Drawer(private val a: MainActivity) {
     }
 
     private fun gone() {
+        tabAnim?.end()
         root.alpha = 1f
         for (i in 0 until root.childCount) root.getChildAt(i).alpha = 1f
         // Every close ends here, whatever started it: the keyboard mustn't stay up over home (#73).
@@ -844,6 +921,8 @@ class Drawer(private val a: MainActivity) {
      * finger moving left brings the next tab (the previous one in right-to-left), wrapping round at the ends.
      */
     private fun dragTabs(dx: Float) {
+        val w = grid.width.toFloat()
+        val offset = dx.coerceIn(-w, w)
         val rtl = root.layoutDirection == View.LAYOUT_DIRECTION_RTL
         val next = swipedTab(tabKeys, tab, (dx < 0) != rtl)
         if (next == null) { grid.translationX = dx / 4; return } // one tab: a little give, nowhere to go
@@ -855,35 +934,31 @@ class Drawer(private val a: MainActivity) {
             peek.setSelection(if (fromBottom) peekAdapter.count - 1 else 0)
             peek.visibility = View.VISIBLE
         }
-        val w = grid.width.toFloat()
-        grid.translationX = dx
-        peek.translationX = dx + if (dx < 0) w else -w
-        index.alpha = 1 - minOf(1f, abs(dx) / (w / 3))
+        grid.translationX = offset
+        peek.translationX = offset + if (dx < 0) w else -w
+        index.alpha = 1 - minOf(1f, abs(offset) / (w / 3).coerceAtLeast(1f))
     }
 
     /** Let go after [dragTabs]: on to the next tab if pulled a third of the way or flung that way ([vx] px/s), else back. */
-    private fun releaseTabs(dx: Float, vx: Float) {
+    private fun releaseTabs(dx: Float, vx: Float, cancelled: Boolean) {
         val w = grid.width.toFloat()
         val fling = 500 * a.dp
         val flung = abs(vx) > fling
-        val go = peekTab != null && (if (flung) vx * dx > 0 else abs(dx) > w / 3)
-        val to = if (go) (if (dx < 0) -w else w) else 0f
-        tabAnim?.cancel()
-        tabAnim = android.animation.ValueAnimator.ofFloat(grid.translationX, to).apply {
+        val landed = peekTab?.takeIf { !cancelled && (if (flung) vx * dx > 0 else abs(dx) > w / 3) }
+        val to = if (landed != null) (if (dx < 0) -w else w) else 0f
+        val peekOffset = peek.translationX - grid.translationX
+        val animation = android.animation.ValueAnimator.ofFloat(grid.translationX, to).apply {
             duration = (120 + 160 * abs(to - grid.translationX) / maxOf(1f, w)).toLong()
             interpolator = EASE
             addUpdateListener {
                 val x = it.animatedValue as Float
                 grid.translationX = x
-                if (peekTab != null) peek.translationX = x + if (dx < 0) w else -w
+                if (peekTab != null) peek.translationX = x + peekOffset
             }
             addListener(object : android.animation.AnimatorListenerAdapter() {
-                var cancelled = false
-                override fun onAnimationCancel(x: android.animation.Animator) { cancelled = true }
                 override fun onAnimationEnd(x: android.animation.Animator) {
-                    if (cancelled) return
-                    val landed = peekTab
-                    if (go && landed != null) {
+                    tabAnim = null
+                    if (landed != null) {
                         tab = landed
                         refresh()
                         grid.setSelection(if (fromBottom) adapter.count - 1 else 0)
@@ -895,8 +970,9 @@ class Drawer(private val a: MainActivity) {
                     index.alpha = 1f
                 }
             })
-            start()
         }
+        tabAnim = animation
+        animation.start()
     }
 
     private fun buildTabs(groups: List<Group>, workTab: Boolean, privateTab: Boolean, show: Boolean) {
@@ -906,8 +982,6 @@ class Drawer(private val a: MainActivity) {
             groups.filter { it.type == "tab" }.map { it.name to it.name }
         tabScroll.visibility = if (show && names.size > 1) View.VISIBLE else View.GONE
         tabKeys = if (tabScroll.visibility == View.VISIBLE) names.map { it.first } else emptyList()
-        // Keep the selected chip on screen when a swipe lands on one scrolled out of view.
-        tabs.post { tabs.getChildAt(tabKeys.indexOf(tab).coerceAtLeast(0))?.let { it.requestRectangleOnScreen(android.graphics.Rect(0, 0, it.width, it.height)) } }
         // M3 filter chips: the selected one filled with the secondary container and a check mark. Housing: a raised
         // key; the others are plain legends.
         for ((key, title) in names) {
@@ -918,8 +992,17 @@ class Drawer(private val a: MainActivity) {
             val ink = if (own != null) onColor(own) else if (housing) a.m3.onSurface else a.m3.onSecondaryContainer
             tabs.addView(a.text(title, 14f, if (on) ink else a.m3.onSurfaceVariant, medium = true).apply {
                 gravity = Gravity.CENTER_VERTICAL
+                isSelected = on
+                setSingleLine()
+                ellipsize = android.text.TextUtils.TruncateAt.END
                 val p = (16 * a.dp).toInt()
-                setPadding(if (on && !housing) p / 2 else p, 0, p, 0)
+                // Unselected chips are as wide as selected ones (room for the check), so the rows don't rewrap on a switch.
+                val check = (18 * a.dp).toInt() + (8 * a.dp).toInt()
+                when {
+                    housing -> setPaddingRelative(p, 0, p, 0)
+                    on -> setPaddingRelative(p / 2, 0, p, 0)
+                    else -> { gravity = Gravity.CENTER; val side = p / 2 + check + p; setPaddingRelative(side / 2, 0, side - side / 2, 0) }
+                }
                 compoundDrawablePadding = (8 * a.dp).toInt()
                 // Housing: the raised key alone marks the selected tab; the screen's signal belongs to the index or search.
                 if (on && !housing) setCompoundDrawablesRelative(a.symbol("check", ink, 18f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
@@ -928,8 +1011,8 @@ class Drawer(private val a: MainActivity) {
                     on -> a.rounded(fill, 8 * a.dp)
                     else -> a.rounded(0, 8 * a.dp, a.m3.outlineVariant)
                 }, if (housing) 16 * a.dp else 8 * a.dp)
-                layoutParams = LinearLayout.LayoutParams(-2, (32 * a.dp).toInt()).apply { marginStart = (8 * a.dp).toInt() }
-                setOnClickListener { tab = key; refresh() }
+                // A swipe still settling would otherwise land after this and take its tab back.
+                setOnClickListener { tabAnim?.end(); tab = key; refresh() }
                 if (key != "" && key != "work" && key != "private") setOnLongClickListener { a.editGroup(groups.first { it.name == key }); true }
                 // All apps can be hidden once there's a tab of the user's own to open on instead.
                 if (key == "" && groups.any { it.type == "tab" }) setOnLongClickListener {
@@ -940,6 +1023,8 @@ class Drawer(private val a: MainActivity) {
                 }
             })
         }
+        // Keep the selected chip visible when a swipe lands beyond the visible rows.
+        tabs.chipToReveal = tabs.getChildAt(tabKeys.indexOf(tab))
     }
 
     private fun buildFrequent(apps: List<App>) {
@@ -978,11 +1063,24 @@ class Drawer(private val a: MainActivity) {
     }
 
     /** [recycled]: a view GridView no longer shows; an app's view is rebound instead of built again. */
+    /** The grid is moving: an icon missing from memory is decoded off the UI thread, not in the middle of a frame. */
+    private var scrolling = false
+    /** The app each recycled cell shows now, so a late icon lands only where it still belongs. */
+    private val bound = java.util.WeakHashMap<IconView, String>()
+    private val blank = android.graphics.drawable.ColorDrawable(0)
+
     private fun entryView(e: Entry, recycled: View? = null, style: IconStyle = iconStyle): IconView = when (e) {
-        is Entry.AppE -> ((recycled as? IconView)?.takeIf { it.tag == APP_VIEW }?.apply { bind(a.label(e.app), a.icon(e.app), e.app.pkg) }
-            ?: IconView(a, a.label(e.app), a.icon(e.app), style, a.badgeStyle(), e.app.pkg).apply { tag = APP_VIEW }).also {
-            if (a.looks.str("badges") != "off") a.badge(it.image, e.app.pkg)
-            accessibleActions(it, { a.showPopup(it, e.app) })
+        is Entry.AppE -> {
+            var view: IconView? = null
+            val icon = if (!scrolling) a.icon(e.app)
+                else a.iconLater(e.app) { d -> view?.takeIf { bound[it] == e.app.key }?.image?.icon = d } ?: blank
+            ((recycled as? IconView)?.takeIf { it.tag == APP_VIEW }?.apply { bind(a.label(e.app), icon, e.app.pkg) }
+                ?: IconView(a, a.label(e.app), icon, style, a.badgeStyle(), e.app.pkg).apply { tag = APP_VIEW }).also {
+                view = it
+                bound[it] = e.app.key
+                if (a.looks.str("badges") != "off") a.badge(it.image, e.app.pkg)
+                accessibleActions(it, { a.showPopup(it, e.app) })
+            }
         }
         is Entry.FolderE -> IconView(a, e.group.name, a.folderIcon(folderItems(e.group)), iconStyle, a.badgeStyle(), "")
         // Short label so the query survives the one-line ellipsis; the globe says "web".

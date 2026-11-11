@@ -15,12 +15,11 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.widget.GridView
-import android.widget.LinearLayout
 import android.widget.TextView
 import java.io.File
 
 /** Observation audit for open GitHub issues; only run on disposable emulators.
- * Setup uses the app model. Holds, taps and swipes use framework-injected touch input.
+ * Setup uses the app model. The rapid tab test dispatches through the drawer directly to control animation timing.
  * REPRODUCED describes a finding, rather than an instrumentation assertion failure.
  */
 class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
@@ -115,7 +114,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
         try { f() } catch (e: Throwable) { note(id, "INCONCLUSIVE", e.stackTraceToString()); runCatching { clean() } }
     }
     private fun text(root: View, value: String) = all(root).filterIsInstance<TextView>().first { it.text.toString() == value }
-    private fun tabs() = field(a.drawer, "tabs") as LinearLayout
+    private fun tabs() = field(a.drawer, "tabs") as ViewGroup
     private fun selected() = field(a.drawer, "tab").toString()
     private fun grid() = field(a.drawer, "grid") as GridView
     private fun seedTabs() {
@@ -199,6 +198,111 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
                     note("#36/$style/first", if (selected() == "Alpha") "PASS" else "FAIL", "backward boundary swipe: selected=${selected()}; expected Alpha")
                     shot("36-$style-first-after")
                 }
+            }
+            case("forum-tabs") {
+                setup()
+                val apps = a.apps.values.filterNot(a::isPrivate).take(12).map { it.key }
+                ui {
+                    a.saveGroups((1..9).map { Group("Drawer regression tab $it", "tab", apps.drop(it - 1)) })
+                    a.drawer.show(false)
+                }
+                settle()
+                val keys = (field(a.drawer, "tabKeys") as List<*>).map { it.toString() }
+                val n = keys.size
+                val g = bounds(grid())
+                val origin = IntArray(2).also { o -> ui { a.drawer.root.getLocationOnScreen(o) } }
+                val y = g.top - origin[1] + g.height() * .35f
+                fun at() = keys.indexOf(selected())
+                fun send(down: Long, elapsed: Long, action: Int, x: Float, y: Float) {
+                    val e = MotionEvent.obtain(down, down + elapsed, action, x, y, 0)
+                    try { a.drawer.root.dispatchTouchEvent(e) } finally { e.recycle() }
+                }
+                /** [count] 55 ms swipes, each 90 ms after the last, so every down arrives before the previous animator's first frame. */
+                fun burst(count: Int, forward: Boolean) {
+                    val from = g.left - origin[0] + g.width() * (if (forward) .8f else .2f)
+                    val way = if (forward) -1 else 1
+                    val start = SystemClock.uptimeMillis() - count * 90L
+                    repeat(count) { i ->
+                        val down = start + i * 90
+                        send(down, 0, MotionEvent.ACTION_DOWN, from, y)
+                        send(down, 20, MotionEvent.ACTION_MOVE, from + way * g.width() * .2f, y)
+                        send(down, 40, MotionEvent.ACTION_MOVE, from + way * g.width() * .4f, y)
+                        send(down, 55, MotionEvent.ACTION_UP, from + way * g.width() * .6f, y)
+                    }
+                }
+                fun stuck(): String? {
+                    var s: String? = null
+                    ui { if (grid().translationX != 0f || (field(a.drawer, "peek") as View).visibility == View.VISIBLE || field(a.drawer, "tabAnim") != null) s = "grid=${grid().translationX}" }
+                    return s
+                }
+                fun expect(id: String, want: Int, what: String) {
+                    val bad = stuck()
+                    note("forum-tabs/$id", if (at() == want && bad == null) "PASS" else "FAIL", "$what: at ${at()}, expected $want of $n${bad?.let { ", stuck $it" } ?: ""}")
+                }
+                var rows = 0
+                ui { val t = tabs(); rows = (0 until t.childCount).map { t.getChildAt(it).top }.distinct().size }
+                note("forum-tabs/wrap", if (rows > 1) "PASS" else "FAIL", "rows=$rows for $n tabs")
+
+                ui { burst(5, true) }; settle()
+                expect("burst-forward", 5 % n, "five rapid swipes forward")
+                ui { burst(5, false) }; settle()
+                expect("burst-back", 0, "five rapid swipes back")
+                ui { burst(n + 2, true) }; settle()
+                expect("burst-wrap", 2 % n, "${n + 2} rapid swipes forward, round the end")
+                repeat(3) { ui { burst(1, true) }; settle() }
+                expect("spaced", 5 % n, "three swipes, each left to settle")
+
+                // Real input, through the framework and with frames drawn between the swipes.
+                val sy = g.top + g.height() * .35f
+                fun real(count: Int) {
+                    repeat(count) {
+                        val down = SystemClock.uptimeMillis()
+                        event(down, MotionEvent.ACTION_DOWN, g.left + g.width() * .8f, sy)
+                        for (f in listOf(.2f, .4f)) { SystemClock.sleep(18); event(down, MotionEvent.ACTION_MOVE, g.left + g.width() * (.8f - f), sy) }
+                        SystemClock.sleep(18); event(down, MotionEvent.ACTION_UP, g.left + g.width() * .2f, sy)
+                        SystemClock.sleep(30)
+                    }
+                    settle()
+                }
+                val before = at()
+                real(5)
+                expect("injected-burst", (before + 5) % n, "five injected 55 ms swipes, 30 ms apart")
+
+                val slow = at()
+                drag(point((g.left + g.width() * .75f).toInt(), (g.top + g.height() * .35f).toInt()), point((g.left + g.width() * .25f).toInt(), (g.top + g.height() * .35f).toInt()))
+                expect("slow-half", (slow + 1) % n, "slow drag half the width")
+                val short = at()
+                drag(point((g.left + g.width() * .6f).toInt(), (g.top + g.height() * .35f).toInt()), point((g.left + g.width() * .4f).toInt(), (g.top + g.height() * .35f).toInt()))
+                expect("slow-short", short, "slow drag a fifth of the width")
+
+                // A tap on a chip while a swipe is still settling: the tapped tab wins.
+                var target = -1
+                ui {
+                    val t = tabs()
+                    val now = at()
+                    target = (0 until n).firstOrNull { i -> i != now && i != (now + 1) % n && Rect().let { r -> t.getChildAt(i).getGlobalVisibleRect(r) && r.height() == t.getChildAt(i).height } } ?: -1
+                    if (target >= 0) {
+                        burst(1, true)
+                        val chip = t.getChildAt(target)
+                        val c = IntArray(2).also(chip::getLocationOnScreen)
+                        val cx = c[0] - origin[0] + chip.width / 2f
+                        val cy = c[1] - origin[1] + chip.height / 2f
+                        val down = SystemClock.uptimeMillis()
+                        send(down, 0, MotionEvent.ACTION_DOWN, cx, cy)
+                        send(down, 30, MotionEvent.ACTION_UP, cx, cy)
+                    }
+                }
+                settle()
+                if (target < 0) note("forum-tabs/tap-during-settle", "INCONCLUSIVE", "no fully visible chip to tap")
+                else expect("tap-during-settle", target, "chip $target tapped while a swipe settled")
+
+                // Chips keep their width selected or not, so the rows don't rewrap on a switch.
+                fun widths(): List<Int> { var w = listOf<Int>(); ui { val t = tabs(); w = (0 until t.childCount).map { t.getChildAt(it).width } }; return w }
+                val w1 = widths()
+                ui { burst(1, true) }; settle()
+                val w2 = widths()
+                note("forum-tabs/stable-width", if (w1 == w2) "PASS" else "FAIL", "before $w1 after $w2")
+                shot("forum-tabs-end")
             }
             case("#37") {
                 for (style in listOf("grid", "housing", "glass", "list", "pages", "grid-dark-bottom", "grid-no-selector")) {

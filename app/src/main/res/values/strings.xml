@@ -468,6 +468,7 @@
     <string name="resize_current">%1$s (current)</string>
     <string name="launcher_action">Launcher action</string>
     <string name="app_shortcut">App shortcut</string>
+    <string name="shortcut_requires_home">Set Vulcan as your default home app to add app shortcuts.</string>
     <string name="activity">Activity</string>
     <string name="add_to_home">Add to home screen</string>
     <string name="work_app">%1$s (work)</string>

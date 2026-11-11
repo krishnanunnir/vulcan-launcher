@@ -55,7 +55,7 @@ class DeviceCheck : Instrumentation() {
                 {"page":0,"x":1,"y":0,"folder":true,"label":"Google","children":[{"page":0,"x":0,"y":0,"pkg":"com.google.android.gm"},{"page":0,"x":0,"y":0,"pkg":"com.google.android.apps.maps"}]},
                 {"page":-1,"x":0,"y":0,"pkg":"com.google.android.dialer"},{"page":0,"x":4,"y":5,"action":"lock","label":"Lock"}]}}"""
             val rejected = a.store.import(ai, a::mainActivity)
-            expect("rejected $rejected", rejected.toSet() == setOf("rows=100", "accent=blue"))
+            expect("rejected $rejected", rejected.rejected.toSet() == setOf("rows=100", "accent=blue"))
             runOnMainSync { a.recreate() }
             SystemClock.sleep(2500)
             a = MainActivity.running?.get() ?: error("Launcher didn't come back")
