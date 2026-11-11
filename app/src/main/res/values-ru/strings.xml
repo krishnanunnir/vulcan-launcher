@@ -743,4 +743,22 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
         <item quantity="many">%1$d из %2$d экранов</item>
         <item quantity="other">%1$d из %2$d экрана</item>
     </plurals>
+    <string name="drag_to_reorder">Перетащите, чтобы изменить порядок</string>
+    <string name="tab_all_hide">Скрыть эту вкладку</string>
+    <string name="tab_all_hide_info">Приложения, которых нет в других вкладках, всё равно можно найти через поиск</string>
+    <string name="tab_all_shown">Отображается первой в меню приложений</string>
+    <string name="tab_all_hidden">Скрыта. Приложения, которых нет в других вкладках, всё равно можно найти через поиск</string>
+    <string name="tab_all_needs_tab">Сначала добавьте вкладку: в меню приложений должна быть хотя бы одна вкладка</string>
+    <string name="move_apps_title">Переместить их сюда?</string>
+    <string name="move_apps_move">Переместить сюда</string>
+    <string name="move_apps_keep">Оставить в обеих группах</string>
+    <string name="sec_cards">Карточки</string>
+    <string name="sec_general">Общие</string>
+    <string name="now_cards_info">Карточки, которым нечего показать, остаются скрытыми. Удерживайте карточку на странице «Сейчас», чтобы переместить её.</string>
+    <plurals name="move_apps_message">
+        <item quantity="one">%1$d из этих приложений уже есть в других группах.</item>
+        <item quantity="few">%1$d из этих приложений уже есть в других группах.</item>
+        <item quantity="many">%1$d из этих приложений уже есть в других группах.</item>
+        <item quantity="other">%1$d из этих приложений уже есть в других группах.</item>
+    </plurals>
 </resources>
