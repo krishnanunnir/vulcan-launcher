@@ -1,10 +1,14 @@
-# Weekly release: if main changed since the last v* tag, bump the version, write the changelog, tag,
-# build the signed APK, publish.
+# Twice-weekly release: if main changed since the last v* tag, bump the version, write the changelog, tag,
+# build the signed APK, publish. Monday = major (0.30.2 → 0.31), Wednesday = minor (0.31 → 0.31.1 → 0.31.2).
 name: Auto release
 
 on:
-  schedule: [{ cron: "0 3 * * 1" }] # Mondays 03:00 UTC
+  schedule:
+    - cron: "0 3 * * 1" # Mondays 03:00 UTC: major
+    - cron: "0 3 * * 3" # Wednesdays 03:00 UTC: minor
   workflow_dispatch:
+    inputs:
+      kind: { type: choice, options: [minor, major], default: minor }
 
 permissions:
   contents: write
@@ -30,7 +34,9 @@ jobs:
       - name: Bump version, commit, tag
         if: steps.check.outputs.skip != 'true'
         id: ver
-        env: { GH_TOKEN: "${{ github.token }}" }
+        env:
+          GH_TOKEN: "${{ github.token }}"
+          KIND: "${{ github.event_name == 'schedule' && (github.event.schedule == '0 3 * * 1' && 'major' || 'minor') || inputs.kind }}"
         run: |
           f=app/build.gradle.kts
           code=$(sed -nE 's/^ *versionCode = ([0-9]+).*/\1/p' $f)
@@ -38,7 +44,14 @@ jobs:
           # Already bumped by hand (version not yet tagged) → release it as-is.
           if git rev-parse -q --verify "refs/tags/v$name" >/dev/null; then
             code=$((code + 1))
-            name="${name%.*}.$(( ${name##*.} + 1 ))"
+            if [ "$KIND" = major ]; then
+              base=$(echo "$name" | cut -d. -f1,2)          # 0.30.2 → 0.30
+              name="${base%.*}.$(( ${base##*.} + 1 ))"       # → 0.31
+            elif [ "$(echo "$name" | tr -cd . | wc -c)" -ge 2 ]; then
+              name="${name%.*}.$(( ${name##*.} + 1 ))"       # 0.30.1 → 0.30.2
+            else
+              name="$name.1"                                 # 0.30 → 0.30.1
+            fi
             sed -i -E "s/^( *versionCode = )[0-9]+/\1$code/; s/^( *versionName = )\"[^\"]+\"/\1\"$name\"/" $f
           fi
 
