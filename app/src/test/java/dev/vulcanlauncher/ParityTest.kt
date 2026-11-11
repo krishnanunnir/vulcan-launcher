@@ -38,6 +38,25 @@ class ParityTest {
     }
 
     @Test
+    fun shortcutActions() {
+        val code = shortcutCode("com.android.contacts", "dial/42", 10)
+        assertEquals(Triple("com.android.contacts", "dial/42", 10L), shortcutAction(code))
+        listOf("shortcut:", "shortcut:pkg/id", "shortcut:/id/0", "shortcut:pkg//0", "shortcut:pkg/id/x", "app:a/b/0").forEach { assertNull(it, shortcutAction(it)) }
+        val t = { id: Int, args: Array<Any> -> "$id:" + args.joinToString() }
+        assertEquals("Mom", actionName(code, t) { if (it == code) "Mom" else null })
+        assertEquals("${R.string.app_shortcut}:", actionName(code, t))
+        // Kept pinned: home's own, a folder's, an icon swipe's and a gesture's; never an unrelated app's.
+        val items = listOf(
+            Item(0, 0, 0, pkg = "c", shortcutId = "home"),
+            Item(0, 1, 0, folder = true, children = listOf(Item(0, 0, 0, pkg = "c", shortcutId = "inFolder", swipe = shortcutCode("c", "swipe", 0)))),
+        )
+        val pins = pinsByApp(items, listOf("lock", shortcutCode("c", "gesture", 0), shortcutCode("c", "work", 10), shortcutCode("c", "home", 0)))
+        assertEquals(setOf("home", "inFolder", "swipe", "gesture"), pins["c" to 0L]?.toSet())
+        assertEquals(listOf("work"), pins["c" to 10L])
+        assertEquals(2, pins.size)
+    }
+
+    @Test
     fun folderSwipe() {
         // #66: a folder's own swipe action beats the global Swipe to open; #65: "folder" turns it on per folder.
         assertFalse(folderSwipeOpens("page:2", global = true))

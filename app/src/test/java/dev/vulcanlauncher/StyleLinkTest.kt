@@ -13,7 +13,7 @@ class StyleLinkTest {
 
     @Test
     fun readsDesignerSettingsWithoutImportingPrivateOrInvalidValues() {
-        val url = link("""{"accent":"#abcdef","labels":false,"cols":6,"shape":"invalid","lat":"12.34","g_swipeDown":"app:example/Main/0"}""")
+        val url = link("""{"accent":"#abcdef","labels":false,"cols":6,"shape":"invalid","lat":"12.34","g_swipeDown":"app:example/Main/0","g_swipeUp":"shortcut:example/id/0"}""")
         assertEquals(mapOf("accent" to "#abcdef", "labels" to "off", "cols" to "6"), readStyleLink("  $url\n"))
         assertEquals(mapOf("labels" to "on"), readStyleLink(link("""{"labels":"on"}""")))
     }
@@ -24,6 +24,7 @@ class StyleLinkTest {
             when (choice.key) {
                 "accent" -> "#4287F5"
                 "g_swipeDown" -> "app:example/Main/0"
+                "g_swipeUp" -> "shortcut:example/id/0"
                 else -> choice.default
             }
         }

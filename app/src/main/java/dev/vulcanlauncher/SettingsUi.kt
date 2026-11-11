@@ -137,6 +137,7 @@ class SettingsActivity : VulcanActivity() {
 
     @Deprecated("Plain Activity result API is fine without androidx")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (shortcutMade(requestCode, resultCode, data)) return
         val uri = data?.data?.takeIf { resultCode == RESULT_OK } ?: return
         when (requestCode) {
             MainActivity.REQ_BACKUP -> runCatching { contentResolver.openOutputStream(uri, "wt")!!.use { it.write(store.export(home.apps.values.toList()).toByteArray()) } }
@@ -985,9 +986,8 @@ fun VulcanActivity.applyImport(layout: ImportedLayout, settings: Map<String, Str
     looks["pages"] = maxOf(pages, settings["pages"]?.toIntOrNull() ?: 1).coerceAtMost(9).toString()
     store.save(layout.items, if (layout.subgrid) 2 else 1)
     if (layout.widgets > 0) store.data.edit().putBoolean(RESTORING_WIDGETS, true).commit()
-    val all = layout.items.flatMap { listOf(it) + it.children }
-    all.filter { it.isShortcut }.map { it.pkg to it.user }.distinct().forEach { (p, u) ->
-        runCatching { home.launcherApps.pinShortcuts(p, all.filter { it.isShortcut && it.pkg == p && it.user == u }.map { it.shortcutId }, home.userOf(u)) }
+    pinsByApp(layout.items, settings.values).forEach { (key, ids) ->
+        runCatching { home.launcherApps.pinShortcuts(key.first, ids, home.userOf(key.second)) }
     }
 }
 

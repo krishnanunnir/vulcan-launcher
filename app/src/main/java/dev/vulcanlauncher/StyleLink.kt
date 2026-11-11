@@ -24,8 +24,8 @@ fun styleLink(value: (Choice) -> String): String {
     return DESIGNER + "#s=" + Base64.getUrlEncoder().withoutPadding().encodeToString(settings.toString().toByteArray())
 }
 
-/** Only portable, recognised settings can be shared or applied. App actions carry a device's profile ID. */
-private fun Choice.shareable(value: String) = !value.startsWith("app:") && accepts(value)
+/** Only portable, recognised settings can be shared or applied. App and shortcut actions carry a device's profile ID. */
+private fun Choice.shareable(value: String) = !value.startsWith("app:") && !value.startsWith("shortcut:") && accepts(value)
 
 /** Null means an unreadable link; an empty map is a readable link with no supported changes. Never fetches the URL. */
 fun readStyleLink(text: String): Map<String, String>? {

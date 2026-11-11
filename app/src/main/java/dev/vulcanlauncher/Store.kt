@@ -219,7 +219,7 @@ fun Item.toReadable(): JSONObject {
 /** Whether setting [this] can take [v]: one of its values, any #RRGGBB / #AARRGGBB colour, or a page or app action. */
 fun Choice.accepts(v: String) = v in values ||
     (COLOR_VALUES[0] in values && Regex("#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})").matches(v)) ||
-    (action && (Regex("page:[0-8]").matches(v) || Regex("app:[^/]+/[^/]+/\\d+").matches(v)))
+    (action && (Regex("page:[0-8]").matches(v) || Regex("app:[^/]+/[^/]+/\\d+").matches(v) || shortcutAction(v) != null))
 
 val BACKUP_HOW_TO = listOf(
     "A Vulcan setup. Edit it by hand or with an AI assistant, then load it on the phone: long-press the home screen, Settings, Backup & restore, Restore from a file.",

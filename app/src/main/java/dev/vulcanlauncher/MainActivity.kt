@@ -101,6 +101,7 @@ class MainActivity : VulcanActivity() {
         const val REQ_DOC = 8
         const val REQ_PERMISSION = 9
         const val REQ_HOME = 10
+        const val REQ_ACTION_SHORTCUT = 11
         /** The live launcher activity, for the on-device check (androidTest/DeviceCheck). */
         var running: java.lang.ref.WeakReference<MainActivity>? = null
     }
@@ -716,7 +717,10 @@ class MainActivity : VulcanActivity() {
         return (mine.firstOrNull { it.cls == launch } ?: mine.firstOrNull())?.cls
     }
 
-    fun appLabel(key: String) = apps[key]?.let(::label)
+    /** An app's name by key, or a "shortcut:" action's shortcut name (see actionName). */
+    fun appLabel(key: String): String? = shortcutAction(key)?.let { (p, id, u) ->
+        pinnedShortcut(Item(0, 0, 0, pkg = p, shortcutId = id, user = u))?.shortLabel?.toString()
+    } ?: apps[key]?.let(::label)
     fun isWork(a: App) = a.info.user != Process.myUserHandle() && !isPrivate(a)
     fun isPrivate(a: App) = a.info.user == privateUser
 
@@ -782,10 +786,14 @@ class MainActivity : VulcanActivity() {
             .onFailure { toast(R.string.shortcut_unavailable) }
     }
 
-    /** Pins exactly the shortcuts of [pkg] that are on the home screen, so removed ones are released. */
-    fun syncPins(pkg: String, user: Long) {
-        val ids = (items + items.flatMap { it.children }).filter { it.isShortcut && it.pkg == pkg && it.user == user }.map { it.shortcutId }.distinct()
-        runCatching { launcherApps.pinShortcuts(pkg, ids, userOf(user)) }
+    /** Gesture and home button actions, the ones settings hold. */
+    fun settingActions() = LOOKS.filter { it.action }.map { looks[it] }
+
+    /** Pins exactly the shortcuts of [pkg] that home or an action uses (plus [also], about to be), so removed ones are released. */
+    // ponytail: runs when a shortcut is picked, placed or removed, not when a gesture is cleared, so that one stays pinned until the next sync
+    fun syncPins(pkg: String, user: Long, also: String? = null) {
+        val ids = pinsByApp(items, settingActions())[pkg to user].orEmpty() + listOfNotNull(also)
+        runCatching { launcherApps.pinShortcuts(pkg, ids.distinct(), userOf(user)) }
     }
 
     // ---- Home screen ----
@@ -1994,7 +2002,7 @@ class MainActivity : VulcanActivity() {
         val options = listOf(R.string.launcher_action, R.string.app_shortcut, R.string.activity).map(::getString).toTypedArray()
         sheet().setTitle(R.string.add_to_home).setItems(options) { _, which ->
             when (which) {
-                0 -> pickAction(getString(R.string.launcher_action)) { addItem(Item(0, 0, 0, sub, sub, action = it)) }
+                0 -> pickAction(getString(R.string.launcher_action), shortcut = false) { addItem(Item(0, 0, 0, sub, sub, action = it)) }
                 1 -> {
                     if (!launcherApps.hasShortcutHostPermission()) {
                         toast(R.string.shortcut_requires_home)
@@ -2026,6 +2034,7 @@ class MainActivity : VulcanActivity() {
         when {
             action.startsWith("page:") -> workspace.snapTo(action.removePrefix("page:").toIntOrNull() ?: 0)
             action.startsWith("app:") -> apps[action.removePrefix("app:")]?.let { launch(it, null) } ?: toast(R.string.app_not_installed)
+            action.startsWith("shortcut:") -> shortcutAction(action)?.let { (p, id, u) -> startShortcut(p, id, userOf(u), null) }
             else -> when (action) {
                 "drawer" -> drawer.show(false)
                 "now" -> if (looks.on("nowPage")) showNow()
@@ -2126,6 +2135,7 @@ class MainActivity : VulcanActivity() {
 
     @Deprecated("Plain Activity result API is fine without androidx")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (shortcutMade(requestCode, resultCode, data)) return
         val ok = resultCode == RESULT_OK
         when (requestCode) {
             REQ_BIND -> if (ok) configureWidget() else cancelWidget()

@@ -140,19 +140,63 @@ abstract class VulcanActivity : Activity() {
         this@VulcanActivity.pickList(title, list.map { icon(it) to if (isWork(it)) getString(R.string.work_app, label(it)) else label(it) }, appIcon = true) { onPicked(list[it]) }
     }
 
-    /** [folder]: a folder's swipe, which may also open the folder itself (listed last, "folder"). */
-    fun pickAction(title: String, folder: Boolean = false, onPicked: (String) -> Unit) {
+    /** [folder]: a folder's swipe, which may also open the folder itself (listed last, "folder"). [shortcut]: offer app shortcuts. */
+    fun pickAction(title: String, folder: Boolean = false, shortcut: Boolean = true, onPicked: (String) -> Unit) {
+        val extra = listOfNotNull<Triple<String, Int, () -> Unit>>(
+            Triple("carousel", R.string.jump_to_page_item) {
+                sheet().setTitle(R.string.page).setItems(Array(looks.pages) { getString(R.string.page_n, it + 1) }) { _, p -> onPicked("page:$p") }.show()
+            },
+            Triple("apps", R.string.open_app_item) { pickApp(getString(R.string.open_app)) { onPicked("app:${it.key}") } },
+            if (shortcut) Triple("link", R.string.app_shortcut_item) { pickShortcut(onPicked) } else null,
+            if (folder) Triple("folder", R.string.action_open_folder) { onPicked("folder") } else null,
+        )
         val rows = ACTIONS.zip(ACTION_NAMES).map { (a, n) -> ACTION_SYMBOLS[a]?.let { symbol(it) } to getString(n) } +
-            listOf(symbol("carousel") to getString(R.string.jump_to_page_item), symbol("apps") to getString(R.string.open_app_item)) +
-            (if (folder) listOf(symbol("folder") to getString(R.string.action_open_folder)) else emptyList())
-        pickList(title, rows) { i ->
-            when (i) {
-                ACTIONS.size + 2 -> onPicked("folder")
-                ACTIONS.size -> sheet().setTitle(R.string.page).setItems(Array(looks.pages) { getString(R.string.page_n, it + 1) }) { _, p -> onPicked("page:$p") }.show()
-                ACTIONS.size + 1 -> pickApp(getString(R.string.open_app)) { onPicked("app:${it.key}") }
-                else -> onPicked(ACTIONS[i])
+            extra.map { symbol(it.first) to getString(it.second) }
+        pickList(title, rows) { i -> if (i < ACTIONS.size) onPicked(ACTIONS[i]) else extra[i - ACTIONS.size].third() }
+    }
+
+    /** Waiting for the shortcut screen [pickShortcut] opened. */
+    private var onShortcutMade: ((String) -> Unit)? = null
+
+    /**
+     * An app shortcut for an action: one the app lists ("New tab"), or one its shortcut screen makes ("Direct dial").
+     * It's pinned, as home's are, so it keeps working. Android only lets the default home app open shortcuts.
+     */
+    fun pickShortcut(onPicked: (String) -> Unit) {
+        if (!runCatching { home.launcherApps.hasShortcutHostPermission() }.getOrDefault(false)) { toast(R.string.shortcut_requires_home); return }
+        pickApp(getString(R.string.app_shortcut)) { app ->
+            val listed = home.shortcutsFor(app)
+            val makers = packageManager.queryIntentActivities(android.content.Intent(android.content.Intent.ACTION_CREATE_SHORTCUT).setPackage(app.pkg), 0)
+                .filter { it.activityInfo.exported }
+            if (listed.isEmpty() && makers.isEmpty()) { toast(R.string.no_app_shortcuts, home.label(app)); return@pickApp }
+            val rows = listed.map { home.shortcutIcon(it) to (it.shortLabel ?: "") } + makers.map { it.loadIcon(packageManager) to it.loadLabel(packageManager) }
+            pickList(home.label(app), rows, appIcon = true) { i ->
+                if (i < listed.size) listed[i].let { s ->
+                    home.syncPins(s.`package`, app.serial, also = s.id)
+                    onPicked(shortcutCode(s.`package`, s.id, app.serial))
+                } else makers[i - listed.size].activityInfo.let { a ->
+                    onShortcutMade = onPicked
+                    runCatching { startActivityForResult(android.content.Intent(android.content.Intent.ACTION_CREATE_SHORTCUT)
+                        .setComponent(android.content.ComponentName(a.packageName, a.name)), MainActivity.REQ_ACTION_SHORTCUT) }
+                        .onFailure { onShortcutMade = null; toast(R.string.shortcut_unavailable) }
+                }
             }
         }
+    }
+
+    /**
+     * Takes the result of the shortcut screen [pickShortcut] opened; false for any other result. Accepting pins it.
+     * ponytail: the waiting callback is lost if this activity is rebuilt meanwhile (rotation), so the pick is dropped.
+     */
+    fun shortcutMade(requestCode: Int, resultCode: Int, data: android.content.Intent?): Boolean {
+        if (requestCode != MainActivity.REQ_ACTION_SHORTCUT) return false
+        val done = onShortcutMade.also { onShortcutMade = null } ?: return true
+        val req = data?.takeIf { resultCode == RESULT_OK }?.let { runCatching { home.launcherApps.getPinItemRequest(it) }.getOrNull() } ?: return true
+        val s = req.shortcutInfo ?: return true
+        // The default home app can change while the other app's screen is open.
+        if (runCatching { req.accept() }.getOrDefault(false)) done(shortcutCode(s.`package`, s.id, home.um.getSerialNumberForUser(s.userHandle)))
+        else toast(R.string.shortcut_requires_home)
+        return true
     }
 
     /** True when night mode would change now (the hour passed a boundary, the system theme flipped). */

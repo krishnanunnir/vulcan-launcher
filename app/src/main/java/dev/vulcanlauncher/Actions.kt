@@ -10,7 +10,7 @@ import kotlin.math.hypot
 
 /**
  * Launcher actions, used by gestures, the home button, icon swipe actions and action shortcuts.
- * Parameterised forms: "page:N" (0-based page) and "app:pkg/cls/user".
+ * Parameterised forms: "page:N" (0-based page), "app:pkg/cls/user" and "shortcut:pkg/id/user" (an app shortcut).
  */
 val ACTIONS = listOf("none", "drawer", "now", "notifications", "quicksettings", "togglebar", "recents", "defaultpage", "previews",
     "toggledock", "search", "voice", "assistant", "lock", "power", "settings", "widgets", "wallpaper", "torch", "locklayout", "work")
@@ -27,6 +27,7 @@ fun actionName(code: String, text: (Int, Array<Any>) -> String, appLabel: (Strin
     code.startsWith("page:") -> text(R.string.action_jump_to_page, arrayOf((code.removePrefix("page:").toIntOrNull() ?: 0) + 1))
     code == "folder" -> text(R.string.action_open_folder, arrayOf())
     code.startsWith("app:") -> text(R.string.action_open_app, arrayOf(appLabel(code.removePrefix("app:")) ?: text(R.string.action_app_fallback, arrayOf())))
+    code.startsWith("shortcut:") -> appLabel(code) ?: text(R.string.app_shortcut, arrayOf())
     else -> text(ACTION_NAMES.getOrElse(ACTIONS.indexOf(code)) { ACTION_NAMES[0] }, arrayOf())
 }
 
@@ -35,6 +36,29 @@ fun actionName(code: String, text: (Int, Array<Any>) -> String, appLabel: (Strin
  * any other action replaces it; "" follows the global Swipe to open setting.
  */
 fun folderSwipeOpens(swipe: String, global: Boolean) = swipe == "folder" || swipe.isEmpty() && global
+
+fun shortcutCode(pkg: String, id: String, user: Long) = "shortcut:$pkg/$id/$user"
+
+/** "shortcut:pkg/id/user" as (package, shortcut id, user serial); the id may itself hold "/". */
+fun shortcutAction(code: String): Triple<String, String, Long>? {
+    val s = code.removePrefix("shortcut:").takeIf { it != code && it.count { c -> c == '/' } >= 2 } ?: return null
+    val pkg = s.substringBefore('/')
+    val id = s.substringAfter('/').substringBeforeLast('/')
+    val user = s.substringAfterLast('/').toLongOrNull() ?: return null
+    return if (pkg.isEmpty() || id.isEmpty()) null else Triple(pkg, id, user)
+}
+
+/**
+ * Shortcut ids to keep pinned, by (package, user serial): those on home and in folders, and those an action opens
+ * ([codes]: gesture and home button settings; icon swipes are read from [items]). Android drops a pinned-only
+ * shortcut (Direct dial) once no launcher pins it.
+ */
+fun pinsByApp(items: List<Item>, codes: Collection<String>): Map<Pair<String, Long>, List<String>> {
+    val all = items + items.flatMap { it.children }
+    val placed = all.filter { it.isShortcut }.map { Triple(it.pkg, it.shortcutId, it.user) }
+    val opened = (codes + all.flatMap { listOf(it.swipe, it.action) }).mapNotNull(::shortcutAction)
+    return (placed + opened).groupBy({ it.first to it.third }, { it.second }).mapValues { it.value.distinct() }
+}
 
 fun android.content.Context.actionName(code: String, appLabel: (String) -> String? = { null }) =
     actionName(code, { id, args -> getString(id, *args) }, appLabel)
