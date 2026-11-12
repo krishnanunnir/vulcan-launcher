@@ -68,8 +68,8 @@ fun SettingsActivity.shareStyle() {
 fun SettingsActivity.pasteStyle() {
     val pad = (24 * dp).toInt()
     val link = field("", getString(R.string.apply_style_hint)).apply {
+        // field() is already single line; calling setSingleLine() again would reset its 56 dp height to one text line.
         inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
-        setSingleLine()
     }
     val box = LinearLayout(this).apply {
         setPadding(pad, (8 * dp).toInt(), pad, 0)

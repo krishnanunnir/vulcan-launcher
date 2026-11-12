@@ -1104,7 +1104,8 @@ $("#doneClose").onclick = () => $("#doneDlg").close();
 $("#share").onclick = () => {
   // A backup can also hold device-specific values (like cached location) in settings. Only share portable schema entries.
   const settings = Object.fromEntries(Object.entries(changed()).filter(([k, v]) => isPortableSetting(k, v)));
-  const url = location.origin + location.pathname + "#s=" + encodeHash(settings);
+  // The app only imports links to the canonical Designer, so a copy opened elsewhere (the GitHub Pages mirror) shares that one.
+  const url = "https://vulcanlauncher.dev/design/#s=" + encodeHash(settings);
   const copyManually = () => prompt("Copy this style link. In Vulcan, open Backup & restore → Import from URL.", url);
   if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => toast("Link copied. In Vulcan, open Backup & restore → Import from URL."), copyManually);
   else copyManually();
