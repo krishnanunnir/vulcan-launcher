@@ -81,7 +81,7 @@ const val NOW_ORDER = "nowOrder"
 fun MainActivity.showNow(slide: Boolean = true) {
     drawer.hide()
     val pad = (16 * dp).toInt()
-    val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, insets.top + pad, pad, insets.bottom + pad) }
+    val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, pad, pad, insets.bottom + pad) }
     // M3 filled cards on a translucent surface.
     /** [onRemove]: a card of your own, with a button that removes it. */
     fun card(title: String, body: View, onRemove: (() -> Unit)? = null): View = LinearLayout(this).apply {
@@ -247,7 +247,8 @@ fun MainActivity.showNow(slide: Boolean = true) {
         }
         val shownApps = c.children.mapNotNull { child -> resolve(child)?.let { child to it } }
         if (shownApps.isEmpty()) return null
-        val st = style("").let { IconStyle(it.sizePx * 3 / 4, true, it.labelSize, panelText, false, false) }
+        // Labels scaled with the icons: at full size, six to a row ran into each other.
+        val st = style("").let { IconStyle(it.sizePx * 3 / 4, true, it.labelSize * 3 / 4, panelText, false, false) }
         val rows = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             // Six to a row, as the frequent apps card; a short last row keeps the same spacing.
@@ -289,7 +290,8 @@ fun MainActivity.showNow(slide: Boolean = true) {
         // Nearly opaque: home's icons showing through made the cards hard to read.
         setBackgroundColor(m3.surface and 0xFFFFFF or 0xF5000000.toInt())
         isClickable = true
-        addView(ScrollView(context).apply { addView(list) })
+        // Clipped below the status bar, so the big clock doesn't scroll up under its icons.
+        addView(ScrollView(context).apply { setPadding(0, insets.top, 0, 0); addView(list) })
     }
     showOverlay(panel) { content.translationX = 0f }
     // Back slides it out the way it came.
