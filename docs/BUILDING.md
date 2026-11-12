@@ -88,7 +88,7 @@ The approved sunset is shared by the app, settings and About, README, website, b
 - [docs/ARCHITECTURE.md](ARCHITECTURE.md): how the code fits together.
 - [docs/nova-reference.md](nova-reference.md): a snapshot of what static analysis of Nova Launcher 8.9.4 found, including its backup format. Used as a reference only; no Nova code is used here.
 
-The contributor rules (no network, every permission justified in the README) are in [CLAUDE.md](../CLAUDE.md).
+The contributor rules (no network, every permission justified in [PERMISSIONS.md](PERMISSIONS.md)) are in [CLAUDE.md](../CLAUDE.md).
 
 ## Google Play
 

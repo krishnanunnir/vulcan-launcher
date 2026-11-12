@@ -13,7 +13,7 @@ People leaving Nova Launcher. They depend on its depth (grids, gestures, icon pa
 Vulcan is an Android home-screen launcher written from scratch. It covers what people use Nova for, with no network access at all. It succeeds when a Nova user can switch over, import their backup, and not miss anything, while knowing that nothing the launcher does can leave the phone.
 
 ## Positioning
-It has no `INTERNET` permission, and the README's Permissions table justifies every permission it does request. Privacy is a property of the manifest, not a policy promise. It matches Nova's feature depth and comes with its own calm default look, not a Nova clone or an iOS clone.
+It has no `INTERNET` permission, and the Permissions table in docs/PERMISSIONS.md justifies every permission it does request. Privacy is a property of the manifest, not a policy promise. It matches Nova's feature depth and comes with its own calm default look, not a Nova clone or an iOS clone.
 
 ## Operating Context
 - Used hundreds of times a day as the phone's home screen: one-handed, quick glances, launching apps, gestures, drag and drop.
@@ -22,7 +22,7 @@ It has no `INTERNET` permission, and the README's Permissions table justifies ev
 - Runs on stock Android and OEM skins. Samsung One UI is the primary test device, and some platform features (cross-window blur) behave differently there.
 
 ## Capabilities and Constraints
-- The hard rules (no network, justified permissions, no runtime dependencies, no Nova code) are in `CLAUDE.md`. Architecture is in `docs/ARCHITECTURE.md`; what's out of scope is in the README.
+- The hard rules (no network, justified permissions, no runtime dependencies, no Nova code) are in `CLAUDE.md`. Architecture is in `docs/ARCHITECTURE.md`; what's out of scope is in docs/GUIDE.md.
 - Optional permissions stay off until the user turns on the feature that needs them.
 
 ## Brand Commitments

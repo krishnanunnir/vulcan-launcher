@@ -10,8 +10,8 @@ It has no internet access at all, so nothing it does can leave your phone.
 ### A fully customizable launcher under 350 KB.
 
 [![Latest release](https://img.shields.io/github/v/release/krishnanunnir/vulcan-launcher?label=release&color=E8721C)](https://github.com/krishnanunnir/vulcan-launcher/releases/latest)
-[![Android 8+](https://img.shields.io/badge/Android-8%2B-4E8F3A?logo=android&logoColor=white)](#install)
-[![No internet permission](https://img.shields.io/badge/internet%20permission-none-2A2A28)](#privacy-and-permissions)
+[![Android 8+](https://img.shields.io/badge/Android-8%2B-4E8F3A?logo=android&logoColor=white)](docs/GUIDE.md#install)
+[![No internet permission](https://img.shields.io/badge/internet%20permission-none-2A2A28)](docs/PERMISSIONS.md)
 [![License: MIT](https://img.shields.io/github/license/krishnanunnir/vulcan-launcher?color=595752)](LICENSE)
 
 <a href="https://f-droid.org/packages/dev.vulcanlauncher/"><img src="https://f-droid.org/badge/get-it-on.png" height="66" alt="Get it on F-Droid"></a>
@@ -30,125 +30,27 @@ It has no internet access at all, so nothing it does can leave your phone.
 
 </div>
 
-## About
-
-It looks like a well-made appliance rather than a phone skin: warm-grey panels (light or night), small printed labels, and one orange dot for whatever is live (the current page, the letter you're on). Your wallpaper and your apps' own icons are left alone. Every Nova-style option (icon packs, shapes, glass panels, wallpaper colours, AMOLED black, your own colours) is still in settings when you want it.
-
-The wallpaper in the screenshots is [docs/wallpaper-dusk.jpg](docs/wallpaper-dusk.jpg), made for Vulcan. Use it freely.
-
 ## Features
 
-- **Arrange your home screen your way:** grids up to 12 by 12, up to 9 pages, resizable widgets, and a dock you can hide or scroll. Drop a widget on one of the same size to stack them, then swipe sideways to flip through. Lock the layout to prevent accidental icon and page edits.
-- **Find apps fast:** an A to Z app drawer with search, an optional letter index, and tabs or folders to group apps. Swipe sideways and the next tab slides in under your finger; drag tabs and folders into place, and hide the All apps tab if your tabs cover everything. Arrange the drawer and each tab in your own order, and pin favourites above the tabs, on every tab. Hide the apps you don't want to see.
-- **Search does more:** it forgives typos ("whtsapp") and finds apps by initials ("gm" for Google Maps). It also finds app shortcuts ("new tab") and Android settings pages ("wifi"), works out sums ("12*3-4", tap to copy), and sets timers and alarms ("timer 5m", "alarm 7:30pm") in your clock app.
-- **Use gestures:** swipe, double-tap or pinch on the home screen to open notifications, an app, the app drawer, the screen lock and more. Any of them can open an app shortcut, such as Direct dial to a contact or a new browser tab. Each app icon or folder can have its own swipe-up action too, and gestures can lock the layout or pause work apps.
-- **Change the look:** icon packs, themed one-colour icons (Android 13+), icon shapes, your own icons (from a pack, another app or a photo, for apps and folders) and labels, folder styles, and a night mode that follows the system or a schedule.
-- **Long-press an app** for its shortcuts, notifications, app info or uninstall.
-- **Swipe right on the first page** for the Now page: the date, music controls, upcoming events and favourite contacts. Add cards of your own, a row of apps or a widget, with **Add a card** at the bottom. Cards with nothing to show stay hidden, and you hold a card to move it.
-- **Back up** your whole setup to a file and restore it later.
-- **Meet the contributors:** tap someone in Settings → Contributors to see their illustrated persona, contribution and personality. Share their character card through Android’s share sheet. Everything is generated on your device and needs no new permission.
-
-In **Pages**, tap **+** to add screens while keeping the previews open. Hold a preview and drag it onto **Remove page**;
-the target and the dragged preview turn red before you release.
-
-Long-press an empty spot on the home screen to open **Settings**.
+- **Your layout:** grids up to 12×12, up to 9 pages, resizable and stackable widgets, a hideable dock and a layout lock.
+- **App drawer:** A to Z with search, tabs, folders, favourites and hidden apps.
+- **Smarter search:** forgives typos, matches initials, finds shortcuts and settings, does sums, sets timers and alarms.
+- **Gestures:** swipe, double-tap or pinch to open apps, shortcuts, notifications or the screen lock.
+- **Your look:** icon packs, themed icons, shapes, custom icons and labels, night mode on a schedule.
+- **Now page:** date, music, upcoming events, favourite contacts and cards of your own.
+- **Nova import and backups:** bring your `.novabackup` across, and back up or share your whole setup.
+- **Private by design:** no internet permission, no ads, no analytics. [What each permission is for](docs/PERMISSIONS.md).
 
 ## Install
 
-Vulcan needs Android 8 or newer.
+Get it from [F-Droid](https://f-droid.org/packages/dev.vulcanlauncher/), [Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/krishnanunnir/vulcan-launcher) or as an [APK](https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk) (Android 8+), then press **Home** and pick **Vulcan → Always**. Coming from Nova? See the [guide](docs/GUIDE.md#coming-from-nova).
 
-The easiest way is [F-Droid](https://f-droid.org/packages/dev.vulcanlauncher/): install it from there and it keeps Vulcan up to date. F-Droid can lag a few days behind new releases.
+## Learn more
 
-For updates as soon as they're released, add Vulcan to [Obtainium](https://github.com/ImranR98/Obtainium) ([one-tap link](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/krishnanunnir/vulcan-launcher)). It installs the APK straight from GitHub Releases. Pick one source and stay with it: Android may refuse to update an install from one source with an APK from another, and switching then means uninstalling. Back up your layout first (Settings → Backup & restore).
-
-Or [download the APK](https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk), then:
-
-1. Open it on your phone and tap **Install**. Android may first ask you to allow installs from your browser or file manager.
-2. Press the **Home** button. Android asks which home app to use: pick **Vulcan**, then **Always**.
-3. To go back to your old home screen at any time, open your phone's **Settings → Apps → Default apps → Home app**.
-
-## Coming from Nova?
-
-You can bring your Nova home screen with you:
-
-1. In Nova, open **Nova Settings → Backup & import settings → Backup** and save the file.
-2. The first time Vulcan opens, tap **Bring your Nova home screen** and pick that file. Later, it's in **Settings → Backup & restore → Import a launcher backup (.novabackup)…** (long-press an empty spot on the home screen for Settings).
-
-Your apps, folders, dock, grid size, most shortcuts and widgets come over. Each widget is made new in its old spot: Android asks once whether Vulcan may add widgets, and widgets with options (a clock face, a note) ask for them again. A widget you skip stays as a "Tap to add" spot. Nova's own widgets can't come over.
-
-## Share your style
-
-To share your style, go to **Settings → Style → Share as a URL** and copy or send the link. It opens in [Vulcan Designer](https://vulcanlauncher.dev/design/) for a browser preview. To apply a link from the app or Designer, go to **Settings → Backup & restore → Import from URL**, paste the link, and review the settings before applying them offline. The link applies the supported settings it contains and preserves your apps, folders and widgets. Use a backup file to move a whole setup.
-
-## Design your home screen with an AI assistant
-
-A Vulcan backup is a plain JSON file that explains itself, so you can hand it to an AI assistant (or edit it yourself) and load the result:
-
-1. **Settings → Backup & restore → Back up to a file…** and save it.
-2. Give the file to an assistant with a request like "make a calm two-page layout: messaging and maps in the dock, a Work folder, monochrome labels".
-3. Load the edited file with **Settings → Backup & restore → Restore from a file…**.
-
-The file starts with `howTo` (how the grid, dock and folders work), and `reference` lists every setting with its allowed values, every gesture action, and the apps installed on your phone. The file also holds your drawer tabs and folders, hidden apps and renamed apps. Values Vulcan can't use are skipped and named when you restore. The assistant never needs to reach your phone: you move the file yourself.
-
-## Compared with Nova
-
-Nova Launcher changed owners in 2022 and again in 2026, and picked up ads, trackers and an activity log that uploads the networks, devices and apps you use. Vulcan covers the same features with no internet access, nothing recorded and public source code. [docs/nova-reference.md](docs/nova-reference.md) has what a static analysis of Nova found.
-
-## What it won't do
-
-Anything that needs the network: weather, news, Google Discover, web search suggestions, cloud backup, self-update. Searching the web hands your query to your browser instead. Importing from launchers other than Nova isn't possible either, since their layout databases aren't readable by other apps.
-
-<details>
-<summary>Known limitations</summary>
-
-- Changing a setting restarts the launcher screen.
-- App shortcuts only work while Vulcan is the default home app (an Android rule).
-- "Close app" can only stop an app's background work (also an Android rule).
-- Widgets whose setup screen hands off to another screen (Samsung's clock widgets) report "cancelled" at once, so Vulcan can't add them.
-- A paused work profile hides its apps; the Private tab shows even when Android's "hide when locked" is on, since launchers can't read that setting.
-- Items that have no room after the grid shrinks stay hidden until it grows again.
-- In right-to-left languages, grids, menus and settings are mirrored, but pages still run left to right.
-
-</details>
-
-## Privacy and permissions
-
-Read the [privacy policy](docs/privacy.html), also available offline in Settings → About → Privacy policy. Google Play preparation and submission steps are in [docs/play-store/RELEASE.md](docs/play-store/RELEASE.md).
-
-Vulcan has no internet permission, so it can't send anything anywhere. There are no ads, analytics or crash reports. Anyone can check the permission list of the APK.
-
-Most permissions below stay **off until you turn on the feature that needs them**, and Vulcan says why when it asks.
-
-<details>
-<summary>Every permission Vulcan can ask for, and why</summary>
-
-| What it's for | When it's used | Android permission |
-|---|---|---|
-| Opening the notification shade or quick settings with a gesture (swipe down, by default). | Always available. Granted at install. | `EXPAND_STATUS_BAR` |
-| **Uninstall** in an app's long-press menu. It only opens Android's own uninstall prompt, which you confirm. | Always available. Granted at install. | `REQUEST_DELETE_PACKAGES` |
-| Notification dots and counts on icons, notifications in the long-press menu, and music controls on the Now page. Notifications are counted in memory and never saved. | **Off** until you turn it on in Settings → Permissions. | Notification access (`BIND_NOTIFICATION_LISTENER_SERVICE`) |
-| Showing Private Space (Android 15+) in its own drawer tab, and locking or unlocking it. Android only lists it to your default home app, and unlocking always asks for your screen lock. | Always available. Granted at install. | `ACCESS_HIDDEN_PROFILES` |
-| Searching your contacts from the app drawer, and favourite contacts on the Now page. | Asked only when you turn one of those on. | `READ_CONTACTS` |
-| Setting a timer or alarm from drawer search ("timer 5m"). Vulcan only hands the time to your clock app, which shows it before starting. | Always available. Granted at install. | `SET_ALARM` |
-| Upcoming events on the Now page. | Asked only when you turn it on. | `READ_CALENDAR` |
-| "Sunset to sunrise" night mode. It uses the last location your phone already knows and works out the sun times on the phone. | Asked only when you pick that mode. | `ACCESS_COARSE_LOCATION` |
-| The screen lock, recent apps and power menu gestures (Android offers no other way). It can't read anything on your screen. | **Off** until you turn it on. | Accessibility service (`BIND_ACCESSIBILITY_SERVICE`, `canRetrieveWindowContent="false"`) |
-| Hiding the status bar clock on the home screen. Apps can't give themselves this: you grant it once from a computer with `adb shell pm grant dev.vulcanlauncher android.permission.WRITE_SECURE_SETTINGS`. Vulcan only adds or removes the clock in the status bar. | Only if you grant it. Most people never need it. | `WRITE_SECURE_SETTINGS` |
-
-
-</details>
-
-Nothing else, and no `INTERNET`. App shortcuts need Vulcan to be your default home app, which is your choice rather than a permission. The `<queries>` entries in the manifest (launcher apps, widget providers, icon packs, shortcut creators, voice and web search) only let Vulcan see those apps. Any new permission must be added to this table (see [CLAUDE.md](CLAUDE.md)).
-
-## Building from source
-
-Vulcan is written from scratch in Kotlin, with no libraries and no Nova code. [docs/BUILDING.md](docs/BUILDING.md) has the build steps, the on-device checks and the release steps; [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) explains how the code fits together.
-
-## Translating
-
-Every word Vulcan shows is in [`app/src/main/res/values/strings.xml`](app/src/main/res/values/strings.xml) (English). To add a language, copy it to `values-<code>/strings.xml` (for example `values-de` for German) and translate the text between the tags. Leave the `name` attributes and placeholders such as `%1$s` and `%1$d` as they are; a string you leave out shows in English. Anything marked `translatable="false"` stays as it is. The unit tests check that every translated name and placeholder matches the English file.
-
-The settings' stored values, your layout and backup files don't depend on the language, so switching languages changes nothing else. The explanation inside a backup file (`howTo`) stays in English; it's written for whoever edits the file.
+- [Guide](docs/GUIDE.md): install options, Nova import, sharing a style, AI-assisted layouts, what Vulcan won't do
+- [Privacy and permissions](docs/PERMISSIONS.md)
+- [Building from source](docs/BUILDING.md) and [architecture](docs/ARCHITECTURE.md)
+- [Translating](docs/TRANSLATING.md)
 
 ## License
 

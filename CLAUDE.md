@@ -17,7 +17,7 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
 ## Hard rules
 
 - **Never add the `INTERNET` permission or any networking, analytics, ads or crash-reporting library.** That's the project's reason to exist.
-- Every permission must be listed and justified in the README's Permissions table. Prefer a permission the user explicitly turns on (accessibility, notification listener) over one granted silently.
+- Every permission must be listed and justified in the Permissions table in docs/PERMISSIONS.md. Prefer a permission the user explicitly turns on (accessibility, notification listener) over one granted silently.
 - **Never copy code, resources or assets from Nova Launcher.** `docs/nova-reference.md` is a feature list only. The Nova APK and decompiled sources live outside this repo (`../nova-launcher-*.apk`) and must never be committed.
 - No runtime dependencies (no AndroidX, no Compose) unless a feature truly cannot be done with the platform API. Discuss it before adding one. Test-only dependencies are fine.
 - **Every new setting goes in the right place, in two spots.** Add it to `LOOKS` with the right group, and add its key to `SECTIONS` (both in `Looks.kt`), in the section of that group where it belongs. Put it next to the settings it relates to, not at the end. A setting missing from `SECTIONS` fails `LooksTest.sectionsCoverEverySetting`. Don't make that test pass by dropping it into whatever section is nearest.
@@ -31,5 +31,5 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
 - User-facing text goes in `res/values/strings.xml` (English) and is read with `getString(R.string.…)`; counts use `<plurals>`. Settings keep English keys and values in `LOOKS` (stored, backed up) and take their titles and names from resources. Debug builds have the `en-XA` pseudo-locale (`adb shell cmd locale set-app-locales dev.vulcanlauncher --locales en-XA`): text that isn't accented is hardcoded.
 - Mark deliberate shortcuts with a `// ponytail:` comment that names the limit and the upgrade path.
 - Pure logic (geometry, parsing, settings mapping) goes in top-level functions with a JUnit test in `app/src/test`. View code isn't unit-tested.
-- When finishing a user-visible feature, update the README if it changes what Vulcan does, won't do or asks permission for.
+- When finishing a user-visible feature, update the README (features), docs/GUIDE.md (how to, won't do) or docs/PERMISSIONS.md (permissions) if it changes them.
 - `minSdk 26`, `targetSdk 36`, Java/Kotlin target 17.
