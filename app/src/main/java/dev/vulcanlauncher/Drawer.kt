@@ -14,46 +14,61 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.GridView
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.SectionIndexer
 import android.widget.TextView
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.abs
 
-/** Lays out drawer chips in reading order, wrapping at the width of the drawer. */
+/** The selected drawer tab's mark, as Nova's: a [height]-tall rounded bar under the name, [inset] in from each side. */
+private class TabBar(color: Int, private val inset: Int, private val height: Float) : android.graphics.drawable.Drawable() {
+    private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
+    override fun draw(c: android.graphics.Canvas) {
+        val b = bounds
+        c.drawRoundRect((b.left + inset).toFloat(), b.bottom - height, (b.right - inset).toFloat(), b.bottom.toFloat(), height / 2, height / 2, paint)
+    }
+    override fun setAlpha(alpha: Int) { paint.alpha = alpha }
+    override fun setColorFilter(cf: android.graphics.ColorFilter?) { paint.colorFilter = cf }
+    @Deprecated("Deprecated in Java") override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
+}
+
+/**
+ * Lays out the drawer tabs in one row, as Supernova's and Nova's tab bars: past the drawer's width it scrolls sideways
+ * (inside a HorizontalScrollView), and the selected tab is brought to the middle when it changes.
+ */
 private class DrawerTabs(context: android.content.Context, private val gap: Int, private val chipHeight: Int) : ViewGroup(context) {
     private val positions = mutableListOf<android.graphics.Rect>()
     var chipToReveal: View? = null
 
     override fun onMeasure(widthSpec: Int, heightSpec: Int) {
-        val width = MeasureSpec.getSize(widthSpec)
-        val rowWidth = (width - paddingStart - paddingEnd).coerceAtLeast(0)
-        val childWidth = MeasureSpec.makeMeasureSpec(rowWidth, MeasureSpec.AT_MOST)
+        val childWidth = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
         val childHeight = MeasureSpec.makeMeasureSpec(chipHeight, MeasureSpec.EXACTLY)
-        var x = 0
-        var y = paddingTop
+        var row = paddingStart
+        for (i in 0 until childCount) {
+            getChildAt(i).measure(childWidth, childHeight)
+            row += getChildAt(i).measuredWidth + if (i < childCount - 1) gap else 0
+        }
+        row += paddingEnd
+        // At least the visible width (the scroll view's fillViewport), so a short row still starts at the edge.
+        val width = maxOf(row, MeasureSpec.getSize(widthSpec))
+        var x = paddingStart
         positions.clear()
         for (i in 0 until childCount) {
             val chip = getChildAt(i)
-            chip.measure(childWidth, childHeight)
-            if (x > 0 && x + chip.measuredWidth > rowWidth) {
-                x = 0
-                y += chipHeight + gap
-            }
-            val start = paddingStart + x
-            val left = if (layoutDirection == LAYOUT_DIRECTION_RTL) width - start - chip.measuredWidth else start
-            positions.add(android.graphics.Rect(left, y, left + chip.measuredWidth, y + chipHeight))
+            val left = if (layoutDirection == LAYOUT_DIRECTION_RTL) width - x - chip.measuredWidth else x
+            positions.add(android.graphics.Rect(left, paddingTop, left + chip.measuredWidth, paddingTop + chipHeight))
             x += chip.measuredWidth + gap
         }
-        setMeasuredDimension(width, resolveSize(y + (if (childCount == 0) 0 else chipHeight) + paddingBottom, heightSpec))
+        setMeasuredDimension(width, resolveSize(paddingTop + (if (childCount == 0) 0 else chipHeight) + paddingBottom, heightSpec))
     }
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         positions.forEachIndexed { i, bounds -> getChildAt(i).layout(bounds.left, bounds.top, bounds.right, bounds.bottom) }
         chipToReveal?.let { chip ->
             chipToReveal = null
-            chip.post { chip.requestRectangleOnScreen(android.graphics.Rect(0, 0, chip.width, chip.height), true) }
+            // Centred, as a scrollable TabLayout keeps its selected tab; the scroll view clamps it at the ends.
+            val scroll = parent as? android.widget.HorizontalScrollView ?: return@let
+            scroll.post { scroll.smoothScrollTo(chip.left + chip.width / 2 - scroll.width / 2, 0) }
         }
     }
 
@@ -289,14 +304,11 @@ class Drawer(private val a: MainActivity) {
     /** The tab the drawer opens on: All apps, or the first tab when All apps is hidden. */
     private var homeTab = ""
     private val tabs = DrawerTabs(a, (8 * a.dp).toInt(), (32 * a.dp).toInt())
-    private val tabScroll = object : ScrollView(a) {
-        override fun onMeasure(widthSpec: Int, heightSpec: Int) {
-            // Keep the grid usable even with dozens of tabs or in a short window.
-            val available = View.MeasureSpec.getSize(heightSpec)
-            val limit = minOf((128 * a.dp).toInt(), available / 3)
-            super.onMeasure(widthSpec, View.MeasureSpec.makeMeasureSpec(limit, View.MeasureSpec.AT_MOST))
-        }
-    }.apply { addView(tabs, FrameLayout.LayoutParams(-1, -2)) }
+    private val tabScroll = android.widget.HorizontalScrollView(a).apply {
+        isHorizontalScrollBarEnabled = false
+        isFillViewport = true
+        addView(tabs, FrameLayout.LayoutParams(-2, -2))
+    }
     private val grid = GridView(a).apply {
         // Glass and housing: no scrollbar; rows fade out at the edges instead of being cut by the status bar or search bar.
         if (styleName == "glass" || styleName == "housing") { isVerticalScrollBarEnabled = false; isVerticalFadingEdgeEnabled = true; setFadingEdgeLength((32 * a.dp).toInt()) }
@@ -451,7 +463,8 @@ class Drawer(private val a: MainActivity) {
         search.setOnTouchListener(pullClose)
         val barParams = LinearLayout.LayoutParams(-1, ((if (bottomBar) 48 else 56) * a.dp).toInt()).apply { setMargins(pad, pad / 2, pad, pad / 2) }
         if (!bottomBar) addView(bar, barParams)
-        tabs.setPaddingRelative(pad + (4 * a.dp).toInt(), if (bottomBar || fromBottom) pad / 2 else 0, pad, (8 * a.dp).toInt())
+        // Text tabs (not housing keys) start their 12 dp padding further out, so the names line up with the icons.
+        tabs.setPaddingRelative(pad + ((if (housing) 4 else -8) * a.dp).toInt(), if (bottomBar || fromBottom) pad / 2 else 0, pad, (8 * a.dp).toInt())
         val content = FrameLayout(a)
         if (styleName == "pages") content.addView(pager) else { content.addView(peek); content.addView(grid) }
         content.addView(empty, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER).apply { setMargins(pad * 2, 0, pad * 2, 0) })
@@ -982,34 +995,24 @@ class Drawer(private val a: MainActivity) {
             groups.filter { it.type == "tab" }.map { it.name to it.name }
         tabScroll.visibility = if (show && names.size > 1) View.VISIBLE else View.GONE
         tabKeys = if (tabScroll.visibility == View.VISIBLE) names.map { it.first } else emptyList()
-        // M3 filter chips: the selected one filled with the secondary container and a check mark. Housing: a raised
-        // key; the others are plain legends.
+        // Nova's tab bar: plain text tabs, the selected one brighter with a bar under its name. Housing: a raised key;
+        // the others are plain legends. Selected or not, a tab is the same width, so the rows never rewrap on a switch.
         for ((key, title) in names) {
             val on = key == tab
-            // A tab's own colour (set in its editor, as Nova's) fills it while selected; the text is black or white to match.
+            // A tab's own colour (set in its editor, as Nova's) marks it while selected: the bar, or the housing key's fill.
             val own = groups.firstOrNull { it.name == key && it.type == "tab" }?.color?.let(android.graphics.Color::parseColor)
-            val fill = own ?: a.tabFill()
-            val ink = if (own != null) onColor(own) else if (housing) a.m3.onSurface else a.m3.onSecondaryContainer
+            val ink = if (housing && own != null) onColor(own) else a.m3.onSurface
             tabs.addView(a.text(title, 14f, if (on) ink else a.m3.onSurfaceVariant, medium = true).apply {
-                gravity = Gravity.CENTER_VERTICAL
+                gravity = Gravity.CENTER
                 isSelected = on
                 setSingleLine()
                 ellipsize = android.text.TextUtils.TruncateAt.END
-                val p = (16 * a.dp).toInt()
-                // Unselected chips are as wide as selected ones (room for the check), so the rows don't rewrap on a switch.
-                val check = (18 * a.dp).toInt() + (8 * a.dp).toInt()
-                when {
-                    housing -> setPaddingRelative(p, 0, p, 0)
-                    on -> setPaddingRelative(p / 2, 0, p, 0)
-                    else -> { gravity = Gravity.CENTER; val side = p / 2 + check + p; setPaddingRelative(side / 2, 0, side - side / 2, 0) }
-                }
-                compoundDrawablePadding = (8 * a.dp).toInt()
-                // Housing: the raised key alone marks the selected tab; the screen's signal belongs to the index or search.
-                if (on && !housing) setCompoundDrawablesRelative(a.symbol("check", ink, 18f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
+                val p = ((if (housing) 16 else 12) * a.dp).toInt()
+                setPaddingRelative(p, 0, p, 0)
                 background = a.pressable(when {
-                    housing -> if (on) a.rounded(fill, 16 * a.dp, if (a.m3.dark) 0x1FFFFFFF else 0x14000000, a.dp / 2) else null
-                    on -> a.rounded(fill, 8 * a.dp)
-                    else -> a.rounded(0, 8 * a.dp, a.m3.outlineVariant)
+                    housing -> if (on) a.rounded(own ?: a.tabFill(), 16 * a.dp, if (a.m3.dark) 0x1FFFFFFF else 0x14000000, a.dp / 2) else null
+                    on -> TabBar(own ?: a.m3.primary, p, 3 * a.dp)
+                    else -> null
                 }, if (housing) 16 * a.dp else 8 * a.dp)
                 // A swipe still settling would otherwise land after this and take its tab back.
                 setOnClickListener { tabAnim?.end(); tab = key; refresh() }
