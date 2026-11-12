@@ -598,7 +598,10 @@ class MainActivity : VulcanActivity() {
         customs = store.obj("custom")
         // ponytail: personal profile only (PackageManager sees one user); a work-profile calendar keeps its static icon.
         dateIcons = packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), PackageManager.GET_META_DATA)
-            .mapNotNull { r -> r.activityInfo.let { ai -> ai.metaData?.getInt("${ai.packageName}.dynamic_icons")?.takeIf { it != 0 }?.let { "${ai.packageName}/${ai.name}" to it } } }
+            .mapNotNull { r -> r.activityInfo.let { ai ->
+                // Samsung's "LiveIconSupport" apps (Samsung Calendar) draw the date into their own icon: 0, no array.
+                (ai.metaData?.getInt("${ai.packageName}.dynamic_icons")?.takeIf { it != 0 }
+                    ?: 0.takeIf { ai.applicationInfo.metaData?.getBoolean("LiveIconSupport") == true })?.let { "${ai.packageName}/${ai.name}" to it } } }
             .toMap()
         if (changed == null) { iconCache.evictAll(); appCache.keepOnly(apps.keys) }
         else { iconCache.snapshot().keys.filter { it.substringBefore('/') in changed }.forEach(iconCache::remove); appCache.forget(changed) }
@@ -676,12 +679,12 @@ class MainActivity : VulcanActivity() {
         val day = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_MONTH)
         // A date icon's disk entry also holds the day it shows, so tomorrow draws afresh.
         val d = BitmapDrawable(resources, appCache.icon(a, if (dated == null) custom else "$custom|day$day") {
-            (icons.get(a.pkg, a.cls, custom) { dated?.let { dateIcon(a, it, day) } ?: a.info.getBadgedIcon(0) } as BitmapDrawable).bitmap
+            (icons.get(a.pkg, a.cls, custom) { dated?.takeIf { it != 0 }?.let { dateIcon(a, it, day) } ?: a.info.getBadgedIcon(0) } as BitmapDrawable).bitmap
         })
         iconCache.put(a.key, d); d
     }
 
-    /** Launcher activities that draw today's date ("<pkg>.dynamic_icons" meta-data: 31 drawables), to their array. */
+    /** Launcher activities that draw today's date ("<pkg>.dynamic_icons" meta-data: 31 drawables), to their array; 0 for a Samsung live icon. */
     private var dateIcons: Map<String, Int> = emptyMap()
 
     /** Day [day]'s drawable from [a]'s dynamic-icon [array], as Launcher3 picks it for Google Calendar. */
