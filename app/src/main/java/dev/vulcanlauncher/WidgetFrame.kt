@@ -47,7 +47,8 @@ open class WidgetFrame(context: Context) : FrameLayout(context) {
 class WidgetStack(context: Context, private val frames: List<View>, private var shown: Int, private val dot: Int, private val onFlip: (Int) -> Unit) : WidgetFrame(context) {
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private val dp = resources.displayMetrics.density
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    // The page indicator's shadow: the dots sit on the wallpaper, so they need it to read on a light one.
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { setShadowLayer(2 * dp, 0f, 0.75f * dp, 0x4D000000) }
     private var startX = 0f
     private var startY = 0f
     private var dragging = false
