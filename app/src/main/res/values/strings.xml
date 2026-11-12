@@ -507,7 +507,6 @@
     <string name="now_add_card">Add a card</string>
     <string name="now_card_apps">Apps</string>
     <string name="now_card_widget">Widget</string>
-    <string name="now_remove_card">Remove this card?</string>
     <string name="now_frequent">Frequently used</string>
     <string name="now_now">Now</string>
     <string name="charging">Charging · %1$d%%</string>

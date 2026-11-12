@@ -800,12 +800,15 @@ private fun SettingsActivity.groupsPage(list: LinearLayout) {
     ))
 }
 
-private fun VulcanActivity.askName(title: String, current: String, onName: (String) -> Unit) {
+fun VulcanActivity.askName(title: String, current: String, onName: (String) -> Unit) {
     val input = field(current, getString(R.string.name))
     val box = android.widget.FrameLayout(this).apply { setPadding((24 * dp).toInt(), (8 * dp).toInt(), (24 * dp).toInt(), 0); addView(input) }
     sheet().setTitle(title).setView(box)
         .setPositiveButton(R.string.ok) { _, _ -> input.text.toString().trim().takeIf { it.isNotEmpty() }?.let(onName) }
         .setNegativeButton(R.string.cancel, null).show()
+    // Ready to type, as Nova's name dialogs: the field focused and the keyboard up.
+    input.requestFocus()
+    input.postDelayed({ getSystemService(android.view.inputmethod.InputMethodManager::class.java).showSoftInput(input, 0) }, 150)
 }
 
 private fun SettingsActivity.newGroup(type: String) = askName(getString(if (type == "tab") R.string.new_tab else R.string.new_folder), "") { name ->

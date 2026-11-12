@@ -55,15 +55,13 @@ fun MainActivity.saveNowCards(cards: List<Item>) = store.data.edit().putString(N
 fun MainActivity.addNowCard() {
     sheet().setTitle(R.string.now_add_card).setItems(arrayOf(getString(R.string.now_card_apps), getString(R.string.now_card_widget))) { _, which ->
         if (which == 1) { pickWidget(toNow = true); return@setItems }
-        val list = apps.values.sortedWith(compareBy(labelOrder()) { label(it) })
-        val checked = BooleanArray(list.size)
-        sheet().setTitle(R.string.now_card_apps)
-            .setMultiChoiceItems(list.map { label(it) }.toTypedArray(), checked) { _, i, on -> checked[i] = on }
-            .setPositiveButton(R.string.ok) { _, _ ->
-                val picked = list.filterIndexed { i, _ -> checked[i] }.map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) }
-                if (picked.isNotEmpty()) { saveNowCards(nowCards() + Item(0, 0, 0, children = picked)); reopenNow() }
+        // As Nova's new drawer tab: name it, then tick its apps in the same list (icons, search) drawer groups use.
+        askName(getString(R.string.now_card_apps), "") { name ->
+            appSwitches(name, emptyList()) { keys ->
+                val picked = keys.mapNotNull(apps::get).map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) }
+                if (picked.isNotEmpty()) { saveNowCards(nowCards() + Item(0, 0, 0, children = picked, label = name)); reopenNow() }
             }
-            .setNegativeButton(R.string.cancel, null).show()
+        }
     }.show()
 }
 
@@ -83,20 +81,16 @@ fun MainActivity.showNow(slide: Boolean = true) {
     val pad = (16 * dp).toInt()
     val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, pad, pad, insets.bottom + pad) }
     // M3 filled cards on a translucent surface.
-    /** [onRemove]: a card of your own, with a button that removes it. */
+    /** Cards of your own, to their remove action: held and let go without dragging, they offer Remove, as Nova's widgets. */
+    val removers = HashMap<View, () -> Unit>()
     fun card(title: String, body: View, onRemove: (() -> Unit)? = null): View = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         background = rounded(m3.surfaceContainer, 24 * dp)
         setPadding(pad + pad / 4, pad, pad + pad / 4, pad + pad / 4)
-        val heading = text(title, 14f, m3.primary, medium = true).apply { setPadding(0, 0, 0, pad * 3 / 4) }
-        if (onRemove == null) addView(heading)
-        else addView(LinearLayout(context).apply {
-            gravity = Gravity.CENTER_VERTICAL
-            addView(heading, LinearLayout.LayoutParams(0, -2, 1f))
-            addView(iconButton("close", getString(R.string.remove)) { onRemove() })
-        })
+        addView(text(title, 14f, m3.primary, medium = true).apply { setPadding(0, 0, 0, pad * 3 / 4) })
         addView(body)
         layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = pad * 3 / 4 }
+        if (onRemove != null) removers[this] = onRemove
     }
     fun text(s: CharSequence, size: Float = 15f) = text(s, size, m3.onSurface)
     fun action(label: String, onClick: () -> Unit) = LinearLayout(this).apply { addView(tonalButton(label, onClick)) }
@@ -232,12 +226,11 @@ fun MainActivity.showNow(slide: Boolean = true) {
     // A widget card whose app was uninstalled goes.
     val cards = nowCards().filter { !it.isWidget || awm.getAppWidgetInfo(it.widgetId) != null }.also { if (it.size != nowCards().size) saveNowCards(it) }
     fun custom(c: Item): View? {
+        // Picked from the card's menu, so no second question: as Nova's, and as a home widget's Remove.
         val remove = {
-            dialog().setMessage(R.string.now_remove_card).setPositiveButton(R.string.remove) { _, _ ->
-                saveNowCards(nowCards().filter { nowCardId(it) != nowCardId(c) })
-                if (c.isWidget) host.deleteAppWidgetId(c.widgetId)
-                reopenNow()
-            }.setNegativeButton(R.string.cancel, null).show(); Unit
+            saveNowCards(nowCards().filter { nowCardId(it) != nowCardId(c) })
+            if (c.isWidget) host.deleteAppWidgetId(c.widgetId)
+            reopenNow()
         }
         if (c.isWidget) {
             val info = awm.getAppWidgetInfo(c.widgetId) ?: return null
@@ -262,7 +255,8 @@ fun MainActivity.showNow(slide: Boolean = true) {
                 })
             }
         }
-        return card(shownApps[0].second.first.toString(), rows, remove)
+        // Cards from before they were named take their first app's name.
+        return card(c.label.ifEmpty { shownApps[0].second.first.toString() }, rows, remove)
     }
 
     val order = nowOrder(store.data.getString(NOW_ORDER, null), cards.map(::nowCardId))
@@ -279,10 +273,22 @@ fun MainActivity.showNow(slide: Boolean = true) {
         store.data.edit().putString(NOW_ORDER, reorderWithin(order, shown.map { it.first }, from, to).joinToString(",")).apply()
         reopenNow()
     }
+    val slop = android.view.ViewConfiguration.get(this).scaledTouchSlop
     for ((_, v) in shown) {
         var downY = 0f
-        val hold = View.OnTouchListener { _, ev -> if (ev.actionMasked == MotionEvent.ACTION_DOWN) downY = ev.rawY; reorder.onTouch(ev) }
-        val start = View.OnLongClickListener { if (shown.size > 1) reorder.begin(v, downY); shown.size > 1 }
+        var menuOnUp = false
+        val hold = View.OnTouchListener { _, ev ->
+            when (ev.actionMasked) {
+                MotionEvent.ACTION_DOWN -> { downY = ev.rawY; menuOnUp = false }
+                MotionEvent.ACTION_MOVE -> if (kotlin.math.abs(ev.rawY - downY) > slop) menuOnUp = false
+                MotionEvent.ACTION_UP -> if (menuOnUp) {
+                    menuOnUp = false
+                    removers[v]?.let { r -> showMenu(screenRect(v), narrow = true) { addActions(listOf(Triple("close", getString(R.string.remove), r)), 4, emptySet()) } }
+                }
+            }
+            reorder.onTouch(ev)
+        }
+        val start = View.OnLongClickListener { menuOnUp = v in removers; if (shown.size > 1) reorder.begin(v, downY); shown.size > 1 || menuOnUp }
         listOf(v, (v as LinearLayout).getChildAt(0)).forEach { it.setOnTouchListener(hold); it.setOnLongClickListener(start) }
     }
 
