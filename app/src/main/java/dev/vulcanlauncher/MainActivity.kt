@@ -1864,8 +1864,9 @@ class MainActivity : VulcanActivity() {
                 maxHeight = previewH
                 setImageDrawable(info.loadPreviewImage(this@MainActivity, 0) ?: info.loadIcon(this@MainActivity, 0))
             }, LinearLayout.LayoutParams(-2, -2))
-            val w = ceil(info.minWidth / page.cellW.toFloat() / sub).toInt().coerceAtLeast(1)
-            val h = ceil(info.minHeight / page.cellH.toFloat() / sub).toInt().coerceAtLeast(1)
+            val t = info.targetCells()
+            val w = t?.first ?: ceil(info.minWidth / page.cellW.toFloat() / sub).toInt().coerceAtLeast(1)
+            val h = t?.second ?: ceil(info.minHeight / page.cellH.toFloat() / sub).toInt().coerceAtLeast(1)
             addView(TextView(context).apply { setTextColor(m3.onSurface); textSize = 14f; setPadding(0, pad / 4, 0, 0); text = "$label  ($w×$h)" })
             contentDescription = "$label  ($w×$h)"
             setOnClickListener { d.dismiss(); addWidget(info) }
@@ -2015,8 +2016,9 @@ class MainActivity : VulcanActivity() {
             restoreNextWidget()
             return
         }
-        val w = ceil(info.minWidth / page.cellW.toFloat()).toInt().coerceIn(1, page.cols)
-        val h = ceil(info.minHeight / page.cellH.toFloat()).toInt().coerceIn(1, page.rows)
+        val t = info.targetCells()
+        val w = (t?.first?.times(sub) ?: ceil(info.minWidth / page.cellW.toFloat()).toInt()).coerceIn(1, page.cols)
+        val h = (t?.second?.times(sub) ?: ceil(info.minHeight / page.cellH.toFloat()).toInt()).coerceIn(1, page.rows)
         if (!addItem(Item(workspace.current, 0, 0, w, h, widgetId = id), quiet = true)) {
             host.deleteAppWidgetId(id)
             toast(R.string.no_room)

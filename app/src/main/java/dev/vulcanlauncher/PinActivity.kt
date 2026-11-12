@@ -38,8 +38,9 @@ fun addPinned(activity: Activity, req: LauncherApps.PinItemRequest): Boolean {
             if (!req.accept(Bundle().apply { putInt(AppWidgetManager.EXTRA_APPWIDGET_ID, id) })) return false
             // ponytail: cell size estimated from the screen width, exact once the widget is resized
             val cell = activity.resources.displayMetrics.widthPixels / looks.cols.toFloat()
-            val w = ceil(info.minWidth / cell).toInt().coerceIn(1, looks.cols) * sub
-            val h = ceil(info.minHeight / cell).toInt().coerceIn(1, looks.rows) * sub
+            val t = info.targetCells()
+            val w = (t?.first ?: ceil(info.minWidth / cell).toInt()).coerceIn(1, looks.cols) * sub
+            val h = (t?.second ?: ceil(info.minHeight / cell).toInt()).coerceIn(1, looks.rows) * sub
             Item(0, 0, 0, w, h, widgetId = id)
         }
         else -> return false

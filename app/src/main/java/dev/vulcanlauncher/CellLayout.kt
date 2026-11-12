@@ -51,6 +51,13 @@ fun firstFreeSpot(items: List<Item>, pages: Int, cols: Int, rows: Int, w: Int, h
 }
 
 /**
+ * The size in whole cells a widget asks to be placed at (Android 12's targetCellWidth/Height), or null to size it from
+ * minWidth/minHeight. Samsung's clock and calendar widgets declare a 0×0 minimum and only this.
+ */
+fun android.appwidget.AppWidgetProviderInfo.targetCells(): Pair<Int, Int>? =
+    if (android.os.Build.VERSION.SDK_INT >= 31 && targetCellWidth > 0 && targetCellHeight > 0) targetCellWidth to targetCellHeight else null
+
+/**
  * Widget sizes (w to h, in cells) reachable from its top corner at ([x], [y]) inside a [cols]×[rows] grid: at least
  * [minW]×[minH], and only the current width or height along an axis the provider doesn't let resize.
  */
