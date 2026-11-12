@@ -455,6 +455,7 @@
     <string name="hide">Ukryj</string>
     <string name="menu_group">Grupa</string>
     <string name="resize">Zmień rozmiar</string>
+    <string name="unstack">Rozdziel</string>
     <string name="widgets">Widżety</string>
     <string name="shortcuts">Skróty</string>
     <string name="wallpaper">Tapeta</string>
@@ -467,6 +468,9 @@
     <string name="resize_current">%1$s (obecny)</string>
     <string name="launcher_action">Działanie launchera</string>
     <string name="app_shortcut">Skrót aplikacji</string>
+    <string name="shortcut_requires_home">Ustaw aplikację Vulcan jako domyślny ekran główny, aby dodawać skróty aplikacji.</string>
+    <string name="app_shortcut_item">Skrót aplikacji…</string>
+    <string name="no_app_shortcuts">Aplikacja %1$s nie ma skrótów</string>
     <string name="activity">Aktywność</string>
     <string name="add_to_home">Dodaj do ekranu głównego</string>
     <string name="work_app">%1$s (praca)</string>
@@ -499,6 +503,10 @@
     <string name="now_favourites">Ulubione</string>
     <string name="now_allow_contacts">Zezwól na dostęp do kontaktów</string>
     <string name="now_star_contacts">Oznacz kontakty gwiazdką w aplikacji Kontakty, aby zobaczyć je tutaj</string>
+    <string name="now_add_card">Dodaj kartę</string>
+    <string name="now_card_apps">Aplikacje</string>
+    <string name="now_card_widget">Widżet</string>
+    <string name="now_remove_card">Usunąć tę kartę?</string>
     <string name="now_frequent">Często używane</string>
     <string name="now_now">Teraz</string>
     <string name="charging">Ładowanie · %1$d%%</string>
@@ -683,6 +691,27 @@
     <string name="restore_auto_none_info">Vulcan zapisuje jedną kopię dziennie na tym telefonie i przechowuje trzy ostatnie</string>
     <string name="restore_auto_confirm">Zastąpić układ i ustawienia automatyczną kopią zapasową z dnia %1$s?</string>
     <string name="restore">Przywróć</string>
+    <string name="share_style_link">Udostępnij jako adres URL</string>
+    <string name="share_style_info">Skopiuj lub wyślij ustawienia jako link Designer</string>
+    <string name="share_style_message">Link zawiera obsługiwane ustawienia, które zostały zmienione względem domyślnych. Nie obejmuje on aplikacji, widżetów ani elementów ekranu głównego.</string>
+    <string name="share_style_copy">Kopiuj link</string>
+    <string name="share_style_send">Udostępnij</string>
+    <string name="apply_style_link">Importuj z adresu URL</string>
+    <string name="apply_style_info">Wklej link z aplikacji Vulcan lub narzędzia Vulcan Designer</string>
+    <string name="apply_style_hint">Wklej link do stylu</string>
+    <string name="apply_style_paste">Wklej</string>
+    <string name="apply_style_review">Podgląd</string>
+    <string name="apply_style_invalid">Wklej prawidłowy link do stylu Vulcan Designer.</string>
+    <string name="apply_style_empty_clipboard">W schowku nie ma żadnego linku.</string>
+    <string name="apply_style_no_changes">Ten link nie zawiera żadnych ustawień do zmiany</string>
+    <string name="apply_style_apply">Zastosuj</string>
+    <string name="apply_style_done">Styl zastosowany</string>
+    <plurals name="apply_style_confirm">
+        <item quantity="one">Zastosować %1$d ustawienie z tego linku? Elementy ekranu głównego pozostaną zapisane, ale zmiana siatki może je przesunąć.</item>
+        <item quantity="few">Zastosować %1$d ustawienia z tego linku? Elementy ekranu głównego pozostaną zapisane, ale zmiana siatki może je przesunąć.</item>
+        <item quantity="many">Zastosować %1$d ustawień z tego linku? Elementy ekranu głównego pozostaną zapisane, ale zmiana siatki może je przesunąć.</item>
+        <item quantity="other">Zastosować %1$d ustawienia z tego linku? Elementy ekranu głównego pozostaną zapisane, ale zmiana siatki może je przesunąć.</item>
+    </plurals>
     <string name="import_launcher_backup">Importuj z innego launchera</string>
     <string name="import_launcher_backup_info">Przenosi ekran główny z pliku .novabackup</string>
     <string name="reset_defaults_info">Usuwa wszystkie ustawienia oraz cały układ ekranu głównego</string>
