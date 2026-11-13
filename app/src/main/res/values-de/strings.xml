@@ -480,10 +480,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="labelSize_home">Wie Startbildschirm</string>
     <string name="action_torch">Taschenlampe ein/aus</string>
     <string name="no_flashlight">Taschenlampe gerade nicht verfügbar</string>
-    <string name="set_settingsAnim">Übergänge in den Einstellungen</string>
-    <string name="settingsAnim_slide">Schieben</string>
-    <string name="settingsAnim_fade">Überblenden</string>
-    <string name="settingsAnim_none">Keine</string>
     <string name="name">Name</string>
     <string name="backup_panel_save">Sichern</string>
     <string name="backup_panel_restore">Wiederherstellen</string>

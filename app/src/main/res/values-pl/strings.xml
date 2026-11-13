@@ -586,10 +586,6 @@
     <string name="labelSize_home">Taki sam jak na ekranie głównym</string>
     <string name="action_torch">Przełącz latarkę</string>
     <string name="no_flashlight">Latarka jest obecnie niedostępna</string>
-    <string name="set_settingsAnim">Przejścia ustawień</string>
-    <string name="settingsAnim_slide">Przesunięcie</string>
-    <string name="settingsAnim_fade">Przenikanie</string>
-    <string name="settingsAnim_none">Brak</string>
     <string name="name">Nazwa</string>
     <string name="backup_panel_save">Zapisz</string>
     <string name="backup_panel_restore">Przywróć</string>

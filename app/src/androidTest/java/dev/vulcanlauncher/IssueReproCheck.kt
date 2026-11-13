@@ -279,12 +279,9 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 tap(bad.getButton(AlertDialog.BUTTON_POSITIVE)); shot("06-low-contrast")
                 check("#6/contrast",dialogs(s).isNotEmpty() && all(dialogs(s).last().window!!.decorView).filterIsInstance<TextView>().any { it.text.toString()==s.getString(R.string.low_contrast) },"low contrast asks before saving")
                 back(); ui { s.showPage(LOOK) }; settle()
-                check("#16/options",LOOKS.first { it.key=="settingsAnim" }.values==listOf("slide","fade","none"),"settings transition options=${LOOKS.first { it.key=="settingsAnim" }.values}")
-                for(mode in listOf("slide","fade","none")) {
-                    ui { a.looks["settingsAnim"]=mode; s.showPage("") }; settle()
-                    ui { s.showPage(LOOK) }; settle(); shot("16-settings-$mode"); back()
-                    check("#16/$mode",s.page=="","Back returns to settings categories; page=${s.page}")
-                }
+                ui { s.showPage("") }; settle()
+                ui { s.showPage(LOOK) }; settle(); shot("16-settings"); back()
+                check("#16",s.page=="","Back returns to settings categories; page=${s.page}")
                 check("#15",ACTIONS.contains("torch"),"Toggle flashlight selectable in gesture action list; camera hardware check separate")
                 ui { s.showPage(GESTURES) }; settle(); tap(text(s.root,s.getString(R.string.gesture_swipeup)))
                 shot("15-gesture-actions"); back()
@@ -304,10 +301,10 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 val first=field(a,"torchOn")
                 ui { a.perform("torch") }; settle()
                 note("#15/hardware",if(flash.isEmpty()) "LIMITED" else "OBSERVED","flash cameras=$flash; two toggles=$first -> ${field(a,"torchOn")}; no physical light verification")
-                note("#24","LIMITED","Settings None navigated. GrapheneOS Android 17 unavailable")
+                note("#24","LIMITED","Settings navigated. GrapheneOS Android 17 unavailable")
             }
             case("#24") {
-                setup("settingsAnim" to "none")
+                setup()
                 val group=Group("Animation group","folder",a.apps.keys.take(4))
                 ui { a.editGroup(group) }; settle(); shot("24-group-menu")
                 val menu=dialogs().last(); val samples=mutableListOf<Float>()
@@ -318,7 +315,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 note("#24/OS","LIMITED","Exercised original Choose apps path. Reporter follow-up requires GrapheneOS Android 17")
             }
             case("#2 #5 #8") {
-                setup("settingsAnim" to "none"); val old=Configuration(a.resources.configuration); val locale=Locale.getDefault()
+                setup(); val old=Configuration(a.resources.configuration); val locale=Locale.getDefault()
                 try {
                     val ru=Locale("ru"); Locale.setDefault(ru)
                     val c=Configuration(old).apply { setLocale(ru) }

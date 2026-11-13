@@ -641,10 +641,6 @@
     <string name="action_open_folder">Open folder</string>
     <string name="no_work_profile">No work profile</string>
     <string name="no_flashlight">No flashlight available right now</string>
-    <string name="set_settingsAnim">Settings transitions</string>
-    <string name="settingsAnim_slide">Slide</string>
-    <string name="settingsAnim_fade">Fade</string>
-    <string name="settingsAnim_none">None</string>
     <string name="name">Name</string>
     <string name="backup_panel_save">Save</string>
     <string name="backup_panel_restore">Restore</string>

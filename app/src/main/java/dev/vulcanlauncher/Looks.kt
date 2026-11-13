@@ -161,7 +161,6 @@ val LOOKS = listOf(
     onOff(LOOK, "wiggle", R.string.set_wiggle, false),
     Choice(LOOK, "launchAnim", R.string.set_launchAnim, "zoom", listOf("system", "zoom", "reveal", "fade", "slideUp", "slideLeft", "none"), listOf(R.string.launchAnim_system, R.string.launchAnim_zoom, R.string.launchAnim_reveal, R.string.launchAnim_fade, R.string.launchAnim_slideup, R.string.launchAnim_slideleft, R.string.launchAnim_none)),
     Choice(LOOK, "accent", R.string.set_accent, "appliance", listOf("appliance", "system", "amoled") + COLOR_VALUES, listOf(R.string.accent_appliance, R.string.color_system, R.string.accent_amoled) + COLOR_NAMES),
-    Choice(LOOK, "settingsAnim", R.string.set_settingsAnim, "slide", listOf("slide", "fade", "none"), listOf(R.string.settingsAnim_slide, R.string.settingsAnim_fade, R.string.settingsAnim_none)),
     onOff(LOOK, "blur", R.string.set_blur, false, R.string.set_blur_info),
     onOff(LOOK, "popupShortcuts", R.string.set_popupShortcuts, true),
     onOff(LOOK, "popupNotifications", R.string.set_popupNotifications, true),
@@ -229,7 +228,7 @@ val SECTIONS: Map<String, List<Pair<Int, List<String>>>> = mapOf(
     LOOK to listOf(
         R.string.sec_icons to listOf("iconPack", "shape", "reshape", "autogen", "normalize", "themedIcons", "iconShadow"),
         R.string.sec_colors to listOf("accent", "@colors"),
-        R.string.sec_animation to listOf("launchAnim", "settingsAnim", "wiggle", "blur"),
+        R.string.sec_animation to listOf("launchAnim", "wiggle", "blur"),
         R.string.sec_popups to listOf("popupShortcuts", "popupNotifications", "undoBar"),
     ),
     NOW to listOf(

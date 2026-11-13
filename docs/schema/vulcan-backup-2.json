@@ -229,7 +229,6 @@
         {
           "keys": [
             "launchAnim",
-            "settingsAnim",
             "wiggle",
             "blur"
           ],
@@ -481,21 +480,6 @@
           ],
           "description": "Home screen. Values: on (On), off (Off).",
           "title": "Lock layout"
-        },
-        "settingsAnim": {
-          "default": "slide",
-          "x-names": {
-            "slide": "Slide",
-            "fade": "Fade",
-            "none": "None"
-          },
-          "description": "Look & feel. Values: slide (Slide), fade (Fade), none (None).",
-          "title": "Settings transitions",
-          "enum": [
-            "slide",
-            "fade",
-            "none"
-          ]
         },
         "dockShadow": {
           "default": "off",

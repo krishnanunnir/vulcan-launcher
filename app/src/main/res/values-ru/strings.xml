@@ -497,10 +497,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="labelSize_home">Как на главном экране</string>
     <string name="action_torch">Фонарик вкл/выкл</string>
     <string name="no_flashlight">Фонарик сейчас недоступен</string>
-    <string name="set_settingsAnim">Переходы в настройках</string>
-    <string name="settingsAnim_slide">Сдвиг</string>
-    <string name="settingsAnim_fade">Затухание</string>
-    <string name="settingsAnim_none">Нет</string>
     <string name="name">Название</string>
     <string name="backup_panel_save">Сохранение</string>
     <string name="backup_panel_restore">Восстановление</string>

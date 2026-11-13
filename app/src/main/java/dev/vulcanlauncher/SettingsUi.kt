@@ -53,18 +53,9 @@ private val leftAt = mutableMapOf<String, Int>()
 /** Opens settings at [page] ("" for settings home). */
 fun MainActivity.showSettings(page: String = "") {
     startActivity(Intent(this, SettingsActivity::class.java).putExtra("page", page))
-    SettingsActivity.transition(this)
 }
 
 class SettingsActivity : VulcanActivity() {
-    companion object {
-        /** Settings opens and closes with the system's own animation, as other apps do, or just appears ("Settings animation" none). */
-        @Suppress("DEPRECATION")
-        fun transition(a: VulcanActivity) {
-            if (a.looks.str("settingsAnim") == "none") a.overridePendingTransition(0, 0)
-        }
-    }
-
     // ponytail: reads the launcher's live state (apps, drawer, widgets) from the activity under it. Brought back alone
     // after the process died, settings just closes (onCreate); a store-backed app model would let it stand alone.
     override val home get() = checkNotNull(MainActivity.running?.get())
@@ -123,11 +114,6 @@ class SettingsActivity : VulcanActivity() {
     }
 
     override fun handleBack() { (panel?.tag as? Runnable)?.run() ?: finish() }
-
-    override fun finish() {
-        super.finish()
-        if (page != null) transition(this) // null: closed in onCreate, before settings loaded
-    }
 
     /** After a restore, an import or a reset: home starts again from what was stored, and settings closes. */
     fun restartHome() {
@@ -230,20 +216,20 @@ fun SettingsActivity.showPage(page: String, scroll: Int = 0, restoring: Boolean 
             return true
         }
     })
-    val anim = looks.str("settingsAnim")
+    // Pages slide; Android's "Remove animations" turns this off along with the system's own transitions.
     val shift = 32 * dp
     when {
-        // The first page comes with the screen (SettingsActivity.transition).
+        // The first page comes with the screen, in the system's own animation.
         old == null -> {}
         // A setting changed, or the page is refreshed: at once.
-        restoring || samePage || anim == "none" -> pages.removeView(old)
+        restoring || samePage -> pages.removeView(old)
         // The parent stays put under it.
         backward -> {
-            old.animate().alpha(0f).translationX(if (anim == "slide") shift else 0f).setDuration(150).setInterpolator(EASE).withEndAction { pages.removeView(old) }.start()
+            old.animate().alpha(0f).translationX(shift).setDuration(150).setInterpolator(EASE).withEndAction { pages.removeView(old) }.start()
         }
         else -> {
             panel.alpha = 0f
-            if (anim == "slide") panel.translationX = shift
+            panel.translationX = shift
             panel.animate().alpha(1f).translationX(0f).setDuration(150).setInterpolator(EASE).withEndAction { pages.removeView(old) }.start()
         }
     }
