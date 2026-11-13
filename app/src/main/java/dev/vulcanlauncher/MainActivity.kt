@@ -448,6 +448,7 @@ class MainActivity : VulcanActivity() {
     override fun onStop() {
         super.onStop()
         host.stopListening()
+        if (drawer.closeOnStop) { drawer.closeOnStop = false; drawer.hide(animate = false) }
         // Daily automatic backup, kept privately on the device and offered in Backup & restore.
         // Once a day (not on every stop) so a reset or bad change can't overwrite the last good copy straight away.
         val auto = store.autoBackups[0]

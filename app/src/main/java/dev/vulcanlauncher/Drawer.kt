@@ -1192,12 +1192,19 @@ class Drawer(private val a: MainActivity) {
             }
             row("drag", a.getString(R.string.arrange_apps)) { arrange() }
             row("star", a.getString(R.string.favourites)) { a.chooseFavourites() }
-            row("tabs", a.getString(R.string.group_tabs)) { hide(); a.showSettings(TABS_GROUP) }
-            row("folder", a.getString(R.string.group_drawer_folders)) { hide(); a.showSettings(DRAWER_FOLDERS) }
+            row("tabs", a.getString(R.string.group_tabs)) { settings(TABS_GROUP) }
+            row("folder", a.getString(R.string.group_drawer_folders)) { settings(DRAWER_FOLDERS) }
             row("hide", a.getString(R.string.hidden_apps)) { a.hideAppsMenu() }
-            row("settings", a.getString(R.string.launcher_settings)) { hide(); a.showSettings() }
+            row("settings", a.getString(R.string.launcher_settings)) { settings() }
         }
     }
+
+    /** Settings fades in over the open drawer, which closes unseen once home is hidden (MainActivity.onStop). */
+    private fun settings(page: String = "") {
+        a.showSettings(page)
+        closeOnStop = true
+    }
+    var closeOnStop = false
 
     /** The drawer's letter index down the right edge: the section in view is marked with the signal dot; touch or drag to jump. */
     private inner class LetterIndex : View(a) {

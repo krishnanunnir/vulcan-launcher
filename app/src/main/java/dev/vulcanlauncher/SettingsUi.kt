@@ -58,10 +58,11 @@ fun MainActivity.showSettings(page: String = "") {
 
 class SettingsActivity : VulcanActivity() {
     companion object {
-        /** Settings fades over home and back, or just appears ("Settings animation" none). */
+        /** Settings opens and closes with the system's own animation, as other apps do, or just appears ("Settings animation" none). */
         @Suppress("DEPRECATION")
-        fun transition(a: VulcanActivity) =
-            if (a.looks.str("settingsAnim") == "none") a.overridePendingTransition(0, 0) else a.overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        fun transition(a: VulcanActivity) {
+            if (a.looks.str("settingsAnim") == "none") a.overridePendingTransition(0, 0)
+        }
     }
 
     // ponytail: reads the launcher's live state (apps, drawer, widgets) from the activity under it. Brought back alone
