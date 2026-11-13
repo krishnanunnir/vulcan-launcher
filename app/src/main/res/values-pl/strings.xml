@@ -166,8 +166,8 @@
     <string name="badgeSize_medium">Średni</string>
     <string name="badgeSize_large">Duży</string>
     <string name="set_badgeColor">Kolor</string>
-    <string name="set_nowPage">Strona Now</string>
-    <string name="set_nowPage_info">Wył.: działanie strony Now nic nie robi</string>
+    <string name="set_nowPage">Strona Teraz</string>
+    <string name="set_nowPage_info">Wył.: działanie strony Teraz nic nie robi</string>
     <string name="set_nowClock">Data i godzina</string>
     <string name="set_nowMedia">Sterowanie multimediami</string>
     <string name="set_nowMedia_info">Wymaga dostępu do powiadomień</string>
@@ -252,7 +252,7 @@
     <string name="shape_octagon">Ośmiokąt</string>
     <string name="action_none">Nic</string>
     <string name="action_drawer">Szuflada aplikacji</string>
-    <string name="action_now">Strona Now</string>
+    <string name="action_now">Strona Teraz</string>
     <string name="action_notifications">Rozwiń powiadomienia</string>
     <string name="action_quicksettings">Rozwiń szybkie ustawienia</string>
     <string name="action_togglebar">Przełącz pasek powiadomień</string>
@@ -304,7 +304,7 @@
     <string name="group_night">Tryb nocny</string>
     <string name="group_badges">Plakietki powiadomień</string>
     <string name="group_gestures">Gesty i wprowadzanie</string>
-    <string name="group_now">Strona Now</string>
+    <string name="group_now">Strona Teraz</string>
     <string name="action_jump_to_page">Przejdź do strony %1$d</string>
     <string name="action_open_app">Otwórz: %1$s</string>
     <string name="action_app_fallback">aplikacja</string>
@@ -321,7 +321,7 @@
     <string name="cat_night">Ciemne panele i ich harmonogram</string>
     <string name="cat_badges">Kropki i liczniki powiadomień</string>
     <string name="cat_gestures">Przesunięcia, dotknięcia, uszczypnięcia i przycisk główny</string>
-    <string name="cat_now">Karty na stronie Now</string>
+    <string name="cat_now">Karty na stronie Teraz</string>
     <string name="group_search">Wyszukiwanie</string>
     <string name="cat_search">Wygląd paska wyszukiwania, wyniki z sieci i kontaktów</string>
     <string name="panel_style">Styl</string>
