@@ -745,4 +745,48 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
         <item quantity="one">%1$d Einstellung aus diesem Link anwenden? Deine Startbildschirm-Elemente bleiben gespeichert, aber Rasteränderungen können sie verschieben.</item>
         <item quantity="other">%1$d Einstellungen aus diesem Link anwenden? Deine Startbildschirm-Elemente bleiben gespeichert, aber Rasteränderungen können sie verschieben.</item>
     </plurals>
+    <string name="app_shortcut_item">App-Verknüpfung…</string>
+    <string name="create">Erstellen</string>
+    <string name="create_n">%d erstellen</string>
+    <string name="delete_group_title">%s löschen?</string>
+    <string name="done">Fertig</string>
+    <string name="folders_empty">Noch keine Ordner. Ein Ordner bündelt Apps unter einem Symbol in der App-Übersicht.</string>
+    <string name="folders_first">Ordner zuerst</string>
+    <string name="folders_hint">Ziehe einen Ordner, um ihn zu verschieben. Wische ihn nach links, um ihn zu löschen; die enthaltenen Apps kehren in die App-Übersicht zurück.</string>
+    <string name="folders_in_grid">Ordner im Raster</string>
+    <string name="folders_none">Noch keine vorhanden</string>
+    <string name="folders_sorted">Zusammen mit Apps sortiert</string>
+    <string name="group_drawer_folders">Ordner</string>
+    <string name="group_tabs">Tabs</string>
+    <string name="names_and_more">%1$s und %2$d weitere</string>
+    <string name="no_app_shortcuts">%1$s hat keine App-Verknüpfungen</string>
+    <string name="now_add_card">Karte hinzufügen</string>
+    <string name="now_card_apps">Apps</string>
+    <string name="now_card_widget">Widget</string>
+    <string name="set_tabBar">Tab-Leiste</string>
+    <string name="shortcut_requires_home">Lege Vulcan als Standard-Launcher fest, um App-Verknüpfungen hinzuzufügen.</string>
+    <string name="suggest_folders">Ordner vorschlagen</string>
+    <string name="suggest_info">Die Gruppierung richtet sich nach der von jeder App angegebenen Kategorie. Apps, die bereits in einem Ordner sind, bleiben dort.</string>
+    <string name="suggest_title">Vorgeschlagene Ordner</string>
+    <string name="tab_bar_scroll">Scrollen</string>
+    <string name="tab_bar_wrap">Umbruch</string>
+    <string name="tab_hidden">Ausgeblendet</string>
+    <string name="tab_hide">%s ausblenden</string>
+    <string name="tabs_hint">Ziehe einen Tab, um ihn zu verschieben. Wische ihn nach links, um ihn zu löschen.</string>
+    <string name="tab_show">%s anzeigen</string>
+    <string name="tabs_in_bar">In der Tab-Leiste</string>
+    <string name="unstack">Auflösen</string>
+    <string name="your_folders">Deine Ordner</string>
+    <plurals name="delete_folder_message">
+        <item quantity="one">Nur der Ordner wird entfernt. %d App kehrt in die App-Übersicht zurück.</item>
+        <item quantity="other">Nur der Ordner wird entfernt. %d Apps kehren in die App-Übersicht zurück.</item>
+    </plurals>
+    <plurals name="delete_tab_message">
+        <item quantity="one">Nur der Tab wird entfernt. %d App bleibt in der App-Übersicht.</item>
+        <item quantity="other">Nur der Tab wird entfernt. %d Apps bleiben in der App-Übersicht.</item>
+    </plurals>
+    <plurals name="folders_count">
+        <item quantity="one">%d Ordner</item>
+        <item quantity="other">%d Ordner</item>
+    </plurals>
 </resources>

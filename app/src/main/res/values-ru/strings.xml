@@ -782,4 +782,54 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
         <item quantity="many">Применить %1$d настроек из этой ссылки? Элементы главного экрана сохранятся, но из-за изменения сетки могут сместиться.</item>
         <item quantity="other">Применить %1$d настройки из этой ссылки? Элементы главного экрана сохранятся, но из-за изменения сетки могут сместиться.</item>
     </plurals>
+    <string name="app_shortcut_item">Ярлык приложения…</string>
+    <string name="create">Создать</string>
+    <string name="create_n">Создать %d</string>
+    <string name="delete_group_title">Удалить %s?</string>
+    <string name="done">Готово</string>
+    <string name="folders_empty">Пока нет папок. Папка объединяет приложения под одним значком в меню приложений.</string>
+    <string name="folders_first">Сначала</string>
+    <string name="folders_hint">Перетащите папку, чтобы переместить её. Смахните её влево, чтобы удалить; приложения из неё вернутся в меню приложений.</string>
+    <string name="folders_in_grid">Папки в сетке</string>
+    <string name="folders_none">Пока нет</string>
+    <string name="folders_sorted">Вместе с приложениями</string>
+    <string name="group_drawer_folders">Папки</string>
+    <string name="group_tabs">Вкладки</string>
+    <string name="names_and_more">%1$s и ещё %2$d</string>
+    <string name="no_app_shortcuts">У %1$s нет ярлыков</string>
+    <string name="now_add_card">Добавить карточку</string>
+    <string name="now_card_apps">Приложения</string>
+    <string name="now_card_widget">Виджет</string>
+    <string name="set_tabBar">Панель вкладок</string>
+    <string name="shortcut_requires_home">Чтобы добавлять ярлыки приложений, установите Vulcan в качестве приложения главного экрана по умолчанию.</string>
+    <string name="suggest_folders">Предлагать папки</string>
+    <string name="suggest_info">Группировка основана на категории, которую указывает само приложение. Приложения, уже находящиеся в папке, остаются на месте.</string>
+    <string name="suggest_title">Предлагаемые папки</string>
+    <string name="tab_bar_scroll">Прокрутка</string>
+    <string name="tab_bar_wrap">Перенос строк</string>
+    <string name="tab_hidden">Скрыта</string>
+    <string name="tab_hide">Скрыть %s</string>
+    <string name="tabs_hint">Перетащите вкладку, чтобы переместить её. Смахните её влево, чтобы удалить.</string>
+    <string name="tab_show">Показать %s</string>
+    <string name="tabs_in_bar">На панели вкладок</string>
+    <string name="unstack">Разгруппировать</string>
+    <string name="your_folders">Ваши папки</string>
+    <plurals name="delete_folder_message">
+        <item quantity="one">Удаляется только папка. %d приложение из неё возвращается в меню приложений.</item>
+        <item quantity="few">Удаляется только папка. %d приложения из неё возвращаются в меню приложений.</item>
+        <item quantity="many">Удаляется только папка. %d приложений из неё возвращаются в меню приложений.</item>
+        <item quantity="other">Удаляется только папка. %d приложения из неё возвращаются в меню приложений.</item>
+    </plurals>
+    <plurals name="delete_tab_message">
+        <item quantity="one">Удаляется только вкладка. %d приложение остаётся в меню приложений.</item>
+        <item quantity="few">Удаляется только вкладка. %d приложения остаются в меню приложений.</item>
+        <item quantity="many">Удаляется только вкладка. %d приложений остаются в меню приложений.</item>
+        <item quantity="other">Удаляется только вкладка. %d приложения остаются в меню приложений.</item>
+    </plurals>
+    <plurals name="folders_count">
+        <item quantity="one">%d папка</item>
+        <item quantity="few">%d папки</item>
+        <item quantity="many">%d папок</item>
+        <item quantity="other">%d папки</item>
+    </plurals>
 </resources>
