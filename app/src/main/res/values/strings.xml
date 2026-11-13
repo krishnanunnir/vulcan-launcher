@@ -740,7 +740,6 @@
     <string name="names_and_more">%1$s and %2$d more</string>
     <string name="tabs_in_bar">In the tab bar</string>
     <string name="tabs_hint">Drag a tab to move it. Slide one left to delete it.</string>
-    <string name="tab_builtin">Built in</string>
     <string name="tab_hidden">Hidden</string>
     <string name="tab_show">Show %s</string>
     <string name="tab_hide">Hide %s</string>
@@ -761,7 +760,6 @@
     <string name="create">Create</string>
     <string name="create_n">Create %d</string>
     <string name="done">Done</string>
-    <string name="group_deleted">%s deleted</string>
     <string name="delete_group_title">Delete %s?</string>
     <plurals name="delete_tab_message">
         <item quantity="one">Only the tab is removed. Its %d app stays in your drawer.</item>

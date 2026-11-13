@@ -28,6 +28,23 @@ fun reorderGroups(groups: List<Group>, type: String, from: Int, to: Int): List<G
     return groups.map { if (it.type == type) order.next() else it }
 }
 
+/** Stands for the Work profile tab among the user's tab names; no typed name can be this. */
+const val WORK_SLOT = "\u0000work"
+
+/** The tab names in bar order, with the Work profile tab after the first [workAt] of [tabs]. */
+fun withWorkSlot(tabs: List<String>, workAt: Int): List<String> = tabs.toMutableList().apply { add(workAt.coerceIn(0, size), WORK_SLOT) }
+
+/** Row [from] of [withWorkSlot] dragged to [to]: the tabs' new order and how many now come before Work. */
+fun moveWithWork(tabs: List<String>, workAt: Int, from: Int, to: Int): Pair<List<String>, Int> =
+    moveItem(withWorkSlot(tabs, workAt), from, to).let { m -> m.filter { it != WORK_SLOT } to m.indexOf(WORK_SLOT) }
+
+/** [groups] with their tabs put in [order] (tab names); folders keep their places. */
+fun withTabOrder(groups: List<Group>, order: List<String>): List<Group> {
+    val byName = groups.filter { it.type == "tab" }.associateBy { it.name }
+    val next = order.mapNotNull { byName[it] }.iterator()
+    return groups.map { if (it.type == "tab" && next.hasNext()) next.next() else it }
+}
+
 /** [groups] with [keys] taken out of every group but [keep]: picking apps for one group moves them there. */
 fun withoutApps(groups: List<Group>, keys: Set<String>, keep: String): List<Group> =
     groups.map { if (it.name == keep) it else it.copy(apps = it.apps.filter { k -> k !in keys }) }

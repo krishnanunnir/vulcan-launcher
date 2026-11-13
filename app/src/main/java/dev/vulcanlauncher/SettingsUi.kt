@@ -374,7 +374,7 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
     val byKey = choices.associateBy { it.key }
     fun link(key: String): View? = when (key) {
         "@dock" -> listItem(null, getString(R.string.group_dock), getString(R.string.cat_dock)) { showPage(DOCK_GROUP) }
-        "@hidden" -> listItem(null, getString(R.string.hidden_apps), getString(R.string.hidden_apps_info)) { hideAppsMenu() }
+        "@hidden" -> listItem(symbol("hide", m3.onPrimaryContainer), getString(R.string.hidden_apps), getString(R.string.hidden_apps_info), tonalIcon = true) { hideAppsMenu() }
         "@tabs" -> tabsLink()
         "@folders" -> foldersLink()
         // Not a setting: says how cards come and go, and how to move them.
@@ -758,9 +758,6 @@ fun VulcanActivity.saveGroups(groups: List<Group>) {
     (this as? SettingsActivity)?.takeIf { it.page == TABS_GROUP || it.page == DRAWER_FOLDERS }?.refresh()
 }
 
-/** Groups with at least this many apps ask before they're deleted; smaller ones go at once, with Undo. */
-private const val BIG_GROUP = 10
-
 /** "Gmail, Drive, Calendar and 5 more": [keys]' names, as many as read well on one line. */
 private fun VulcanActivity.appNames(keys: List<String>, shown: Int = 3): String {
     val names = keys.mapNotNull { home.apps[it] }.map { home.label(it) }
@@ -834,6 +831,30 @@ private fun VulcanActivity.swipeToDelete(row: View, onDelete: () -> Unit) {
     val slop = android.view.ViewConfiguration.get(this).scaledTouchSlop
     val toward = if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) 1 else -1
     var x0 = 0f; var y0 = 0f; var swiping = false
+    // The row stays put: its content slides and a red Delete area fills the gap it leaves.
+    val icon = symbol("delete", m3.onErrorContainer)
+    val red = object : android.graphics.drawable.Drawable() {
+        val paint = android.graphics.Paint().apply { color = m3.errorContainer }
+        var shown = 0f
+        override fun draw(c: android.graphics.Canvas) {
+            if (shown <= 0f) return
+            val w = row.width.toFloat(); val h = row.height.toFloat()
+            val l = if (toward < 0) w - shown else 0f
+            c.drawRect(l, 0f, l + shown, h, paint)
+            val s = icon.intrinsicWidth; val pad = (24 * dp).toInt()
+            if (shown < s + 2 * pad) return
+            val x = if (toward < 0) (w - pad - s).toInt() else pad
+            icon.setBounds(x, ((h - s) / 2).toInt(), x + s, ((h + s) / 2).toInt()); icon.draw(c)
+        }
+        override fun setAlpha(a: Int) {}
+        override fun setColorFilter(f: android.graphics.ColorFilter?) {}
+        @Deprecated("Deprecated in Java") override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
+    }
+    fun slide(v: View, by: Float) {
+        red.shown = by; red.setBounds(0, 0, v.width, v.height); red.invalidateSelf(); v.invalidate()
+        (v as ViewGroup).let { g -> for (i in 0 until g.childCount) g.getChildAt(i).translationX = by * toward }
+    }
+    row.overlay.add(red)
     row.setOnTouchListener { v, ev ->
         val dx = (ev.rawX - x0) * toward // how far toward the start, positive
         when (ev.actionMasked) {
@@ -842,15 +863,18 @@ private fun VulcanActivity.swipeToDelete(row: View, onDelete: () -> Unit) {
                 if (!swiping && dx > slop && dx > 2 * kotlin.math.abs(ev.rawY - y0)) {
                     swiping = true; v.parent.requestDisallowInterceptTouchEvent(true); v.isPressed = false; v.cancelLongPress()
                 }
-                if (swiping) v.translationX = maxOf(0f, dx) * toward
+                if (swiping) slide(v, maxOf(0f, dx))
                 swiping
             }
             android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> swiping.also {
                 if (!swiping) return@also
                 swiping = false
-                if (ev.actionMasked == android.view.MotionEvent.ACTION_UP && dx > v.width * 0.35f)
-                    v.animate().translationX(v.width.toFloat() * toward).alpha(0f).setDuration(150).withEndAction(onDelete).start()
-                else v.animate().translationX(0f).setDuration(150).start()
+                val del = ev.actionMasked == android.view.MotionEvent.ACTION_UP && dx > v.width * 0.35f
+                android.animation.ValueAnimator.ofFloat(maxOf(0f, dx), if (del) v.width.toFloat() else 0f).apply {
+                    duration = 150
+                    addUpdateListener { slide(v, it.animatedValue as Float) }
+                    if (del) addListener(object : android.animation.AnimatorListenerAdapter() { override fun onAnimationEnd(a: android.animation.Animator) = onDelete() })
+                }.start()
             }
             else -> swiping
         }
@@ -860,7 +884,9 @@ private fun VulcanActivity.swipeToDelete(row: View, onDelete: () -> Unit) {
 /** App drawer › Apps: Tabs and Folders, each saying what's in it. */
 private fun SettingsActivity.tabsLink(): View {
     val tabs = home.drawer.groups().filter { it.type == "tab" }
-    val names = listOf(getString(R.string.tab_all)) + tabs.map { it.name }
+    val hasWork = home.apps.values.any { home.isWork(it) }
+    val names = listOf(getString(R.string.tab_all)) + withWorkSlot(tabs.map { it.name }, store.data.getInt(WORK_AT, 0))
+        .filter { it != WORK_SLOT || hasWork }.map { if (it == WORK_SLOT) getString(R.string.tab_work) else it }
     val summary = if (names.size <= 3) names.joinToString() else getString(R.string.names_and_more, names.take(3).joinToString(), names.size - 3)
     return listItem(symbol("tabs", m3.onPrimaryContainer), getString(R.string.group_tabs), summary, tonalIcon = true) { showPage(TABS_GROUP) }
 }
@@ -887,11 +913,15 @@ private fun SettingsActivity.tabsPage(list: LinearLayout) {
     fun choice(key: String) = LOOKS.first { it.key == key }
 
     // The bar as the drawer will show it, selected tab first.
-    val shownNames = listOfNotNull(getString(R.string.tab_all).takeIf { allShown }, getString(R.string.tab_work).takeIf { hasWork && workShown },
-        getString(R.string.tab_private).takeIf { home.privateUser != null }) +
-        tabs.filterNot { it.hidden }.map { it.name }
+    val workAt = store.data.getInt(WORK_AT, 0)
+    val shownNames = listOfNotNull(getString(R.string.tab_all).takeIf { allShown }, getString(R.string.tab_private).takeIf { home.privateUser != null }) +
+        withWorkSlot(tabs.map { it.name }, workAt).filter { if (it == WORK_SLOT) hasWork && workShown else tabs.none { t -> t.name == it && t.hidden } }
+            .map { if (it == WORK_SLOT) getString(R.string.tab_work) else it }
     val bar = DrawerTabs(this, (6 * dp).toInt(), (32 * dp).toInt(), wrap).apply {
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        // On the drawer's own surface: the card's tone can match the selected chip's fill.
+        background = rounded(m3.surface, 12 * dp)
+        val p = (8 * dp).toInt(); setPadding(p, p, p, p)
         shownNames.forEachIndexed { i, n ->
             val on = i == 0
             addView(text(n, 13f, if (on) m3.onSecondaryContainer else m3.onSurfaceVariant, medium = true).apply {
@@ -914,15 +944,21 @@ private fun SettingsActivity.tabsPage(list: LinearLayout) {
     }
     panel(list, null, listOf(preview))
 
-    fun row(title: String, summary: String, shown: Boolean, onEye: () -> Unit, onClick: ((View) -> Unit)?) =
-        listItem(null, title, if (shown) summary else getString(R.string.tab_hidden), trailing = eye(title, shown, onEye), onClick = onClick)
+    fun row(title: CharSequence, summary: String?, shown: Boolean, onEye: () -> Unit, onClick: ((View) -> Unit)?) =
+        listItem(null, title, if (shown) summary else getString(R.string.tab_hidden), trailing = eye(title.toString(), shown, onEye), onClick = onClick)
             .apply { if (!shown) (getChildAt(0) as? LinearLayout)?.alpha = 0.6f }
-    val allRow = row(getString(R.string.tab_all), getString(R.string.tab_builtin), allShown, {
+    val allRow = row(getString(R.string.tab_all), null, allShown, {
         if (allShown && !hasVisibleTab) toast(getString(R.string.tab_all_needs_tab))
         else { store.data.edit().putBoolean(ALL_HIDDEN, allShown).apply(); home.drawer.refresh(); refresh() }
     }, null)
     val keep = checkRow(getString(R.string.set_keepInAll), looks.on("keepInAll")) { looks[choice("keepInAll")] = if (it) "on" else "off"; changed() }.apply { tag = "keepInAll" }
-    val workRow = if (hasWork) row(getString(R.string.tab_work), getString(R.string.tab_builtin), workShown, {
+    // Work profile: a briefcase after its name marks it as the system's, not a tab of your own.
+    val workTitle = android.text.SpannableString(getString(R.string.tab_work) + "  \u200b").apply {
+        val s = (16 * dp).roundToInt()
+        setSpan(android.text.style.ImageSpan(symbol("briefcase", m3.onSurfaceVariant, 16f).apply { setBounds(0, 0, s, s) }, android.text.style.DynamicDrawableSpan.ALIGN_CENTER),
+            length - 1, length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+    }
+    val workRow = if (hasWork) row(workTitle, null, workShown, {
         store.data.edit().putBoolean(WORK_HIDDEN, workShown).apply(); home.drawer.refresh(); refresh()
     }, null) else null
     val tabRows = tabs.map { g ->
@@ -930,11 +966,20 @@ private fun SettingsActivity.tabsPage(list: LinearLayout) {
             saveGroups(home.drawer.groups().map { if (it.name == g.name) it.copy(hidden = !g.hidden) else it })
         }) { editGroup(g) }.also { swipeToDelete(it) { deleteGroup(g) } }
     }
-    val reorder = Reorder(this, tabRows) { from, to -> saveGroups(reorderGroups(home.drawer.groups(), "tab", from, to)) }
-    if (tabRows.size > 1) tabRows.forEach { (it as LinearLayout).addView(reorder.handle(it)) }
+    // Work moves among your tabs like one of them: its place is how many of them come before it (WORK_AT).
+    val movable = if (workRow == null) tabRows else tabRows.toMutableList().apply { add(workAt.coerceIn(0, size), workRow) }
+    val reorder = Reorder(this, movable) { from, to ->
+        val now = home.drawer.groups()
+        if (workRow == null) saveGroups(reorderGroups(now, "tab", from, to))
+        else moveWithWork(now.filter { it.type == "tab" }.map { it.name }, workAt, from, to).let { (order, at) ->
+            store.data.edit().putInt(WORK_AT, at).apply()
+            saveGroups(withTabOrder(now, order))
+        }
+    }
+    if (movable.size > 1) movable.forEach { (it as LinearLayout).addView(reorder.handle(it)) }
     val newTab = listItem(symbol("add", m3.primary), getString(R.string.new_tab)) { newGroup("tab") }
     // Keep in all only means something while All apps shows.
-    panel(list, getString(R.string.tabs_in_bar), listOfNotNull(allRow, keep.takeIf { allShown }, workRow) + tabRows + newTab)
+    panel(list, getString(R.string.tabs_in_bar), listOfNotNull(allRow, keep.takeIf { allShown }) + movable + newTab)
     if (tabs.isNotEmpty()) list.addView(text(getString(R.string.tabs_hint), 13f, m3.onSurfaceVariant).apply {
         setPadding((32 * dp).toInt(), (12 * dp).toInt(), (32 * dp).toInt(), 0)
     })
@@ -1139,22 +1184,9 @@ fun VulcanActivity.editGroup(g: Group) {
     d.show()
 }
 
-/**
- * Deletes [g], putting its apps back in the drawer. A big one ([BIG_GROUP] apps or more) asks first, showing what's in it;
- * either way an Undo bar can bring it back to its place.
- */
+/** Asks, showing what's in [g], then deletes it and puts its apps back in the drawer. */
 fun VulcanActivity.deleteGroup(g: Group) {
-    fun go() {
-        val groups = home.drawer.groups()
-        val i = groups.indexOfFirst { it.name == g.name }.takeIf { it >= 0 } ?: return
-        val gone = groups[i]
-        saveGroups(groups.filterIndexed { j, _ -> j != i })
-        snackbar(getString(R.string.group_deleted, gone.name), millis = 4000) {
-            val now = home.drawer.groups()
-            if (now.none { it.name == gone.name }) saveGroups(now.toMutableList().apply { add(minOf(i, size), gone) })
-        }
-    }
-    if (g.apps.size < BIG_GROUP) return go()
+    fun go() = saveGroups(home.drawer.groups().filterNot { it.name == g.name })
     val icons = LinearLayout(this).apply {
         gravity = Gravity.CENTER_VERTICAL
         setPadding(0, (16 * dp).toInt(), 0, 0)

@@ -264,6 +264,8 @@ const val ALL_HIDDEN = "hideAllTab"
 /** Work apps have their own tab unless it's hidden. Before 0.32 that was the "workTab" setting; its value still counts until the eye is used. */
 fun VulcanActivity.workTabShown() = !store.data.getBoolean(WORK_HIDDEN, looks.raw("workTab") == "off")
 const val WORK_HIDDEN = "hideWorkTab"
+/** data key: how many of the user's tabs (hidden ones too) come before the Work profile tab; 0 puts it right after All apps. */
+const val WORK_AT = "workTabAt"
 
 /** Tag on a drawer view that shows an app, so GridView can hand it back for another app. */
 private const val APP_VIEW = "app"
@@ -872,7 +874,11 @@ class Drawer(private val a: MainActivity) {
         index.visibility = if (q.isEmpty() && entries.size > cols * rows) View.VISIBLE else View.GONE
         empty.text = a.getString(R.string.no_apps_match, q)
         empty.visibility = if (q.isNotEmpty() && entries.none { it !is Entry.WebE }) View.VISIBLE else View.GONE
-        buildTabs(groups, workTab, privateTab, q.isEmpty())
+        // The user's tabs with Work at its place among them, hidden tabs counted so hiding one doesn't move Work.
+        val shownTabs = groups.filter { it.type == "tab" }.map { it.name }.toSet()
+        val order = withWorkSlot(this.groups().filter { it.type == "tab" }.map { it.name }, a.store.data.getInt(WORK_AT, 0))
+            .filter { if (it == WORK_SLOT) workTab else it in shownTabs }.map { if (it == WORK_SLOT) "work" else it }
+        buildTabs(groups, order, privateTab, q.isEmpty())
         privateBar.visibility = if (q.isEmpty() && tab == "private") View.VISIBLE else View.GONE
         if (privateBar.visibility == View.VISIBLE) buildPrivateBar()
         // Warm the first two screens off the UI thread; the rest is prefetched as the list scrolls (see Adapter).
@@ -1016,11 +1022,12 @@ class Drawer(private val a: MainActivity) {
         animation.start()
     }
 
-    private fun buildTabs(groups: List<Group>, workTab: Boolean, privateTab: Boolean, show: Boolean) {
+    /** [order]: the tab keys after All apps and Private, "work" among the user's tab names. */
+    private fun buildTabs(groups: List<Group>, order: List<String>, privateTab: Boolean, show: Boolean) {
         tabs.removeAllViews()
-        val names = (if (homeTab == "") listOf("" to a.getString(R.string.tab_all)) else emptyList()) + (if (workTab) listOf("work" to a.getString(R.string.tab_work)) else emptyList()) +
+        val names = (if (homeTab == "") listOf("" to a.getString(R.string.tab_all)) else emptyList()) +
             (if (privateTab) listOf("private" to a.getString(R.string.tab_private)) else emptyList()) +
-            groups.filter { it.type == "tab" }.map { it.name to it.name }
+            order.map { it to if (it == "work") a.getString(R.string.tab_work) else it }
         tabScroll.visibility = if (show && names.size > 1) View.VISIBLE else View.GONE
         tabKeys = if (tabScroll.visibility == View.VISIBLE) names.map { it.first } else emptyList()
         // Nova's tab bar: plain text tabs, the selected one brighter with a bar under its name. Housing: a raised key;

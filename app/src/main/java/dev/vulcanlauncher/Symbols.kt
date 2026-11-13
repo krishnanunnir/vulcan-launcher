@@ -115,6 +115,7 @@ class Symbol(private val name: String, private val color: Int, private val size:
             "palette" -> { circle(12f, 12f, 9f); dot(7.5f, 11f); dot(10f, 7f); dot(14.5f, 7f); dot(17f, 11f) }
             "moon" -> path { addCircle(11f, 13f, 8f, Path.Direction.CW); op(Path().apply { addCircle(17f, 7f, 6.5f, Path.Direction.CW) }, Path.Op.DIFFERENCE) }
             "sun" -> { circle(12f, 12f, 4f); for (k in 0 until 8) { val t = Math.toRadians(k * 45.0); line(12 + 7 * cos(t).toFloat(), 12 + 7 * sin(t).toFloat(), 12 + 9.5f * cos(t).toFloat(), 12 + 9.5f * sin(t).toFloat()) } }
+            "briefcase" -> { rect(3f, 7f, 21f, 20f, 2f); poly(9f, 7f, 9f, 4f, 15f, 4f, 15f, 7f); line(3f, 13f, 21f, 13f) }
             "badge" -> { rect(3f, 7f, 17f, 21f, 4f); dot(18.5f, 5.5f, 3f) }
             "gesture" -> path { moveTo(3f, 17f); cubicTo(6f, 6f, 10f, 6f, 11.5f, 12f); cubicTo(13f, 18f, 17f, 18f, 21f, 7f) }
             "tabs" -> { rect(3f, 5f, 21f, 19f, 2f); line(3f, 9.5f, 21f, 9.5f); line(10f, 5f, 10f, 9.5f) }
