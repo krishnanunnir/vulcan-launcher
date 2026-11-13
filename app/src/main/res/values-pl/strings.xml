@@ -106,7 +106,6 @@
     <string name="set_fillFromBottom_info">Aplikacje i karty zaczynają się od dołu ekranu, tuż pod kciukiem</string>
     <string name="set_foldersFirst">Foldery jako pierwsze</string>
     <string name="set_keepInAll">Zachowaj pogrupowane aplikacje w głównej karcie</string>
-    <string name="set_workTab">Aplikacje robocze w osobnej karcie</string>
     <string name="set_webSearch">Oferuj wyszukiwanie w sieci w szufladzie</string>
     <string name="set_webSearch_info">Otwiera Twoją przeglądarkę</string>
     <string name="set_searchEngine">Wyszukiwanie w sieci za pomocą</string>
@@ -319,8 +318,6 @@
     <string name="panel_launcher">Launcher</string>
     <string name="hidden_apps">Ukryte aplikacje</string>
     <string name="hidden_apps_info">Ukryj aplikacje w szufladzie</string>
-    <string name="drawer_groups">Grupy szuflady</string>
-    <string name="drawer_groups_info">Karty i foldery w szufladzie</string>
     <string name="backup_restore">Kopia zapasowa i przywracanie</string>
     <string name="backup_restore_info">Eksportuj, importuj lub przenieś układ z innego launchera</string>
     <string name="permissions">Uprawnienia</string>
@@ -623,14 +620,8 @@
     <string name="perm_allow">Zezwól</string>
     <string name="perm_is_default">Domyślny</string>
     <string name="perm_set_default">Ustaw</string>
-    <string name="groups_panel_tabs">Karty</string>
-    <string name="groups_panel_folders">Foldery</string>
-    <string name="groups_panel_add">Dodaj</string>
-    <string name="groups_empty">Brak kart lub folderów. Karty dzielą szufladę na strony, a foldery gromadzą aplikacje pod jedną ikoną.</string>
     <string name="new_tab_info">Strona szuflady zawierająca wyłącznie wybrane aplikacje</string>
     <string name="new_folder_info">Wybrane aplikacje zebrane pod jedną ikoną w szufladzie</string>
-    <string name="smart_folders">Inteligentne foldery</string>
-    <string name="smart_folders_info">Folder dla każdej kategorii aplikacji, np. gry lub społecznościowe</string>
     <plurals name="group_apps">
         <item quantity="one">%1$d aplikacja</item>
         <item quantity="few">%1$d aplikacje</item>

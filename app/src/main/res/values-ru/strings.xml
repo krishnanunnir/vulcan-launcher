@@ -106,8 +106,6 @@
     <string name="drawerTheme_auto">Следовать ночному режиму</string>
     <string name="drawerTheme_dark">Тёмная</string>
     <string name="drawerTheme_light">Светлая</string>
-    <string name="drawer_groups">Группы в меню приложений</string>
-    <string name="drawer_groups_info">Вкладки и папки в меню приложений</string>
     <string name="edit">Изменить</string>
     <string name="edit_app">Изменить приложение</string>
     <string name="edit_folder">Изменить папку</string>
@@ -423,7 +421,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="set_widgetOverlap">Перекрытие виджетов при размещении</string>
     <string name="set_widgetRadius">Радиус углов виджетов</string>
     <string name="set_wiggle">Покачивать значки при перетаскивании</string>
-    <string name="set_workTab">Рабочие приложения в отдельной вкладке</string>
     <string name="settings">Настройки</string>
     <string name="setup_needed">Требуется однократная настройка</string>
     <string name="shape_circle">Круг</string>
@@ -534,14 +531,8 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="perm_allow">Разрешить</string>
     <string name="perm_is_default">Выбран</string>
     <string name="perm_set_default">Выбрать</string>
-    <string name="groups_panel_tabs">Вкладки</string>
-    <string name="groups_panel_folders">Папки</string>
-    <string name="groups_panel_add">Добавить</string>
-    <string name="groups_empty">Вкладок и папок пока нет. Вкладки делят меню приложений на страницы, папки собирают приложения под одним значком.</string>
     <string name="new_tab_info">Страница меню приложений только с выбранными приложениями</string>
     <string name="new_folder_info">Выбранные приложения под одним значком в меню приложений</string>
-    <string name="smart_folders">Умные папки</string>
-    <string name="smart_folders_info">Папка для каждой категории приложений, например игры или соцсети</string>
     <plurals name="group_apps">
         <item quantity="one">%1$d приложение</item>
         <item quantity="few">%1$d приложения</item>

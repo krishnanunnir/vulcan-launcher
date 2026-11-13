@@ -106,8 +106,7 @@
     <string name="set_fillFromBottom">Fill from the bottom</string>
     <string name="set_fillFromBottom_info">Apps and tabs start at the bottom of the screen, under your thumb</string>
     <string name="set_foldersFirst">Folders first</string>
-    <string name="set_keepInAll">Keep grouped apps in the main tab</string>
-    <string name="set_workTab">Work apps in their own tab</string>
+    <string name="set_keepInAll">Also show apps that are in other tabs</string>
     <string name="set_webSearch">Offer a web search in the drawer</string>
     <string name="set_webSearch_info">Opens your browser</string>
     <string name="set_searchEngine">Web search with</string>
@@ -349,8 +348,6 @@
     <string name="panel_launcher">Launcher</string>
     <string name="hidden_apps">Hidden apps</string>
     <string name="hidden_apps_info">Keep apps out of the drawer</string>
-    <string name="drawer_groups">Drawer groups</string>
-    <string name="drawer_groups_info">Tabs and folders in the drawer</string>
     <string name="backup_restore">Backup &amp; restore</string>
     <string name="backup_restore_info">Export, import or bring over another launcher\'s layout</string>
     <string name="permissions">Permissions</string>
@@ -543,7 +540,7 @@
     <string name="sec_cards">Cards</string>
     <string name="sec_general">General</string>
     <string name="now_cards_info">Cards with nothing to show stay hidden. Hold a card on the Now page to move it.</string>
-    <string name="tab_work">Work</string>
+    <string name="tab_work">Work profile</string>
     <string name="tab_private">Private</string>
     <string name="private_space">Private Space</string>
     <string name="private_locked">Private Space is locked</string>
@@ -697,14 +694,8 @@
     <string name="perm_allow">Allow</string>
     <string name="perm_is_default">Default</string>
     <string name="perm_set_default">Set</string>
-    <string name="groups_panel_tabs">Tabs</string>
-    <string name="groups_panel_folders">Folders</string>
-    <string name="groups_panel_add">Add</string>
-    <string name="groups_empty">No tabs or folders yet. Tabs split the drawer into pages; folders gather apps under one icon.</string>
     <string name="new_tab_info">A drawer page with only the apps you pick</string>
     <string name="new_folder_info">Apps you pick, under one icon in the drawer</string>
-    <string name="smart_folders">Smart folders</string>
-    <string name="smart_folders_info">A folder for each app category, such as games or social</string>
     <plurals name="group_apps">
         <item quantity="one">%1$d app</item>
         <item quantity="other">%1$d apps</item>
@@ -740,4 +731,44 @@
     <string name="widgets_always">Always allow Vulcan</string>
     <string name="widgets_continue">Continue</string>
     <string name="widgets_skip">Skip for now</string>
+    <!-- App drawer › Tabs and Folders -->
+    <string name="group_tabs">Tabs</string>
+    <string name="group_drawer_folders">Folders</string>
+    <string name="set_tabBar">Tab bar</string>
+    <string name="tab_bar_scroll">Scroll</string>
+    <string name="tab_bar_wrap">Wrap</string>
+    <string name="names_and_more">%1$s and %2$d more</string>
+    <string name="tabs_in_bar">In the tab bar</string>
+    <string name="tabs_hint">Drag a tab to move it. Slide one left to delete it.</string>
+    <string name="tab_builtin">Built in</string>
+    <string name="tab_hidden">Hidden</string>
+    <string name="tab_show">Show %s</string>
+    <string name="tab_hide">Hide %s</string>
+    <string name="folders_none">None yet</string>
+    <plurals name="folders_count">
+        <item quantity="one">%d folder</item>
+        <item quantity="other">%d folders</item>
+    </plurals>
+    <string name="folders_in_grid">Folders in the grid</string>
+    <string name="folders_first">First</string>
+    <string name="folders_sorted">Sorted with apps</string>
+    <string name="your_folders">Your folders</string>
+    <string name="folders_empty">No folders yet. A folder gathers apps under one icon in the drawer.</string>
+    <string name="folders_hint">Drag a folder to move it. Slide one left to delete it; its apps go back to the drawer.</string>
+    <string name="suggest_folders">Suggest folders</string>
+    <string name="suggest_title">Suggested folders</string>
+    <string name="suggest_info">Grouped by what each app says it is. Apps already in a folder stay put.</string>
+    <string name="create">Create</string>
+    <string name="create_n">Create %d</string>
+    <string name="done">Done</string>
+    <string name="group_deleted">%s deleted</string>
+    <string name="delete_group_title">Delete %s?</string>
+    <plurals name="delete_tab_message">
+        <item quantity="one">Only the tab is removed. Its %d app stays in your drawer.</item>
+        <item quantity="other">Only the tab is removed. Its %d apps stay in your drawer.</item>
+    </plurals>
+    <plurals name="delete_folder_message">
+        <item quantity="one">Only the folder is removed. Its %d app goes back to your drawer.</item>
+        <item quantity="other">Only the folder is removed. Its %d apps go back to your drawer.</item>
+    </plurals>
 </resources>

@@ -106,8 +106,6 @@
     <string name="drawerTheme_auto">Nachtmodus folgen</string>
     <string name="drawerTheme_dark">Dunkel</string>
     <string name="drawerTheme_light">Hell</string>
-    <string name="drawer_groups">Gruppen in der App-Übersicht</string>
-    <string name="drawer_groups_info">Tabs und Ordner in der App-Übersicht</string>
     <string name="edit">Bearbeiten</string>
     <string name="edit_app">App bearbeiten</string>
     <string name="edit_folder">Ordner bearbeiten</string>
@@ -423,7 +421,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="set_widgetOverlap">Widget-Überlappung beim Platzieren</string>
     <string name="set_widgetRadius">Widget-Eckenradius</string>
     <string name="set_wiggle">Symbole beim Ziehen und Ablegen wackeln</string>
-    <string name="set_workTab">Arbeits-Apps in eigenem Tab</string>
     <string name="settings">Einstellungen</string>
     <string name="setup_needed">Einmalige Einrichtung erforderlich</string>
     <string name="shape_circle">Rund</string>
@@ -517,14 +514,8 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="perm_allow">Erlauben</string>
     <string name="perm_is_default">Standard</string>
     <string name="perm_set_default">Festlegen</string>
-    <string name="groups_panel_tabs">Tabs</string>
-    <string name="groups_panel_folders">Ordner</string>
-    <string name="groups_panel_add">Hinzufügen</string>
-    <string name="groups_empty">Noch keine Tabs oder Ordner. Tabs teilen die App-Übersicht in Seiten; Ordner fassen Apps unter einem Symbol zusammen.</string>
     <string name="new_tab_info">Eine Seite der App-Übersicht nur mit den Apps deiner Wahl</string>
     <string name="new_folder_info">Apps deiner Wahl unter einem Symbol in der App-Übersicht</string>
-    <string name="smart_folders">Intelligente Ordner</string>
-    <string name="smart_folders_info">Ein Ordner pro App-Kategorie, etwa Spiele oder Soziales</string>
     <plurals name="group_apps">
         <item quantity="one">%1$d App</item>
         <item quantity="other">%1$d Apps</item>

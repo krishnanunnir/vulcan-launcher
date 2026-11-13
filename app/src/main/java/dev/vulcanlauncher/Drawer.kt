@@ -20,27 +20,38 @@ import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.abs
 
-/** The selected drawer tab's mark, as Nova's: a [height]-tall rounded bar under the name, [inset] in from each side. */
-private class TabBar(color: Int, private val inset: Int, private val height: Float) : android.graphics.drawable.Drawable() {
-    private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
-    override fun draw(c: android.graphics.Canvas) {
-        val b = bounds
-        c.drawRoundRect((b.left + inset).toFloat(), b.bottom - height, (b.right - inset).toFloat(), b.bottom.toFloat(), height / 2, height / 2, paint)
-    }
-    override fun setAlpha(alpha: Int) { paint.alpha = alpha }
-    override fun setColorFilter(cf: android.graphics.ColorFilter?) { paint.colorFilter = cf }
-    @Deprecated("Deprecated in Java") override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
-}
-
 /**
- * Lays out the drawer tabs in one row, as Supernova's and Nova's tab bars: past the drawer's width it scrolls sideways
- * (inside a HorizontalScrollView), and the selected tab is brought to the middle when it changes.
+ * Lays out the drawer tabs. Scroll: one row, as Supernova's and Nova's tab bars: past the drawer's width it scrolls
+ * sideways (inside a HorizontalScrollView), and the selected tab is brought to the middle when it changes.
+ * [wrap]: M3 chips in reading order, wrapping at the drawer's width (inside a capped vertical ScrollView).
  */
-private class DrawerTabs(context: android.content.Context, private val gap: Int, private val chipHeight: Int) : ViewGroup(context) {
+internal class DrawerTabs(context: android.content.Context, private val gap: Int, private val chipHeight: Int, private val wrap: Boolean) : ViewGroup(context) {
     private val positions = mutableListOf<android.graphics.Rect>()
     var chipToReveal: View? = null
 
-    override fun onMeasure(widthSpec: Int, heightSpec: Int) {
+    override fun onMeasure(widthSpec: Int, heightSpec: Int) = if (wrap) measureWrapped(widthSpec, heightSpec) else measureRow(widthSpec, heightSpec)
+
+    private fun measureWrapped(widthSpec: Int, heightSpec: Int) {
+        val width = MeasureSpec.getSize(widthSpec)
+        val rowWidth = (width - paddingStart - paddingEnd).coerceAtLeast(0)
+        val childWidth = MeasureSpec.makeMeasureSpec(rowWidth, MeasureSpec.AT_MOST)
+        val childHeight = MeasureSpec.makeMeasureSpec(chipHeight, MeasureSpec.EXACTLY)
+        var x = 0
+        var y = paddingTop
+        positions.clear()
+        for (i in 0 until childCount) {
+            val chip = getChildAt(i)
+            chip.measure(childWidth, childHeight)
+            if (x > 0 && x + chip.measuredWidth > rowWidth) { x = 0; y += chipHeight + gap }
+            val start = paddingStart + x
+            val left = if (layoutDirection == LAYOUT_DIRECTION_RTL) width - start - chip.measuredWidth else start
+            positions.add(android.graphics.Rect(left, y, left + chip.measuredWidth, y + chipHeight))
+            x += chip.measuredWidth + gap
+        }
+        setMeasuredDimension(width, resolveSize(y + (if (childCount == 0) 0 else chipHeight) + paddingBottom, heightSpec))
+    }
+
+    private fun measureRow(widthSpec: Int, heightSpec: Int) {
         val childWidth = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
         val childHeight = MeasureSpec.makeMeasureSpec(chipHeight, MeasureSpec.EXACTLY)
         var row = paddingStart
@@ -66,6 +77,7 @@ private class DrawerTabs(context: android.content.Context, private val gap: Int,
         positions.forEachIndexed { i, bounds -> getChildAt(i).layout(bounds.left, bounds.top, bounds.right, bounds.bottom) }
         chipToReveal?.let { chip ->
             chipToReveal = null
+            if (wrap) { chip.post { chip.requestRectangleOnScreen(android.graphics.Rect(0, 0, chip.width, chip.height), true) }; return@let }
             // Centred, as a scrollable TabLayout keeps its selected tab; the scroll view clamps it at the ends.
             val scroll = parent as? android.widget.HorizontalScrollView ?: return@let
             scroll.post { scroll.smoothScrollTo(chip.left + chip.width / 2 - scroll.width / 2, 0) }
@@ -75,8 +87,11 @@ private class DrawerTabs(context: android.content.Context, private val gap: Int,
     override fun generateDefaultLayoutParams() = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
 }
 
-/** A drawer tab or drawer folder: [type] is "tab" or "folder"; [apps] are app keys; [color] a tab's own "#RRGGBB", null for the theme's. */
-data class Group(val name: String, val type: String, val apps: List<String>, val color: String? = null)
+/**
+ * A drawer tab or drawer folder: [type] is "tab" or "folder"; [apps] are app keys; [color] a tab's own "#RRGGBB", null for
+ * the theme's. A [hidden] tab is left out of the drawer as if it weren't there, its apps back in All apps; it keeps its apps.
+ */
+data class Group(val name: String, val type: String, val apps: List<String>, val color: String? = null, val hidden: Boolean = false)
 
 /** The groups in [s]. A restored or hand-edited file can hold anything: what isn't a group is skipped, never thrown. */
 fun groupsFromJson(s: String): List<Group> = (runCatching { JSONArray(s) }.getOrNull() ?: JSONArray()).let { a ->
@@ -86,12 +101,12 @@ fun groupsFromJson(s: String): List<Group> = (runCatching { JSONArray(s) }.getOr
         val type = o.opt("type") as? String ?: return@mapNotNull null
         val apps = o.optJSONArray("apps") ?: JSONArray()
         val color = (o.opt("color") as? String)?.takeIf { Regex("#[0-9a-fA-F]{6}").matches(it) }
-        Group(name, type, (0 until apps.length()).mapNotNull { i -> apps.opt(i) as? String }, color)
+        Group(name, type, (0 until apps.length()).mapNotNull { i -> apps.opt(i) as? String }, color, o.optBoolean("hidden"))
     }
 }
 
 fun groupsToJson(groups: List<Group>) = JSONArray().apply {
-    groups.forEach { put(JSONObject().put("name", it.name).put("type", it.type).put("apps", JSONArray(it.apps)).apply { it.color?.let { c -> put("color", c) } }) }
+    groups.forEach { put(JSONObject().put("name", it.name).put("type", it.type).put("apps", JSONArray(it.apps)).apply { it.color?.let { c -> put("color", c) }; if (it.hidden) put("hidden", true) }) }
 }.toString()
 
 /**
@@ -246,6 +261,10 @@ fun smartGroups(groups: List<Group>, byName: Map<String, List<String>>): Triple<
 /** data key: All apps is left out of the drawer's tabs. */
 const val ALL_HIDDEN = "hideAllTab"
 
+/** Work apps have their own tab unless it's hidden. Before 0.32 that was the "workTab" setting; its value still counts until the eye is used. */
+fun VulcanActivity.workTabShown() = !store.data.getBoolean(WORK_HIDDEN, looks.raw("workTab") == "off")
+const val WORK_HIDDEN = "hideWorkTab"
+
 /** Tag on a drawer view that shows an app, so GridView can hand it back for another app. */
 private const val APP_VIEW = "app"
 
@@ -303,8 +322,17 @@ class Drawer(private val a: MainActivity) {
     private var entriesOf: (String) -> List<Entry> = { emptyList() }
     /** The tab the drawer opens on: All apps, or the first tab when All apps is hidden. */
     private var homeTab = ""
-    private val tabs = DrawerTabs(a, (8 * a.dp).toInt(), (32 * a.dp).toInt())
-    private val tabScroll = android.widget.HorizontalScrollView(a).apply {
+    /** Tab bar "wrap": square M3 chips over as many rows as they need. Housing keeps its raised keys either way. */
+    private val wrapTabs = a.looks.str("tabBar") == "wrap"
+    private val tabs = DrawerTabs(a, (8 * a.dp).toInt(), (32 * a.dp).toInt(), wrapTabs)
+    private val tabScroll: FrameLayout = if (wrapTabs) object : android.widget.ScrollView(a) {
+        override fun onMeasure(widthSpec: Int, heightSpec: Int) {
+            // Keep the grid usable even with dozens of tabs or in a short window.
+            val limit = minOf((128 * a.dp).toInt(), View.MeasureSpec.getSize(heightSpec) / 3)
+            super.onMeasure(widthSpec, View.MeasureSpec.makeMeasureSpec(limit, View.MeasureSpec.AT_MOST))
+        }
+    }.apply { isVerticalScrollBarEnabled = false; addView(tabs, FrameLayout.LayoutParams(-1, -2)) }
+    else android.widget.HorizontalScrollView(a).apply {
         isHorizontalScrollBarEnabled = false
         isFillViewport = true
         addView(tabs, FrameLayout.LayoutParams(-2, -2))
@@ -463,8 +491,7 @@ class Drawer(private val a: MainActivity) {
         search.setOnTouchListener(pullClose)
         val barParams = LinearLayout.LayoutParams(-1, ((if (bottomBar) 48 else 56) * a.dp).toInt()).apply { setMargins(pad, pad / 2, pad, pad / 2) }
         if (!bottomBar) addView(bar, barParams)
-        // Text tabs (not housing keys) start their 12 dp padding further out, so the names line up with the icons.
-        tabs.setPaddingRelative(pad + ((if (housing) 4 else -8) * a.dp).toInt(), if (bottomBar || fromBottom) pad / 2 else 0, pad, (8 * a.dp).toInt())
+        tabs.setPaddingRelative(pad + (4 * a.dp).toInt(), if (bottomBar || fromBottom) pad / 2 else 0, pad, (8 * a.dp).toInt())
         val content = FrameLayout(a)
         if (styleName == "pages") content.addView(pager) else { content.addView(peek); content.addView(grid) }
         content.addView(empty, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER).apply { setMargins(pad * 2, 0, pad * 2, 0) })
@@ -810,9 +837,10 @@ class Drawer(private val a: MainActivity) {
         val rank = a.store.strings("drawerOrder").withIndex().associate { it.value to it.index }
         val ordered = a.apps.values.map { it to SortKey(a.label(it), it.info.firstInstallTime, launches.optInt(it.key), rank[it.key] ?: Int.MAX_VALUE) }
             .sortedWith(compareBy(drawerComparator(sort)) { it.second }).map { it.first }
-        val groups = groups()
+        // Hidden tabs aren't in the drawer at all; their apps are back in All apps.
+        val groups = groups().filterNot { it.type == "tab" && it.hidden }
         val work = a.apps.values.filter { a.isWork(it) }.map { it.key }.toSet()
-        val workTab = a.looks.on("workTab") && work.isNotEmpty()
+        val workTab = a.workTabShown() && work.isNotEmpty()
         val private = a.apps.values.filter { a.isPrivate(it) }.map { it.key }.toSet()
         val privateTab = a.privateUser != null
         // All apps can be hidden while there's a tab to show instead; its folders then show on that tab.
@@ -1001,17 +1029,18 @@ class Drawer(private val a: MainActivity) {
             val on = key == tab
             // A tab's own colour (set in its editor, as Nova's) marks it while selected: the bar, or the housing key's fill.
             val own = groups.firstOrNull { it.name == key && it.type == "tab" }?.color?.let(android.graphics.Color::parseColor)
-            val ink = if (housing && own != null) onColor(own) else a.m3.onSurface
+            val chip = !housing
+            val ink = when { own != null -> onColor(own); !housing -> a.m3.onSecondaryContainer; else -> a.m3.onSurface }
             tabs.addView(a.text(title, 14f, if (on) ink else a.m3.onSurfaceVariant, medium = true).apply {
                 gravity = Gravity.CENTER
                 isSelected = on
                 setSingleLine()
                 ellipsize = android.text.TextUtils.TruncateAt.END
-                val p = ((if (housing) 16 else 12) * a.dp).toInt()
+                val p = (16 * a.dp).toInt()
                 setPaddingRelative(p, 0, p, 0)
                 background = a.pressable(when {
                     housing -> if (on) a.rounded(own ?: a.tabFill(), 16 * a.dp, if (a.m3.dark) 0x1FFFFFFF else 0x14000000, a.dp / 2) else null
-                    on -> TabBar(own ?: a.m3.primary, p, 3 * a.dp)
+                    chip -> if (on) a.rounded(own ?: a.tabFill(), 8 * a.dp) else a.rounded(0, 8 * a.dp, a.m3.outlineVariant)
                     else -> null
                 }, if (housing) 16 * a.dp else 8 * a.dp)
                 // A swipe still settling would otherwise land after this and take its tab back.
@@ -1156,7 +1185,8 @@ class Drawer(private val a: MainActivity) {
             }
             row("drag", a.getString(R.string.arrange_apps)) { arrange() }
             row("star", a.getString(R.string.favourites)) { a.chooseFavourites() }
-            row("tabs", a.getString(R.string.drawer_groups)) { hide(); a.groupsMenu() }
+            row("tabs", a.getString(R.string.group_tabs)) { hide(); a.showSettings(TABS_GROUP) }
+            row("folder", a.getString(R.string.group_drawer_folders)) { hide(); a.showSettings(DRAWER_FOLDERS) }
             row("hide", a.getString(R.string.hidden_apps)) { a.hideAppsMenu() }
             row("settings", a.getString(R.string.launcher_settings)) { hide(); a.showSettings() }
         }

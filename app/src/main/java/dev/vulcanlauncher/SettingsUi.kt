@@ -42,10 +42,9 @@ private val CATEGORY_INFO = mapOf(
 // Launcher pages under settings home, beside the categories.
 const val BACKUP = "Backup"
 const val PERMISSIONS = "Permissions"
-const val GROUPS = "Groups"
 
-/** Colors sits under Look & feel and Dock under Home screen, as in Nova. */
-private val PARENT = mapOf(COLORS to LOOK, DOCK_GROUP to HOME)
+/** Colors sits under Look & feel and Dock under Home screen, as in Nova; Tabs and Folders under App drawer. */
+private val PARENT = mapOf(COLORS to LOOK, DOCK_GROUP to HOME, TABS_GROUP to DRAWER, DRAWER_FOLDERS to DRAWER)
 private fun depth(page: String) = when (page) { "" -> 0; in PARENT -> 2; else -> 1 }
 
 /** Where each settings page was scrolled when it was left for a deeper one, so back returns to the same spot. */
@@ -161,9 +160,9 @@ fun SettingsActivity.showPage(page: String, scroll: Int = 0, restoring: Boolean 
         setPadding(0, 0, 0, (16 * dp).toInt())
     }
     var search: ((String) -> Unit)? = null
-    when (page) { "" -> search = settingsHome(list); COLORS -> colorsPage(list); BACKUP -> backupPage(list); PERMISSIONS -> permissionsPage(list); GROUPS -> groupsPage(list); CONTRIBUTORS_PAGE -> contributorsPage(list); else -> settingsCategory(page, list) }
+    when (page) { "" -> search = settingsHome(list); COLORS -> colorsPage(list); BACKUP -> backupPage(list); PERMISSIONS -> permissionsPage(list); TABS_GROUP -> tabsPage(list); DRAWER_FOLDERS -> foldersPage(list); CONTRIBUTORS_PAGE -> contributorsPage(list); else -> settingsCategory(page, list) }
     val scrollView = ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(list) }
-    val title = text(getString(when (page) { "" -> R.string.settings; COLORS -> R.string.custom_colors; BACKUP -> R.string.backup_restore; PERMISSIONS -> R.string.permissions; GROUPS -> R.string.drawer_groups; CONTRIBUTORS_PAGE -> R.string.contributors; else -> GROUP_TITLES.getValue(page) }), 22f).apply { setPadding((8 * dp).toInt(), 0, 0, 0); maxLines = 1 }
+    val title = text(getString(when (page) { "" -> R.string.settings; COLORS -> R.string.custom_colors; BACKUP -> R.string.backup_restore; PERMISSIONS -> R.string.permissions; CONTRIBUTORS_PAGE -> R.string.contributors; else -> GROUP_TITLES.getValue(page) }), 22f).apply { setPadding((8 * dp).toInt(), 0, 0, 0); maxLines = 1 }
     // Settings home, as One UI: a search button in the bar turns the title into the search field.
     val field = search?.let { onQuery -> EditText(this).apply {
         visibility = View.GONE
@@ -376,7 +375,8 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
     fun link(key: String): View? = when (key) {
         "@dock" -> listItem(null, getString(R.string.group_dock), getString(R.string.cat_dock)) { showPage(DOCK_GROUP) }
         "@hidden" -> listItem(null, getString(R.string.hidden_apps), getString(R.string.hidden_apps_info)) { hideAppsMenu() }
-        "@groups" -> listItem(null, getString(R.string.drawer_groups), getString(R.string.drawer_groups_info)) { showPage(GROUPS) }
+        "@tabs" -> tabsLink()
+        "@folders" -> foldersLink()
         // Not a setting: says how cards come and go, and how to move them.
         "@nowCards" -> text(getString(R.string.now_cards_info), 14f, m3.onSurfaceVariant).apply { setPadding((16 * dp).toInt(), (12 * dp).toInt(), (24 * dp).toInt(), (12 * dp).toInt()) }
         "@colors" -> listItem(null, getString(R.string.custom_colors),
@@ -755,49 +755,257 @@ fun VulcanActivity.hideAppsMenu() = appSwitches(getString(R.string.hide_apps), s
 fun VulcanActivity.saveGroups(groups: List<Group>) {
     store.data.edit().putString("groups", groupsToJson(groups)).apply()
     home.drawer.refresh()
-    (this as? SettingsActivity)?.takeIf { it.page == GROUPS }?.refresh()
+    (this as? SettingsActivity)?.takeIf { it.page == TABS_GROUP || it.page == DRAWER_FOLDERS }?.refresh()
 }
 
-fun MainActivity.groupsMenu() = showSettings(GROUPS)
+/** Groups with at least this many apps ask before they're deleted; smaller ones go at once, with Undo. */
+private const val BIG_GROUP = 10
 
-/** The drawer's tabs and folders, each opening its edit menu, then the ways to add more. */
-private fun SettingsActivity.groupsPage(list: LinearLayout) {
-    val groups = home.drawer.groups()
-    fun row(icon: String, title: String, info: String, onClick: (View) -> Unit) =
-        listItem(symbol(icon, m3.onPrimaryContainer), title, info, tonalIcon = true, onClick = onClick)
-    // Each tab and folder has a handle to drag it into a new place in its list, as Nova's (and Move up/down for TalkBack).
-    fun groupRows(type: String, icon: String): List<View> {
-        val ofType = groups.filter { it.type == type }
-        val rows = ofType.map { g -> row(icon, g.name, resources.getQuantityString(R.plurals.group_apps, g.apps.size, g.apps.size)) { editGroup(g) } }
-        val reorder = Reorder(this, rows) { from, to -> saveGroups(reorderGroups(home.drawer.groups(), type, from, to)) }
-        if (rows.size > 1) rows.forEach { (it as LinearLayout).addView(reorder.handle(it), LinearLayout.LayoutParams(-2, -2).apply { marginStart = (8 * dp).toInt() }) }
-        return rows
+/** "Gmail, Drive, Calendar and 5 more": [keys]' names, as many as read well on one line. */
+private fun VulcanActivity.appNames(keys: List<String>, shown: Int = 3): String {
+    val names = keys.mapNotNull { home.apps[it] }.map { home.label(it) }
+    return if (names.size <= shown) names.joinToString() else getString(R.string.names_and_more, names.take(shown).joinToString(), names.size - shown)
+}
+
+/** A group's icon: its first four apps on a rounded tile, 40 dp. Copies of the icons, so the drawer's keep their bounds. */
+fun VulcanActivity.groupIcon(keys: List<String>): Drawable {
+    val icons = keys.mapNotNull { home.apps[it] }.take(4).map { home.icon(it).let { d -> d.constantState?.newDrawable(resources)?.mutate() ?: d } }
+    val size = (40 * dp).toInt(); val cell = (15 * dp).toInt(); val pad = (4 * dp).toInt(); val gap = size - 2 * pad - 2 * cell
+    return android.graphics.drawable.LayerDrawable((listOf(rounded(m3.surfaceHighest, 12 * dp)) + icons).toTypedArray()).apply {
+        setLayerSize(0, size, size)
+        icons.indices.forEach { i ->
+            setLayerSize(i + 1, cell, cell)
+            setLayerInsetLeft(i + 1, pad + (i % 2) * (cell + gap)); setLayerInsetTop(i + 1, pad + (i / 2) * (cell + gap))
+            setLayerGravity(i + 1, Gravity.START or Gravity.TOP)
+        }
     }
-    // All apps leads the tabs; it can be hidden while there's another tab for the drawer to open on.
-    val hasTabs = groups.any { it.type == "tab" }
-    val allShown = !store.data.getBoolean(ALL_HIDDEN, false) || !hasTabs
-    val allToggle = Toggle(this, allShown)
-    val allRow = listItem(symbol("apps", m3.onPrimaryContainer), getString(R.string.tab_all),
-        getString(if (!hasTabs) R.string.tab_all_needs_tab else if (allShown) R.string.tab_all_shown else R.string.tab_all_hidden),
-        trailing = allToggle, tonalIcon = true) {
-        if (!hasTabs) return@listItem
-        allToggle.checked = !allToggle.checked
-        store.data.edit().putBoolean(ALL_HIDDEN, !allToggle.checked).apply()
-        home.drawer.refresh()
-        refresh()
-    }.apply { if (!hasTabs) allToggle.alpha = 0.38f }
-    val tabs = groupRows("tab", "tabs")
-    val folders = groupRows("folder", "folder")
-    if (groups.isEmpty()) list.addView(text(getString(R.string.groups_empty), 14f, m3.onSurfaceVariant).apply {
-        setPadding((32 * dp).toInt(), (8 * dp).toInt(), (32 * dp).toInt(), 0)
+}
+
+/** M3 segmented buttons: one choice of a few, the chosen one filled. */
+private fun SettingsActivity.segmented(options: List<String>, chosen: Int, onPick: (Int) -> Unit) = LinearLayout(this).apply {
+    background = rounded(0, 20 * dp, m3.outline)
+    setPadding(dp.toInt(), dp.toInt(), dp.toInt(), dp.toInt())
+    options.forEachIndexed { i, label ->
+        addView(text(label, 14f, if (i == chosen) m3.onSecondaryContainer else m3.onSurface, medium = true).apply {
+            gravity = Gravity.CENTER
+            background = pressable(if (i == chosen) rounded(m3.secondaryContainer, 20 * dp) else null, 20 * dp)
+            accessibilityDelegate = object : View.AccessibilityDelegate() {
+                override fun onInitializeAccessibilityNodeInfo(v: View, info: android.view.accessibility.AccessibilityNodeInfo) {
+                    super.onInitializeAccessibilityNodeInfo(v, info)
+                    info.className = android.widget.RadioButton::class.java.name; info.isCheckable = true; info.isChecked = i == chosen
+                }
+            }
+            setOnClickListener { if (i != chosen) onPick(i) }
+        }, LinearLayout.LayoutParams(0, (40 * dp).toInt(), 1f))
+    }
+}
+
+/** A checkbox row inside a panel, indented under the row it belongs to. */
+private fun SettingsActivity.checkRow(title: String, on: Boolean, onChange: (Boolean) -> Unit): View {
+    val box = android.widget.CheckBox(this).apply {
+        isChecked = on; isClickable = false; isFocusable = false
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        buttonTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(m3.on, m3.onSurfaceVariant))
+    }
+    return LinearLayout(this).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        minimumHeight = (48 * dp).toInt()
+        setPaddingRelative((8 * dp).toInt(), 0, (24 * dp).toInt(), 0)
+        background = pressable(null)
+        addView(box)
+        addView(text(title, 14f, m3.onSurfaceVariant), LinearLayout.LayoutParams(0, -2, 1f))
+        accessibilityDelegate = object : View.AccessibilityDelegate() {
+            override fun onInitializeAccessibilityNodeInfo(v: View, info: android.view.accessibility.AccessibilityNodeInfo) {
+                super.onInitializeAccessibilityNodeInfo(v, info)
+                info.className = android.widget.CheckBox::class.java.name; info.isCheckable = true; info.isChecked = box.isChecked
+            }
+        }
+        setOnClickListener { box.isChecked = !box.isChecked; onChange(box.isChecked) }
+    }
+}
+
+/** An eye button: shows or hides [name] in the drawer's tab bar. */
+private fun SettingsActivity.eye(name: String, shown: Boolean, onToggle: () -> Unit) =
+    iconButton(if (shown) "show" else "hide", getString(if (shown) R.string.tab_hide else R.string.tab_show, name), if (shown) m3.onSurfaceVariant else m3.outline) { onToggle() }
+
+/** Slide a row toward the start edge to delete it; a short slide springs back. A tap still taps. */
+@android.annotation.SuppressLint("ClickableViewAccessibility")
+private fun VulcanActivity.swipeToDelete(row: View, onDelete: () -> Unit) {
+    val slop = android.view.ViewConfiguration.get(this).scaledTouchSlop
+    val toward = if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) 1 else -1
+    var x0 = 0f; var y0 = 0f; var swiping = false
+    row.setOnTouchListener { v, ev ->
+        val dx = (ev.rawX - x0) * toward // how far toward the start, positive
+        when (ev.actionMasked) {
+            android.view.MotionEvent.ACTION_DOWN -> { x0 = ev.rawX; y0 = ev.rawY; swiping = false; false }
+            android.view.MotionEvent.ACTION_MOVE -> {
+                if (!swiping && dx > slop && dx > 2 * kotlin.math.abs(ev.rawY - y0)) {
+                    swiping = true; v.parent.requestDisallowInterceptTouchEvent(true); v.isPressed = false; v.cancelLongPress()
+                }
+                if (swiping) v.translationX = maxOf(0f, dx) * toward
+                swiping
+            }
+            android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> swiping.also {
+                if (!swiping) return@also
+                swiping = false
+                if (ev.actionMasked == android.view.MotionEvent.ACTION_UP && dx > v.width * 0.35f)
+                    v.animate().translationX(v.width.toFloat() * toward).alpha(0f).setDuration(150).withEndAction(onDelete).start()
+                else v.animate().translationX(0f).setDuration(150).start()
+            }
+            else -> swiping
+        }
+    }
+}
+
+/** App drawer › Apps: Tabs and Folders, each saying what's in it. */
+private fun SettingsActivity.tabsLink(): View {
+    val tabs = home.drawer.groups().filter { it.type == "tab" }
+    val names = listOf(getString(R.string.tab_all)) + tabs.map { it.name }
+    val summary = if (names.size <= 3) names.joinToString() else getString(R.string.names_and_more, names.take(3).joinToString(), names.size - 3)
+    return listItem(symbol("tabs", m3.onPrimaryContainer), getString(R.string.group_tabs), summary, tonalIcon = true) { showPage(TABS_GROUP) }
+}
+
+private fun SettingsActivity.foldersLink(): View {
+    val folders = home.drawer.groups().filter { it.type == "folder" }
+    return listItem(folders.firstOrNull()?.let { groupIcon(it.apps) } ?: symbol("folder", m3.onPrimaryContainer), getString(R.string.group_drawer_folders),
+        if (folders.isEmpty()) getString(R.string.folders_none) else resources.getQuantityString(R.plurals.folders_count, folders.size, folders.size),
+        tonalIcon = folders.isEmpty(), appIcon = folders.isNotEmpty()) { showPage(DRAWER_FOLDERS) }
+}
+
+/**
+ * The drawer's tabs: a preview of the tab bar with its Scroll or Wrap choice, then every tab in bar order. Each can be
+ * shown or hidden; user tabs open their editor, drag to reorder and slide away to delete. All apps carries Keep in all.
+ */
+private fun SettingsActivity.tabsPage(list: LinearLayout) {
+    val groups = home.drawer.groups()
+    val tabs = groups.filter { it.type == "tab" }
+    val hasVisibleTab = tabs.any { !it.hidden }
+    val allShown = !store.data.getBoolean(ALL_HIDDEN, false) || !hasVisibleTab
+    val hasWork = home.apps.values.any { home.isWork(it) }
+    val workShown = workTabShown()
+    val wrap = looks.str("tabBar") == "wrap"
+    fun choice(key: String) = LOOKS.first { it.key == key }
+
+    // The bar as the drawer will show it, selected tab first.
+    val shownNames = listOfNotNull(getString(R.string.tab_all).takeIf { allShown }, getString(R.string.tab_work).takeIf { hasWork && workShown },
+        getString(R.string.tab_private).takeIf { home.privateUser != null }) +
+        tabs.filterNot { it.hidden }.map { it.name }
+    val bar = DrawerTabs(this, (6 * dp).toInt(), (32 * dp).toInt(), wrap).apply {
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        shownNames.forEachIndexed { i, n ->
+            val on = i == 0
+            addView(text(n, 13f, if (on) m3.onSecondaryContainer else m3.onSurfaceVariant, medium = true).apply {
+                gravity = Gravity.CENTER; setSingleLine()
+                val p = (12 * dp).toInt(); setPadding(p, 0, p, 0)
+                background = if (on) rounded(tabFill(), 8 * dp) else rounded(0, 8 * dp, m3.outlineVariant)
+            })
+        }
+    }
+    val preview = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        tag = "tabBar"
+        setPadding((16 * dp).toInt(), (16 * dp).toInt(), (16 * dp).toInt(), (16 * dp).toInt())
+        // Scroll: one row, cut at the edge as the drawer's scrolls; wrap: every tab.
+        addView(if (wrap) bar else android.widget.HorizontalScrollView(context).apply { isHorizontalScrollBarEnabled = false; addView(bar) },
+            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = (16 * dp).toInt() })
+        addView(segmented(listOf(getString(R.string.tab_bar_scroll), getString(R.string.tab_bar_wrap)), if (wrap) 1 else 0) {
+            looks[choice("tabBar")] = if (it == 1) "wrap" else "scroll"; changed()
+        }.apply { contentDescription = getString(R.string.set_tabBar) })
+    }
+    panel(list, null, listOf(preview))
+
+    fun row(title: String, summary: String, shown: Boolean, onEye: () -> Unit, onClick: ((View) -> Unit)?) =
+        listItem(null, title, if (shown) summary else getString(R.string.tab_hidden), trailing = eye(title, shown, onEye), onClick = onClick)
+            .apply { if (!shown) (getChildAt(0) as? LinearLayout)?.alpha = 0.6f }
+    val allRow = row(getString(R.string.tab_all), getString(R.string.tab_builtin), allShown, {
+        if (allShown && !hasVisibleTab) toast(getString(R.string.tab_all_needs_tab))
+        else { store.data.edit().putBoolean(ALL_HIDDEN, allShown).apply(); home.drawer.refresh(); refresh() }
+    }, null)
+    val keep = checkRow(getString(R.string.set_keepInAll), looks.on("keepInAll")) { looks[choice("keepInAll")] = if (it) "on" else "off"; changed() }.apply { tag = "keepInAll" }
+    val workRow = if (hasWork) row(getString(R.string.tab_work), getString(R.string.tab_builtin), workShown, {
+        store.data.edit().putBoolean(WORK_HIDDEN, workShown).apply(); home.drawer.refresh(); refresh()
+    }, null) else null
+    val tabRows = tabs.map { g ->
+        row(g.name, resources.getQuantityString(R.plurals.group_apps, g.apps.size, g.apps.size), !g.hidden, {
+            saveGroups(home.drawer.groups().map { if (it.name == g.name) it.copy(hidden = !g.hidden) else it })
+        }) { editGroup(g) }.also { swipeToDelete(it) { deleteGroup(g) } }
+    }
+    val reorder = Reorder(this, tabRows) { from, to -> saveGroups(reorderGroups(home.drawer.groups(), "tab", from, to)) }
+    if (tabRows.size > 1) tabRows.forEach { (it as LinearLayout).addView(reorder.handle(it)) }
+    val newTab = listItem(symbol("add", m3.primary), getString(R.string.new_tab)) { newGroup("tab") }
+    // Keep in all only means something while All apps shows.
+    panel(list, getString(R.string.tabs_in_bar), listOfNotNull(allRow, keep.takeIf { allShown }, workRow) + tabRows + newTab)
+    if (tabs.isNotEmpty()) list.addView(text(getString(R.string.tabs_hint), 13f, m3.onSurfaceVariant).apply {
+        setPadding((32 * dp).toInt(), (12 * dp).toInt(), (32 * dp).toInt(), 0)
     })
-    panel(list, getString(R.string.groups_panel_tabs), listOf(allRow) + tabs)
-    if (folders.isNotEmpty()) panel(list, getString(R.string.groups_panel_folders), folders)
-    panel(list, getString(R.string.groups_panel_add), listOf(
-        row("tabs", getString(R.string.new_tab), getString(R.string.new_tab_info)) { newGroup("tab") },
-        row("folder", getString(R.string.new_folder), getString(R.string.new_folder_info)) { newGroup("folder") },
-        row("sparkle", getString(R.string.smart_folders), getString(R.string.smart_folders_info)) { smartFolders() },
-    ))
+}
+
+/**
+ * The drawer's folders: a preview of where they sit in the grid with its First or Sorted with apps choice, then each
+ * folder (tap to edit, drag to reorder, slide away to delete), and New folder or Suggest folders.
+ */
+private fun SettingsActivity.foldersPage(list: LinearLayout) {
+    val folders = home.drawer.groups().filter { it.type == "folder" }
+    val first = looks.on("foldersFirst")
+    // A row of the drawer: a few apps and folders, in the chosen order.
+    val apps = home.apps.values.filterNot { home.isWork(it) }.sortedWith(compareBy(labelOrder()) { home.label(it) }).take(if (folders.isEmpty()) 4 else 6)
+    data class Cell(val name: String, val icon: Drawable)
+    val folderCells = folders.take(2).map { Cell(it.name, groupIcon(it.apps)) }
+    val appCells = apps.map { Cell(home.label(it), home.icon(it)) }
+    val cells = if (first) folderCells + appCells else (folderCells + appCells).sortedWith(compareBy(labelOrder()) { it.name })
+    val grid = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        cells.chunked(4).forEach { rowCells ->
+            addView(LinearLayout(context).apply {
+                (0 until 4).forEach { i ->
+                    addView(LinearLayout(context).apply {
+                        orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+                        rowCells.getOrNull(i)?.let { c ->
+                            addView(ImageView(context).apply { setImageDrawable(c.icon) }, LinearLayout.LayoutParams((40 * dp).toInt(), (40 * dp).toInt()))
+                            addView(text(c.name, 11f, m3.onSurfaceVariant).apply { setSingleLine(); ellipsize = android.text.TextUtils.TruncateAt.END; gravity = Gravity.CENTER })
+                        }
+                    }, LinearLayout.LayoutParams(0, -2, 1f).apply { bottomMargin = (8 * dp).toInt() })
+                }
+            })
+        }
+    }
+    panel(list, null, listOf(LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        tag = "foldersFirst"
+        setPadding((16 * dp).toInt(), (16 * dp).toInt(), (16 * dp).toInt(), (16 * dp).toInt())
+        addView(grid)
+        addView(text(getString(R.string.folders_in_grid), 14f, m3.onSurfaceVariant).apply { setPadding(0, (8 * dp).toInt(), 0, (8 * dp).toInt()) })
+        addView(segmented(listOf(getString(R.string.folders_first), getString(R.string.folders_sorted)), if (first) 0 else 1) {
+            looks[LOOKS.first { c -> c.key == "foldersFirst" }] = if (it == 0) "on" else "off"; changed()
+        }.apply { contentDescription = getString(R.string.folders_in_grid) })
+    }))
+
+    val rows = folders.map { g ->
+        listItem(groupIcon(g.apps), g.name, resources.getQuantityString(R.plurals.group_apps, g.apps.size, g.apps.size), appIcon = true) { editGroup(g) }
+            .also { swipeToDelete(it) { deleteGroup(g) } }
+    }
+    val reorder = Reorder(this, rows) { from, to -> saveGroups(reorderGroups(home.drawer.groups(), "folder", from, to)) }
+    if (rows.size > 1) rows.forEach { (it as LinearLayout).addView(reorder.handle(it)) }
+    // Two ways to add, side by side.
+    fun add(icon: String, label: Int, onClick: () -> Unit) = text(getString(label), 14f, m3.primary, medium = true).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        minHeight = (56 * dp).toInt()
+        setPaddingRelative((16 * dp).toInt(), 0, (8 * dp).toInt(), 0)
+        compoundDrawablePadding = (12 * dp).toInt()
+        setCompoundDrawablesRelative(symbol(icon, m3.primary, 20f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
+        background = pressable(null)
+        setOnClickListener { onClick() }
+    }
+    val adds = LinearLayout(this).apply {
+        addView(add("add", R.string.new_folder) { newGroup("folder") }, LinearLayout.LayoutParams(0, -2, 1f))
+        addView(View(context).apply { setBackgroundColor(m3.outlineVariant) }, LinearLayout.LayoutParams(maxOf(1, (dp / 2).roundToInt()), (32 * dp).toInt()).apply { gravity = Gravity.CENTER_VERTICAL })
+        addView(add("sparkle", R.string.suggest_folders) { suggestFolders() }, LinearLayout.LayoutParams(0, -2, 1f))
+    }
+    panel(list, getString(R.string.your_folders), rows + adds)
+    list.addView(text(getString(if (folders.isEmpty()) R.string.folders_empty else R.string.folders_hint), 13f, m3.onSurfaceVariant).apply {
+        setPadding((32 * dp).toInt(), (12 * dp).toInt(), (32 * dp).toInt(), 0)
+    })
 }
 
 fun VulcanActivity.askName(title: String, current: String, onName: (String) -> Unit) {
@@ -835,33 +1043,143 @@ private fun VulcanActivity.chooseApps(title: String, current: List<String>, grou
     }
 }
 
+/**
+ * A tab's or folder's sheet: its name (saved when the sheet closes), its apps, a tab's order and colour, turning it into
+ * the other kind, and Delete beside Done.
+ */
 fun VulcanActivity.editGroup(g: Group) {
-    val groups = home.drawer.groups()
-    fun replace(n: Group?) = saveGroups(groups.mapNotNull { if (it.name == g.name) n else it })
-    val other = if (g.type == "tab") "folder" else "tab"
-    // Tabs move along the drawer's tab row, folders along the grid: left is earlier, except in right-to-left languages.
-    val rtl = resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL
-    fun move(sym: String, title: Int, by: Int) = moveGroup(groups, g.name, if (rtl) -by else by)
-        ?.let { Triple(symbol(sym), getString(title)) { saveGroups(it) } }
-    val actions = listOfNotNull(
-        Triple(symbol("edit"), getString(R.string.rename)) { askName(getString(R.string.rename), g.name) { replace(g.copy(name = it)) } },
-        Triple(symbol("apps"), getString(R.string.choose_apps)) {
-            chooseApps(g.name, g.apps, groups, g.name) { apps, rest -> saveGroups(rest.map { if (it.name == g.name) it.copy(apps = apps) else it }) }
-        },
-        if (g.type == "tab") Triple(symbol("drag"), getString(R.string.arrange_apps)) { arrangeTab(g.name, g.apps) } else null,
-        // A tab's own colour, as Nova's: it fills the tab while it's selected (Drawer.buildTabs). No setting of its own (#49).
-        if (g.type == "tab") Triple(colorDot(g.color?.let(Color::parseColor) ?: tabFill()), getString(R.string.tab_color)) {
-            pickList(getString(R.string.tab_color), listOf(colorDot(tabFill()) to getString(R.string.color_from_theme)) +
-                COLOR_VALUES.zip(COLOR_NAMES).map { (v, n) -> colorDot(Color.parseColor(v)) to getString(n) }) { i ->
-                replace(g.copy(color = COLOR_VALUES.getOrNull(i - 1)))
+    val name = field(g.name, getString(R.string.name))
+    var color = g.color
+    var deleted = false
+    lateinit var d: android.app.AlertDialog
+    fun current() = home.drawer.groups().firstOrNull { it.name == g.name }
+    val box = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding((16 * dp).toInt(), (20 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt())
+    }
+    box.addView(LinearLayout(this).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding((8 * dp).toInt(), 0, (8 * dp).toInt(), (12 * dp).toInt())
+        addView(ImageView(context).apply { setImageDrawable(groupIcon(g.apps)) }, LinearLayout.LayoutParams((52 * dp).toInt(), (52 * dp).toInt()).apply { marginEnd = (16 * dp).toInt() })
+        addView(name, LinearLayout.LayoutParams(0, -2, 1f))
+    })
+    val rows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = rounded(m3.surfaceHighest, 18 * dp); clipToOutline = true }
+    rows.addView(listItem(symbol("apps"), getString(R.string.choose_apps), appNames(g.apps).ifEmpty { null }) {
+        d.dismiss()
+        chooseApps(g.name, g.apps, home.drawer.groups(), g.name) { apps, rest -> saveGroups(rest.map { if (it.name == g.name) it.copy(apps = apps) else it }) }
+    })
+    if (g.type == "tab") rows.addView(listItem(symbol("drag"), getString(R.string.arrange_apps)) { d.dismiss(); arrangeTab(g.name, g.apps) })
+    // A tab's own colour, as Nova's: it marks the tab while it's selected (Drawer.buildTabs). No setting of its own (#49).
+    if (g.type == "tab") rows.addView(LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding((16 * dp).toInt(), (12 * dp).toInt(), (16 * dp).toInt(), (12 * dp).toInt())
+        addView(text(getString(R.string.tab_color), 16f))
+        val dots = LinearLayout(context).apply { setPadding(0, (10 * dp).toInt(), 0, 0) }
+        val values = listOf<String?>(null) + COLOR_VALUES
+        val labels = listOf(getString(R.string.color_from_theme)) + COLOR_NAMES.map(::getString)
+        fun paint() = values.forEachIndexed { i, v ->
+            val c = v?.let(Color::parseColor) ?: tabFill()
+            dots.getChildAt(i).background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL; setColor(c)
+                setStroke((if (v == color) 3 * dp else dp).toInt(), if (v == color) m3.onSurface else m3.outlineVariant)
             }
-        } else null,
-        move("left", R.string.move_left, -1),
-        move("right", R.string.move_right, 1),
-        Triple(symbol(other.replace("tab", "tabs")), getString(if (other == "tab") R.string.convert_to_tab else R.string.convert_to_folder)) { replace(g.copy(type = other)) },
-        Triple(symbol("delete"), getString(R.string.delete)) { replace(null) },
-    )
-    pickList(g.name, actions.map { it.first to it.second }) { actions[it].third() }
+            dots.getChildAt(i).isSelected = v == color
+        }
+        values.forEachIndexed { i, v ->
+            dots.addView(View(context).apply {
+                contentDescription = labels[i]
+                setOnClickListener { color = v; paint() }
+            }, LinearLayout.LayoutParams((32 * dp).toInt(), (32 * dp).toInt()).apply { marginEnd = (10 * dp).toInt() })
+        }
+        paint()
+        addView(android.widget.HorizontalScrollView(context).apply { isHorizontalScrollBarEnabled = false; addView(dots) })
+    })
+    val other = if (g.type == "tab") "folder" else "tab"
+    rows.addView(listItem(symbol(if (other == "tab") "tabs" else "folder"), getString(if (other == "tab") R.string.convert_to_tab else R.string.convert_to_folder)) {
+        current()?.let { cur -> saveGroups(home.drawer.groups().map { if (it === cur || it.name == cur.name) it.copy(type = other) else it }) }
+        d.dismiss()
+    })
+    box.addView(rows)
+    // Delete is quiet text on the left, away from Done.
+    box.addView(LinearLayout(this).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(0, (16 * dp).toInt(), 0, 0)
+        addView(text(getString(R.string.delete), 14f, m3.error, medium = true).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            minHeight = (44 * dp).toInt()
+            setPadding((12 * dp).toInt(), 0, (16 * dp).toInt(), 0)
+            compoundDrawablePadding = (8 * dp).toInt()
+            setCompoundDrawablesRelative(symbol("delete", m3.error, 20f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
+            background = pressable(null, 22 * dp, m3.error)
+            setOnClickListener { deleted = true; d.dismiss(); current()?.let { deleteGroup(it) } }
+        })
+        addView(View(context), LinearLayout.LayoutParams(0, 0, 1f))
+        addView(text(getString(R.string.done), 14f, m3.onPrimary, medium = true).apply {
+            gravity = Gravity.CENTER
+            minHeight = (44 * dp).toInt()
+            setPadding((24 * dp).toInt(), 0, (24 * dp).toInt(), 0)
+            background = pressable(rounded(m3.primary, 22 * dp), 22 * dp, m3.onPrimary)
+            setOnClickListener { d.dismiss() }
+        })
+    })
+    d = sheet().setView(ScrollView(this).apply { addView(box) }).create()
+    // Closing the sheet any way keeps the new name and colour.
+    d.setOnDismissListener {
+        if (deleted) return@setOnDismissListener
+        val groups = home.drawer.groups()
+        val cur = groups.firstOrNull { it.name == g.name } ?: return@setOnDismissListener
+        val typed = name.text.toString().trim()
+        val newName = when {
+            typed.isEmpty() || typed == cur.name -> cur.name
+            groups.any { it.name == typed } -> { toast(getString(R.string.group_exists)); cur.name }
+            else -> typed
+        }
+        if (newName != cur.name || color != cur.color) saveGroups(groups.map { if (it.name == g.name) it.copy(name = newName, color = color) else it })
+    }
+    d.show()
+}
+
+/**
+ * Deletes [g], putting its apps back in the drawer. A big one ([BIG_GROUP] apps or more) asks first, showing what's in it;
+ * either way an Undo bar can bring it back to its place.
+ */
+fun VulcanActivity.deleteGroup(g: Group) {
+    fun go() {
+        val groups = home.drawer.groups()
+        val i = groups.indexOfFirst { it.name == g.name }.takeIf { it >= 0 } ?: return
+        val gone = groups[i]
+        saveGroups(groups.filterIndexed { j, _ -> j != i })
+        snackbar(getString(R.string.group_deleted, gone.name), millis = 4000) {
+            val now = home.drawer.groups()
+            if (now.none { it.name == gone.name }) saveGroups(now.toMutableList().apply { add(minOf(i, size), gone) })
+        }
+    }
+    if (g.apps.size < BIG_GROUP) return go()
+    val icons = LinearLayout(this).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(0, (16 * dp).toInt(), 0, 0)
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        g.apps.mapNotNull { home.apps[it] }.take(6).forEach { app ->
+            addView(ImageView(context).apply { setImageDrawable(home.icon(app)) }, LinearLayout.LayoutParams((28 * dp).toInt(), (28 * dp).toInt()).apply { marginEnd = (6 * dp).toInt() })
+        }
+        if (g.apps.size > 6) addView(text("+${g.apps.size - 6}", 12f, m3.onSurfaceVariant).apply {
+            gravity = Gravity.CENTER; setPadding((10 * dp).toInt(), 0, (10 * dp).toInt(), 0); background = rounded(m3.surfaceHigh, 14 * dp)
+        }, LinearLayout.LayoutParams(-2, (28 * dp).toInt()))
+    }
+    val body = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding((24 * dp).toInt(), (8 * dp).toInt(), (24 * dp).toInt(), 0)
+        addView(text(resources.getQuantityString(if (g.type == "tab") R.plurals.delete_tab_message else R.plurals.delete_folder_message, g.apps.size, g.apps.size), 14f, m3.onSurfaceVariant))
+        addView(icons)
+    }
+    // Cancelled from a slide, the row springs back with the page.
+    val back = { (this as? SettingsActivity)?.refresh(); Unit }
+    val d = dialog().setIcon(symbol("delete", m3.error)).setTitle(getString(R.string.delete_group_title, g.name)).setView(body)
+        .setPositiveButton(R.string.delete) { _, _ -> go() }
+        .setNegativeButton(R.string.cancel) { _, _ -> back() }
+        .setOnCancelListener { back() }
+        .show()
+    d.getButton(android.app.AlertDialog.BUTTON_POSITIVE)?.setTextColor(m3.error)
 }
 
 /** The selected tab's fill when the tab has no colour of its own. */
@@ -888,8 +1206,58 @@ fun VulcanActivity.addToGroup(key: String) {
         .show()
 }
 
-/** Groups apps into drawer folders by category (see [smartCategory]); run again, it tops up the folders it made. */
-private fun SettingsActivity.smartFolders() {
+/** Suggested folders, one per app category: each ticked to start, with the apps it would take. Create makes the ticked ones. */
+private fun SettingsActivity.suggestFolders() {
+    val byName = smartCategories()
+    val groups = home.drawer.groups()
+    val foldered = groups.filter { it.type == "folder" }.flatMap { it.apps }.toSet()
+    // Only what Create would change: a new folder of two or more, or apps for a folder of that name.
+    val ideas = byName.filter { (n, keys) -> smartGroups(groups, mapOf(n to keys)).let { it.second + it.third > 0 } }
+        .entries.sortedByDescending { (_, keys) -> keys.count { it !in foldered } }
+    if (ideas.isEmpty()) { toast(getString(R.string.no_new_categories)); return }
+    val on = ideas.map { it.key }.toMutableSet()
+    lateinit var d: android.app.AlertDialog
+    fun cta() = d.getButton(android.app.AlertDialog.BUTTON_POSITIVE)?.apply {
+        text = if (on.isEmpty()) getString(R.string.create) else getString(R.string.create_n, on.size); isEnabled = on.isNotEmpty()
+    }
+    val box = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding((8 * dp).toInt(), 0, (8 * dp).toInt(), 0)
+        addView(text(getString(R.string.suggest_info), 14f, m3.onSurfaceVariant).apply { setPadding((16 * dp).toInt(), 0, (16 * dp).toInt(), (8 * dp).toInt()) })
+        for ((n, keys) in ideas) {
+            val fresh = keys.filter { it !in foldered }
+            val check = android.widget.CheckBox(context).apply {
+                isChecked = true; isClickable = false; isFocusable = false
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                buttonTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(m3.on, m3.onSurfaceVariant))
+            }
+            addView(listItem(groupIcon(fresh), n, appNames(fresh, 4), trailing = check, appIcon = true, summaryLines = 1) {
+                check.isChecked = !check.isChecked
+                if (check.isChecked) on += n else on -= n
+                cta()
+            }.apply {
+                accessibilityDelegate = object : View.AccessibilityDelegate() {
+                    override fun onInitializeAccessibilityNodeInfo(v: View, info: android.view.accessibility.AccessibilityNodeInfo) {
+                        super.onInitializeAccessibilityNodeInfo(v, info)
+                        info.className = android.widget.CheckBox::class.java.name; info.isCheckable = true; info.isChecked = check.isChecked
+                    }
+                }
+            })
+        }
+    }
+    d = sheet().setTitle(R.string.suggest_title).setView(ScrollView(this).apply { addView(box) })
+        .setPositiveButton(R.string.create) { _, _ ->
+            val (out, count, added) = smartGroups(home.drawer.groups(), byName.filterKeys { it in on })
+            if (count > 0) toast(resources.getQuantityString(R.plurals.created_folders, count, count))
+            else if (added > 0) toast(resources.getQuantityString(R.plurals.added_to_folders, added, added))
+            saveGroups(out)
+        }
+        .setNegativeButton(R.string.cancel, null).show()
+    cta()
+}
+
+/** Each app category's folder name and its apps' keys (see [smartCategory]), A to Z. */
+private fun SettingsActivity.smartCategories(): Map<String, List<String>> {
     // Apps whose intent filters say what they are, for those that declare no category.
     fun role(cat: Int, vararg intents: Intent) = intents.flatMap { packageManager.queryIntentActivities(it, 0) }.map { it.activityInfo.packageName to cat }
     fun main(c: String) = Intent(Intent.ACTION_MAIN).addCategory(c)
@@ -912,13 +1280,7 @@ private fun SettingsActivity.smartFolders() {
         val name = names[cat]?.let(::getString) ?: ApplicationInfo.getCategoryTitle(this, cat)?.toString() ?: return@mapNotNull null
         name to a
     }.groupBy({ it.first }, { it.second }).mapValues { (_, l) -> l.sortedBy { it.title.lowercase() }.map { it.key } }
-    val (groups, made, added) = smartGroups(home.drawer.groups(), byName)
-    when {
-        made > 0 -> toast(resources.getQuantityString(R.plurals.created_folders, made, made))
-        added > 0 -> toast(resources.getQuantityString(R.plurals.added_to_folders, added, added))
-        else -> { toast(getString(R.string.no_new_categories)); return }
-    }
-    saveGroups(groups)
+    return byName.toSortedMap()
 }
 
 // ---- Backup, permissions ----

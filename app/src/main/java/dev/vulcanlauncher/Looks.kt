@@ -55,10 +55,14 @@ const val BADGES = "Notification badges"
 const val GESTURES = "Gestures & inputs"
 const val NOW = "Now page"
 const val SEARCH_GROUP = "Search"
+/** App drawer's own pages: each shows its groups and keeps the settings that shape them (SettingsUi.tabsPage, foldersPage). */
+const val TABS_GROUP = "Drawer tabs"
+const val DRAWER_FOLDERS = "Drawer folders"
 /** Settings groups are identified by their English names (kept in saved state and backups); these are their titles. */
 val GROUP_TITLES = mapOf(HOME to R.string.group_home, DOCK_GROUP to R.string.group_dock, DRAWER to R.string.group_drawer,
     FOLDERS to R.string.group_folders, LOOK to R.string.group_look, NIGHT to R.string.group_night, BADGES to R.string.group_badges,
-    GESTURES to R.string.group_gestures, NOW to R.string.group_now, SEARCH_GROUP to R.string.group_search)
+    GESTURES to R.string.group_gestures, NOW to R.string.group_now, SEARCH_GROUP to R.string.group_search,
+    TABS_GROUP to R.string.group_tabs, DRAWER_FOLDERS to R.string.group_drawer_folders)
 
 val LOOKS = listOf(
     Choice(HOME, "cols", R.string.set_cols, "5", range(3, 12)),
@@ -125,9 +129,9 @@ val LOOKS = listOf(
     onOff(DRAWER, "rememberPosition", R.string.set_rememberPosition, false),
     onOff(DRAWER, "closeAfterLaunch", R.string.set_closeAfterLaunch, true),
     onOff(DRAWER, "fastScroll", R.string.set_fastScroll, true),
-    onOff(DRAWER, "foldersFirst", R.string.set_foldersFirst, true),
-    onOff(DRAWER, "keepInAll", R.string.set_keepInAll, true),
-    onOff(DRAWER, "workTab", R.string.set_workTab, true),
+    Choice(TABS_GROUP, "tabBar", R.string.set_tabBar, "wrap", listOf("scroll", "wrap"), listOf(R.string.tab_bar_scroll, R.string.tab_bar_wrap)),
+    onOff(TABS_GROUP, "keepInAll", R.string.set_keepInAll, true),
+    onOff(DRAWER_FOLDERS, "foldersFirst", R.string.set_foldersFirst, true),
     onOff(SEARCH_GROUP, "webSearch", R.string.set_webSearch, true, R.string.set_webSearch_info),
     Choice(SEARCH_GROUP, "searchEngine", R.string.set_searchEngine, "browser", SEARCH_ENGINES, SEARCH_ENGINE_NAMES),
     onOff(SEARCH_GROUP, "contactSearch", R.string.set_contactSearch, false, R.string.set_contactSearch_info),
@@ -207,9 +211,12 @@ val SECTIONS: Map<String, List<Pair<Int, List<String>>>> = mapOf(
         R.string.sec_layout to listOf("drawerStyle", "drawerCols", "drawerRows", "drawerIconSize", "drawerLabels", "drawerLabelSize", "fillFromBottom"),
         R.string.sec_colors to listOf("drawerTheme", "drawerAlpha"),
         R.string.group_drawer to listOf("drawerSearch", "drawerSort", "frequent", "pullToSearch", "showKeyboard", "fastScroll"),
-        R.string.sec_apps to listOf("@hidden", "@groups", "foldersFirst", "keepInAll", "workTab"),
+        R.string.sec_apps to listOf("@tabs", "@folders", "@hidden"),
         R.string.sec_advanced to listOf("closeAfterLaunch", "rememberPosition"),
     ),
+    // Laid out by hand around the tabs and folders themselves; listed so search and the tests know where they live.
+    TABS_GROUP to listOf(R.string.group_tabs to listOf("tabBar", "keepInAll")),
+    DRAWER_FOLDERS to listOf(R.string.group_drawer_folders to listOf("foldersFirst")),
     FOLDERS to listOf(
         R.string.sec_folder_icon to listOf("folderPreview", "folderBg", "folderClip", "folderFirstBig"),
         R.string.sec_window to listOf("folderWindow", "folderColor", "folderAlpha", "folderRadius", "folderNames", "folderSwipe"),

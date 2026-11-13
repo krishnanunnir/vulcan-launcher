@@ -490,9 +490,14 @@ class ResizeFrame(
 
 /** "Item removed · Undo" for 2.5 seconds, just above the navigation bar; [finalize] runs if it wasn't undone. */
 // Finalize is skipped if the activity is destroyed within the 2.5 s; the next start frees that widget ID (MainActivity.onCreate).
-@SuppressLint("SetTextI18n")
 fun MainActivity.showUndo(item: Item, finalize: () -> Unit) {
     if (!looks.on("undoBar")) { finalize(); return }
+    snackbar(getString(R.string.item_removed), onTimeout = finalize) { items += item; save(); render() }
+}
+
+/** An M3 snackbar with Undo, just above the navigation bar, for [millis]; [onTimeout] runs if it wasn't undone. */
+@SuppressLint("SetTextI18n")
+fun VulcanActivity.snackbar(message: String, millis: Long = 2500, onTimeout: () -> Unit = {}, onUndo: () -> Unit) {
     // M3 snackbar: inverse surface with an inverse-primary action.
     val bar = LinearLayout(this).apply {
         gravity = Gravity.CENTER_VERTICAL
@@ -501,23 +506,21 @@ fun MainActivity.showUndo(item: Item, finalize: () -> Unit) {
         setPadding(p, 0, p / 2, 0)
         background = rounded(m3.inverseSurface, 8 * dp)
         elevation = 6 * dp
-        addView(text(getString(R.string.item_removed), 14f, m3.inverseOnSurface), LinearLayout.LayoutParams(0, -2, 1f))
+        accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        addView(text(message, 14f, m3.inverseOnSurface), LinearLayout.LayoutParams(0, -2, 1f))
         addView(text(getString(R.string.undo), 14f, m3.inversePrimary, medium = true).apply {
             gravity = Gravity.CENTER
             setPadding(p * 3 / 4, 0, p * 3 / 4, 0)
             background = pressable(null, 20 * dp, m3.inversePrimary)
         }, LinearLayout.LayoutParams(-2, (40 * dp).toInt()))
     }
-    bar.getChildAt(1).setOnClickListener {
-        root.removeView(bar)
-        items += item
-        save()
-        render()
-    }
+    bar.getChildAt(1).setOnClickListener { root.removeView(bar); onUndo() }
     root.addView(bar, FrameLayout.LayoutParams(minOf(root.width - (32 * dp).toInt(), (560 * dp).toInt()), -2, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
-        bottomMargin = insets.bottom + (16 * dp).toInt()
+        // Settings doesn't keep [insets]; the window's own say where the navigation bar is.
+        @Suppress("DEPRECATION") val nav = maxOf(insets.bottom, root.rootWindowInsets?.systemWindowInsetBottom ?: 0)
+        bottomMargin = nav + (16 * dp).toInt()
     })
     bar.translationY = 24 * dp; bar.alpha = 0f
     bar.animate().translationY(0f).alpha(1f).setDuration(200).start()
-    bar.postDelayed({ if (bar.parent != null) { root.removeView(bar); finalize() } }, 2500)
+    bar.postDelayed({ if (bar.parent != null) { root.removeView(bar); onTimeout() } }, millis)
 }
