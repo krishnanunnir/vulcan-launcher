@@ -9,7 +9,7 @@ import android.view.accessibility.AccessibilityEvent
 class BadgeService : NotificationListenerService() {
     companion object {
         var instance: BadgeService? = null
-        /** Package → its current clearable, non-group-summary notifications. */
+        /** Package → its notifications that badge (see [badges]). */
         var byPackage: Map<String, List<StatusBarNotification>> = emptyMap()
         /** Called with the packages whose notifications changed. */
         var onChange: (Set<String>) -> Unit = {}
@@ -20,10 +20,29 @@ class BadgeService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification) = refresh()
     override fun onNotificationRemoved(sbn: StatusBarNotification) = refresh()
 
+    override fun onNotificationRankingUpdate(rankingMap: RankingMap) = refresh()
+
+    private val ranking = Ranking()
+
+    /**
+     * Launcher3's rule: ongoing notifications badge too (Sunup's foreground service, #82), except on the legacy
+     * "Miscellaneous" channel; the channel's "Show dot" switch, group summaries and empty notifications don't.
+     */
+    private fun badges(sbn: StatusBarNotification): Boolean {
+        val n = sbn.notification
+        if (n.flags and android.app.Notification.FLAG_GROUP_SUMMARY != 0) return false
+        if (currentRanking?.getRanking(sbn.key, ranking) == true) {
+            if (!ranking.canShowBadge()) return false
+            if (ranking.channel?.id == android.app.NotificationChannel.DEFAULT_CHANNEL_ID && !sbn.isClearable) return false
+        } else if (!sbn.isClearable) return false
+        return !(n.extras.getCharSequence(android.app.Notification.EXTRA_TITLE).isNullOrEmpty()
+            && n.extras.getCharSequence(android.app.Notification.EXTRA_TEXT).isNullOrEmpty())
+    }
+
     private fun refresh() {
         val old = byPackage
         byPackage = runCatching { activeNotifications.orEmpty() }.getOrDefault(emptyArray())
-            .filter { it.isClearable && it.notification.flags and android.app.Notification.FLAG_GROUP_SUMMARY == 0 }
+            .filter(::badges)
             .groupBy { it.packageName }
         // As Launcher3's notification dots: only the packages that changed get redrawn.
         fun ids(m: Map<String, List<StatusBarNotification>>, p: String) = m[p]?.map { it.key to it.postTime }

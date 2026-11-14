@@ -96,7 +96,7 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
         paint.color = badgeStyle.color
         canvas.drawCircle(cx, cy, r, paint)
         if (badgeStyle.style != "dots") {
-            paint.color = Color.WHITE
+            paint.color = if (Color.luminance(badgeStyle.color) > 0.5f) Color.BLACK else Color.WHITE // readable on a bright badge (#82)
             paint.textAlign = Paint.Align.CENTER
             paint.textSize = r * 1.2f
             paint.typeface = Typeface.DEFAULT_BOLD

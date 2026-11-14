@@ -769,9 +769,13 @@ fun VulcanActivity.groupIcon(keys: List<String>): Drawable {
 private fun SettingsActivity.segmented(options: List<String>, chosen: Int, onPick: (Int) -> Unit) = LinearLayout(this).apply {
     background = rounded(0, 20 * dp, m3.outline)
     setPadding(dp.toInt(), dp.toInt(), dp.toInt(), dp.toInt())
+    // A label that wraps grows its segment instead of being clipped, and no baseline shift pushes the others off (#85).
+    isBaselineAligned = false
+    gravity = Gravity.CENTER_VERTICAL
     options.forEachIndexed { i, label ->
         addView(text(label, 14f, if (i == chosen) m3.onSecondaryContainer else m3.onSurface, medium = true).apply {
             gravity = Gravity.CENTER
+            minimumHeight = (40 * dp).toInt()
             background = pressable(if (i == chosen) rounded(m3.secondaryContainer, 20 * dp) else null, 20 * dp)
             accessibilityDelegate = object : View.AccessibilityDelegate() {
                 override fun onInitializeAccessibilityNodeInfo(v: View, info: android.view.accessibility.AccessibilityNodeInfo) {
@@ -780,7 +784,7 @@ private fun SettingsActivity.segmented(options: List<String>, chosen: Int, onPic
                 }
             }
             setOnClickListener { if (i != chosen) onPick(i) }
-        }, LinearLayout.LayoutParams(0, (40 * dp).toInt(), 1f))
+        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
     }
 }
 
