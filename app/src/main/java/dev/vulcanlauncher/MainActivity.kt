@@ -411,8 +411,21 @@ class MainActivity : VulcanActivity() {
             }
         }
         setContentView(root)
+        root.viewTreeObserver.addOnGlobalLayoutListener(::coverDock)
         render()
         showWelcome()
+    }
+
+    /**
+     * As an overlay the grid runs behind the dock: home icons under the shown dock hide so the two never draw over
+     * each other, and come back when the dock is toggled off. Widgets stay, they're what the space behind is for.
+     * Layout positions, not screen ones, so a shrunk page in the overview doesn't change the answer.
+     */
+    fun coverDock() {
+        val dockTop = if (looks.on("dockOverlay") && !landscape && dockBox.visibility == View.VISIBLE) dockBox.top + dock.top else Int.MAX_VALUE
+        for (cell in pages) for (i in 0 until cell.childCount) cell.getChildAt(i).takeIf { it !is WidgetFrame }?.let {
+            it.visibility = if (workspace.top + cell.top + it.top + it.height / 2 > dockTop) View.INVISIBLE else View.VISIBLE
+        }
     }
 
     override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
@@ -2136,8 +2149,10 @@ class MainActivity : VulcanActivity() {
                 "defaultpage" -> workspace.snapTo(looks.int("defaultPage"))
                 "previews" -> showOverview()
                 // Keep an enabled dock's space when the gesture hides it so the home grid doesn't move (#84).
-                "toggledock" -> dockBox.visibility = if (dockBox.visibility != View.VISIBLE) View.VISIBLE
-                    else if (looks.dockOn) View.INVISIBLE else View.GONE
+                "toggledock" -> {
+                    dockBox.visibility = if (dockBox.visibility != View.VISIBLE) View.VISIBLE else if (looks.dockOn) View.INVISIBLE else View.GONE
+                    coverDock()
+                }
                 "voice" -> startAny(Intent(RecognizerIntent.ACTION_WEB_SEARCH), Intent(Intent.ACTION_VOICE_COMMAND))
                 "assistant" -> startAny(Intent(Intent.ACTION_ASSIST), Intent(Intent.ACTION_VOICE_COMMAND))
                 "settings" -> showSettings()
