@@ -13,6 +13,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
+import android.view.ViewGroup
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction
 import android.widget.LinearLayout
@@ -70,6 +71,7 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
         set(v) { field = v; invalidate() }
     private val badgeOutline = badgeOutline(badgeStyle.shape, badgeStyle.pos)
     private val badgeRect = android.graphics.Rect()
+    private var badgePath: android.graphics.Path? = null // rebuilt only when the badge moves or resizes
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private var shadowBmp: Bitmap? = null
 
@@ -94,8 +96,11 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
         // Sits half off the icon's corner; IconView lets it draw past the image (#82).
         val cx = if (badgeStyle.pos.endsWith("Right")) l + s - r * 0.45f else l + r * 0.45f
         val cy = if (badgeStyle.pos.startsWith("top")) t + r * 0.45f else t + s - r * 0.45f
-        badgeRect.set((cx - r).toInt(), (cy - r).toInt(), (cx + r).toInt(), (cy + r).toInt())
-        val path = outlinePath(badgeOutline, badgeRect)
+        val l2 = (cx - r).toInt(); val t2 = (cy - r).toInt(); val r2 = (cx + r).toInt(); val b2 = (cy + r).toInt()
+        if (badgePath == null || badgeRect.left != l2 || badgeRect.top != t2 || badgeRect.right != r2 || badgeRect.bottom != b2) {
+            badgeRect.set(l2, t2, r2, b2); badgePath = outlinePath(badgeOutline, badgeRect)
+        }
+        val path = badgePath!!
         val dyn = badgeIcon
         if (badgeStyle.style == "dynamic" && dyn != null) {
             dyn.bounds = badgeRect
@@ -153,6 +158,9 @@ class IconView(context: Context, label: CharSequence, icon: Drawable, style: Ico
         addView(image, LayoutParams(sizePx, sizePx))
         text?.let { addView(it) }
     }
+
+    // A badge on a large icon reaches past its cell too, so the cell's container mustn't clip it either.
+    override fun onAttachedToWindow() { super.onAttachedToWindow(); (parent as? ViewGroup)?.clipChildren = false }
 
     /** Shows another app in this view, for lists that recycle their views. */
     fun bind(label: CharSequence, icon: Drawable, badgeKey: String) {

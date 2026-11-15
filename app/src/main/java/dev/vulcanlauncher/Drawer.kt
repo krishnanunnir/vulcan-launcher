@@ -1073,6 +1073,7 @@ class Drawer(private val a: MainActivity) {
         val side = ((if (bottomBar) 12 else 8) * a.dp).toInt()
         frequentRow.addView(LinearLayout(a).apply {
             setPaddingRelative(side, (8 * a.dp).toInt(), if (letterIndex) (28 * a.dp).toInt() else side, (8 * a.dp).toInt())
+            clipToPadding = false // a top badge pokes into the padding
             // Empty slots keep each icon in its grid column.
             for (i in 0 until gridCols) addView(apps.getOrNull(i)?.let { app -> val e = Entry.AppE(app)
                 entryView(e, style = rowStyle).apply {
