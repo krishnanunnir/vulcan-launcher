@@ -495,6 +495,8 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         // Inset by the ⋮ button's width on both sides, so the name stays centred.
         val side = if (more != null) (48 * dp).toInt() else 0
         setPadding(side, (12 * dp).toInt(), side, (4 * dp).toInt())
+        // Show folder name off hides it here, as in Nova and Supernova (#87); the ⋮ stays. Long-press Edit still renames.
+        if (!looks.on("folderNames")) visibility = if (more != null) View.INVISIBLE else View.GONE
     }
     // As Nova: the folder's own menu (⋮) sits at the end of its name.
     val footer = FrameLayout(this).apply {

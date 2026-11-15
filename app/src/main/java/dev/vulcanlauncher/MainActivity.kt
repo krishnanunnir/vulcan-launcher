@@ -861,9 +861,8 @@ class MainActivity : VulcanActivity() {
         if (item.isWidgetSlot) return widgetSlotView(item)
         if (item.isClock) return clockView()
         val (label, icon) = resolve(item) ?: return null
-        val shown = if (item.folder && !looks.on("folderNames")) "" else label
         val key = if (item.folder) item.children.joinToString("|") { it.pkg } else item.pkg
-        return IconView(this, shown, icon, style, badgeStyle(), key).apply {
+        return IconView(this, label, icon, style, badgeStyle(), key).apply {
             contentDescription = label
             setOnClickListener { open(item, it) }
             onSwipe = when {
