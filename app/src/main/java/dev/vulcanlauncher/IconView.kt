@@ -74,6 +74,9 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
     private var badgePath: android.graphics.Path? = null // rebuilt only when the badge moves or resizes
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private var shadowBmp: Bitmap? = null
+    /** Blank pixels above and below this image inside its IconView; a badge never draws past them onto a neighbour's label. */
+    var roomUp = 0
+    var roomDown = 0
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { shadowBmp = null }
 
@@ -95,7 +98,8 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
         val r = s * 0.16f * badgeStyle.scale * (if (badgeStyle.style == "dots") 0.8f else 1.25f)
         // Sits half off the icon's corner; IconView lets it draw past the image (#82).
         val cx = if (badgeStyle.pos.endsWith("Right")) l + s - r * 0.45f else l + r * 0.45f
-        val cy = if (badgeStyle.pos.startsWith("top")) t + r * 0.45f else t + s - r * 0.45f
+        // Vertically only as far as its own view's blank space, or it covers the label of the row above (or its own).
+        val cy = if (badgeStyle.pos.startsWith("top")) t + r - minOf(r * 0.55f, roomUp.toFloat()) else t + s - r + minOf(r * 0.55f, roomDown.toFloat())
         val l2 = (cx - r).toInt(); val t2 = (cy - r).toInt(); val r2 = (cx + r).toInt(); val b2 = (cy + r).toInt()
         if (badgePath == null || badgeRect.left != l2 || badgeRect.top != t2 || badgeRect.right != r2 || badgeRect.bottom != b2) {
             badgeRect.set(l2, t2, r2, b2); badgePath = outlinePath(badgeOutline, badgeRect)
@@ -161,6 +165,13 @@ class IconView(context: Context, label: CharSequence, icon: Drawable, style: Ico
 
     // A badge on a large icon reaches past its cell too, so the cell's container mustn't clip it either.
     override fun onAttachedToWindow() { super.onAttachedToWindow(); (parent as? ViewGroup)?.clipChildren = false }
+
+    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        super.onLayout(changed, l, t, r, b)
+        val label = text?.takeIf { it.visibility == VISIBLE && orientation == VERTICAL }
+        image.roomUp = image.top
+        image.roomDown = label?.paddingTop ?: (height - image.bottom)
+    }
 
     /** Shows another app in this view, for lists that recycle their views. */
     fun bind(label: CharSequence, icon: Drawable, badgeKey: String) {

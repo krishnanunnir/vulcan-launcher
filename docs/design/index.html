@@ -181,7 +181,7 @@
   .drop .ms { display: block; font-size: 40px; color: var(--signal); text-align: center; margin-bottom: 8px; }
 
   @media (min-width: 1180px) {
-    .editor-body { grid-template-columns: 148px minmax(0, 1fr); gap: 14px; }
+    .editor-body { grid-template-columns: max-content minmax(0, 1fr); gap: 14px; }
     .tabs { display: grid; position: sticky; top: calc(var(--bar) + 12px); align-self: start; }
     .tabs button { justify-content: space-between; }
   }

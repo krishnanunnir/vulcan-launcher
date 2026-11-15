@@ -169,7 +169,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
                 note("#35/move-right", if (moved == listOf("Alpha", "Zulu")) "PASS" else "FAIL", "before=$before; after=$moved")
                 shot("35-tabs-moved")
                 clean()
-                settings = t.startActivitySync(Intent(t.targetContext, SettingsActivity::class.java).putExtra("page", GROUPS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as SettingsActivity
+                settings = t.startActivitySync(Intent(t.targetContext, SettingsActivity::class.java).putExtra("page", TABS_GROUP).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as SettingsActivity
                 settle(); shot("35-group-settings")
                 val s = settings!!
                 tap(text(s.root, "Zulu")); shot("35-settings-menu")
