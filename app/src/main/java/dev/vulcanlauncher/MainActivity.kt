@@ -2105,7 +2105,7 @@ class MainActivity : VulcanActivity() {
                     val anyIcon = icons.any { it != null }
                     val rows = named.mapIndexed { i, (_, name) -> (icons[i] ?: if (anyIcon) android.graphics.drawable.ColorDrawable(0) else null) to name }
                     pickList(label(app), rows, appIcon = anyIcon, summaries = named.map { it.first.name.substringAfterLast('.').substringAfterLast('$') },
-                        search = true, headerIcon = icon(app), count = { n ->
+                        search = true, keys = named.map { it.first.name }, headerIcon = icon(app), count = { n ->
                             if (n == rows.size) resources.getQuantityString(R.plurals.screens, n, n)
                             else resources.getQuantityString(R.plurals.screens_matching, rows.size, n, rows.size)
                         }) { i ->

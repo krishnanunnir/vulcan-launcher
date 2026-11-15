@@ -310,10 +310,10 @@ fun VulcanActivity.field(value: String, hintText: String) = android.widget.EditT
 /**
  * An M3 dialog list: a row per entry with its leading icon ([appIcon]: 40 dp app icons) and optional supporting text
  * ([summaries]). Picking one closes it. [search] adds a field under the title that narrows the rows by title or
- * summary, ignoring case; [onPick] still gets the index into [rows].
+ * summary (or hidden [keys], e.g. full class names), ignoring case; [onPick] still gets the index into [rows].
  */
 fun VulcanActivity.pickList(title: CharSequence, rows: List<Pair<Drawable?, CharSequence>>, appIcon: Boolean = false,
-                          summaries: List<CharSequence>? = null, search: Boolean = false, headerIcon: Drawable? = null,
+                          summaries: List<CharSequence>? = null, search: Boolean = false, keys: List<String>? = null, headerIcon: Drawable? = null,
                           count: ((shown: Int) -> String)? = null, onPick: (Int) -> Unit) {
     var shown = rows.indices.toList()
     val adapter = object : android.widget.BaseAdapter() {
@@ -358,7 +358,7 @@ fun VulcanActivity.pickList(title: CharSequence, rows: List<Pair<Drawable?, Char
                 addTextChangedListener(object : android.text.TextWatcher {
                     override fun afterTextChanged(s: android.text.Editable?) {
                         val q = s.toString().trim()
-                        shown = rows.indices.filter { rows[it].second.contains(q, true) || summaries?.get(it)?.contains(q, true) == true }
+                        shown = rows.indices.filter { rows[it].second.contains(q, true) || summaries?.get(it)?.contains(q, true) == true || keys?.get(it)?.contains(q, true) == true }
                         adapter.notifyDataSetChanged()
                         counter?.text = count?.invoke(shown.size)
                     }
