@@ -503,7 +503,6 @@
     <string name="now_add_card">Dodaj kartę</string>
     <string name="now_card_apps">Aplikacje</string>
     <string name="now_card_widget">Widżet</string>
-    <string name="now_remove_card">Usunąć tę kartę?</string>
     <string name="now_frequent">Często używane</string>
     <string name="now_now">Teraz</string>
     <string name="charging">Ładowanie · %1$d%%</string>
@@ -539,19 +538,6 @@
     </plurals>
     <string name="move_apps_move">Przenieś tutaj</string>
     <string name="move_apps_keep">Zostaw w obu</string>
-    <string name="now_window_today">Dzisiaj</string>
-    <string name="now_window_3">Następne 3 dni</string>
-    <string name="now_window_7">Następne 7 dni</string>
-    <string name="now_window_14">Następne 14 dni</string>
-    <string name="now_calendars">Kalendarze</string>
-    <string name="now_calendars_info">Wybór wyświetlanych kalendarzy i wydarzeń całodniowych</string>
-    <string name="now_all_day_events">Wydarzenia całodniowe</string>
-    <plurals name="now_more_events">
-         <item quantity="one">Jeszcze %1$d</item>
-         <item quantity="few">Jeszcze %1$d</item>
-         <item quantity="many">Jeszcze %1$d</item>
-         <item quantity="other">Jeszcze %1$d</item>
-    </plurals>
     <string name="sec_cards">Karty</string>
     <string name="sec_general">Ogólne</string>
     <string name="now_cards_info">Puste karty pozostają ukryte. Przytrzymaj kartę na ekranie Now, aby ją przenieść.</string>
