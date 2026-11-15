@@ -342,7 +342,7 @@ const DRAWN = new Set(("cols rows pages defaultPage subgrid iconSize labels labe
   "glanceStyle widgetRadius hideClock statusBar darkStatusIcons dock dockCols dockIconSize dockLabels dockBg dockColor dockAlpha dockShadow " +
   "drawerStyle drawerSearch drawerCols drawerRows drawerIconSize drawerLabels drawerLabelSize drawerTheme drawerAlpha frequent " +
   "folderPreview folderBg folderColor folderAlpha folderRadius folderNames folderLabelSize folderCols folderWindow folderFirstBig folderClip " +
-  "shape themedIcons iconShadow accent nightMode badges badgePos badgeSize badgeColor nowPage nowClock nowMedia nowCalendar nowContacts nowApps").split(" "));
+  "shape themedIcons iconShadow accent nightMode badges badgePos badgeShape badgeSize badgeColor nowPage nowClock nowMedia nowCalendar nowContacts nowApps").split(" "));
 const GROUP_VIEW = { "App drawer": "drawer", "Folders": "folder", "Now page": "now" };
 const PRESETS = {
   "Fresh install": {},
@@ -477,10 +477,13 @@ function badgeHtml(count, size) {
   const dot = b === "dots" || (b === "dynamic" && count > 9);
   const sz = { small: [8, 14], medium: [11, 17], large: [14, 21] }[val("badgeSize")] || [11, 17];
   const d = dot ? sz[0] : sz[1];
-  const p = val("badgePos"), off = -d * .25;
+  const p = val("badgePos"), off = -d * .5 * .55;
   const pos = (p.startsWith("top") ? `top:${off}px;` : `bottom:${off}px;`) + (p.endsWith("Left") ? `left:${off}px;` : `right:${off}px;`);
-  const c = val("badgeColor");
-  return `<div class="badge" style="${pos}min-width:${d}px;height:${d}px;background:${c};color:${onColor(c)};font-size:${Math.round(d * .62)}px;padding:0 ${dot ? 0 : 4}px">${dot ? "" : count}</div>`;
+  const c = val("badgeColor"), sh = val("badgeShape"), q = d / 2;
+  // A teardrop's sharp corner faces the icon's centre.
+  const sharp = { topRight: 3, topLeft: 2, bottomRight: 0, bottomLeft: 1 }[p];
+  const radius = sh === "squircle" ? `border-radius:${d * .34}px;` : sh === "teardrop" ? `border-radius:${[0, 1, 2, 3].map(i => i === sharp ? "0" : q + "px").join(" ")};` : "";
+  return `<div class="badge" style="${pos}${radius}min-width:${d}px;height:${d}px;background:${c};color:${onColor(c)};font-size:${Math.round(d * .62)}px;padding:0 ${dot ? 0 : 4}px">${dot ? "" : count}</div>`;
 }
 function fontCss(sizeSp, color, shadow, lines) {
   const f = val("labelFont");
@@ -523,6 +526,7 @@ function folderIcon(label, size, children, opts = {}) {
   let bg = "";
   if (bgKind === "circle") bg = `<div style="position:absolute;inset:0;border-radius:50%;background:${alpha(fc, .55)}"></div>`;
   else if (bgKind === "disc") bg = `<div style="position:absolute;inset:0;border-radius:50%;background:${fc};box-shadow:0 2px 4px rgba(0,0,0,.25)"></div>`;
+  else if (bgKind === "squircle" || bgKind === "icon") bg = `<div style="position:absolute;inset:0;${shapeCss(bgKind === "icon" ? val("shape") : "squircle")};background:${alpha(fc, .85)}"></div>`;
   else if (bgKind === "square") bg = `<div style="position:absolute;inset:0;${shapeCss()};background:${alpha(fc, .85)}"></div>`;
   else if (bgKind === "platform") bg = `<div style="position:absolute;left:4%;right:4%;bottom:2%;height:30%;border-radius:50%;background:${alpha(fc, .6)}"></div>`;
   const clip = on("folderClip") && bgKind !== "none" ? "overflow:hidden;border-radius:50%;" : "";

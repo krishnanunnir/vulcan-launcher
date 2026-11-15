@@ -172,6 +172,8 @@ val LOOKS = listOf(
 
     Choice(BADGES, "badges", R.string.set_badges, "off", listOf("off", "dots", "numeric", "dynamic"), listOf(R.string.badges_off, R.string.badges_dots, R.string.badges_numeric, R.string.badges_dynamic)),
     Choice(BADGES, "badgePos", R.string.set_badgePos, "topRight", listOf("topLeft", "topRight", "bottomLeft", "bottomRight"), listOf(R.string.badgePos_topleft, R.string.badgePos_topright, R.string.badgePos_bottomleft, R.string.badgePos_bottomright)),
+    Choice(BADGES, "badgeShape", R.string.set_badgeShape, "circle", listOf("circle", "teardrop", "squircle"),
+        listOf(R.string.shape_circle, R.string.shape_teardrop, R.string.shape_squircle)),
     Choice(BADGES, "badgeSize", R.string.set_badgeSize, "medium", listOf("small", "medium", "large"), listOf(R.string.badgeSize_small, R.string.badgeSize_medium, R.string.badgeSize_large)),
     color(BADGES, "badgeColor", R.string.set_badgeColor, "#E53935"),
 

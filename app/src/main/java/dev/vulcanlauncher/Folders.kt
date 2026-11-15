@@ -34,10 +34,10 @@ val PREVIEW_NAMES = listOf(
     R.string.preview_grid, R.string.preview_stack, R.string.preview_line, R.string.preview_fan,
     R.string.preview_radial,
 )
-val FOLDER_BGS = listOf("none", "circle", "disc", "platform", "square")
+val FOLDER_BGS = listOf("none", "circle", "disc", "platform", "square", "squircle", "icon")
 val FOLDER_BG_NAMES = listOf(
     R.string.folderbg_none, R.string.folderbg_circle, R.string.folderbg_disc, R.string.folderbg_platform,
-    R.string.folderbg_square,
+    R.string.folderbg_square, R.string.shape_squircle, R.string.folderbg_icon,
 )
 
 /** Where one preview icon goes inside a folder icon: centre and size as fractions of the icon, rotation in degrees. */
@@ -81,6 +81,8 @@ class FolderIcon(
             "disc" -> shape.addCircle(b.centerX(), b.centerY(), w / 2, Path.Direction.CW)
             "square" -> shape.addRoundRect(b, w / 5, w / 5, Path.Direction.CW)
             "platform" -> shape.addOval(oval.apply { set(b.left, b.bottom - w * 0.3f, b.right, b.bottom) }, Path.Direction.CW)
+            "none" -> {}
+            else -> shape.set(shapePath(bg.removePrefix("icon:"), bounds)) // "squircle" or "icon:<icon shape>"
         }
         if (bg != "none") canvas.drawPath(shape, paint)
         if (bg == "disc") {
@@ -90,7 +92,7 @@ class FolderIcon(
             canvas.drawCircle(b.centerX(), b.centerY(), w / 2 - w / 48, paint)
         }
         canvas.save()
-        if (clip && (bg == "circle" || bg == "disc" || bg == "square")) canvas.clipPath(shape)
+        if (clip && bg != "none" && bg != "platform") canvas.clipPath(shape)
         val slots = folderPreview(style, icons.size, firstBig)
         for (i in slots.indices.reversed()) { // first item on top
             val s = slots[i]
@@ -141,7 +143,7 @@ fun MainActivity.folderTint() = if (looks.str("folderColor") == "system") m3.sur
     else looks.color("folderColor") and 0xFFFFFF or 0x99000000.toInt()
 
 fun MainActivity.folderIcon(children: List<Item>) = FolderIcon(children.take(6).mapNotNull { resolve(it)?.second },
-    looks.str("folderPreview"), looks.str("folderBg"), folderTint(), looks.on("folderClip"), looks.on("folderFirstBig"))
+    looks.str("folderPreview"), looks.str("folderBg").let { if (it == "icon") "icon:" + looks.str("shape") else it }, folderTint(), looks.on("folderClip"), looks.on("folderFirstBig"))
 
 /** Drag feedback for folders: the hover disc while making one, and the settle of a folder icon whose contents changed. */
 class FolderFx(private val a: MainActivity) {

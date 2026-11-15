@@ -157,6 +157,7 @@
     <string name="set_nightEnd">Schedule end</string>
     <string name="set_badges">Badge style</string>
     <string name="set_badgePos">Position</string>
+    <string name="set_badgeShape">Shape</string>
     <string name="badgePos_topleft">Top left</string>
     <string name="badgePos_topright">Top right</string>
     <string name="badgePos_bottomleft">Bottom left</string>
@@ -235,6 +236,7 @@
     <string name="folderbg_disc">Disc</string>
     <string name="folderbg_platform">Platform</string>
     <string name="folderbg_square">Square</string>
+    <string name="folderbg_icon">Same as icon shape</string>
     <string name="shape_system">System default</string>
     <string name="shape_circle">Round</string>
     <string name="shape_square">Square</string>

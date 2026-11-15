@@ -331,11 +331,31 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
     val hours = looks.str("nightMode") in listOf("schedule", "sun")
     val choices = (if (group == LOOK) listOf(iconPackChoice()) else emptyList()) +
         LOOKS.filter { it.group == group && (hours || it.key != "nightStart" && it.key != "nightEnd") }
-    fun pickNamed(c: Choice) = sheet().setTitle(c.title).setSingleChoiceItems(c.values.indices.map { choiceName(c, it) }.toTypedArray(), c.values.indexOf(looks[c])) { d, j ->
-        d.dismiss()
-        applyChoice(c, c.values[j])
-        changed()
-    }.setNegativeButton(R.string.cancel, null).show().let {}
+    fun pickNamed(c: Choice) {
+        val names = c.values.indices.map { choiceName(c, it) }
+        val checked = c.values.indexOf(looks[c])
+        val onPick = android.content.DialogInterface.OnClickListener { d, j -> d.dismiss(); applyChoice(c, c.values[j]); changed() }
+        val d = sheet().setTitle(c.title).setSingleChoiceItems(names.toTypedArray(), checked, onPick)
+            .setNegativeButton(R.string.cancel, null).create()
+        // Badge shapes are easier to pick from a sample than from a name (#82): wrap the sheet's own rows to keep their style.
+        if (c.key == "badgeShape") {
+            d.create()
+            val rows = d.listView.adapter
+            d.listView.adapter = object : BaseAdapter() {
+                override fun getCount() = rows.count
+                override fun getItem(i: Int) = rows.getItem(i)
+                override fun getItemId(i: Int) = rows.getItemId(i)
+                override fun getView(i: Int, v: View?, parent: ViewGroup) = rows.getView(i, v, parent).also {
+                    (it as android.widget.TextView).apply { // the start drawable is the row's radio button
+                        val radio = compoundDrawablesRelative[0]
+                        setCompoundDrawablesRelative(radio, null, badgeSample(c.values[i]), null)
+                    }
+                }
+            }
+            d.listView.setItemChecked(checked, true)
+        }
+        d.show()
+    }
     // Colours (but the theme colour) get the colour sheet, with a sample of the part.
     fun pick(c: Choice) = when {
         c.key == "accent" -> pickTheme(c) { applyChoice(c, it); changed() }
@@ -381,6 +401,32 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
 }
 
 /** A numeric setting as an inline M3 slider, one stop per value, saved when the thumb is let go. */
+/** A small icon wearing a badge of [shape], in the badge colour and position. */
+private fun SettingsActivity.badgeSample(shape: String): Drawable {
+    val color = looks.color("badgeColor"); val pos = looks.str("badgePos"); val iconColor = m3.primaryContainer
+    val outline = badgeOutline(shape, pos)
+    return object : Drawable() {
+        private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        private val r = android.graphics.Rect()
+        override fun draw(canvas: android.graphics.Canvas) {
+            val b = bounds; val s = b.width() * 0.8f; val br = s * 0.2f
+            val right = pos.endsWith("Right"); val top = pos.startsWith("top")
+            val l = if (right) b.left.toFloat() else b.right - s
+            val t = if (top) b.bottom - s else b.top.toFloat()
+            paint.color = iconColor
+            canvas.drawRoundRect(l, t, l + s, t + s, s * 0.25f, s * 0.25f, paint)
+            val cx = if (right) l + s - br * 0.45f else l + br * 0.45f
+            val cy = if (top) t + br * 0.45f else t + s - br * 0.45f
+            r.set((cx - br).toInt(), (cy - br).toInt(), (cx + br).toInt(), (cy + br).toInt())
+            paint.color = color
+            canvas.drawPath(outlinePath(outline, r), paint)
+        }
+        override fun setAlpha(alpha: Int) {}
+        override fun setColorFilter(cf: android.graphics.ColorFilter?) {}
+        @Deprecated("Deprecated in Java") override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
+    }.apply { val px = (36 * dp).toInt(); setBounds(0, 0, px, px) }
+}
+
 private fun SettingsActivity.slider(c: Choice): View {
     val value = text(valueName(c), 14f, m3.onSurfaceVariant)
     val bar = android.widget.SeekBar(this).apply {

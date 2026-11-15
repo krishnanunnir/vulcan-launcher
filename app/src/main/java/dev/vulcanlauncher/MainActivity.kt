@@ -823,7 +823,7 @@ class MainActivity : VulcanActivity() {
     }
 
     fun badgeStyle() = BadgeStyle(looks.str("badges"), looks.str("badgePos"),
-        when (looks.str("badgeSize")) { "small" -> 0.8f; "large" -> 1.3f; else -> 1f }, looks.color("badgeColor"))
+        when (looks.str("badgeSize")) { "small" -> 0.8f; "large" -> 1.3f; else -> 1f }, looks.color("badgeColor"), looks.str("badgeShape"))
 
     /** Rebuilds every page from [items]. Apps that are missing (e.g. mid-update) are skipped, not deleted. */
     fun render() {

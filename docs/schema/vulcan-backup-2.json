@@ -268,6 +268,7 @@
         "keys": [
           "badges",
           "badgePos",
+          "badgeShape",
           "badgeSize",
           "badgeColor"
         ],
@@ -1645,6 +1646,21 @@
             "topRight",
             "bottomLeft",
             "bottomRight"
+          ]
+        },
+        "badgeShape": {
+          "default": "circle",
+          "x-names": {
+            "circle": "Round",
+            "teardrop": "Teardrop",
+            "squircle": "Squircle"
+          },
+          "description": "Notification badges. Values: circle (Round), teardrop (Teardrop), squircle (Squircle).",
+          "title": "Shape",
+          "enum": [
+            "circle",
+            "teardrop",
+            "squircle"
           ]
         },
         "rememberPosition": {
@@ -3052,16 +3068,20 @@
             "disc": "Disc",
             "none": "None",
             "circle": "Circle",
-            "platform": "Platform"
+            "platform": "Platform",
+            "squircle": "Squircle",
+            "icon": "Same as icon shape"
           },
-          "description": "Folders. Values: none (None), circle (Circle), disc (Disc), platform (Platform), square (Square).",
+          "description": "Folders. Values: none (None), circle (Circle), disc (Disc), platform (Platform), square (Square), squircle (Squircle), icon (Same as icon shape).",
           "title": "Folder background",
           "enum": [
             "none",
             "circle",
             "disc",
             "platform",
-            "square"
+            "square",
+            "squircle",
+            "icon"
           ]
         },
         "wallpaperScroll": {

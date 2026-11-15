@@ -37,6 +37,10 @@ class LooksTest {
         shapeOutline("circle")!!.forEach { (x, y) -> assertEquals(0.5, hypot(x - 0.5, y - 0.5), 1e-4) }
         assertEquals(listOf(0f to 0f, 1f to 0f, 1f to 1f, 0f to 1f), shapeOutline("square"))
         assertEquals(6, shapeOutline("hexagon")!!.size)
+        // A teardrop badge's sharp corner points at the icon's centre, wherever the badge sits.
+        for ((pos, point) in mapOf("topRight" to (0f to 1f), "topLeft" to (1f to 1f), "bottomRight" to (0f to 0f), "bottomLeft" to (1f to 0f)))
+            assertTrue(pos, point in badgeOutline("teardrop", pos))
+        assertEquals(shapeOutline("circle"), badgeOutline("circle", "bottomLeft"))
         assertEquals(SHAPES.size, SHAPE_NAMES.size)
     }
 

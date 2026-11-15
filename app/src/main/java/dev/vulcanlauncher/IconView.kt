@@ -24,7 +24,15 @@ class IconStyle(val sizePx: Int, val labels: Boolean, val labelSize: Float, val 
                 val iconShadow: Boolean, val horizontal: Boolean = false, val font: String = "sans-serif", val lines: Int = 1)
 
 /** Badge settings: style "off" / "dots" / "numeric" / "dynamic". */
-class BadgeStyle(val style: String, val pos: String, val scale: Float, val color: Int)
+class BadgeStyle(val style: String, val pos: String, val scale: Float, val color: Int, val shape: String = "circle")
+
+/** Badge outline in the unit square for [pos]; a teardrop's point faces the icon's centre. */
+fun badgeOutline(shape: String, pos: String): List<Pair<Float, Float>> {
+    val o = shapeOutline(shape) ?: shapeOutline("circle")!!
+    if (shape != "teardrop") return o
+    val mx = pos.endsWith("Right"); val my = pos.startsWith("bottom") // the outline's point is at the bottom right
+    return o.map { (x, y) -> (if (mx) 1 - x else x) to (if (my) 1 - y else y) }
+}
 
 /**
  * Icon size and label visibility for a [w]x[h] cell (px) holding an icon of [size] over a [labelH]-tall label:
@@ -60,7 +68,8 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
         set(v) { field = v; invalidate() }
     var badgeIcon: Drawable? = null
         set(v) { field = v; invalidate() }
-    private val badgeClip = android.graphics.Path()
+    private val badgeOutline = badgeOutline(badgeStyle.shape, badgeStyle.pos)
+    private val badgeRect = android.graphics.Rect()
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private var shadowBmp: Bitmap? = null
 
@@ -82,19 +91,22 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
         icon.draw(canvas)
         if (badgeCount <= 0 || badgeStyle.style == "off") return
         val r = s * 0.16f * badgeStyle.scale * (if (badgeStyle.style == "dots") 0.8f else 1.25f)
-        val cx = if (badgeStyle.pos.endsWith("Right")) l + s - r * 0.8f else l + r * 0.8f
-        val cy = if (badgeStyle.pos.startsWith("top")) t + r * 0.8f else t + s - r * 0.8f
+        // Sits half off the icon's corner; IconView lets it draw past the image (#82).
+        val cx = if (badgeStyle.pos.endsWith("Right")) l + s - r * 0.45f else l + r * 0.45f
+        val cy = if (badgeStyle.pos.startsWith("top")) t + r * 0.45f else t + s - r * 0.45f
+        badgeRect.set((cx - r).toInt(), (cy - r).toInt(), (cx + r).toInt(), (cy + r).toInt())
+        val path = outlinePath(badgeOutline, badgeRect)
         val dyn = badgeIcon
         if (badgeStyle.style == "dynamic" && dyn != null) {
-            dyn.setBounds((cx - r).toInt(), (cy - r).toInt(), (cx + r).toInt(), (cy + r).toInt())
+            dyn.bounds = badgeRect
             canvas.save()
-            canvas.clipPath(badgeClip.apply { rewind(); addCircle(cx, cy, r, android.graphics.Path.Direction.CW) })
+            canvas.clipPath(path)
             dyn.draw(canvas)
             canvas.restore()
             return
         }
         paint.color = badgeStyle.color
-        canvas.drawCircle(cx, cy, r, paint)
+        canvas.drawPath(path, paint)
         if (badgeStyle.style != "dots") {
             paint.color = if (Color.luminance(badgeStyle.color) > 0.5f) Color.BLACK else Color.WHITE // readable on a bright badge (#82)
             paint.textAlign = Paint.Align.CENTER
@@ -137,6 +149,7 @@ class IconView(context: Context, label: CharSequence, icon: Drawable, style: Ico
         orientation = if (style.horizontal) HORIZONTAL else VERTICAL
         gravity = if (style.horizontal) Gravity.CENTER_VERTICAL else Gravity.CENTER
         contentDescription = label
+        clipChildren = false // the badge pokes past the icon's corner
         addView(image, LayoutParams(sizePx, sizePx))
         text?.let { addView(it) }
     }

@@ -100,6 +100,10 @@ fun outlinePath(outline: List<Pair<Float, Float>>, b: Rect) = Path().apply {
     close()
 }
 
+/** [shape] as a path filling [b]; "system" is the device's own icon mask. */
+fun shapePath(shape: String, b: Rect): Path = shapeOutline(shape)?.let { outlinePath(it, b) }
+    ?: Path(AdaptiveIconDrawable(ColorDrawable(0), ColorDrawable(0)).apply { bounds = b }.iconMask)
+
 /** Visible part of an icon box that legacy icons are scaled to fill when normalizing. */
 const val NORMAL_FILL = 0.84f
 
