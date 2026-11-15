@@ -391,7 +391,7 @@ function accepts(k, v) {
   if (vs.includes(v)) return true;
   const kd = kind(p);
   if (kd === "color") return /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v);
-  if (kd === "action") return /^page:[0-8]$/.test(v) || /^app:[^/]+\/[^/]+\/\d+$/.test(v);
+  if (kd === "action") return /^page:[0-8]$/.test(v) || /^app:[^/]+\/[^/]+\/\d+$/.test(v) || /^shortcut:[^/]+\/.+\/\d+$/.test(v);
   return false;
 }
 /** Applies [obj] (settings, maybe hand- or AI-written) and returns the ones left out. */
@@ -408,7 +408,8 @@ function applySettings(obj, replace) {
 function changed() { const o = {}; for (const k in S) if (S[k] !== def(k)) o[k] = S[k]; return o; }
 function fullSettings() { const o = {}; for (const k in props) o[k] = val(k); for (const k in S) if (!props[k]) o[k] = S[k]; return o; }
 function isPortableSetting(key, value) {
-  return Object.hasOwn(props, key) && typeof value === "string" && !value.startsWith("app:") && accepts(key, value);
+  // App and shortcut actions name apps on this phone, so they stay out of a style link.
+  return Object.hasOwn(props, key) && typeof value === "string" && !/^(app|shortcut):/.test(value) && accepts(key, value);
 }
 
 // ---- Colours ----
@@ -820,7 +821,8 @@ function control(k) {
       const s = document.createElement("select"); s.setAttribute("aria-label", p.title);
       vs.forEach((x, i) => s.add(new Option(names[i], x)));
       if (kd === "action") for (let i = 0; i < 9; i++) s.add(new Option(`Go to page ${i + 1}`, "page:" + i));
-      if (![...s.options].some(o => o.value === v)) s.add(new Option(v.startsWith("app:") ? "Open " + v.split("/")[0].slice(4) : v, v));
+      if (![...s.options].some(o => o.value === v)) s.add(new Option(
+        v.startsWith("app:") ? "Open " + v.split("/")[0].slice(4) : v.startsWith("shortcut:") ? "Shortcut in " + v.split("/")[0].slice(9) : v, v));
       s.value = v; s.onchange = () => set(s.value); el.append(s);
     }
   }

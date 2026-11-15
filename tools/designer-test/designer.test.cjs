@@ -209,3 +209,33 @@ test("alternate Drawer and Folder styles keep long names within their previews",
     }
   });
 });
+
+test("the schema carries every setting the app has, with the app's default", async () => {
+  const root = path.resolve(__dirname, "../..");
+  const looks = await readFile(path.join(root, "app/src/main/java/dev/vulcanlauncher/Looks.kt"), "utf8");
+  const actions = await readFile(path.join(root, "app/src/main/java/dev/vulcanlauncher/Actions.kt"), "utf8");
+  const schema = JSON.parse(await readFile(path.join(docs, "schema/vulcan-backup-2.json"), "utf8"));
+  const settings = schema.properties.settings.properties;
+  const block = looks.split("val LOOKS = listOf(")[1].split("\n) + GESTURE_KEYS")[0];
+  const defaults = {};
+  for (const line of block.split("\n")) {
+    const m = line.trim().match(/^(Choice|onOff|sizes|color|percent)\([A-Z_]+, "(\w+)", R\.string\.\w+, (.*)$/);
+    const label = line.trim().match(/^labelSize\([A-Z_]+, "(\w+)"\)/);
+    if (label) defaults[label[1]] = "home";
+    if (!m) continue;
+    const [, kind, key, rest] = m;
+    defaults[key] = kind === "onOff" ? (rest.startsWith("true") ? "on" : "off") : rest.match(/"([^"]*)"/)[1];
+  }
+  // Gestures are built from GESTURE_KEYS; iconPack is a free-form string the schema leaves out.
+  const gestures = actions.split("val GESTURE_KEYS = listOf(")[1].split(")")[0].match(/"(\w+)"/g).map(s => s.slice(1, -1));
+  for (const key of [...gestures, "homeButton", "homeFirst"]) defaults[key] = undefined;
+  assert.deepEqual(Object.keys(settings).sort(), Object.keys(defaults).sort(), "schema settings vs the app's");
+  for (const [key, value] of Object.entries(defaults)) {
+    if (value !== undefined) assert.equal(settings[key].default, value, key + " default");
+  }
+  // A gesture, the home button and an icon swipe can all open an app shortcut.
+  for (const [key, p] of Object.entries(settings)) {
+    if (!(p.anyOf || []).some(a => a.pattern === "^page:[0-8]$")) continue;
+    assert((p.anyOf || []).some(a => a.pattern === "^shortcut:[^/]+/.+/\\d+$"), key + " takes a shortcut action");
+  }
+});

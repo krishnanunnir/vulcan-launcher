@@ -158,11 +158,16 @@
         },
         {
           "keys": [
-            "foldersFirst",
-            "keepInAll",
-            "workTab"
+            "tabBar",
+            "keepInAll"
           ],
-          "title": "Apps"
+          "title": "Tabs"
+        },
+        {
+          "keys": [
+            "foldersFirst"
+          ],
+          "title": "Folders"
         },
         {
           "keys": [
@@ -386,6 +391,10 @@
           {
             "pattern": "^app:[^/]+/[^/]+/\\d+$",
             "type": "string"
+          },
+          {
+            "pattern": "^shortcut:[^/]+/.+/\\d+$",
+            "type": "string"
           }
         ],
         "description": "Action run when the icon is swiped up."
@@ -553,6 +562,10 @@
             {
               "pattern": "^app:[^/]+/[^/]+/\\d+$",
               "type": "string"
+            },
+            {
+              "pattern": "^shortcut:[^/]+/.+/\\d+$",
+              "type": "string"
             }
           ],
           "description": "Gestures & inputs. Values: none (Nothing), drawer (App drawer), now (Now page), notifications (Expand notifications), quicksettings (Expand quick settings), togglebar (Toggle notification bar), recents (Recent apps), defaultpage (Default page), previews (Desktop previews), toggledock (Toggle dock), search (Search), voice (Voice search), assistant (Assistant), lock (Screen lock), power (Power menu), settings (Launcher settings), widgets (Add widget), wallpaper (Wallpaper), torch (Toggle flashlight), locklayout (Lock or unlock layout), work (Pause or resume work apps).",
@@ -630,6 +643,10 @@
             {
               "pattern": "^app:[^/]+/[^/]+/\\d+$",
               "type": "string"
+            },
+            {
+              "pattern": "^shortcut:[^/]+/.+/\\d+$",
+              "type": "string"
             }
           ],
           "description": "Gestures & inputs. Values: none (Nothing), drawer (App drawer), now (Now page), notifications (Expand notifications), quicksettings (Expand quick settings), togglebar (Toggle notification bar), recents (Recent apps), defaultpage (Default page), previews (Desktop previews), toggledock (Toggle dock), search (Search), voice (Voice search), assistant (Assistant), lock (Screen lock), power (Power menu), settings (Launcher settings), widgets (Add widget), wallpaper (Wallpaper), torch (Toggle flashlight), locklayout (Lock or unlock layout), work (Pause or resume work apps).",
@@ -690,6 +707,10 @@
             },
             {
               "pattern": "^app:[^/]+/[^/]+/\\d+$",
+              "type": "string"
+            },
+            {
+              "pattern": "^shortcut:[^/]+/.+/\\d+$",
               "type": "string"
             }
           ],
@@ -901,22 +922,6 @@
           "description": "App drawer. Values: on (On), off (Off).",
           "title": "Labels"
         },
-        "workTab": {
-          "default": "on",
-          "x-names": {
-            "off": "Off",
-            "on": "On"
-          },
-          "anyOf": [
-            {"enum": [
-              "on",
-              "off"
-            ]},
-            {"type": "boolean"}
-          ],
-          "description": "App drawer. Values: on (On), off (Off).",
-          "title": "Work apps in their own tab"
-        },
         "wiggle": {
           "default": "off",
           "x-names": {
@@ -1003,6 +1008,19 @@
             "100"
           ]
         },
+        "tabBar": {
+          "default": "wrap",
+          "x-names": {
+            "scroll": "Scroll",
+            "wrap": "Wrap"
+          },
+          "description": "Drawer tabs. Values: scroll (Scroll), wrap (Wrap).",
+          "title": "Tab bar",
+          "enum": [
+            "scroll",
+            "wrap"
+          ]
+        },
         "keepInAll": {
           "default": "on",
           "x-names": {
@@ -1016,7 +1034,7 @@
             ]},
             {"type": "boolean"}
           ],
-          "description": "App drawer. Values: on (On), off (Off).",
+          "description": "Drawer tabs. Values: on (On), off (Off).",
           "title": "Keep grouped apps in the main tab"
         },
         "reshape": {
@@ -1214,6 +1232,10 @@
             {
               "pattern": "^app:[^/]+/[^/]+/\\d+$",
               "type": "string"
+            },
+            {
+              "pattern": "^shortcut:[^/]+/.+/\\d+$",
+              "type": "string"
             }
           ],
           "description": "Gestures & inputs. Values: none (Nothing), drawer (App drawer), now (Now page), notifications (Expand notifications), quicksettings (Expand quick settings), togglebar (Toggle notification bar), recents (Recent apps), defaultpage (Default page), previews (Desktop previews), toggledock (Toggle dock), search (Search), voice (Voice search), assistant (Assistant), lock (Screen lock), power (Power menu), settings (Launcher settings), widgets (Add widget), wallpaper (Wallpaper), torch (Toggle flashlight), locklayout (Lock or unlock layout), work (Pause or resume work apps).",
@@ -1274,6 +1296,10 @@
             },
             {
               "pattern": "^app:[^/]+/[^/]+/\\d+$",
+              "type": "string"
+            },
+            {
+              "pattern": "^shortcut:[^/]+/.+/\\d+$",
               "type": "string"
             }
           ],
@@ -1782,6 +1808,10 @@
             {
               "pattern": "^app:[^/]+/[^/]+/\\d+$",
               "type": "string"
+            },
+            {
+              "pattern": "^shortcut:[^/]+/.+/\\d+$",
+              "type": "string"
             }
           ],
           "description": "Gestures & inputs. Values: none (Nothing), drawer (App drawer), now (Now page), notifications (Expand notifications), quicksettings (Expand quick settings), togglebar (Toggle notification bar), recents (Recent apps), defaultpage (Default page), previews (Desktop previews), toggledock (Toggle dock), search (Search), voice (Voice search), assistant (Assistant), lock (Screen lock), power (Power menu), settings (Launcher settings), widgets (Add widget), wallpaper (Wallpaper), torch (Toggle flashlight), locklayout (Lock or unlock layout), work (Pause or resume work apps).",
@@ -1970,6 +2000,10 @@
             {
               "pattern": "^app:[^/]+/[^/]+/\\d+$",
               "type": "string"
+            },
+            {
+              "pattern": "^shortcut:[^/]+/.+/\\d+$",
+              "type": "string"
             }
           ],
           "description": "Gestures & inputs. Values: none (Nothing), drawer (App drawer), now (Now page), notifications (Expand notifications), quicksettings (Expand quick settings), togglebar (Toggle notification bar), recents (Recent apps), defaultpage (Default page), previews (Desktop previews), toggledock (Toggle dock), search (Search), voice (Voice search), assistant (Assistant), lock (Screen lock), power (Power menu), settings (Launcher settings), widgets (Add widget), wallpaper (Wallpaper), torch (Toggle flashlight), locklayout (Lock or unlock layout), work (Pause or resume work apps).",
@@ -2125,6 +2159,10 @@
             {
               "pattern": "^app:[^/]+/[^/]+/\\d+$",
               "type": "string"
+            },
+            {
+              "pattern": "^shortcut:[^/]+/.+/\\d+$",
+              "type": "string"
             }
           ],
           "description": "Gestures & inputs. Values: none (Nothing), drawer (App drawer), now (Now page), notifications (Expand notifications), quicksettings (Expand quick settings), togglebar (Toggle notification bar), recents (Recent apps), defaultpage (Default page), previews (Desktop previews), toggledock (Toggle dock), search (Search), voice (Voice search), assistant (Assistant), lock (Screen lock), power (Power menu), settings (Launcher settings), widgets (Add widget), wallpaper (Wallpaper), torch (Toggle flashlight), locklayout (Lock or unlock layout), work (Pause or resume work apps).",
@@ -2202,6 +2240,10 @@
             {
               "pattern": "^app:[^/]+/[^/]+/\\d+$",
               "type": "string"
+            },
+            {
+              "pattern": "^shortcut:[^/]+/.+/\\d+$",
+              "type": "string"
             }
           ],
           "description": "Gestures & inputs. Values: none (Nothing), drawer (App drawer), now (Now page), notifications (Expand notifications), quicksettings (Expand quick settings), togglebar (Toggle notification bar), recents (Recent apps), defaultpage (Default page), previews (Desktop previews), toggledock (Toggle dock), search (Search), voice (Voice search), assistant (Assistant), lock (Screen lock), power (Power menu), settings (Launcher settings), widgets (Add widget), wallpaper (Wallpaper), torch (Toggle flashlight), locklayout (Lock or unlock layout), work (Pause or resume work apps).",
@@ -2263,6 +2305,10 @@
             {
               "pattern": "^app:[^/]+/[^/]+/\\d+$",
               "type": "string"
+            },
+            {
+              "pattern": "^shortcut:[^/]+/.+/\\d+$",
+              "type": "string"
             }
           ],
           "description": "Gestures & inputs. Values: none (Nothing), drawer (App drawer), now (Now page), notifications (Expand notifications), quicksettings (Expand quick settings), togglebar (Toggle notification bar), recents (Recent apps), defaultpage (Default page), previews (Desktop previews), toggledock (Toggle dock), search (Search), voice (Voice search), assistant (Assistant), lock (Screen lock), power (Power menu), settings (Launcher settings), widgets (Add widget), wallpaper (Wallpaper), torch (Toggle flashlight), locklayout (Lock or unlock layout), work (Pause or resume work apps).",
@@ -2323,6 +2369,10 @@
             },
             {
               "pattern": "^app:[^/]+/[^/]+/\\d+$",
+              "type": "string"
+            },
+            {
+              "pattern": "^shortcut:[^/]+/.+/\\d+$",
               "type": "string"
             }
           ],
@@ -2479,6 +2529,10 @@
             {
               "pattern": "^app:[^/]+/[^/]+/\\d+$",
               "type": "string"
+            },
+            {
+              "pattern": "^shortcut:[^/]+/.+/\\d+$",
+              "type": "string"
             }
           ],
           "description": "Gestures & inputs. Values: none (Nothing), drawer (App drawer), now (Now page), notifications (Expand notifications), quicksettings (Expand quick settings), togglebar (Toggle notification bar), recents (Recent apps), defaultpage (Default page), previews (Desktop previews), toggledock (Toggle dock), search (Search), voice (Voice search), assistant (Assistant), lock (Screen lock), power (Power menu), settings (Launcher settings), widgets (Add widget), wallpaper (Wallpaper), torch (Toggle flashlight), locklayout (Lock or unlock layout), work (Pause or resume work apps).",
@@ -2568,7 +2622,7 @@
             ]},
             {"type": "boolean"}
           ],
-          "description": "App drawer. Values: on (On), off (Off).",
+          "description": "Drawer folders. Values: on (On), off (Off).",
           "title": "Folders first"
         },
         "badgeSize": {
@@ -2896,6 +2950,10 @@
             {
               "pattern": "^app:[^/]+/[^/]+/\\d+$",
               "type": "string"
+            },
+            {
+              "pattern": "^shortcut:[^/]+/.+/\\d+$",
+              "type": "string"
             }
           ],
           "description": "Gestures & inputs. Values: none (Nothing), drawer (App drawer), now (Now page), notifications (Expand notifications), quicksettings (Expand quick settings), togglebar (Toggle notification bar), recents (Recent apps), defaultpage (Default page), previews (Desktop previews), toggledock (Toggle dock), search (Search), voice (Voice search), assistant (Assistant), lock (Screen lock), power (Power menu), settings (Launcher settings), widgets (Add widget), wallpaper (Wallpaper), torch (Toggle flashlight), locklayout (Lock or unlock layout), work (Pause or resume work apps).",
@@ -3189,6 +3247,10 @@
             },
             {
               "pattern": "^app:[^/]+/[^/]+/\\d+$",
+              "type": "string"
+            },
+            {
+              "pattern": "^shortcut:[^/]+/.+/\\d+$",
               "type": "string"
             }
           ],
