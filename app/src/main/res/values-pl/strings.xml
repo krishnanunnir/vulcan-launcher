@@ -632,11 +632,13 @@
     <string name="role_well">Dock i pola wyszukiwania</string>
     <string name="role_divider">Separatory</string>
     <string name="color_from_theme">Z motywu</string>
-    <string name="color_preview_title">Podgląd</string>
-    <string name="color_preview_button">Akcent</string>
+    <string name="exact_color">Dokładny kolor</string>
+    <string name="color_default">Domyślny</string>
+    <string name="theme_appliance">Appliance</string>
+    <string name="theme_wallpaper">Tapeta</string>
+    <string name="theme_amoled">Czerń AMOLED</string>
+    <string name="theme_yours">Twój kolor</string>
     <string name="color_preview_search">Szukaj</string>
-    <string name="color_contrast_ok">Kontrast tekstu %1$s:1</string>
-    <string name="color_contrast_low">Trudne do odczytania: %1$s:1</string>
     <string name="hsv_hue">Odcień</string>
     <string name="hsv_saturation">Nasycenie</string>
     <string name="hsv_brightness">Jasność</string>

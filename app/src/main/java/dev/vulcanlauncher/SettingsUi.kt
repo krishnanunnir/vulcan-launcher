@@ -331,11 +331,17 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
     val hours = looks.str("nightMode") in listOf("schedule", "sun")
     val choices = (if (group == LOOK) listOf(iconPackChoice()) else emptyList()) +
         LOOKS.filter { it.group == group && (hours || it.key != "nightStart" && it.key != "nightEnd") }
-    fun pick(c: Choice) = sheet().setTitle(c.title).setSingleChoiceItems(c.values.indices.map { choiceName(c, it) }.toTypedArray(), c.values.indexOf(looks[c])) { d, j ->
+    fun pickNamed(c: Choice) = sheet().setTitle(c.title).setSingleChoiceItems(c.values.indices.map { choiceName(c, it) }.toTypedArray(), c.values.indexOf(looks[c])) { d, j ->
         d.dismiss()
         applyChoice(c, c.values[j])
         changed()
-    }.setNegativeButton(R.string.cancel, null).show()
+    }.setNegativeButton(R.string.cancel, null).show().let {}
+    // Colours (but the theme colour) get the colour sheet, with a sample of the part.
+    fun pick(c: Choice) = when {
+        c.key == "accent" -> pickTheme(c) { applyChoice(c, it); changed() }
+        "#FFFFFF" in c.values -> pickColor(c) { applyChoice(c, it); changed() }
+        else -> pickNamed(c)
+    }
     fun row(c: Choice): View = when {
         // The housing dock has its own shadow; no background has none to cast.
         c.key == "dockShadow" && looks.str("dockBg") in listOf("housing", "none") ->
@@ -1106,30 +1112,15 @@ fun VulcanActivity.editGroup(g: Group) {
     })
     if (g.type == "tab") rows.addView(listItem(symbol("drag"), getString(R.string.arrange_apps)) { d.dismiss(); arrangeTab(g.name, g.apps) })
     // A tab's own colour, as Nova's: it marks the tab while it's selected (Drawer.buildTabs). No setting of its own (#49).
-    if (g.type == "tab") rows.addView(LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding((16 * dp).toInt(), (12 * dp).toInt(), (16 * dp).toInt(), (12 * dp).toInt())
-        addView(text(getString(R.string.tab_color), 16f))
-        val dots = LinearLayout(context).apply { setPadding(0, (10 * dp).toInt(), 0, 0) }
-        val values = listOf<String?>(null) + COLOR_VALUES
-        val labels = listOf(getString(R.string.color_from_theme)) + COLOR_NAMES.map(::getString)
-        fun paint() = values.forEachIndexed { i, v ->
-            val c = v?.let(Color::parseColor) ?: tabFill()
-            dots.getChildAt(i).background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL; setColor(c)
-                setStroke((if (v == color) 3 * dp else dp).toInt(), if (v == color) m3.onSurface else m3.outlineVariant)
-            }
-            dots.getChildAt(i).isSelected = v == color
-        }
-        values.forEachIndexed { i, v ->
-            dots.addView(View(context).apply {
-                contentDescription = labels[i]
-                setOnClickListener { color = v; paint() }
-            }, LinearLayout.LayoutParams((32 * dp).toInt(), (32 * dp).toInt()).apply { marginEnd = (10 * dp).toInt() })
-        }
-        paint()
-        addView(android.widget.HorizontalScrollView(context).apply { isHorizontalScrollBarEnabled = false; addView(dots) })
-    })
+    // It opens the same colour sheet as every other colour, with the tab bar as its sample; saved when this sheet closes.
+    if (g.type == "tab") {
+        val dot = View(this).apply { layoutParams = LinearLayout.LayoutParams((24 * dp).toInt(), (24 * dp).toInt()) }
+        fun show() { dot.background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color?.let(Color::parseColor) ?: tabFill()); setStroke(dp.toInt(), m3.outlineVariant) } }
+        show()
+        rows.addView(listItem(symbol("palette"), getString(R.string.tab_color), trailing = dot) {
+            pickTabColor(g.name, color) { color = it; show() }
+        })
+    }
     val other = if (g.type == "tab") "folder" else "tab"
     rows.addView(listItem(symbol(if (other == "tab") "tabs" else "folder"), getString(if (other == "tab") R.string.convert_to_tab else R.string.convert_to_folder)) {
         current()?.let { cur -> saveGroups(home.drawer.groups().map { if (it === cur || it.name == cur.name) it.copy(type = other) else it }) }

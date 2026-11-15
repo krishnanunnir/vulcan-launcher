@@ -552,11 +552,13 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="role_well">Док и поиск</string>
     <string name="role_divider">Разделители</string>
     <string name="color_from_theme">Из темы</string>
-    <string name="color_preview_title">Предпросмотр</string>
-    <string name="color_preview_button">Акцент</string>
+    <string name="exact_color">Точный цвет</string>
+    <string name="color_default">По умолчанию</string>
+    <string name="theme_appliance">Appliance</string>
+    <string name="theme_wallpaper">Обои</string>
+    <string name="theme_amoled">Чёрный AMOLED</string>
+    <string name="theme_yours">Свой цвет</string>
     <string name="color_preview_search">Поиск</string>
-    <string name="color_contrast_ok">Контраст текста %1$s:1</string>
-    <string name="color_contrast_low">Плохо читается: %1$s:1</string>
     <string name="hsv_hue">Оттенок</string>
     <string name="hsv_saturation">Насыщенность</string>
     <string name="hsv_brightness">Яркость</string>

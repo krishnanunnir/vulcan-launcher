@@ -619,11 +619,13 @@
     <string name="role_well">Dock and search slots</string>
     <string name="role_divider">Dividers</string>
     <string name="color_from_theme">From the theme</string>
-    <string name="color_preview_title">Preview</string>
-    <string name="color_preview_button">Accent</string>
+    <string name="exact_color">Exact color</string>
+    <string name="color_default">Default</string>
+    <string name="theme_appliance">Appliance</string>
+    <string name="theme_wallpaper">Wallpaper</string>
+    <string name="theme_amoled">AMOLED Black</string>
+    <string name="theme_yours">Your color</string>
     <string name="color_preview_search">Search</string>
-    <string name="color_contrast_ok">Text contrast %1$s:1</string>
-    <string name="color_contrast_low">Hard to read: %1$s:1</string>
     <string name="hsv_hue">Hue</string>
     <string name="hsv_saturation">Saturation</string>
     <string name="hsv_brightness">Brightness</string>
