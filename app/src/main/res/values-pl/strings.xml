@@ -518,6 +518,7 @@
     <string name="item_removed">Element został usunięty</string>
     <string name="undo">Cofnij</string>
     <string name="search_apps">Szukaj aplikacji</string>
+    <string name="search_list">Szukaj</string>
     <string name="more_options">Więcej opcji</string>
     <string name="folder_select_apps">Wybierz aplikacje</string>
     <string name="folder_sort">Sortuj od A do Z</string>
@@ -634,7 +635,7 @@
     <string name="color_from_theme">Z motywu</string>
     <string name="exact_color">Dokładny kolor</string>
     <string name="color_default">Domyślny</string>
-    <string name="theme_appliance">Appliance</string>
+    <string name="theme_appliance">Urządzenie</string>
     <string name="theme_wallpaper">Tapeta</string>
     <string name="theme_amoled">Czerń AMOLED</string>
     <string name="theme_yours">Twój kolor</string>
@@ -774,4 +775,60 @@
     <string name="widgets_always">Zawsze zezwalaj aplikacji Vulcan</string>
     <string name="widgets_continue">Kontynuuj</string>
     <string name="widgets_skip">Pomiń na razie</string>
+        <!-- Szuflada aplikacji › Karty i foldery -->
+    <string name="group_tabs">Karty</string>
+    <string name="group_drawer_folders">Foldery</string>
+    <string name="set_tabBar">Pasek kart</string>
+    <string name="tab_bar_scroll">Przewijany</string>
+    <string name="tab_bar_wrap">Zawijany</string>
+    <string name="names_and_more">%1$s i jeszcze %2$d</string>
+    <string name="tabs_in_bar">Na pasku kart</string>
+    <string name="tabs_hint">Przeciągnij kartę, aby ją przenieść. Przesuń w lewo, aby usunąć.</string>
+    <string name="tab_hidden">Ukryte</string>
+    <string name="tab_show">Pokaż: %s</string>
+    <string name="tab_hide">Ukryj: %s</string>
+    <string name="folders_none">Brak</string>
+    <plurals name="folders_count">
+        <item quantity="one">%d folder</item>
+        <item quantity="few">%d foldery</item>
+        <item quantity="many">%d folderów</item>
+        <item quantity="other">%d folderu</item>
+    </plurals>
+    <string name="folders_in_grid">Foldery w siatce</string>
+    <string name="folders_first">Na początku</string>
+    <string name="folders_sorted">Sortowane z aplikacjami</string>
+    <string name="your_folders">Twoje foldery</string>
+    <string name="folders_empty">Brak folderów. Folder grupuje aplikacje pod jedną ikoną w szufladzie.</string>
+    <string name="folders_hint">Przeciągnij folder, aby go przenieść. Przesuń w lewo, aby usunąć; aplikacje wrócą do szuflady.</string>
+    <string name="suggest_folders">Zaproponuj foldery</string>
+    <string name="suggest_title">Proponowane foldery</string>
+    <string name="suggest_info">Pogrupowane według kategorii aplikacji. Aplikacje już przypisane do folderów pozostaną na swoim miejscu.</string>
+    <string name="create">Utwórz</string>
+    <string name="create_n">Utwórz (%d)</string>
+    <string name="done">Gotowe</string>
+    <string name="delete_group_title">Usunąć „%s”?</string>
+    <plurals name="delete_tab_message">
+        <item quantity="one">Zostanie usunięta tylko karta. Znajdująca się w niej %d aplikacja pozostanie w szufladzie.</item>
+        <item quantity="few">Zostanie usunięta tylko karta. Znajdujące się w niej %d aplikacje pozostaną w szufladzie.</item>
+        <item quantity="many">Zostanie usunięta tylko karta. Znajdujących się w niej %d aplikacji pozostanie w szufladzie.</item>
+        <item quantity="other">Zostanie usunięta tylko karta. Znajdujące się w niej %d aplikacji pozostanie w szufladzie.</item>
+    </plurals>
+    <plurals name="delete_folder_message">
+        <item quantity="one">Zostanie usunięty tylko folder. Znajdująca się w nim %d aplikacja wróci do szuflady.</item>
+        <item quantity="few">Zostanie usunięty tylko folder. Znajdujące się w nim %d aplikacje wrócą do szuflady.</item>
+        <item quantity="many">Zostanie usunięty tylko folder. Znajdujących się w nim %d aplikacji wróci do szuflady.</item>
+        <item quantity="other">Zostanie usunięty tylko folder. Znajdujące się w nim %d aplikacji wróci do szuflady.</item>
+    </plurals>
+    <plurals name="screens">
+        <item quantity="one">%1$d ekran</item>
+        <item quantity="few">%1$d ekrany</item>
+        <item quantity="many">%1$d ekranów</item>
+        <item quantity="other">%1$d ekranu</item>
+    </plurals>
+    <plurals name="screens_matching">
+        <item quantity="one">%1$d z %2$d ekranu</item>
+        <item quantity="few">%1$d z %2$d ekranów</item>
+        <item quantity="many">%1$d z %2$d ekranów</item>
+        <item quantity="other">%1$d z %2$d ekranu</item>
+    </plurals>
 </resources>
