@@ -2135,10 +2135,9 @@ class MainActivity : VulcanActivity() {
                 "power" -> global(AccessibilityService.GLOBAL_ACTION_POWER_DIALOG)
                 "defaultpage" -> workspace.snapTo(looks.int("defaultPage"))
                 "previews" -> showOverview()
-                // As an overlay the grid already runs behind the dock: INVISIBLE keeps the dock's space so icons stay put,
-                // as in Nova (#84). Otherwise GONE hands that space to the grid.
+                // Keep an enabled dock's space when the gesture hides it so the home grid doesn't move (#84).
                 "toggledock" -> dockBox.visibility = if (dockBox.visibility != View.VISIBLE) View.VISIBLE
-                    else if (looks.on("dockOverlay") && !landscape) View.INVISIBLE else View.GONE
+                    else if (looks.dockOn) View.INVISIBLE else View.GONE
                 "voice" -> startAny(Intent(RecognizerIntent.ACTION_WEB_SEARCH), Intent(Intent.ACTION_VOICE_COMMAND))
                 "assistant" -> startAny(Intent(Intent.ACTION_ASSIST), Intent(Intent.ACTION_VOICE_COMMAND))
                 "settings" -> showSettings()
