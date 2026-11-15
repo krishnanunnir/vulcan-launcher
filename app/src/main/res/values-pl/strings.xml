@@ -165,8 +165,8 @@
     <string name="badgeSize_medium">Średni</string>
     <string name="badgeSize_large">Duży</string>
     <string name="set_badgeColor">Kolor</string>
-    <string name="set_nowPage">Strona Now</string>
-    <string name="set_nowPage_info">Wył.: działanie strony Now nic nie robi</string>
+    <string name="set_nowPage">Strona Teraz</string>
+    <string name="set_nowPage_info">Wył.: działanie strony Teraz nic nie robi</string>
     <string name="set_nowClock">Data i godzina</string>
     <string name="set_nowMedia">Sterowanie multimediami</string>
     <string name="set_nowMedia_info">Wymaga dostępu do powiadomień</string>
@@ -206,6 +206,12 @@
     <string name="sort_za">Tytuł (Z–A)</string>
     <string name="sort_installed">Od najnowszych</string>
     <string name="sort_used">Najczęściej używane</string>
+    <string name="sort_manual">Ręczne</string>
+    <string name="arrange_apps">Uporządkuj aplikacje</string>
+    <string name="move_up">Przesuń w górę</string>
+    <string name="move_down">Przesuń w dół</string>
+    <string name="favourites">Ulubione</string>
+    <string name="in_groups">W: %1$s</string>
     <string name="engine_browser">Domyślna aplikacja wyszukiwania</string>
     <string name="engine_google">Google</string>
     <string name="engine_duckduckgo">DuckDuckGo</string>
@@ -245,7 +251,7 @@
     <string name="shape_octagon">Ośmiokąt</string>
     <string name="action_none">Nic</string>
     <string name="action_drawer">Szuflada aplikacji</string>
-    <string name="action_now">Strona Now</string>
+    <string name="action_now">Strona Teraz</string>
     <string name="action_notifications">Rozwiń powiadomienia</string>
     <string name="action_quicksettings">Rozwiń szybkie ustawienia</string>
     <string name="action_togglebar">Przełącz pasek powiadomień</string>
@@ -297,7 +303,7 @@
     <string name="group_night">Tryb nocny</string>
     <string name="group_badges">Plakietki powiadomień</string>
     <string name="group_gestures">Gesty i wprowadzanie</string>
-    <string name="group_now">Strona Now</string>
+    <string name="group_now">Strona Teraz</string>
     <string name="action_jump_to_page">Przejdź do strony %1$d</string>
     <string name="action_open_app">Otwórz: %1$s</string>
     <string name="action_app_fallback">aplikacja</string>
@@ -306,15 +312,38 @@
     <string name="save">Zapisz</string>
     <string name="back">Wstecz</string>
     <string name="settings">Ustawienia</string>
-    <string name="cat_home">Siatka, strony, ikony, etykiety i pasek wyszukiwania</string>
+    <string name="cat_home">Siatka, dock, etykiety, przewijanie i widżety</string>
     <string name="cat_dock">Ikony, strony i tło</string>
-    <string name="cat_drawer">Układ, sortowanie i wyszukiwanie</string>
+    <string name="cat_drawer">Układ, sortowanie, ukryte aplikacje i grupy</string>
     <string name="cat_folders">Podglądy, tła i okna</string>
-    <string name="cat_look">Kolor motywu, pakiet ikon, kształty i animacje</string>
+    <string name="cat_look">Paczka ikon, kształty, kolory i animacje</string>
     <string name="cat_night">Ciemne panele i ich harmonogram</string>
     <string name="cat_badges">Kropki i liczniki powiadomień</string>
     <string name="cat_gestures">Przesunięcia, dotknięcia, uszczypnięcia i przycisk główny</string>
-    <string name="cat_now">Karty na stronie Now</string>
+    <string name="cat_now">Karty na stronie Teraz</string>
+    <string name="group_search">Wyszukiwanie</string>
+    <string name="cat_search">Wygląd paska wyszukiwania, wyniki z sieci i kontaktów</string>
+    <string name="panel_style">Styl</string>
+    <string name="sec_layout">Układ</string>
+    <string name="sec_labels">Etykiety</string>
+    <string name="sec_search">Wyszukiwanie</string>
+    <string name="sec_scroll">Przewijanie</string>
+    <string name="sec_widgets">Widżety i zegar</string>
+    <string name="sec_status">Pasek stanu</string>
+    <string name="sec_new_apps">Nowe aplikacje</string>
+    <string name="sec_advanced">Zaawansowane</string>
+    <string name="sec_background">Tło</string>
+    <string name="sec_colors">Kolory</string>
+    <string name="sec_apps">Aplikacje</string>
+    <string name="sec_folder_icon">Ikona folderu</string>
+    <string name="sec_window">Okno folderu</string>
+    <string name="sec_search_bar">Pasek wyszukiwania</string>
+    <string name="sec_results">Wyniki</string>
+    <string name="sec_icons">Ikony</string>
+    <string name="sec_animation">Animacje</string>
+    <string name="sec_popups">Menu i okna podręczne</string>
+    <string name="sec_buttons">Akcje przycisków</string>
+    <string name="sec_gestures">Gesty</string>
     <string name="panel_launcher">Launcher</string>
     <string name="hidden_apps">Ukryte aplikacje</string>
     <string name="hidden_apps_info">Ukryj aplikacje w szufladzie</string>
@@ -360,7 +389,8 @@
     <string name="dock_shadow_no_bg">Nieużywane bez tła docku</string>
     <string name="dock_shadow_housing">Dock z ramką ma swój własny cień</string>
     <string name="not_used_by_bg">Nieużywane przez tło %1$s</string>
-    <string name="set_iconPack">Pakiet ikon</string>
+    <string name="panels_amoled">Zawsze ciemne przy motywie Czerń AMOLED</string>
+    <string name="set_iconPack">Pakiet ikon</string>   
     <string name="iconPack_system">Ikony systemowe</string>
     <string name="housing_follows_theme">Ramka (zgodnie z motywem)</string>
     <string name="none">Brak</string>
@@ -375,6 +405,7 @@
     <string name="icon_default_option">Ikona domyślna</string>
     <string name="icon_from_pack">Z pakietu %1$s</string>
     <string name="icon_from_gallery">Obraz z galerii</string>
+    <string name="icon_from_app">Ikona innej aplikacji</string>
     <string name="icon">Ikona</string>
     <string name="icon_pack_unreadable">Nie można odczytać tego pakietu ikon</string>
     <string name="choose_icon">Wybierz ikonę</string>
@@ -382,6 +413,7 @@
     <string name="new_tab">Nowa karta</string>
     <string name="new_folder">Nowy folder</string>
     <string name="group_exists">Grupa o tej nazwie już istnieje</string>
+    <string name="tab_color">Kolor</string>
     <string name="rename">Zmień nazwę</string>
     <string name="choose_apps">Wybierz aplikacje</string>
     <string name="convert_to_tab">Przekształć w kartę</string>
@@ -420,6 +452,7 @@
     <string name="hide">Ukryj</string>
     <string name="menu_group">Grupa</string>
     <string name="resize">Zmień rozmiar</string>
+    <string name="unstack">Rozdziel</string>
     <string name="widgets">Widżety</string>
     <string name="shortcuts">Skróty</string>
     <string name="wallpaper">Tapeta</string>
@@ -432,6 +465,9 @@
     <string name="resize_current">%1$s (obecny)</string>
     <string name="launcher_action">Działanie launchera</string>
     <string name="app_shortcut">Skrót aplikacji</string>
+    <string name="shortcut_requires_home">Ustaw aplikację Vulcan jako domyślny ekran główny, aby dodawać skróty aplikacji.</string>
+    <string name="app_shortcut_item">Skrót aplikacji…</string>
+    <string name="no_app_shortcuts">Aplikacja %1$s nie ma skrótów</string>
     <string name="activity">Aktywność</string>
     <string name="add_to_home">Dodaj do ekranu głównego</string>
     <string name="work_app">%1$s (praca)</string>
@@ -442,7 +478,9 @@
     <string name="lock_needs_9">Blokada ekranu wymaga systemu Android 9</string>
     <string name="no_app_handles">Brak aplikacji obsługującej to działanie</string>
     <string name="accessibility_title">Włącz usługę ułatwień dostępu</string>
-    <string name="accessibility_text">Blokada ekranu, ostatnie aplikacje oraz menu zasilania wymagają uruchomienia usługi ułatwień dostępu aplikacji Vulcan. Usługa nie odczytuje zawartości ekranu, a jedynie wykonuje te akcje.</string>
+    <string name="accessibility_text">Vulcan korzysta z interfejsu AccessibilityService API wyłącznie wtedy, gdy użyjesz gestu lub skrótu do zablokowania ekranu, otwarcia ostatnio używanych aplikacji, powiadomień, szybkich ustawień lub menu zasilania.\n\nUsługa nie odczytuje zawartości ekranu, nie rejestruje Twoich interakcji ani nie gromadzi i nie udostępnia danych osobowych. Wykonuje jedynie wybraną przez Ciebie akcję. Dostęp jest opcjonalny – pozostałe funkcje launchera działają bez niego. Możesz go wyłączyć w dowolnym momencie w ustawieniach ułatwień dostępu Androida.\n\nDotknij „Zgadzam się i otwórz ustawienia”, aby kontynuować, a następnie włącz akcje aplikacji Vulcan.</string>
+    <string name="agree_open_settings">Zgadzam się i otwórz ustawienia</string>
+    <string name="privacy_policy">Polityka prywatności</string>
     <string name="open_settings">Otwórz ustawienia</string>
     <string name="backup_saved">Kopia zapasowa została zapisana</string>
     <string name="backup_failed">Tworzenie kopii zapasowej nie powiodło się: %1$s</string>
@@ -462,6 +500,10 @@
     <string name="now_favourites">Ulubione</string>
     <string name="now_allow_contacts">Zezwól na dostęp do kontaktów</string>
     <string name="now_star_contacts">Oznacz kontakty gwiazdką w aplikacji Kontakty, aby zobaczyć je tutaj</string>
+    <string name="now_add_card">Dodaj kartę</string>
+    <string name="now_card_apps">Aplikacje</string>
+    <string name="now_card_widget">Widżet</string>
+    <string name="now_remove_card">Usunąć tę kartę?</string>
     <string name="now_frequent">Często używane</string>
     <string name="now_now">Teraz</string>
     <string name="charging">Ładowanie · %1$d%%</string>
@@ -481,7 +523,38 @@
     <string name="folder_select_apps">Wybierz aplikacje</string>
     <string name="folder_sort">Sortuj od A do Z</string>
     <string name="no_apps_match">Brak aplikacji pasujących do „%1$s”</string>
-    <string name="tab_all">Wszystkie</string>
+    <string name="tab_all">Wszystkie aplikacje</string>
+    <string name="drag_to_reorder">Przeciągnij, aby zmienić kolejność</string>
+    <string name="tab_all_hide">Ukryj tę kartę</string>
+    <string name="tab_all_hide_info">Aplikacje spoza innych kart nadal można wyszukać</string>
+    <string name="tab_all_shown">Wyświetlana jako pierwsza w szufladzie</string>
+    <string name="tab_all_hidden">Ukryta. Aplikacje spoza innych kart nadal można wyszukać</string>
+    <string name="tab_all_needs_tab">Najpierw dodaj kartę: szuflada wymaga co najmniej jednej karty</string>
+    <string name="move_apps_title">Przenieść je tutaj?</string>
+    <plurals name="move_apps_message">
+         <item quantity="one">%1$d z tych aplikacji znajduje się też w innej grupie.</item>
+         <item quantity="few">%1$d z tych aplikacji znajdują się też w innych grupach.</item>
+         <item quantity="many">%1$d z tych aplikacji znajduje się też w innych grupach.</item>
+         <item quantity="other">%1$d z tych aplikacji znajduje się też w innych grupach.</item>
+    </plurals>
+    <string name="move_apps_move">Przenieś tutaj</string>
+    <string name="move_apps_keep">Zostaw w obu</string>
+    <string name="now_window_today">Dzisiaj</string>
+    <string name="now_window_3">Następne 3 dni</string>
+    <string name="now_window_7">Następne 7 dni</string>
+    <string name="now_window_14">Następne 14 dni</string>
+    <string name="now_calendars">Kalendarze</string>
+    <string name="now_calendars_info">Wybór wyświetlanych kalendarzy i wydarzeń całodniowych</string>
+    <string name="now_all_day_events">Wydarzenia całodniowe</string>
+    <plurals name="now_more_events">
+         <item quantity="one">Jeszcze %1$d</item>
+         <item quantity="few">Jeszcze %1$d</item>
+         <item quantity="many">Jeszcze %1$d</item>
+         <item quantity="other">Jeszcze %1$d</item>
+    </plurals>
+    <string name="sec_cards">Karty</string>
+    <string name="sec_general">Ogólne</string>
+    <string name="now_cards_info">Puste karty pozostają ukryte. Przytrzymaj kartę na ekranie Now, aby ją przenieść.</string>
     <string name="tab_work">Praca</string>
     <string name="tab_private">Prywatne</string>
     <string name="private_space">Przestrzeń prywatna</string>
@@ -540,16 +613,22 @@
         <item quantity="other">Utworzono %1$d folderu</item>
     </plurals>
     <plurals name="import_skipped">
-        <item quantity="one">%1$d element nie mógł zostać przeniesiony (widżety muszą zostać dodane ponownie, a niektóre skróty starszego typu nie są obsługiwane).</item>
-        <item quantity="few">%1$d elementy nie mogły zostać przeniesione (widżety muszą zostać dodane ponownie, a niektóre skróty starszego typu nie są obsługiwane).</item>
-        <item quantity="many">%1$d elementów nie mogło zostać przeniesionych (widżety muszą zostać dodane ponownie, a niektóre skróty starszego typu nie są obsługiwane).</item>
-        <item quantity="other">%1$d elementu nie mogło zostać przeniesionych (widżety muszą zostać dodane ponownie, a niektóre skróty starszego typu nie są obsługiwane).</item>
+        <item quantity="one">%1$d element nie może zostać przeniesiony: należy do Nova lub jego aplikacja nie jest zainstalowana na tym telefonie.</item>
+        <item quantity="few">%1$d elementy nie mogą zostać przeniesione: należą do Nova lub ich aplikacje nie są zainstalowane na tym telefonie.</item>
+        <item quantity="many">%1$d elementów nie może zostać przeniesionych: należą do Nova lub ich aplikacje nie są zainstalowane na tym telefonie.</item>
+        <item quantity="other">%1$d elementu nie może zostać przeniesionego: należy do Nova lub jego aplikacja nie jest zainstalowana na tym telefonie.</item>
     </plurals>
     <plurals name="import_items">
-        <item quantity="one">%1$d element ekranu głównego</item>
-        <item quantity="few">%1$d elementy ekranu głównego</item>
-        <item quantity="many">%1$d elementów ekranu głównego</item>
-        <item quantity="other">%1$d elementu ekranu głównego</item>
+        <item quantity="one">%1$d element zastąpi Twój ekran główny.</item>
+        <item quantity="few">%1$d elementy zastąpią Twój ekran główny.</item>
+        <item quantity="many">%1$d elementów zastąpi Twój ekran główny.</item>
+        <item quantity="other">%1$d elementu zastąpi Twój ekran główny.</item>
+    </plurals>
+    <plurals name="import_widgets">
+        <item quantity="one">%1$d widżet wróci, gdy Android poprosi Cię o jednorazowe potwierdzenie.</item>
+        <item quantity="few">%1$d widżety wrócą, gdy Android poprosi Cię o jednorazowe potwierdzenie.</item>
+        <item quantity="many">%1$d widżetów wróci, gdy Android poprosi Cię o jednorazowe potwierdzenie.</item>
+        <item quantity="other">%1$d widżetu wróci, gdy Android poprosi Cię o jednorazowe potwierdzenie.</item>
     </plurals>
     <string name="custom_colors">Własne kolory</string>
     <string name="custom_colors_info">Każdy z kolorów zastępuje barwę motywu w każdym widoku. Zresetuj dowolny z nich, aby przywrócić pierwotny styl.</string>
@@ -585,6 +664,10 @@
     <string name="drawerSearch_style">Tam, gdzie umieszcza go styl szuflady</string>
     <string name="labelSize_home">Taki sam jak na ekranie głównym</string>
     <string name="action_torch">Przełącz latarkę</string>
+    <string name="action_locklayout">Zablokuj lub odblokuj układ</string>
+    <string name="action_work">Wstrzymaj lub wznów aplikacje służbowe</string>
+    <string name="action_open_folder">Otwórz folder</string>
+    <string name="no_work_profile">Brak profilu służbowego</string>
     <string name="no_flashlight">Latarka jest obecnie niedostępna</string>
     <string name="name">Nazwa</string>
     <string name="backup_panel_save">Zapisz</string>
@@ -601,6 +684,27 @@
     <string name="restore_auto_none_info">Vulcan zapisuje jedną kopię dziennie na tym telefonie i przechowuje trzy ostatnie</string>
     <string name="restore_auto_confirm">Zastąpić układ i ustawienia automatyczną kopią zapasową z dnia %1$s?</string>
     <string name="restore">Przywróć</string>
+    <string name="share_style_link">Udostępnij jako adres URL</string>
+    <string name="share_style_info">Skopiuj lub wyślij ustawienia jako link Designer</string>
+    <string name="share_style_message">Link zawiera obsługiwane ustawienia, które zostały zmienione względem domyślnych. Nie obejmuje on aplikacji, widżetów ani elementów ekranu głównego.</string>
+    <string name="share_style_copy">Kopiuj link</string>
+    <string name="share_style_send">Udostępnij</string>
+    <string name="apply_style_link">Importuj z adresu URL</string>
+    <string name="apply_style_info">Wklej link z aplikacji Vulcan lub narzędzia Vulcan Designer</string>
+    <string name="apply_style_hint">Wklej link do stylu</string>
+    <string name="apply_style_paste">Wklej</string>
+    <string name="apply_style_review">Podgląd</string>
+    <string name="apply_style_invalid">Wklej prawidłowy link do stylu Vulcan Designer.</string>
+    <string name="apply_style_empty_clipboard">W schowku nie ma żadnego linku.</string>
+    <string name="apply_style_no_changes">Ten link nie zawiera żadnych ustawień do zmiany</string>
+    <string name="apply_style_apply">Zastosuj</string>
+    <string name="apply_style_done">Styl zastosowany</string>
+    <plurals name="apply_style_confirm">
+        <item quantity="one">Zastosować %1$d ustawienie z tego linku? Elementy ekranu głównego pozostaną zapisane, ale zmiana siatki może je przesunąć.</item>
+        <item quantity="few">Zastosować %1$d ustawienia z tego linku? Elementy ekranu głównego pozostaną zapisane, ale zmiana siatki może je przesunąć.</item>
+        <item quantity="many">Zastosować %1$d ustawień z tego linku? Elementy ekranu głównego pozostaną zapisane, ale zmiana siatki może je przesunąć.</item>
+        <item quantity="other">Zastosować %1$d ustawienia z tego linku? Elementy ekranu głównego pozostaną zapisane, ale zmiana siatki może je przesunąć.</item>
+    </plurals>
     <string name="import_launcher_backup">Importuj z innego launchera</string>
     <string name="import_launcher_backup_info">Przenosi ekran główny z pliku .novabackup</string>
     <string name="reset_defaults_info">Usuwa wszystkie ustawienia oraz cały układ ekranu głównego</string>
@@ -630,4 +734,56 @@
         <item quantity="many">%1$d widżetów</item>
         <item quantity="other">%1$d widżetu</item>
     </plurals>
+    <!-- First run -->
+    <string name="welcome_tagline">Ekran główny bez dostępu do internetu. Żadne dane nie opuszczą Twojego telefonu.</string>
+    <string name="welcome_begin">Rozpocznij</string>
+    <string name="welcome_home_title">Ustaw jako domyślny</string>
+    <string name="welcome_home_body">Vulcan otworzy się po naciśnięciu przycisku Ekran główny. W każdej chwili możesz wrócić do poprzedniego w ustawieniach Androida.</string>
+    <string name="welcome_home_set">Ustaw jako aplikację ekranu głównego</string>
+    <string name="welcome_not_now">Nie teraz</string>
+    <string name="welcome_setup_title">Przenieś swój ekran główny</string>
+    <string name="welcome_setup_body">Wybierz kopię zapasową Nova, aby przenieść aplikacje, foldery, dock, siatkę i widżety.</string>
+    <string name="welcome_nova">Importuj z Nova</string>
+    <string name="welcome_restore">Przywróć kopię zapasową Vulcan</string>
+    <string name="welcome_fresh">Zacznij od nowa</string>
+    <string name="widget_slot_add">Dotknij, aby dodać</string>
+    <string name="widget_slot_missing">Nie zainstalowano aplikacji</string>
+    <string name="widget_slot_missing_toast">Aplikacja tego widżetu nie jest zainstalowana</string>
+    <string name="widget_slot_describe">Dodaj widżet %1$s</string>
+    <string name="review_title">Twój ekran główny Nova</string>
+    <string name="review_another">Wybierz inny plik</string>
+    <plurals name="review_apps">
+        <item quantity="one">%1$d aplikacja</item>
+        <item quantity="few">%1$d aplikacje</item>
+        <item quantity="many">%1$d aplikacji</item>
+        <item quantity="other">%1$d aplikacji</item>
+    </plurals>
+    <plurals name="review_folders">
+        <item quantity="one">%1$d folder</item>
+        <item quantity="few">%1$d foldery</item>
+        <item quantity="many">%1$d folderów</item>
+        <item quantity="other">%1$d folderu</item>
+    </plurals>
+    <plurals name="review_widgets">
+        <item quantity="one">%1$d widżet</item>
+        <item quantity="few">%1$d widżety</item>
+        <item quantity="many">%1$d widżetów</item>
+        <item quantity="other">%1$d widżetu</item>
+    </plurals>
+    <plurals name="review_pages">
+        <item quantity="one">%1$d strona</item>
+        <item quantity="few">%1$d strony</item>
+        <item quantity="many">%1$d stron</item>
+        <item quantity="other">%1$d strony</item>
+    </plurals>
+    <plurals name="widgets_title">
+        <item quantity="one">Przywróć swój widżet</item>
+        <item quantity="few">Przywróć swoje %1$d widżety</item>
+        <item quantity="many">Przywróć swoje %1$d widżetów</item>
+        <item quantity="other">Przywróć swoje %1$d widżetu</item>
+    </plurals>
+    <string name="widgets_body">Android pyta tylko raz, zanim Vulcan będzie mógł wyświetlać widżety. Zaznacz to pole, a pozostałe wrócą automatycznie.</string>
+    <string name="widgets_always">Zawsze zezwalaj aplikacji Vulcan</string>
+    <string name="widgets_continue">Kontynuuj</string>
+    <string name="widgets_skip">Pomiń na razie</string>
 </resources>
