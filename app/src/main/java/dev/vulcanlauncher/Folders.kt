@@ -396,7 +396,11 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
     val anchor = icon?.takeIf { it.isLaidOut }?.let(::screenRect)
     val full = looks.str("folderWindow") == "fullscreen"
     val base = style("")
-    val style = IconStyle(base.sizePx, true, looks.labelSize("folderLabelSize"), panelText, false, base.iconShadow, font = base.font, lines = base.lines)
+    // Folder background color paints the window as well as the icon (#87); its text turns dark on a light colour.
+    val tinted = looks.str("folderColor") != "system"
+    val windowColor = looks.color("folderColor") or 0xFF000000.toInt()
+    val ink = if (!tinted) panelText else if (android.graphics.Color.luminance(windowColor) > 0.5f) 0xFF1B1B1F.toInt() else 0xFFF1F0F4.toInt()
+    val style = IconStyle(base.sizePx, true, looks.labelSize("folderLabelSize"), ink, false, base.iconShadow, font = base.font, lines = base.lines)
     // Within the screen, less the window's margins and padding (16 dp each side).
     val (cols, cellW) = folderGrid(children.size, base.sizePx + (36 * dp).toInt(), base.sizePx + (8 * dp).toInt(), root.width - (64 * dp).toInt(),
         looks.str("folderCols").toIntOrNull())
@@ -484,7 +488,7 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         text = title
         textSize = 16f
         gravity = Gravity.CENTER
-        setTextColor(m3.onSurface)
+        setTextColor(ink)
         background = null
         setSingleLine()
         ellipsize = android.text.TextUtils.TruncateAt.END
@@ -495,14 +499,16 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
     // As Nova: the folder's own menu (⋮) sits at the end of its name.
     val footer = FrameLayout(this).apply {
         addView(name, FrameLayout.LayoutParams(-1, -2))
-        if (more != null) addView(iconButton("more", getString(R.string.more_options)) { more(it) },
+        if (more != null) addView(iconButton("more", getString(R.string.more_options), if (tinted) ink else m3.onSurfaceVariant) { more(it) },
             FrameLayout.LayoutParams((48 * dp).toInt(), (48 * dp).toInt(), Gravity.END or Gravity.BOTTOM))
     }
     lateinit var grid: View
     val card = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         val alpha = looks.int("folderAlpha")
-        if (full) background = panelBg(alpha, 0f, m3.surfaceHigh) else frost(this, looks.int("folderRadius") * dp, alpha)
+        if (tinted) background = if (full) panelBg(alpha, 0f, windowColor)
+            else rounded(windowColor.withAlpha(alpha), looks.int("folderRadius") * dp, frostEdge(), dp / 2)
+        else if (full) background = panelBg(alpha, 0f, m3.surfaceHigh) else frost(this, looks.int("folderRadius") * dp, alpha)
         isClickable = true
         // Full screen: name and icons centred, within reach of the thumb as in the pop-up; a long folder scrolls.
         if (full) gravity = Gravity.CENTER_VERTICAL
