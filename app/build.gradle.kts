@@ -70,3 +70,6 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303") // real org.json for JVM tests; Android supplies its own at runtime
 }
+
+// SchemaTest reads the published backup schema; a change to it must rerun the tests, not leave them up to date.
+tasks.withType<Test>().configureEach { inputs.file(rootProject.file("docs/schema/vulcan-backup-2.json")) }

@@ -114,6 +114,16 @@ class StoreTest {
     }
 
     @Test
+    fun aBackupFromBeforeTheTabBarStillRestores() {
+        // Tab bar replaced the Work tab setting; an older file still loads, and the retired key does no harm.
+        val json = """{"format":"vulcan-backup-2","settings":{"tabBar":"scroll","workTab":"off"},"home":{"items":[]}}"""
+        val (files, rejected) = readableBackupFiles(org.json.JSONObject(json)) { _, _ -> null }
+        assertEquals(emptyList<String>(), rejected)
+        assertEquals("scroll", files["looks"]!!["tabBar"])
+        assertEquals("off", files["looks"]!!["workTab"])
+    }
+
+    @Test
     fun settingsOnlyDesignerFileDoesNotSupplyLayoutOrDrawerData() {
         val style = org.json.JSONObject("""{"format":"vulcan-backup-2","settings":{"labels":false,"cols":"100"}}""")
         val (files, rejected) = readableBackupFiles(style) { _, _ -> error("A style has no apps") }
