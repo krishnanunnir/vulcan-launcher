@@ -304,6 +304,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="searchStyle_rect">Rechteck</string>
     <string name="searchStyle_rounded">Abgerundet</string>
     <string name="search_apps">Apps durchsuchen</string>
+    <string name="search_list">Suchen</string>
     <string name="search_web_for">„%1$s“ suchen</string>
     <string name="set_accent">Theme-Farbe</string>
     <string name="set_autoAdd">Symbole neuer Apps zum Startbildschirm hinzufügen</string>
@@ -699,5 +700,13 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <plurals name="widgets_title">
         <item quantity="one">Bring dein Widget zurück</item>
         <item quantity="other">Bring deine %1$d Widgets zurück</item>
+    </plurals>
+    <plurals name="screens">
+        <item quantity="one">%1$d Bildschirm</item>
+        <item quantity="other">%1$d Bildschirme</item>
+    </plurals>
+    <plurals name="screens_matching">
+        <item quantity="one">%1$d von %2$d Bildschirm</item>
+        <item quantity="other">%1$d von %2$d Bildschirmen</item>
     </plurals>
 </resources>

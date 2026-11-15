@@ -519,6 +519,7 @@
     <string name="item_removed">Item removed</string>
     <string name="undo">Undo</string>
     <string name="search_apps">Search apps</string>
+    <string name="search_list">Search</string>
     <string name="more_options">More options</string>
     <string name="folder_select_apps">Select apps</string>
     <string name="folder_sort">Sort A to Z</string>
@@ -764,5 +765,13 @@
     <plurals name="delete_folder_message">
         <item quantity="one">Only the folder is removed. Its %d app goes back to your drawer.</item>
         <item quantity="other">Only the folder is removed. Its %d apps go back to your drawer.</item>
+    </plurals>
+    <plurals name="screens">
+        <item quantity="one">%1$d screen</item>
+        <item quantity="other">%1$d screens</item>
+    </plurals>
+    <plurals name="screens_matching">
+        <item quantity="one">%1$d of %2$d screen</item>
+        <item quantity="other">%1$d of %2$d screens</item>
     </plurals>
 </resources>

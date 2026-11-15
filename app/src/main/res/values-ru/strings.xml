@@ -304,6 +304,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="searchStyle_rect">Прямоугольник</string>
     <string name="searchStyle_rounded">Скруглённая</string>
     <string name="search_apps">Поиск приложений</string>
+    <string name="search_list">Поиск</string>
     <string name="search_web_for">Искать «%1$s»</string>
     <string name="set_accent">Цвет темы</string>
     <string name="set_autoAdd">Добавлять значки новых приложений на главный экран</string>
@@ -728,5 +729,17 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
         <item quantity="few">Вернуть %1$d виджета</item>
         <item quantity="many">Вернуть %1$d виджетов</item>
         <item quantity="other">Вернуть %1$d виджета</item>
+    </plurals>
+    <plurals name="screens">
+        <item quantity="one">%1$d экран</item>
+        <item quantity="few">%1$d экрана</item>
+        <item quantity="many">%1$d экранов</item>
+        <item quantity="other">%1$d экрана</item>
+    </plurals>
+    <plurals name="screens_matching">
+        <item quantity="one">%1$d из %2$d экрана</item>
+        <item quantity="few">%1$d из %2$d экранов</item>
+        <item quantity="many">%1$d из %2$d экранов</item>
+        <item quantity="other">%1$d из %2$d экрана</item>
     </plurals>
 </resources>

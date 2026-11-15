@@ -2088,9 +2088,29 @@ class MainActivity : VulcanActivity() {
                 else -> pickApp(getString(R.string.activity)) { app ->
                     val acts = runCatching { packageManager.getPackageInfo(app.pkg, PackageManager.GET_ACTIVITIES).activities }
                         .getOrNull().orEmpty().filter { it.exported }
-                    sheet().setTitle(label(app)).setItems(acts.map { "${it.loadLabel(packageManager)}\n${it.name.removePrefix(app.pkg)}" }.toTypedArray()) { _, i ->
-                        addItem(Item(0, 0, 0, sub, sub, pkg = app.pkg, cls = acts[i].name, action = "activity"))
-                    }.show()
+                    // An activity without a label of its own shows the app's ("Settings" a hundred times): name it from its class.
+                    val appLabel = acts.firstOrNull()?.applicationInfo?.loadLabel(packageManager)?.toString()
+                    val named = acts.map { a -> a to a.loadLabel(packageManager).toString().trim().let { if (it.isEmpty() || it == appLabel) activityName(a.name) else it } }
+                        .sortedWith(compareBy(labelOrder()) { it.second })
+                    // Only an activity's own icon: without one (or naming the app's again) the header's app icon says it.
+                    // Loaded directly, in the activity's theme, so one that fails comes back null: loadIcon would quietly
+                    // give the app's icon instead. ponytail: icons built from the app's own drawable classes (Settings'
+                    // homepage ones) can't inflate without loading its code into ours, which we won't; they get a blank slot.
+                    val res = runCatching { packageManager.getResourcesForApplication(app.pkg) }.getOrNull()
+                    val icons = named.map { (a, _) ->
+                        if (a.icon == 0 || a.icon == a.applicationInfo.icon || res == null) null
+                        else runCatching { res.getDrawable(a.icon, res.newTheme().apply { applyStyle(a.applicationInfo.theme, true); applyStyle(a.themeResource, true) }) }.getOrNull()
+                    }
+                    // An empty slot keeps the names lined up; no slot at all when no row has an icon.
+                    val anyIcon = icons.any { it != null }
+                    val rows = named.mapIndexed { i, (_, name) -> (icons[i] ?: if (anyIcon) android.graphics.drawable.ColorDrawable(0) else null) to name }
+                    pickList(label(app), rows, appIcon = anyIcon, summaries = named.map { it.first.name.substringAfterLast('.').substringAfterLast('$') },
+                        search = true, headerIcon = icon(app), count = { n ->
+                            if (n == rows.size) resources.getQuantityString(R.plurals.screens, n, n)
+                            else resources.getQuantityString(R.plurals.screens_matching, rows.size, n, rows.size)
+                        }) { i ->
+                        addItem(Item(0, 0, 0, sub, sub, pkg = app.pkg, cls = named[i].first.name, action = "activity"))
+                    }
                 }
             }
         }.show()
@@ -2231,4 +2251,11 @@ class MainActivity : VulcanActivity() {
             }
         }
     }
+}
+
+/** A readable name from an activity's class: "a.b.FaceEnrollConfirmationActivity" → "Face enroll confirmation"; acronyms stay. */
+fun activityName(cls: String): String {
+    val simple = cls.substringAfterLast('.').substringAfterLast('$').let { if (it.length > 8) it.removeSuffix("Activity") else it }
+    val words = simple.split(Regex("(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")).filter { it.isNotEmpty() }
+    return words.mapIndexed { i, w -> if (i == 0 || w.all { it.isUpperCase() || it.isDigit() }) w else w.lowercase() }.joinToString(" ")
 }

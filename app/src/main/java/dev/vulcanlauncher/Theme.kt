@@ -309,18 +309,68 @@ fun VulcanActivity.field(value: String, hintText: String) = android.widget.EditT
 
 /**
  * An M3 dialog list: a row per entry with its leading icon ([appIcon]: 40 dp app icons) and optional supporting text
- * ([summaries]). Picking one closes it.
+ * ([summaries]). Picking one closes it. [search] adds a field under the title that narrows the rows by title or
+ * summary, ignoring case; [onPick] still gets the index into [rows].
  */
 fun VulcanActivity.pickList(title: CharSequence, rows: List<Pair<Drawable?, CharSequence>>, appIcon: Boolean = false,
-                          summaries: List<CharSequence>? = null, onPick: (Int) -> Unit) {
+                          summaries: List<CharSequence>? = null, search: Boolean = false, headerIcon: Drawable? = null,
+                          count: ((shown: Int) -> String)? = null, onPick: (Int) -> Unit) {
+    var shown = rows.indices.toList()
     val adapter = object : android.widget.BaseAdapter() {
-        override fun getCount() = rows.size
-        override fun getItem(p: Int) = rows[p]
-        override fun getItemId(p: Int) = p.toLong()
-        override fun getView(p: Int, convert: View?, parent: android.view.ViewGroup) =
-            listItem(rows[p].first, rows[p].second, summaries?.get(p), appIcon = appIcon, dense = !appIcon, onClick = null).apply { setPadding((24 * dp).toInt(), paddingTop, (24 * dp).toInt(), paddingBottom) }
+        override fun getCount() = shown.size
+        override fun getItem(p: Int) = rows[shown[p]]
+        override fun getItemId(p: Int) = shown[p].toLong()
+        override fun getView(p: Int, convert: View?, parent: android.view.ViewGroup) = shown[p].let { i ->
+            listItem(rows[i].first, rows[i].second, summaries?.get(i), appIcon = appIcon, dense = !appIcon, onClick = null).apply { setPadding((24 * dp).toInt(), paddingTop, (24 * dp).toInt(), paddingBottom) }
+        }
     }
-    sheet().setTitle(title).setAdapter(adapter) { _, i -> onPick(i) }.setNegativeButton(R.string.cancel, null).show()
+    val b = sheet().setAdapter(adapter) { _, p -> onPick(shown[p]) }.setNegativeButton(R.string.cancel, null)
+    if (!search) { b.setTitle(title).show(); return }
+    val header = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding((24 * dp).toInt(), (24 * dp).toInt(), (24 * dp).toInt(), (8 * dp).toInt())
+        val counter = count?.let { text(it(rows.size), 14f, m3.onSurfaceVariant) }
+        // The title, with what it's a list of (an app's icon) leading and how many rows (and matches) under it.
+        addView(LinearLayout(context).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            headerIcon?.let { addView(ImageView(context).apply { setImageDrawable(it) },
+                LinearLayout.LayoutParams((40 * dp).toInt(), (40 * dp).toInt()).apply { marginEnd = (16 * dp).toInt() }) }
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(text(title, 24f))
+                counter?.let { addView(it) }
+            })
+        })
+        // As the drawer's: an M3 search bar, a pill with the search glyph leading.
+        addView(LinearLayout(context).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            background = rounded(m3.surfaceHighest, 28 * dp)
+            setPadding((16 * dp).toInt(), 0, (16 * dp).toInt(), 0)
+            addView(ImageView(context).apply { setImageDrawable(symbol("search")) }, LinearLayout.LayoutParams((24 * dp).toInt(), (24 * dp).toInt()))
+            addView(android.widget.EditText(context).apply {
+                hint = getString(R.string.search_list)
+                setSingleLine()
+                textSize = 16f
+                setTextColor(m3.onSurface)
+                setHintTextColor(m3.onSurfaceVariant)
+                background = null
+                setPadding((12 * dp).toInt(), 0, 0, 0)
+                addTextChangedListener(object : android.text.TextWatcher {
+                    override fun afterTextChanged(s: android.text.Editable?) {
+                        val q = s.toString().trim()
+                        shown = rows.indices.filter { rows[it].second.contains(q, true) || summaries?.get(it)?.contains(q, true) == true }
+                        adapter.notifyDataSetChanged()
+                        counter?.text = count?.invoke(shown.size)
+                    }
+                    override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+                    override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+                })
+            }, LinearLayout.LayoutParams(0, -1, 1f))
+        }, LinearLayout.LayoutParams(-1, (56 * dp).toInt()).apply { topMargin = (16 * dp).toInt() })
+    }
+    // A list dialog blocks the keyboard (it has no custom view that takes text); the field in the title needs it.
+    b.setCustomTitle(header).show().window?.clearFlags(
+        android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or android.view.WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
 }
 
 fun VulcanActivity.divider() = View(this).apply {
