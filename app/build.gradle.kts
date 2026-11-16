@@ -14,8 +14,8 @@ android {
         applicationId = "dev.vulcanlauncher"
         minSdk = 26
         targetSdk = 36
-        versionCode = 23
-        versionName = "0.30.1"
+        versionCode = 24
+        versionName = "0.31"
         // On-device gesture check (app/src/androidTest); a plain Instrumentation, no test libraries.
         testInstrumentationRunner = "dev.vulcanlauncher.DeviceCheck"
     }
