@@ -1,0 +1,7 @@
+Widget stacks: drop a widget on one of the same size, swipe to flip.
+Add your own Now page cards: a row of apps or a widget.
+Gestures and icon swipes can open app shortcuts.
+App drawer: separate Tabs and Folders pages, Wrap or Scroll tab bar.
+One colour picker for every colour; new folder and badge shapes.
+Search in the activity picker. Calendar icons show today's date.
+Fixes: badges, folder window colour and name, overlay dock, widget sizes, drawer scrolling and tab swipes.
