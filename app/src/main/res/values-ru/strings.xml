@@ -832,4 +832,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
         <item quantity="many">%d папок</item>
         <item quantity="other">%d папки</item>
     </plurals>
+    <string name="folderbg_icon">Как у значков</string>
+    <string name="set_badgeShape">Форма</string>
 </resources>

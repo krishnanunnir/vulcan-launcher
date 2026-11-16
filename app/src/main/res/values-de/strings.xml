@@ -789,4 +789,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
         <item quantity="one">%d Ordner</item>
         <item quantity="other">%d Ordner</item>
     </plurals>
+    <string name="folderbg_icon">Wie bei den App-Symbolen</string>
+    <string name="set_badgeShape">Form</string>
 </resources>
