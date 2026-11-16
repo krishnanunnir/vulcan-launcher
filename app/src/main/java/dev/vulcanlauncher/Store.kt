@@ -16,6 +16,7 @@ fun dockIndex(page: Int) = -1 - page
  * an app (pkg/cls/user), a widget (widgetId), a pinned shortcut (pkg + shortcutId),
  * a launcher action (action), an activity shortcut (pkg/cls + action "activity"), the clock (action "clock") or a folder (children).
  * A widget's children are the other widgets stacked with it.
+ * [w] and [h] are in grid cells, except a Now page widget card's [h]: its height in NOW_CARD_STEPs, 1 for the widget's own.
  */
 /** [Item.action] of an imported widget's spot. */
 const val WIDGET_SLOT = "widgetSlot"

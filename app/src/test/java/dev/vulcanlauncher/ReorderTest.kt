@@ -65,4 +65,17 @@ class ReorderTest {
         // Moving among the cards shown leaves the hidden ones where they were.
         assertEquals(listOf("apps", "calendar", "media", "contacts"), reorderWithin(NOW_CARDS, listOf("media", "contacts", "apps"), 2, 0))
     }
+
+    @Test
+    fun nowWidgetCardHeight() {
+        // Dragged heights go to the nearest 8dp step, never under the widget's minimum.
+        assertEquals(15, nowCardSteps(123f, 48))
+        assertEquals(16, nowCardSteps(125f, 48))
+        assertEquals(6, nowCardSteps(-30f, 48))
+        assertEquals(113, nowCardSteps(900f, 48))
+        // A minimum between steps rounds up, so the card is never shorter than it.
+        assertEquals(14, nowCardSteps(60f, 110))
+        // Saved heights are at least NOW_CARD_MIN, so never 1, the widget's own height.
+        assertTrue(nowCardSteps(0f, NOW_CARD_MIN) > 1)
+    }
 }

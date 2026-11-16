@@ -2059,7 +2059,7 @@ class MainActivity : VulcanActivity() {
             else ceil(info.minResizeWidth.coerceAtLeast(1) / cell.cellW.toFloat()).toInt().coerceIn(1, item.w)
         val minH = if (info == null) minOf(sub, item.h) else if (!fitsH) 1
             else ceil(info.minResizeHeight.coerceAtLeast(1) / cell.cellH.toFloat()).toInt().coerceIn(1, item.h)
-        if (getSystemService(android.view.accessibility.AccessibilityManager::class.java).isTouchExplorationEnabled) resizeByList(cell, item, v, minW, minH, true, true)
+        if (touchExploring) resizeByList(cell, item, v, minW, minH, true, true)
         else showResize(cell, item, v, minW, minH, true, true)
     }
 

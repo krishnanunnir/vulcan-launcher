@@ -337,6 +337,7 @@
         "type": "integer"
       },
       "h": {
+        "description": "Height in grid cells; on a Now page widget card (data nowCustom), in 8dp steps, 1 for the widget's own height.",
         "default": 1,
         "type": "integer",
         "minimum": 1
