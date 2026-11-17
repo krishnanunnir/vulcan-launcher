@@ -944,7 +944,7 @@ private fun VulcanActivity.swipeToDelete(row: View, onDelete: () -> Unit) {
 private fun SettingsActivity.tabsLink(): View {
     val tabs = home.drawer.groups().filter { it.type == "tab" }
     val hasWork = home.apps.values.any { home.isWork(it) }
-    val names = listOf(getString(R.string.tab_all)) + withWorkSlot(tabs.map { it.name }, store.data.getInt(WORK_AT, 0))
+    val names = listOfNotNull(getString(R.string.tab_all), getString(R.string.tab_private).takeIf { home.privateUser != null }) + withWorkSlot(tabs.map { it.name }, store.data.getInt(WORK_AT, 0))
         .filter { it != WORK_SLOT || hasWork }.map { if (it == WORK_SLOT) getString(R.string.tab_work) else it }
     val summary = if (names.size <= 3) names.joinToString() else getString(R.string.names_and_more, names.take(3).joinToString(), names.size - 3)
     return listItem(symbol("tabs", m3.onPrimaryContainer), getString(R.string.group_tabs), summary, tonalIcon = true) { showPage(TABS_GROUP) }
@@ -1038,7 +1038,9 @@ private fun SettingsActivity.tabsPage(list: LinearLayout) {
     if (movable.size > 1) movable.forEach { (it as LinearLayout).addView(reorder.handle(it)) }
     val newTab = listItem(symbol("add", m3.primary), getString(R.string.new_tab)) { newGroup("tab") }
     // Keep in all only means something while All apps shows.
-    panel(list, getString(R.string.tabs_in_bar), listOfNotNull(allRow, keep.takeIf { allShown }) + movable + newTab)
+    // Private Space is the system's: always right after All apps, as the preview shows, and not hidden from here.
+    val privateRow = if (home.privateUser != null) listItem(null, getString(R.string.tab_private), getString(R.string.tab_private_fixed), onClick = null) else null
+    panel(list, getString(R.string.tabs_in_bar), listOfNotNull(allRow, keep.takeIf { allShown }, privateRow) + movable + newTab)
     if (tabs.isNotEmpty()) list.addView(text(getString(R.string.tabs_hint), 13f, m3.onSurfaceVariant).apply {
         setPadding((32 * dp).toInt(), (12 * dp).toInt(), (32 * dp).toInt(), 0)
     })
