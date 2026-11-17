@@ -470,7 +470,8 @@ private fun SettingsActivity.swatch(c: Choice): View? {
                 "amoled" -> 0xFF000000.toInt()
                 else -> looks.color(c.key)
             })
-            setStroke(dp.toInt(), m3.outlineVariant)
+            // A visible ring: a housing-coloured swatch on a housing card was otherwise invisible.
+            setStroke((1.5f * dp).toInt(), m3.outline)
         }
         layoutParams = LinearLayout.LayoutParams((24 * dp).toInt(), (24 * dp).toInt())
     }
