@@ -107,8 +107,14 @@ class MainActivity : VulcanActivity() {
     }
 
     override val home get() = this
-    /** A setting changed in SettingsActivity: home is built again before it shows (onStart). */
+    /**
+     * A setting changed in SettingsActivity: home is built again a moment later, while settings still covers it, so
+     * pressing Home doesn't wait for it (#100: ~200 ms in onStart). onStart still catches one that hasn't run yet.
+     */
     var stale = false
+        set(v) { field = v; mainHandler.removeCallbacks(rebuildStale); if (v) mainHandler.postDelayed(rebuildStale, 400) }
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val rebuildStale = Runnable { if (stale && !isDestroyed) { stale = false; rebuild() } }
     lateinit var icons: Icons
     lateinit var items: MutableList<Item>
     lateinit var host: AppWidgetHost
@@ -566,6 +572,8 @@ class MainActivity : VulcanActivity() {
         if (!::drawer.isInitialized) return // handed off to home in onCreate; Android 11 still delivers that home intent here
         // Without focus an app was in front: coming home only closes what was open, the action is for a second press.
         val onHome = hasWindowFocus()
+        // Home leaves pickers and dialogs too (#99: the icon pack grid kept it).
+        dialogs.toList().forEach { it.dismiss() }
         when {
             menu != null -> closeMenu()
             overlay != null -> closeOverlay()
@@ -607,6 +615,7 @@ class MainActivity : VulcanActivity() {
         privateUser = if (android.os.Build.VERSION.SDK_INT >= 35)
             profiles.firstOrNull { launcherApps.getLauncherUserInfo(it)?.userType == UserManager.USER_TYPE_PROFILE_PRIVATE } else null
         // A locked Private Space shows none of its apps, anywhere.
+        pausedUsers = profiles.filter { it != Process.myUserHandle() && it != privateUser && um.isQuietModeEnabled(it) }.toSet()
         apps = profiles.filter { it != privateUser || !privateLocked }.flatMap { user -> launcherApps.getActivityList(null, user).map { App(it, serial(user), appCache::label) } }
             .filter { it.pkg != packageName }.associateBy { it.key }
         customs = store.obj("custom")
@@ -685,7 +694,16 @@ class MainActivity : VulcanActivity() {
     }
 
     fun label(a: App): String = customs.optJSONObject(a.key)?.optString("label")?.takeIf { it.isNotEmpty() } ?: a.title
-    fun icon(a: App): Drawable = iconCache.get(a.key) ?: run {
+    /** Work profiles that are paused: their apps show greyed out, as in Launcher3 (#73). */
+    private var pausedUsers = emptySet<UserHandle>()
+
+    fun icon(a: App): Drawable = baseIcon(a).let { d ->
+        if (a.info.user !in pausedUsers) d else d.constantState!!.newDrawable(resources).mutate().apply {
+            colorFilter = android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply { setSaturation(0f) }); alpha = 140
+        }
+    }
+
+    private fun baseIcon(a: App): Drawable = iconCache.get(a.key) ?: run {
         val custom = synchronized(customs) { customs.optJSONObject(a.key)?.optString("icon") } ?: ""
         // Icons.get always ends in a flat bitmap. Decoded outside any lock: prefetch runs this on a worker thread
         // while the UI thread may decode the same icon, so a duplicate decode is merged by the put below.
@@ -719,7 +737,7 @@ class MainActivity : VulcanActivity() {
 
     /** Warms the icons of [apps] on a worker thread, so scrolling the drawer does not decode them on the UI thread. */
     /** [a]'s icon if it's in memory; else null, and [ready] gets it on the UI thread once loaded off it. */
-    fun iconLater(a: App, ready: (Drawable) -> Unit): Drawable? = iconCache.get(a.key) ?: null.also {
+    fun iconLater(a: App, ready: (Drawable) -> Unit): Drawable? = if (iconCache.get(a.key) != null) icon(a) else null.also {
         iconLoader.execute { val d = icon(a); runOnUiThread { ready(d) } }
     }
     fun prefetchIcons(apps: Collection<App>) {
@@ -2170,7 +2188,10 @@ class MainActivity : VulcanActivity() {
     private fun toggleWork() {
         val work = launcherApps.profiles.firstOrNull { it != Process.myUserHandle() && it != privateUser }
         if (work == null || android.os.Build.VERSION.SDK_INT < 28) return toast(R.string.no_work_profile)
-        runCatching { um.requestQuietModeEnabled(!um.isQuietModeEnabled(work), work) }.onFailure { toast(R.string.no_work_profile) }
+        val pause = !um.isQuietModeEnabled(work)
+        // A word on what happened, as the switch has no other sign until an app is opened (#73).
+        runCatching { um.requestQuietModeEnabled(pause, work) }.onSuccess { done -> if (done) toast(if (pause) R.string.work_paused else R.string.work_resumed) }
+            .onFailure { toast(R.string.no_work_profile) }
     }
 
     private var torchOn = false

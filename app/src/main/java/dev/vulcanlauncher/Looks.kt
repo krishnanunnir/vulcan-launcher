@@ -14,7 +14,7 @@ class Choice(
 )
 
 /** What value [i] is called on screen; [text] reads a string resource. */
-fun Choice.name(i: Int, text: (Int) -> String): String = names.getOrNull(i)?.let(text) ?: shown.getOrElse(i) { "" }
+fun Choice.name(i: Int, text: (Int) -> String): String = names.getOrNull(i)?.takeIf { it != 0 }?.let(text) ?: shown.getOrElse(i) { "" }
 // Schedule hours in the phone's own 12- or 24-hour clock: "8:00" meant as 8 pm swapped the schedule (#52).
 fun Context.choiceName(c: Choice, i: Int) = if (c.key == "nightStart" || c.key == "nightEnd")
     android.text.format.DateFormat.getTimeFormat(this).format(java.util.Calendar.getInstance().apply {
@@ -27,8 +27,11 @@ private fun onOff(group: String, key: String, title: Int, default: Boolean, info
 private fun sizes(group: String, key: String, title: Int, default: String = "48") =
     Choice(group, key, title, default, range(32, 72, 4), shown = range(32, 72, 4).map { "$it dp" })
 /** As Nova, each icon layout has its own label size; "home" follows the home screen's. */
-private fun labelSize(group: String, key: String) = range(8, 24).let {
-    Choice(group, key, R.string.set_labelSize, "home", listOf("home") + it, listOf(R.string.labelSize_home), shown = listOf("") + it.map { s -> "$s sp" })
+/** [off]: an "Off" value last, hiding the labels (folders, #94). */
+private fun labelSize(group: String, key: String, off: Boolean = false) = range(8, 24).let {
+    val extra = if (off) listOf("off") else emptyList()
+    Choice(group, key, R.string.set_labelSize, "home", listOf("home") + it + extra, listOf(R.string.labelSize_home) + it.map { 0 } + extra.map { R.string.off },
+        shown = listOf("") + it.map { s -> "$s sp" } + extra.map { "" })
 }
 private fun percent(group: String, key: String, title: Int, default: String) =
     Choice(group, key, title, default, range(0, 100, 10), shown = range(0, 100, 10).map { "$it%" })
@@ -114,7 +117,7 @@ val LOOKS = listOf(
     Choice(DRAWER, "drawerSearch", R.string.set_drawerSearch, "style", listOf("style", "off", "top", "bottom"), listOf(R.string.drawerSearch_style, R.string.searchBar_off, R.string.searchBar_top, R.string.searchBar_bottom)),
     Choice(DRAWER, "drawerCols", R.string.set_drawerCols, "4", range(3, 8)),
     // As Nova: rows size the cells in every grid style, not just pages.
-    Choice(DRAWER, "drawerRows", R.string.set_drawerRows, "6", range(3, 9)),
+    Choice(DRAWER, "drawerRows", R.string.set_drawerRows, "6", range(3, 12)),
     sizes(DRAWER, "drawerIconSize", R.string.set_drawerIconSize, "60"),
     onOff(DRAWER, "drawerLabels", R.string.set_drawerLabels, true),
     labelSize(DRAWER, "drawerLabelSize"),
@@ -146,7 +149,7 @@ val LOOKS = listOf(
     Choice(FOLDERS, "folderWindow", R.string.set_folderWindow, "popup", listOf("popup", "fullscreen"), listOf(R.string.folderWindow_popup, R.string.folderWindow_fullscreen)),
     onOff(FOLDERS, "folderSwipe", R.string.set_folderSwipe, false, R.string.set_folderSwipe_info),
     onOff(FOLDERS, "folderNames", R.string.set_folderNames, true),
-    labelSize(FOLDERS, "folderLabelSize"),
+    labelSize(FOLDERS, "folderLabelSize", off = true),
     // Auto: sized to the contents (folderGrid); a number fixes the columns, or how many rows show before it scrolls.
     Choice(FOLDERS, "folderCols", R.string.set_folderCols, "auto", listOf("auto") + range(2, 6), listOf(R.string.folderGrid_auto), shown = listOf("") + range(2, 6)),
     Choice(FOLDERS, "folderRows", R.string.set_folderRows, "auto", listOf("auto") + range(1, 6), listOf(R.string.folderGrid_auto), shown = listOf("") + range(1, 6)),

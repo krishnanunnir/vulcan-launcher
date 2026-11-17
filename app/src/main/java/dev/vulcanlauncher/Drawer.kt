@@ -160,9 +160,15 @@ private val SCROLL_CUBIC = android.view.animation.Interpolator { t -> val u = t 
 /** [from]..[to] of [p] as 0..1, clamped (Launcher3's clampToProgress over a linear curve). */
 private fun span(p: Float, from: Float, to: Float) = ((p - from) / (to - from)).coerceIn(0f, 1f)
 
-/** The tab a sideways swipe lands on: the one after [current] in [keys] if [forward], else before, wrapping round at either end; null with fewer than two. */
-fun swipedTab(keys: List<String>, current: String, forward: Boolean): String? =
-    if (keys.size < 2) null else keys[(keys.indexOf(current).coerceAtLeast(0) + if (forward) 1 else -1).mod(keys.size)]
+/**
+ * The tab a sideways swipe lands on: the one after [current] in [keys] if [forward], else before, wrapping round at
+ * either end when [wrap]; null with fewer than two, or at an end without [wrap].
+ */
+fun swipedTab(keys: List<String>, current: String, forward: Boolean, wrap: Boolean = true): String? {
+    if (keys.size < 2) return null
+    val i = keys.indexOf(current).coerceAtLeast(0) + if (forward) 1 else -1
+    return if (wrap) keys[i.mod(keys.size)] else keys.getOrNull(i)
+}
 
 /** [groups] with [name] swapped with the nearest group of its type [by] -1 (earlier) or 1 (later); null at that end. */
 fun moveGroup(groups: List<Group>, name: String, by: Int): List<Group>? {
@@ -798,10 +804,18 @@ class Drawer(private val a: MainActivity) {
         held = !end
         if (end) {
             val open = release(vy, 0.3f)
-            if (open) root.tick()
-        } else setProgress(up / travel())
+            if (open && !armed) root.tick() // a fling that never crossed the line still gets its tick
+            armed = false
+        } else {
+            setProgress(up / travel())
+            // The tick comes as the pull crosses the line where letting go opens the drawer, not on release (#97).
+            if (!armed && progress >= 0.3f) { armed = true; root.tick() } else if (armed && progress < 0.3f) armed = false
+        }
         return true
     }
+
+    /** Whether this pull has passed the open line and ticked for it. */
+    private var armed = false
 
     /** Ends a finger-driven pull: opens if flung up or past [threshold], unless flung down. Returns whether it opens. */
     private fun release(vy: Float, threshold: Float): Boolean {
@@ -883,7 +897,8 @@ class Drawer(private val a: MainActivity) {
         val shownTabs = groups.filter { it.type == "tab" }.map { it.name }.toSet()
         val order = withWorkSlot(this.groups().filter { it.type == "tab" }.map { it.name }, a.store.data.getInt(WORK_AT, 0))
             .filter { if (it == WORK_SLOT) workTab else it in shownTabs }.map { if (it == WORK_SLOT) "work" else it }
-        buildTabs(groups, order, privateTab, q.isEmpty())
+        rebuildTabs = { buildTabs(groups, order, privateTab, q.isEmpty()) }
+        rebuildTabs()
         // Locked, the centred lock takes over; the bar (state, install, lock) is for the open space.
         val locked = a.privateLocked
         privateLockedView.visibility = if (q.isEmpty() && tab == "private" && locked) View.VISIBLE else View.GONE
@@ -970,6 +985,8 @@ class Drawer(private val a: MainActivity) {
     private var tabKeys = listOf<String>()
 
     private var tabAnim: android.animation.ValueAnimator? = null
+    /** [buildTabs] as [refresh] last called it, to mark a newly landed tab before its apps are swapped in. */
+    private var rebuildTabs: () -> Unit = {}
 
     /**
      * A sideways swipe [dx] px so far: the list follows the finger and the tab it's heading for slides in beside it. A
@@ -979,8 +996,9 @@ class Drawer(private val a: MainActivity) {
         val w = grid.width.toFloat()
         val offset = dx.coerceIn(-w, w)
         val rtl = root.layoutDirection == View.LAYOUT_DIRECTION_RTL
-        val next = swipedTab(tabKeys, tab, (dx < 0) != rtl)
-        if (next == null) { grid.translationX = dx / 4; return } // one tab: a little give, nowhere to go
+        // Tabs wrap round as home's pages do: with Infinite scroll (#97).
+        val next = swipedTab(tabKeys, tab, (dx < 0) != rtl, a.looks.on("infiniteScroll"))
+        if (next == null) { grid.translationX = dx / 4; peek.visibility = View.GONE; peekTab = null; return } // nowhere to go: a little give
         if (next != peekTab) {
             peekTab = next
             peekEntries = entriesOf(next)
@@ -1002,6 +1020,8 @@ class Drawer(private val a: MainActivity) {
         val landed = peekTab?.takeIf { !cancelled && (if (flung) vx * dx > 0 else abs(dx) > w / 3) }
         val to = if (landed != null) (if (dx < 0) -w else w) else 0f
         val peekOffset = peek.translationX - grid.translationX
+        // The chip and the tick come as the finger lets go, not after the slide: switching fast felt laggy (#97).
+        if (landed != null) { tab = landed; rebuildTabs(); grid.tick() }
         val animation = android.animation.ValueAnimator.ofFloat(grid.translationX, to).apply {
             duration = (120 + 160 * abs(to - grid.translationX) / maxOf(1f, w)).toLong()
             interpolator = EASE
@@ -1014,10 +1034,8 @@ class Drawer(private val a: MainActivity) {
                 override fun onAnimationEnd(x: android.animation.Animator) {
                     tabAnim = null
                     if (landed != null) {
-                        tab = landed
                         refresh()
                         grid.setSelection(if (fromBottom) adapter.count - 1 else 0)
-                        grid.tick()
                     }
                     grid.translationX = 0f
                     peek.visibility = View.GONE

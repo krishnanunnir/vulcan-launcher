@@ -63,6 +63,10 @@ class SwipedTabTest {
         org.junit.Assert.assertEquals("Games", swipedTab(keys, "", false))
         org.junit.Assert.assertNull(swipedTab(listOf(""), "", true))
         org.junit.Assert.assertNull(swipedTab(emptyList(), "", true))
+        // Without wrapping, the ends stop.
+        org.junit.Assert.assertNull(swipedTab(keys, "Games", true, wrap = false))
+        org.junit.Assert.assertNull(swipedTab(keys, "", false, wrap = false))
+        org.junit.Assert.assertEquals("work", swipedTab(keys, "", true, wrap = false))
     }
 }
 

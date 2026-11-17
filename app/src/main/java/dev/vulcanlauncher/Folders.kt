@@ -407,12 +407,13 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
     val tinted = looks.str("folderColor") != "system"
     val windowColor = looks.color("folderColor") or 0xFF000000.toInt()
     val ink = if (!tinted) panelText else if (android.graphics.Color.luminance(windowColor) > 0.5f) 0xFF1B1B1F.toInt() else 0xFFF1F0F4.toInt()
-    val style = IconStyle(base.sizePx, true, looks.labelSize("folderLabelSize"), ink, false, base.iconShadow, font = base.font, lines = base.lines)
+    // Label size "off" hides the names under a folder's icons (#94).
+    val style = IconStyle(base.sizePx, looks.str("folderLabelSize") != "off", looks.labelSize("folderLabelSize"), ink, false, base.iconShadow, font = base.font, lines = base.lines)
     // Within the screen, less the window's margins and padding (16 dp each side).
     val (cols, cellW) = folderGrid(children.size, base.sizePx + (36 * dp).toInt(), base.sizePx + (8 * dp).toInt(), root.width - (64 * dp).toInt(),
         looks.str("folderCols").toIntOrNull())
     val rows = maxOf(1, ceil(children.size / cols.toDouble()).toInt())
-    val cellH = base.sizePx + (44 * dp).toInt()
+    val cellH = base.sizePx + ((if (style.labels) 44 else 16) * dp).toInt()
     // Rows shown before the grid scrolls: four in the pop-up and all of them full screen, unless set.
     val shownRows = looks.str("folderRows").toIntOrNull()
     val cell = CellLayout(this, cols, rows, 0)
@@ -502,13 +503,13 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         // Inset by the ⋮ button's width on both sides, so the name stays centred.
         val side = if (more != null) (48 * dp).toInt() else 0
         setPadding(side, (12 * dp).toInt(), side, (4 * dp).toInt())
-        // Show folder name off hides it here, as in Nova and Supernova (#87); the ⋮ stays. Long-press Edit still renames.
-        if (!looks.on("folderNames")) visibility = if (more != null) View.INVISIBLE else View.GONE
+        // Show folder name off hides it here, as in Nova and Supernova (#87), and its ⋮ with it (#93). Long-press Edit still renames.
+        if (!looks.on("folderNames")) visibility = View.GONE
     }
     // As Nova: the folder's own menu (⋮) sits at the end of its name.
     val footer = FrameLayout(this).apply {
         addView(name, FrameLayout.LayoutParams(-1, -2))
-        if (more != null) addView(iconButton("more", getString(R.string.more_options), if (tinted) ink else m3.onSurfaceVariant) { more(it) },
+        if (more != null && looks.on("folderNames")) addView(iconButton("more", getString(R.string.more_options), if (tinted) ink else m3.onSurfaceVariant) { more(it) },
             FrameLayout.LayoutParams((48 * dp).toInt(), (48 * dp).toInt(), Gravity.END or Gravity.BOTTOM))
     }
     lateinit var grid: View

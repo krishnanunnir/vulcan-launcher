@@ -120,6 +120,33 @@ fun visibleExtent(alpha: List<Int>, n: Int): Float? {
     return maxOf(r - l + 1, b - t + 1) / n.toFloat()
 }
 
+/**
+ * How to reshape a legacy icon, from its [n]×[n] ARGB pixels (row-major): when its outer edge is one solid colour (a
+ * square, rounded square or circle icon), that colour, to fill the shape behind it, and the icon's visible extent, to
+ * scale it to the shape's edge. Null for an icon whose edge isn't one colour (a mascot, a cut-out logo): it goes on a
+ * white plate instead. As Nova reshapes them (#92).
+ */
+fun legacyFill(px: IntArray, n: Int): Pair<Int, Float>? {
+    val edge = ArrayList<Int>()
+    // The first and last solid pixel of each row and column: the icon's outer edge, whatever its outline.
+    for (y in 0 until n) {
+        (0 until n).firstOrNull { px[y * n + it] ushr 24 > 200 }?.let { edge += px[y * n + it] }
+        (n - 1 downTo 0).firstOrNull { px[y * n + it] ushr 24 > 200 }?.let { edge += px[y * n + it] }
+    }
+    for (x in 0 until n) {
+        (0 until n).firstOrNull { px[it * n + x] ushr 24 > 200 }?.let { edge += px[it * n + x] }
+        (n - 1 downTo 0).firstOrNull { px[it * n + x] ushr 24 > 200 }?.let { edge += px[it * n + x] }
+    }
+    if (edge.size < n) return null
+    // Each channel's median: anti-aliasing and a stray highlight don't pull it off the plate's colour.
+    fun median(shift: Int) = edge.map { it shr shift and 0xFF }.sorted()[edge.size / 2]
+    val r = median(16); val g = median(8); val b = median(0)
+    val close = edge.count { abs((it shr 16 and 0xFF) - r) + abs((it shr 8 and 0xFF) - g) + abs((it and 0xFF) - b) < 60 }
+    if (close < edge.size * 0.85f) return null
+    val extent = visibleExtent(px.map { it ushr 24 }, n) ?: return null
+    return (0xFF shl 24 or (r shl 16) or (g shl 8) or b) to extent
+}
+
 /** "ComponentInfo{pkg/cls}" from an icon pack's appfilter.xml → "pkg/cls", expanding a relative ".cls". */
 fun parseComponent(s: String): String? {
     val inner = s.substringAfter("{", "").substringBefore("}", "")
@@ -311,7 +338,7 @@ class Icons(private val context: Context, private val looks: Looks) {
         if (themed == null && pack != null && looks.on("autogen") && pack.back.isNotEmpty()) autogen(icon, pkg)?.let { return it }
         val reshape = looks.str("reshape")
         if (icon !is AdaptiveIconDrawable && (reshape == "always" || reshape == "unthemed" && themed == null)) {
-            icon = AdaptiveIconDrawable(ColorDrawable(android.graphics.Color.WHITE), InsetDrawable(icon, 0.28f))
+            icon = reshaped(icon)
         } else if (icon !is AdaptiveIconDrawable && looks.on("normalize")) {
             icon = normalized(icon)
         }
@@ -319,6 +346,22 @@ class Icons(private val context: Context, private val looks: Looks) {
     }
 
     private fun flat(icon: Drawable) = flatIcon(context, icon, size)
+
+    /**
+     * A legacy icon as an adaptive one, so the shape clips it: one with a solid edge fills the shape on its own edge
+     * colour ([legacyFill]); any other sits on a white plate.
+     */
+    private fun reshaped(icon: Drawable): Drawable {
+        val n = 64
+        val bmp = Bitmap.createBitmap(n, n, Bitmap.Config.ARGB_8888)
+        icon.setBounds(0, 0, n, n); icon.draw(Canvas(bmp))
+        val px = IntArray(n * n).also { bmp.getPixels(it, 0, n, 0, 0, n, n) }
+        val (color, extent) = legacyFill(px, n) ?: return AdaptiveIconDrawable(ColorDrawable(android.graphics.Color.WHITE), InsetDrawable(icon, 0.28f))
+        // The layer is 108 units with the shape's 72 in its middle: the icon's visible part is scaled to just past
+        // the shape's edge (1.04), so its own rounded corners are clipped away and its edge colour fills the rest.
+        val inset = ((1 - 2 * 1.04f / (3 * extent)) / 2).coerceIn(-0.25f, 0.4f)
+        return AdaptiveIconDrawable(ColorDrawable(color), InsetDrawable(icon, inset))
+    }
 
     /** Scales a legacy icon so its visible (non-transparent) part fills [NORMAL_FILL] of the icon box. */
     private fun normalized(icon: Drawable): Drawable {

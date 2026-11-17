@@ -33,6 +33,24 @@ class OfflineFeaturesTest {
     }
 
     @Test
+    fun legacyIconFill() {
+        val n = 32
+        val orange = 0xFFF57C00.toInt()
+        // An orange disc with a white mark inside, on transparent: fills the shape in orange.
+        val disc = IntArray(n * n) { i ->
+            val dx = i % n - 15.5; val dy = i / n - 15.5
+            val d = Math.hypot(dx, dy)
+            when { d < 6 -> -1; d < 14 -> orange; else -> 0 }
+        }
+        val (color, extent) = legacyFill(disc, n)!!
+        assertEquals(orange, color)
+        assertEquals(28f / n, extent, 0.05f)
+        // Left half red, right half blue: no one edge colour, so a white plate.
+        assertNull(legacyFill(IntArray(n * n) { i -> if (i % n < n / 2) 0xFFFF0000.toInt() else 0xFF0000FF.toInt() }, n))
+        assertNull(legacyFill(IntArray(n * n), n))
+    }
+
+    @Test
     fun search() {
         assertEquals(SEARCH_ENGINES.size, SEARCH_ENGINE_NAMES.size)
         assertNull(searchUrl("browser", "x"))
