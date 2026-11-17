@@ -692,7 +692,7 @@ private fun MainActivity.pickPackIcon(pkg: String, onPicked: (String) -> Unit) {
         setContentView(panel)
         window?.apply { setLayout(-1, -1); setBackgroundDrawable(android.graphics.drawable.ColorDrawable(m3.surface)) }
         setOnDismissListener { loader.shutdownNow(); dialogs -= d }
-        dialogs += d
+        dialogs += this // not d: it's assigned only after apply returns
         show()
     }
 }
