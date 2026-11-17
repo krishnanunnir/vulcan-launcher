@@ -853,7 +853,8 @@ class MainActivity : VulcanActivity() {
     /** Label and icon for any non-widget item, or null when its app is gone. */
     fun resolve(item: Item): Pair<CharSequence, Drawable>? = when {
         item.folder -> item.label to (icons.custom(item.icon) ?: folderIcon(item.children))
-        item.isAction -> item.label.ifEmpty { actionName(item.action, ::appLabel) } to
+        // The settings shortcut wears the app icon, so it takes the app's short name; "Launcher settings" didn't fit.
+        item.isAction -> item.label.ifEmpty { if (item.action == "settings") getString(R.string.app_name) else actionName(item.action, ::appLabel) } to
             (icons.custom(item.icon) ?: if (item.action == "settings") packageManager.getApplicationIcon(applicationInfo)
             else GlyphIcon(m3.primaryContainer, m3.onPrimaryContainer, symbol = when {
                 item.action.startsWith("page:") -> "carousel"
