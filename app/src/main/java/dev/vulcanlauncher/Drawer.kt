@@ -340,13 +340,13 @@ class Drawer(private val a: MainActivity) {
         addView(tabs, FrameLayout.LayoutParams(-2, -2))
     }
     private val grid = GridView(a).apply {
-        // Glass and housing: no scrollbar; rows fade out at the edges instead of being cut by the status bar or search bar.
-        if (styleName == "glass" || styleName == "housing") { isVerticalScrollBarEnabled = false; isVerticalFadingEdgeEnabled = true; setFadingEdgeLength((32 * a.dp).toInt()) }
+        // No scrollbar (the letter index scrolls); rows fade out at the edges instead of being cut by the tabs, status bar or search bar.
+        isVerticalScrollBarEnabled = false; isVerticalFadingEdgeEnabled = true; setFadingEdgeLength((32 * a.dp).toInt())
     }
     private val peek = GridView(a).apply {
         visibility = View.GONE
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-        if (styleName == "glass" || styleName == "housing") { isVerticalScrollBarEnabled = false; isVerticalFadingEdgeEnabled = true; setFadingEdgeLength((32 * a.dp).toInt()) }
+        isVerticalScrollBarEnabled = false; isVerticalFadingEdgeEnabled = true; setFadingEdgeLength((32 * a.dp).toInt())
     }
     /** Shown when a search matches no app or contact. */
     private val empty = a.text("", 15f, a.m3.onSurfaceVariant).apply { gravity = Gravity.CENTER; visibility = View.GONE }
