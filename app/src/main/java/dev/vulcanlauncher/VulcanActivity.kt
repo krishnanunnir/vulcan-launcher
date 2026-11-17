@@ -112,9 +112,9 @@ abstract class VulcanActivity : Activity() {
     }
     private var scrim: View? = null
 
-    /** The dim behind open dialogs, as the system's (styleDialog's lighter scrim), faded in and out. */
+    /** The dim behind open dialogs (50%, so a sheet's top edge stands out from the drawer behind it), faded in and out. */
     protected fun dialogScrim(on: Boolean) {
-        val v = scrim ?: View(this).apply { setBackgroundColor(0x52000000) }.also { scrim = it }
+        val v = scrim ?: View(this).apply { setBackgroundColor(0x80000000.toInt()) }.also { scrim = it }
         if (on && v.parent !== root) { (v.parent as? ViewGroup)?.removeView(v); v.alpha = 0f; root.addView(v, FrameLayout.LayoutParams(-1, -1)) }
         v.animate().alpha(if (on) 1f else 0f).setDuration(150).withEndAction { if (!on) root.removeView(v) }.start()
     }
