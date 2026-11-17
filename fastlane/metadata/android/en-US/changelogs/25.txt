@@ -1,0 +1,7 @@
+Fix: choosing an icon from an icon pack no longer crashes the launcher.
+Drawer rows fade at the edges; the selected tab is filled.
+Pages and the Now page keep the wallpaper and hide home behind them.
+Folders follow the icon shape on new installs.
+Arrange apps by dragging. Icon shapes show previews.
+Clearer locked Private tab, sheets, swatches and wording.
+Night mode moves into Look & feel.
