@@ -63,7 +63,6 @@
     <string name="cat_gestures">Свайпы, касания, сведение и разведение пальцев, кнопка «Домой»</string>
     <string name="cat_home">Сетка, док, подписи, прокрутка и виджеты</string>
     <string name="cat_look">Набор значков, формы, цвета и анимация</string>
-    <string name="cat_night">Тёмные панели и их расписание</string>
     <string name="cat_now">Карточки на странице «Сейчас»</string>
     <string name="charged">Заряжено</string>
     <string name="charging">Зарядка · %1$d%%</string>

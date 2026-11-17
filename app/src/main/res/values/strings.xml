@@ -319,8 +319,7 @@
     <string name="cat_dock">Icons, pages and background</string>
     <string name="cat_drawer">Layout, sorting, hidden apps and groups</string>
     <string name="cat_folders">Previews, backgrounds and windows</string>
-    <string name="cat_look">Icon pack, shapes, colors and animation</string>
-    <string name="cat_night">Dark panels and their schedule</string>
+    <string name="cat_look">Icons, colors, night mode and animation</string>
     <string name="cat_badges">Notification dots and counts</string>
     <string name="cat_gestures">Swipes, taps, pinches and the home button</string>
     <string name="cat_now">Cards on the Now page</string>

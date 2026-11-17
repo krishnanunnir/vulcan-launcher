@@ -18,7 +18,6 @@ GROUPS = {
     "DRAWER": "App drawer",
     "FOLDERS": "Folders",
     "LOOK": "Look & feel",
-    "NIGHT": "Night mode",
     "BADGES": "Notification badges",
     "GESTURES": "Gestures & inputs",
     "NOW": "Now page",

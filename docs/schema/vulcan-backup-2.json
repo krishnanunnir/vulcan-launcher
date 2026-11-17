@@ -233,6 +233,14 @@
         },
         {
           "keys": [
+            "nightMode",
+            "nightStart",
+            "nightEnd"
+          ],
+          "title": "Night mode"
+        },
+        {
+          "keys": [
             "launchAnim",
             "wiggle",
             "blur"
@@ -249,18 +257,6 @@
         }
       ],
       "group": "Look & feel"
-    },
-    {
-      "title": "Night mode",
-      "sections": [{
-        "keys": [
-          "nightMode",
-          "nightStart",
-          "nightEnd"
-        ],
-        "title": ""
-      }],
-      "group": "Night mode"
     },
     {
       "title": "Notification badges",
@@ -1420,7 +1416,7 @@
             "10": "10:00",
             "21": "21:00"
           },
-          "description": "Night mode.",
+          "description": "Look & feel.",
           "title": "Schedule end",
           "enum": [
             "0",
@@ -1557,7 +1553,7 @@
             "10": "10:00",
             "21": "21:00"
           },
-          "description": "Night mode.",
+          "description": "Look & feel.",
           "title": "Schedule start",
           "enum": [
             "0",
@@ -2764,7 +2760,7 @@
             "off": "Off",
             "on": "Always on"
           },
-          "description": "Night mode. Values: off (Off), on (Always on), system (Follow system), schedule (Schedule), sun (Sunset to sunrise (location)).",
+          "description": "Look & feel. Values: off (Off), on (Always on), system (Follow system), schedule (Schedule), sun (Sunset to sunrise (location)).",
           "title": "Night mode",
           "enum": [
             "off",

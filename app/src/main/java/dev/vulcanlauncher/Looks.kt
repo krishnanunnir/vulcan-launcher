@@ -50,7 +50,6 @@ const val DOCK_GROUP = "Dock"
 const val DRAWER = "App drawer"
 const val FOLDERS = "Folders"
 const val LOOK = "Look & feel"
-const val NIGHT = "Night mode"
 const val BADGES = "Notification badges"
 const val GESTURES = "Gestures & inputs"
 const val NOW = "Now page"
@@ -60,7 +59,7 @@ const val TABS_GROUP = "Drawer tabs"
 const val DRAWER_FOLDERS = "Drawer folders"
 /** Settings groups are identified by their English names (kept in saved state and backups); these are their titles. */
 val GROUP_TITLES = mapOf(HOME to R.string.group_home, DOCK_GROUP to R.string.group_dock, DRAWER to R.string.group_drawer,
-    FOLDERS to R.string.group_folders, LOOK to R.string.group_look, NIGHT to R.string.group_night, BADGES to R.string.group_badges,
+    FOLDERS to R.string.group_folders, LOOK to R.string.group_look, BADGES to R.string.group_badges,
     GESTURES to R.string.group_gestures, NOW to R.string.group_now, SEARCH_GROUP to R.string.group_search,
     TABS_GROUP to R.string.group_tabs, DRAWER_FOLDERS to R.string.group_drawer_folders)
 
@@ -166,9 +165,9 @@ val LOOKS = listOf(
     onOff(LOOK, "popupNotifications", R.string.set_popupNotifications, true),
     onOff(LOOK, "undoBar", R.string.set_undoBar, true),
 
-    Choice(NIGHT, "nightMode", R.string.set_nightMode, "system", NIGHT_MODES, NIGHT_MODE_NAMES),
-    Choice(NIGHT, "nightStart", R.string.set_nightStart, "20", range(0, 23), shown = range(0, 23).map { "$it:00" }),
-    Choice(NIGHT, "nightEnd", R.string.set_nightEnd, "7", range(0, 23), shown = range(0, 23).map { "$it:00" }),
+    Choice(LOOK, "nightMode", R.string.set_nightMode, "system", NIGHT_MODES, NIGHT_MODE_NAMES),
+    Choice(LOOK, "nightStart", R.string.set_nightStart, "20", range(0, 23), shown = range(0, 23).map { "$it:00" }),
+    Choice(LOOK, "nightEnd", R.string.set_nightEnd, "7", range(0, 23), shown = range(0, 23).map { "$it:00" }),
 
     Choice(BADGES, "badges", R.string.set_badges, "off", listOf("off", "dots", "numeric", "dynamic"), listOf(R.string.badges_off, R.string.badges_dots, R.string.badges_numeric, R.string.badges_dynamic)),
     Choice(BADGES, "badgePos", R.string.set_badgePos, "topRight", listOf("topLeft", "topRight", "bottomLeft", "bottomRight"), listOf(R.string.badgePos_topleft, R.string.badgePos_topright, R.string.badgePos_bottomleft, R.string.badgePos_bottomright)),
@@ -230,6 +229,7 @@ val SECTIONS: Map<String, List<Pair<Int, List<String>>>> = mapOf(
     LOOK to listOf(
         R.string.sec_icons to listOf("iconPack", "shape", "reshape", "autogen", "normalize", "themedIcons", "iconShadow"),
         R.string.sec_colors to listOf("accent", "@colors"),
+        R.string.group_night to listOf("nightMode", "nightStart", "nightEnd"),
         R.string.sec_animation to listOf("launchAnim", "wiggle", "blur"),
         R.string.sec_popups to listOf("popupShortcuts", "popupNotifications", "undoBar"),
     ),

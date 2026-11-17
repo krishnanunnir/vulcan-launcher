@@ -63,7 +63,6 @@
     <string name="cat_gestures">Wischgesten, Tippen, Zoomgesten und Home-Taste</string>
     <string name="cat_home">Raster, Dock, Beschriftungen, Scrollen und Widgets</string>
     <string name="cat_look">Symbolpaket, Formen, Farben und Animation</string>
-    <string name="cat_night">Dunkle Panels und ihr Zeitplan</string>
     <string name="cat_now">Karten auf der Jetzt-Seite</string>
     <string name="charged">Geladen</string>
     <string name="charging">Wird geladen · %1$d%%</string>

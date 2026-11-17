@@ -32,7 +32,6 @@ private val CATEGORY_INFO = mapOf(
     DRAWER to ("apps" to R.string.cat_drawer),
     FOLDERS to ("folder" to R.string.cat_folders),
     LOOK to ("palette" to R.string.cat_look),
-    NIGHT to ("moon" to R.string.cat_night),
     BADGES to ("badge" to R.string.cat_badges),
     GESTURES to ("gesture" to R.string.cat_gestures),
     NOW to ("sun" to R.string.cat_now),
@@ -260,7 +259,7 @@ private fun SettingsActivity.settingsHome(page: LinearLayout): (String) -> Unit 
     }
     // As Nova 8.9.4's two tabs: what goes where, then how it looks.
     panel(list, getString(R.string.settings), listOf(HOME, DRAWER, FOLDERS, SEARCH_GROUP, GESTURES, NOW, BADGES).map(::category))
-    panel(list, getString(R.string.panel_style), listOf(LOOK, NIGHT).map(::category) +
+    panel(list, getString(R.string.panel_style), listOf(LOOK).map(::category) +
         listItem(symbol("link", m3.onPrimaryContainer), getString(R.string.share_style_link),
             getString(R.string.share_style_info), tonalIcon = true) { shareStyle() })
     panel(list, getString(R.string.panel_launcher), listOf(
