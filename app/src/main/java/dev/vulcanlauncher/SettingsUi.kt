@@ -378,6 +378,9 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
         c.key == "dockAlpha" && looks.str("dockBg") in listOf("housing", "glass", "none") || c.key == "dockColor" && looks.str("dockBg") == "none" ->
             listItem(null, getString(c.title), if (looks.str("dockBg") == "none") getString(R.string.dock_shadow_no_bg)
                 else getString(R.string.not_used_by_bg, valueName(LOOKS.first { it.key == "dockBg" }))) { pick(c) }.apply { alpha = 0.5f }
+        // Badge options while badges are off: dimmed and saying so, still pickable, as the dock's.
+        c.group == BADGES && c.key != "badges" && looks.str("badges") == "off" ->
+            listItem(null, getString(c.title), getString(R.string.badges_off_unused)) { pick(c) }.apply { alpha = 0.5f }
         // AMOLED Black is always dark, whatever the panel theme says.
         c.key == "drawerTheme" && looks.str("accent") == "amoled" ->
             listItem(null, getString(c.title), getString(R.string.panels_amoled)) { pick(c) }.apply { alpha = 0.5f }
