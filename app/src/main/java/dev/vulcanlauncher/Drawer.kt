@@ -413,6 +413,14 @@ class Drawer(private val a: MainActivity) {
 
     /** On the Private tab: the space's name and state, and a lock/unlock button. */
     private val privateBar = LinearLayout(a).apply { gravity = Gravity.CENTER_VERTICAL; visibility = View.GONE }
+    /** The locked Private tab: a closed padlock, the state, and an Unlock button, centred where the apps would be. */
+    private val privateLockedView = LinearLayout(a).apply {
+        orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; visibility = View.GONE
+        addView(android.widget.ImageView(a).apply { setImageDrawable(a.symbol("lock", a.m3.onSurfaceVariant, 48f)); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO })
+        addView(a.text(a.getString(R.string.private_locked), 16f, a.m3.onSurface).apply { gravity = Gravity.CENTER },
+            LinearLayout.LayoutParams(-2, -2).apply { topMargin = (16 * a.dp).toInt(); bottomMargin = (20 * a.dp).toInt() })
+        addView(a.tonalButton(a.getString(R.string.unlock)) { a.setPrivateLocked(false) }, LinearLayout.LayoutParams(-2, -2))
+    }
     /** As Nova: the most-launched apps in their own row above the list, in every style; they stay in the list too. */
     private val frequentRow = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
 
@@ -497,6 +505,7 @@ class Drawer(private val a: MainActivity) {
         val content = FrameLayout(a)
         if (styleName == "pages") content.addView(pager) else { content.addView(peek); content.addView(grid) }
         content.addView(empty, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER).apply { setMargins(pad * 2, 0, pad * 2, 0) })
+        content.addView(privateLockedView, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
         if (letterIndex) content.addView(index, FrameLayout.LayoutParams((28 * a.dp).toInt(), -1, Gravity.END))
         if (fromBottom) addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
         // Nova: above the tabs, except horizontal pages, where it sits under them. A divider closes it off.
@@ -879,7 +888,10 @@ class Drawer(private val a: MainActivity) {
         val order = withWorkSlot(this.groups().filter { it.type == "tab" }.map { it.name }, a.store.data.getInt(WORK_AT, 0))
             .filter { if (it == WORK_SLOT) workTab else it in shownTabs }.map { if (it == WORK_SLOT) "work" else it }
         buildTabs(groups, order, privateTab, q.isEmpty())
-        privateBar.visibility = if (q.isEmpty() && tab == "private") View.VISIBLE else View.GONE
+        // Locked, the centred lock takes over; the bar (state, install, lock) is for the open space.
+        val locked = a.privateLocked
+        privateLockedView.visibility = if (q.isEmpty() && tab == "private" && locked) View.VISIBLE else View.GONE
+        privateBar.visibility = if (q.isEmpty() && tab == "private" && !locked) View.VISIBLE else View.GONE
         if (privateBar.visibility == View.VISIBLE) buildPrivateBar()
         // Warm the first two screens off the UI thread; the rest is prefetched as the list scrolls (see Adapter).
         a.prefetchIcons(entries.filterIsInstance<Entry.AppE>().map { it.app }.take(cols * rows * 2))
