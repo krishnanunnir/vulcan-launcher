@@ -695,7 +695,8 @@ private fun MainActivity.pickPackIcon(pkg: String, onPicked: (String) -> Unit) {
 /** Every app with a checkbox, for hiding apps or filling a drawer group; [onSave] gets the apps checked. */
 /** [others]: each app's other groups, shown under its name so a tab's apps can be picked from those not yet sorted (#55). */
 fun VulcanActivity.appSwitches(title: String, on: Collection<String>, others: Map<String, List<String>> = emptyMap(), onSave: (List<String>) -> Unit) {
-    val all = home.apps.values.sortedWith(compareBy(labelOrder()) { home.label(it) })
+    // Ticked apps first, as Supernova's app checklist: what's chosen is in view without searching.
+    val all = home.apps.values.sortedWith(compareBy<App> { it.key !in on }.thenBy(labelOrder()) { home.label(it) })
     var list = all
     val chosen = on.toMutableSet()
     val adapter = object : BaseAdapter() {
@@ -726,7 +727,7 @@ fun VulcanActivity.appSwitches(title: String, on: Collection<String>, others: Ma
     }
     val lv = android.widget.ListView(this).apply { this.adapter = adapter; divider = null }
     // A long app list is quicker to search than to scroll. Ticks survive the filter: they're kept by app, not by row.
-    val search = field("", getString(R.string.search_apps)).apply {
+    val search = searchField(getString(R.string.search_apps)).apply {
         addTextChangedListener(object : android.text.TextWatcher {
             override fun afterTextChanged(e: android.text.Editable?) {
                 val q = e.toString().trim()

@@ -292,6 +292,20 @@ fun VulcanActivity.listItem(icon: Drawable?, title: CharSequence, summary: CharS
     trailing?.let { addView(it, ((it.layoutParams as? LinearLayout.LayoutParams) ?: LinearLayout.LayoutParams(-2, -2)).apply { marginStart = (16 * dp).toInt() }) }
 }
 
+/** A search field shaped as the drawer's: a 56 dp pill (the housing's recessed well) with a leading search glyph. */
+fun VulcanActivity.searchField(hintText: String) = android.widget.EditText(this).apply {
+    hint = hintText
+    setSingleLine()
+    textSize = 16f
+    setTextColor(m3.onSurface)
+    setHintTextColor(m3.onSurfaceVariant)
+    minHeight = (56 * dp).toInt()
+    setPaddingRelative((16 * dp).toInt(), 0, (16 * dp).toInt(), 0)
+    compoundDrawablePadding = (12 * dp).toInt()
+    setCompoundDrawablesRelative(symbol("search", m3.onSurfaceVariant).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
+    background = if (m3.housing) well(28 * dp) else rounded(m3.surfaceHighest, 28 * dp)
+}
+
 /** M3 outlined text field: 56 dp tall, a 4 dp corner, the outline turning primary while focused. */
 fun VulcanActivity.field(value: String, hintText: String) = android.widget.EditText(this).apply {
     setText(value)
