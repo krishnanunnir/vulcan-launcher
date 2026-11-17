@@ -1042,14 +1042,13 @@ class Drawer(private val a: MainActivity) {
             order.map { it to if (it == "work") a.getString(R.string.tab_work) else it }
         tabScroll.visibility = if (show && names.size > 1) View.VISIBLE else View.GONE
         tabKeys = if (tabScroll.visibility == View.VISIBLE) names.map { it.first } else emptyList()
-        // Nova's tab bar: plain text tabs, the selected one brighter with a bar under its name. Housing: a raised key;
-        // the others are plain legends. Selected or not, a tab is the same width, so the rows never rewrap on a switch.
+        // The selected tab is a solid ink chip (a raised key in housing); the others are plain legends with no border. Selected or not, a tab is the same width, so the rows never rewrap on a switch.
         for ((key, title) in names) {
             val on = key == tab
             // A tab's own colour (set in its editor, as Nova's) marks it while selected: the bar, or the housing key's fill.
             val own = groups.firstOrNull { it.name == key && it.type == "tab" }?.color?.let(android.graphics.Color::parseColor)
             val chip = !housing
-            val ink = when { own != null -> onColor(own); !housing -> a.m3.onSecondaryContainer; else -> a.m3.onSurface }
+            val ink = onColor(own ?: a.tabFill())
             tabs.addView(a.text(title, 14f, if (on) ink else a.m3.onSurfaceVariant, medium = true).apply {
                 gravity = Gravity.CENTER
                 isSelected = on
@@ -1059,7 +1058,7 @@ class Drawer(private val a: MainActivity) {
                 setPaddingRelative(p, 0, p, 0)
                 background = a.pressable(when {
                     housing -> if (on) a.rounded(own ?: a.tabFill(), 16 * a.dp, if (a.m3.dark) 0x1FFFFFFF else 0x14000000, a.dp / 2) else null
-                    chip -> if (on) a.rounded(own ?: a.tabFill(), 8 * a.dp) else a.rounded(0, 8 * a.dp, a.m3.outlineVariant)
+                    chip -> if (on) a.rounded(own ?: a.tabFill(), 8 * a.dp) else null
                     else -> null
                 }, if (housing) 16 * a.dp else 8 * a.dp)
                 // A swipe still settling would otherwise land after this and take its tab back.

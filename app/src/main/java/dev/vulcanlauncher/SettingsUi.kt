@@ -967,10 +967,10 @@ private fun SettingsActivity.tabsPage(list: LinearLayout) {
         val p = (8 * dp).toInt(); setPadding(p, p, p, p)
         shownNames.forEachIndexed { i, n ->
             val on = i == 0
-            addView(text(n, 13f, if (on) m3.onSecondaryContainer else m3.onSurfaceVariant, medium = true).apply {
+            addView(text(n, 13f, if (on) onColor(tabFill()) else m3.onSurfaceVariant, medium = true).apply {
                 gravity = Gravity.CENTER; setSingleLine()
                 val p = (12 * dp).toInt(); setPadding(p, 0, p, 0)
-                background = if (on) rounded(tabFill(), 8 * dp) else rounded(0, 8 * dp, m3.outlineVariant)
+                background = if (on) rounded(tabFill(), 8 * dp) else null
             })
         }
     }
@@ -1242,8 +1242,8 @@ fun VulcanActivity.deleteGroup(g: Group) {
     d.getButton(android.app.AlertDialog.BUTTON_POSITIVE)?.setTextColor(m3.error)
 }
 
-/** The selected tab's fill when the tab has no colour of its own. */
-fun VulcanActivity.tabFill() = if (m3.housing) m3.raised else m3.secondaryContainer
+/** The selected tab's fill when the tab has no colour of its own: solid ink, so it stands out from the plain ones (0.32). */
+fun VulcanActivity.tabFill() = m3.onSurface
 
 private fun VulcanActivity.colorDot(c: Int) = GradientDrawable().apply {
     shape = GradientDrawable.OVAL; setColor(c); setStroke(dp.toInt(), m3.outlineVariant); setSize((24 * dp).toInt(), (24 * dp).toInt())
