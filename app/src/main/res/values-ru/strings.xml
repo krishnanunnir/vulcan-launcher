@@ -834,4 +834,11 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     </plurals>
     <string name="folderbg_icon">Как у значков</string>
     <string name="set_badgeShape">Форма</string>
+    <string name="badges_off_unused">Не используется, пока значки уведомлений выключены</string>
+    <string name="choose_hidden_apps">Выбрать скрытые приложения</string>
+    <string name="default_home_is">Vulcan используется как главный экран</string>
+    <string name="default_page_one">Добавьте ещё одну страницу, чтобы выбрать страницу по умолчанию</string>
+    <string name="tab_private_fixed">Всегда после вкладки «Все приложения»</string>
+    <string name="work_paused">Рабочий профиль приостановлен</string>
+    <string name="work_resumed">Рабочий профиль включён</string>
 </resources>

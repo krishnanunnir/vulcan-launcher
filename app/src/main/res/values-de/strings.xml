@@ -791,4 +791,11 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     </plurals>
     <string name="folderbg_icon">Wie bei den App-Symbolen</string>
     <string name="set_badgeShape">Form</string>
+    <string name="badges_off_unused">Wird nicht verwendet, solange Benachrichtigungs-Badges deaktiviert sind</string>
+    <string name="choose_hidden_apps">Versteckte Apps auswählen</string>
+    <string name="default_home_is">Vulcan ist als Standard-Start-App festgelegt</string>
+    <string name="default_page_one">Füge eine weitere Seite hinzu, um die Standardseite auswählen zu können</string>
+    <string name="tab_private_fixed">Immer nach dem Tab „Alle Apps“</string>
+    <string name="work_paused">Arbeitsprofil pausiert</string>
+    <string name="work_resumed">Arbeitsprofil aktiviert</string>
 </resources>
