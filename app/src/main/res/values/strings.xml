@@ -52,7 +52,7 @@
     <string name="set_widgetRadius">Widget corner radius</string>
     <string name="set_autoAdd">Add icons of new apps to home screen</string>
     <string name="set_hideClock">Hide the status bar clock</string>
-    <string name="set_hideClock_info">On the home screen. Needs a one-time adb grant</string>
+    <string name="set_hideClock_info">On the home screen. Needs a one-time permission given from a computer</string>
     <string name="set_statusBar">Notification bar</string>
     <string name="statusBar_show">Show</string>
     <string name="statusBar_hide">Hide</string>
@@ -638,7 +638,7 @@
     <string name="low_contrast_info">With this color some text would have a contrast of %1$s:1, under the %2$s:1 it needs to read easily.</string>
     <string name="save_anyway">Save anyway</string>
     <string name="set_drawerSearch">Search bar</string>
-    <string name="drawerSearch_style">Where the drawer style puts it</string>
+    <string name="drawerSearch_style">Follows the drawer style</string>
     <string name="labelSize_home">Same as home screen</string>
     <string name="action_torch">Toggle flashlight</string>
     <string name="action_locklayout">Lock or unlock layout</string>
@@ -654,7 +654,7 @@
     <string name="backup_to_file">Save a backup</string>
     <string name="backup_to_file_info">Your layout and every setting, in one file you choose</string>
     <string name="restore_from_file">Restore from a file</string>
-    <string name="restore_from_file_info">Replaces the layout and settings with a backup\'s</string>
+    <string name="restore_from_file_info">Replaces your layout and settings with the ones in a backup file</string>
     <string name="restore_auto">Automatic backup</string>
     <string name="restore_auto_info">Saved %1$s</string>
     <string name="restore_auto_none">No automatic backups yet</string>
