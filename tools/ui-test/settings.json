@@ -1253,7 +1253,7 @@
   "group": "Folders",
   "key": "folderBg",
   "title": "Folder background",
-  "default": "square",
+  "default": "icon",
   "values": [
    "none",
    "circle",

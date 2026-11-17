@@ -137,7 +137,7 @@ val LOOKS = listOf(
     onOff(SEARCH_GROUP, "contactSearch", R.string.set_contactSearch, false, R.string.set_contactSearch_info),
 
     Choice(FOLDERS, "folderPreview", R.string.set_folderPreview, "grid", PREVIEWS, PREVIEW_NAMES),
-    Choice(FOLDERS, "folderBg", R.string.set_folderBg, "square", FOLDER_BGS, FOLDER_BG_NAMES),
+    Choice(FOLDERS, "folderBg", R.string.set_folderBg, "icon", FOLDER_BGS, FOLDER_BG_NAMES),
     color(FOLDERS, "folderColor", R.string.set_folderColor, "system", themed = true),
     // The open folder's window, as the drawer's Background opacity.
     percent(FOLDERS, "folderAlpha", R.string.set_drawerAlpha, "100"),
@@ -258,9 +258,16 @@ class Looks(context: Context) {
      * with, so its layout doesn't change under it. Runs once.
      */
     fun adoptDefaults(upgrade: Boolean) {
-        if (prefs.contains("defaults")) return
-        val e = prefs.edit().putString("defaults", "nova")
-        if (upgrade) PRE_NOVA_DEFAULTS.forEach { (k, v) -> if (!prefs.contains(k)) e.putString(k, v) }
+        val e = prefs.edit()
+        if (!prefs.contains("defaults")) {
+            e.putString("defaults", "nova")
+            if (upgrade) PRE_NOVA_DEFAULTS.forEach { (k, v) -> if (!prefs.contains(k)) e.putString(k, v) }
+        }
+        // 0.32: folder icons follow the icon shape; an install from before keeps the square it had.
+        if (!prefs.contains("defaults032")) {
+            e.putString("defaults032", "on")
+            if (upgrade && !prefs.contains("folderBg")) e.putString("folderBg", "square")
+        }
         e.apply()
     }
 

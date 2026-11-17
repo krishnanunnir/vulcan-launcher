@@ -56,7 +56,12 @@ fun folderPreview(style: String, n: Int, firstBig: Boolean): List<Slot> {
             val a = -Math.PI / 2 + 2 * Math.PI * it / minOf(n, 6)
             Slot((0.5 + 0.28 * Math.cos(a)).toFloat(), (0.5 + 0.28 * Math.sin(a)).toFloat(), 0.3f)
         }
-        else -> listOf(Slot(0.3f, 0.3f, 0.38f), Slot(0.7f, 0.3f, 0.38f), Slot(0.3f, 0.7f, 0.38f), Slot(0.7f, 0.7f, 0.38f)).take(n)
+        // One or two icons sit on the middle row, not in the top half with the bottom left empty.
+        else -> when (n) {
+            1 -> listOf(Slot(0.5f, 0.5f, 0.38f))
+            2 -> listOf(Slot(0.3f, 0.5f, 0.38f), Slot(0.7f, 0.5f, 0.38f))
+            else -> listOf(Slot(0.3f, 0.3f, 0.38f), Slot(0.7f, 0.3f, 0.38f), Slot(0.3f, 0.7f, 0.38f), Slot(0.7f, 0.7f, 0.38f)).take(n)
+        }
     }
 }
 

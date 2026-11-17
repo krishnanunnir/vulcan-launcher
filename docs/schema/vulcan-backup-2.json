@@ -3062,7 +3062,7 @@
           "title": "Search bar color"
         },
         "folderBg": {
-          "default": "square",
+          "default": "icon",
           "x-names": {
             "square": "Square",
             "disc": "Disc",
