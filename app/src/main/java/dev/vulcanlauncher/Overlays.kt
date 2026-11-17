@@ -206,11 +206,11 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
     val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
     var row = LinearLayout(this)
     fun add(v: View) {
-        if (row.childCount == 0) grid.addView(row)
+        if (row.childCount == 0) grid.addView(row, LinearLayout.LayoutParams(-2, -2)) // centred by the grid's gravity
         row.addView(v, LinearLayout.LayoutParams(w, h + (24 * dp).toInt()).apply { setMargins((6 * dp).toInt(), (6 * dp).toInt(), (6 * dp).toInt(), (6 * dp).toInt()) })
         if (row.childCount == 3) row = LinearLayout(this)
     }
-    val hint = text(getString(if (locked) R.string.layout_locked else R.string.pages_hint), 14f, m3.onSurfaceVariant).apply { gravity = Gravity.CENTER }
+    val hint = text(getString(if (locked) R.string.layout_locked else R.string.pages_hint), 14f, 0xB3FFFFFF.toInt()).apply { gravity = Gravity.CENTER }
     val remove = text(getString(R.string.page_remove), 14f, medium = true).apply {
         gravity = Gravity.CENTER
         val p = (16 * dp).toInt()
@@ -219,8 +219,8 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
         visibility = View.INVISIBLE
         fun look(hover: Boolean) {
             isSelected = hover
-            val fg = if (hover) m3.onError else m3.onSurface
-            background = if (hover) rounded(m3.error, 24 * dp) else rounded(0, 24 * dp, m3.onSurface, 1.5f * dp)
+            val fg = if (hover) m3.onError else 0xFFFFFFFF.toInt()
+            background = if (hover) rounded(m3.error, 24 * dp) else rounded(0, 24 * dp, 0xFFFFFFFF.toInt(), 1.5f * dp)
             setTextColor(fg)
             setCompoundDrawablesRelative(symbol("delete", fg, 20f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
         }
@@ -263,19 +263,19 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
             isDuplicateParentStateEnabled = true
         }
         fun outline(hover: Boolean) {
-            thumb.background = rounded(m3.onSurface and 0xFFFFFF or 0x14000000, 16 * dp,
-                if (current || hover) m3.primary else m3.outlineVariant, (if (current || hover) 3 else 1) * dp)
+            thumb.background = rounded(0x14FFFFFF, 16 * dp,
+                if (current || hover) 0xFFFFFFFF.toInt() else 0x80FFFFFF.toInt(), (if (current || hover) 3 else 1) * dp)
         }
         outline(false)
         add(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             contentDescription = getString(R.string.page_n, i + 1)
             addView(thumb, LinearLayout.LayoutParams(w, h))
-            addView(text(getString(R.string.page_n, i + 1), 12f, if (i == default) m3.onSurface else m3.onSurfaceVariant, medium = i == default).apply {
+            addView(text(getString(R.string.page_n, i + 1), 12f, if (i == default) 0xFFFFFFFF.toInt() else 0xB3FFFFFF.toInt(), medium = i == default).apply {
                 gravity = Gravity.CENTER
                 setPadding((8 * dp).toInt(), (6 * dp).toInt(), (8 * dp).toInt(), 0)
                 compoundDrawablePadding = (4 * dp).toInt()
-                setCompoundDrawablesRelative(symbol("home", if (i == default) m3.primary else m3.outlineVariant, 14f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
+                setCompoundDrawablesRelative(symbol("home", if (i == default) 0xFFFFFFFF.toInt() else 0x80FFFFFF.toInt(), 14f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
                 contentDescription = "${getString(R.string.page_n, i + 1)}, ${getString(R.string.page_set_default)}"
                 setOnClickListener { looks["defaultPage"] = i.toString(); showOverview(enter = false) }
             }, LinearLayout.LayoutParams(-2, -2).apply { gravity = Gravity.CENTER_HORIZONTAL })
@@ -306,9 +306,9 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
     if (!locked && pages.size < 9) add(LinearLayout(this).apply {
         contentDescription = getString(R.string.page_add)
         addView(ImageView(context).apply {
-            setImageDrawable(symbol("add", m3.onSecondaryContainer, 32f))
+            setImageDrawable(symbol("add", 0xFFFFFFFF.toInt(), 32f))
             scaleType = ImageView.ScaleType.CENTER
-            background = pressable(rounded(m3.secondaryContainer, 16 * dp), 16 * dp, m3.onSecondaryContainer)
+            background = pressable(rounded(0x14FFFFFF, 16 * dp, 0x80FFFFFF.toInt(), dp), 16 * dp, 0xFFFFFFFF.toInt())
             isDuplicateParentStateEnabled = true
         }, LinearLayout.LayoutParams(w, h))
         setOnClickListener {
@@ -320,7 +320,8 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
     })
     val tiles = (0 until grid.childCount).flatMap { r -> (grid.getChildAt(r) as ViewGroup).let { row -> (0 until row.childCount).map(row::getChildAt) } }
     showOverlay(FrameLayout(this).apply {
-        setBackgroundColor(m3.surface and 0xFFFFFF or 0xD9000000.toInt())
+        // The wallpaper under a dark scrim, as an open folder's: the overview stays on home, not on a grey sheet.
+        setBackgroundColor(0xB3000000.toInt())
         setOnClickListener { closeOverlay() }
         // Takes every page drag and its stray drops, so they never reach the home screen's drop targets underneath.
         setOnDragListener { _, e ->
@@ -333,7 +334,7 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
         addView(LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(0, insets.top + (24 * dp).toInt(), 0, insets.bottom)
-            addView(text(getString(R.string.pages), 28f).apply { gravity = Gravity.CENTER })
+            addView(text(getString(R.string.pages), 28f, 0xFFFFFFFF.toInt()).apply { gravity = Gravity.CENTER })
             // The hint and the Remove target share one slot: Remove shows only while a page is held.
             addView(FrameLayout(context).apply {
                 addView(hint, FrameLayout.LayoutParams(-1, -1))
