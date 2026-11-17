@@ -384,6 +384,9 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
         // AMOLED Black is always dark, whatever the panel theme says.
         c.key == "drawerTheme" && looks.str("accent") == "amoled" ->
             listItem(null, getString(c.title), getString(R.string.panels_amoled)) { pick(c) }.apply { alpha = 0.5f }
+        // One page leaves nothing to choose between.
+        c.key == "defaultPage" && looks.int("pages") <= 1 ->
+            listItem(null, getString(c.title), getString(R.string.default_page_one)) {}.apply { alpha = 0.5f }
         c.values.size > 2 && c.values.all { it.toIntOrNull() != null } -> slider(c)
         else -> listItem(null, getString(c.title), valueName(c), trailing = swatch(c)) { pick(c) }
     }.apply { tag = c.key }
@@ -445,7 +448,7 @@ private fun SettingsActivity.badgeSample(shape: String): Drawable {
 private fun SettingsActivity.slider(c: Choice): View {
     val value = text(valueName(c), 14f, m3.onSurfaceVariant)
     val bar = android.widget.SeekBar(this).apply {
-        max = c.values.size - 1
+        max = if (c.key == "defaultPage") (looks.int("pages") - 1).coerceIn(1, c.values.size - 1) else c.values.size - 1
         progress = c.values.indexOf(looks[c]).coerceAtLeast(0)
         contentDescription = getString(c.title)
         val tint = android.content.res.ColorStateList.valueOf(m3.on)
