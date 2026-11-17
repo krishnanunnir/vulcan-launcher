@@ -1881,8 +1881,8 @@ class MainActivity : VulcanActivity() {
             val t = info.targetCells()
             val w = t?.first ?: ceil(info.minWidth / page.cellW.toFloat() / sub).toInt().coerceAtLeast(1)
             val h = t?.second ?: ceil(info.minHeight / page.cellH.toFloat() / sub).toInt().coerceAtLeast(1)
-            addView(TextView(context).apply { setTextColor(m3.onSurface); textSize = 14f; setPadding(0, pad / 4, 0, 0); text = "$label  ($w×$h)" })
-            contentDescription = "$label  ($w×$h)"
+            addView(TextView(context).apply { setTextColor(m3.onSurface); textSize = 14f; setPadding(0, pad / 4, 0, 0); text = "$label ($w×$h)" })
+            contentDescription = "$label ($w×$h)"
             setOnClickListener { d.dismiss(); addWidget(info) }
         }
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
