@@ -1,0 +1,7 @@
+Smoother drawer search: no more stutter while typing.
+No stutter going Home after changing settings.
+Home closes open pickers, such as the icon pack grid.
+Old-style icons fill the icon shape with their own colour.
+Folder labels can be turned off; hidden folder names hide the ⋮ too.
+Drawer rows go up to 12. Tabs wrap only with Infinite scroll.
+Apps of a paused work profile are greyed out.
