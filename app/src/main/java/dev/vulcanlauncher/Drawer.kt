@@ -134,10 +134,6 @@ fun tabApps(ordered: List<String>, groups: List<Group>, tab: String, hidden: Set
 /** [order] after arranging the apps [shown] as [arranged]: they take the front, the rest keep their order after them. */
 fun arranged(order: List<String>, arranged: List<String>) = arranged + (order - arranged.toSet())
 
-/** [list] with item [i] swapped with its neighbour [by] -1 (up) or 1 (down); unchanged at either end. */
-fun <T> moved(list: List<T>, i: Int, by: Int): List<T> =
-    if (i + by !in list.indices || i !in list.indices) list else list.toMutableList().apply { this[i] = list[i + by]; this[i + by] = list[i] }
-
 /** The row above the tabs: the [pinned] favourites when there are any, else the most [launches] apps; [shown] filters. */
 fun frequentApps(pinned: List<String>, launches: Map<String, Int>, shown: (String) -> Boolean, cols: Int): List<String> =
     pinned.filter(shown).ifEmpty { launches.filter { it.value > 0 && shown(it.key) }.entries.sortedByDescending { it.value }.map { it.key } }.take(cols)

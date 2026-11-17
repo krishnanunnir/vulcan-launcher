@@ -102,12 +102,6 @@ class ManualOrderTest {
         eq(listOf("c", "a", "b", "x"), arranged(listOf("a", "x", "b", "c"), listOf("c", "a", "b")))
         eq(listOf("b", "a"), arranged(emptyList(), listOf("b", "a")))
     }
-    @org.junit.Test fun movedSwapsNeighboursAndStopsAtEnds() {
-        eq(listOf("b", "a", "c"), moved(listOf("a", "b", "c"), 1, -1))
-        eq(listOf("a", "c", "b"), moved(listOf("a", "b", "c"), 1, 1))
-        eq(listOf("a", "b", "c"), moved(listOf("a", "b", "c"), 0, -1))
-        eq(listOf("a", "b", "c"), moved(listOf("a", "b", "c"), 2, 1))
-    }
     @org.junit.Test fun favouritesReplaceMostUsed() {
         val used = mapOf("a" to 5, "b" to 9, "c" to 0, "h" to 20)
         val shown = { k: String -> k != "h" && k != "gone" }

@@ -749,26 +749,28 @@ fun VulcanActivity.appSwitches(title: String, on: Collection<String>, others: Ma
 }
 
 /**
- * Puts [keys] in order with up and down buttons; Save hands back the new order.
- * ponytail: buttons, not drag handles; a ListView drag-reorder if long lists make this tedious.
+ * Puts [keys] in order by dragging the rows' handles (Move up/down for accessibility); Save hands back the new order.
+ * shortcut: the list doesn't scroll itself during a drag, so a long move takes a drag per screenful; add edge
+ * auto-scroll to Reorder if that gets tedious.
  */
 fun VulcanActivity.arrangeApps(title: String, keys: List<String>, onSave: (List<String>) -> Unit) {
     var order = keys.filter { it in home.apps }
-    val adapter = object : BaseAdapter() {
-        override fun getCount() = order.size
-        override fun getItem(p: Int) = order[p]
-        override fun getItemId(p: Int) = p.toLong()
-        override fun getView(p: Int, convert: View?, parent: ViewGroup): View {
-            val app = home.apps.getValue(order[p])
-            fun step(sym: String, label: Int, by: Int) = iconButton(sym, getString(label)) { order = moved(order, p, by); notifyDataSetChanged() }
-                .apply { isEnabled = p + by in order.indices; alpha = if (isEnabled) 1f else 0.38f }
-            val buttons = LinearLayout(this@arrangeApps).apply { addView(step("up", R.string.move_up, -1)); addView(step("down", R.string.move_down, 1)) }
-            return listItem(home.icon(app), home.label(app), trailing = buttons, appIcon = true, onClick = null)
+    val rows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, (8 * dp).toInt(), 0, 0) }
+    fun build() {
+        rows.removeAllViews()
+        val views = order.map { k ->
+            val app = home.apps.getValue(k)
+            listItem(home.icon(app), home.label(app), appIcon = true, onClick = null)
                 .apply { setPaddingRelative((24 * dp).toInt(), paddingTop, (12 * dp).toInt(), paddingBottom) }
         }
+        lateinit var rebuild: () -> Unit
+        val reorder = Reorder(this, views) { from, to -> order = moveItem(order, from, to); rebuild() }
+        rebuild = ::build
+        views.forEach { v -> if (views.size > 1) (v as LinearLayout).addView(reorder.handle(v)); rows.addView(v) }
     }
-    val lv = android.widget.ListView(this).apply { this.adapter = adapter; divider = null }
-    sheet().setTitle(title).setView(lv)
+    build()
+    val scroll = ScrollView(this).apply { addView(rows) }
+    sheet().setTitle(title).setView(scroll)
         .setPositiveButton(R.string.save) { _, _ -> onSave(order) }
         .setNegativeButton(R.string.cancel, null).show()
 }
