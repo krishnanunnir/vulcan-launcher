@@ -299,7 +299,7 @@ fun MainActivity.showNow(slide: Boolean = true) {
         // Clipped below the status bar, so the big clock doesn't scroll up under its icons.
         addView(ScrollView(context).apply { setPadding(0, insets.top, 0, 0); addView(list) })
     }
-    showOverlay(panel) { content.translationX = 0f }
+    showOverlay(panel) { content.translationX = 0f; content.alpha = 1f }
     // Back slides it out the way it came.
     overlayExit = { done -> panel.settle(false, done) }
     // Slides in from the left, the way the swipe right that opened it points; a live pull (pullNow) moves it itself.
@@ -335,7 +335,7 @@ fun MainActivity.pullNow(px: Float, vx: Float, end: Boolean): Boolean {
 class NowPanel(private val a: MainActivity) : FrameLayout(a) {
     private var anim: android.animation.ValueAnimator? = null
 
-    /** 0: off to the left, 1: open. Home sinks back and shifts a little right with it. */
+    /** 0: off to the left, 1: open. Home sinks back, shifts a little right and fades out with it. */
     var progress = 1f
         set(p) {
             field = p
@@ -343,6 +343,8 @@ class NowPanel(private val a: MainActivity) : FrameLayout(a) {
             translationX = (p - 1) * w
             a.setDepth(p)
             a.content.translationX = p * w * 0.2f
+            // Home fades with the slide, so no shifted ghost of it shows through the panel.
+            a.content.alpha = 1 - p
         }
 
     /** Animates to open or closed (then removes the page, or calls [done] when it's already leaving through Back). */
