@@ -356,6 +356,7 @@
     <string name="permissions_info">What the launcher can access</string>
     <string name="default_home">Default home app</string>
     <string name="default_home_info">Make Vulcan your home screen</string>
+    <string name="choose_hidden_apps">Choose hidden apps</string>
     <string name="restart">Restart launcher</string>
     <string name="about">About</string>
     <string name="contributors">Contributors</string>

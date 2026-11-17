@@ -1202,7 +1202,7 @@ class Drawer(private val a: MainActivity) {
             row("star", a.getString(R.string.favourites)) { a.chooseFavourites() }
             row("tabs", a.getString(R.string.group_tabs)) { settings(TABS_GROUP) }
             row("folder", a.getString(R.string.group_drawer_folders)) { settings(DRAWER_FOLDERS) }
-            row("hide", a.getString(R.string.hidden_apps)) { a.hideAppsMenu() }
+            row("hide", a.getString(R.string.choose_hidden_apps)) { a.hideAppsMenu() }
             row("settings", a.getString(R.string.launcher_settings)) { settings() }
         }
     }
