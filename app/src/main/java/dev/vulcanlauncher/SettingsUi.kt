@@ -337,8 +337,8 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
         val onPick = android.content.DialogInterface.OnClickListener { d, j -> d.dismiss(); applyChoice(c, c.values[j]); changed() }
         val d = sheet().setTitle(c.title).setSingleChoiceItems(names.toTypedArray(), checked, onPick)
             .setNegativeButton(R.string.cancel, null).create()
-        // Badge shapes are easier to pick from a sample than from a name (#82): wrap the sheet's own rows to keep their style.
-        if (c.key == "badgeShape") {
+        // Badge and icon shapes are easier to pick from a sample than from a name (#82): wrap the sheet's own rows to keep their style.
+        if (c.key == "badgeShape" || c.key == "shape") {
             d.create()
             val rows = d.listView.adapter
             d.listView.adapter = object : BaseAdapter() {
@@ -348,7 +348,7 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
                 override fun getView(i: Int, v: View?, parent: ViewGroup) = rows.getView(i, v, parent).also {
                     (it as android.widget.TextView).apply { // the start drawable is the row's radio button
                         val radio = compoundDrawablesRelative[0]
-                        setCompoundDrawablesRelative(radio, null, badgeSample(c.values[i]), null)
+                        setCompoundDrawablesRelative(radio, null, if (c.key == "shape") shapeSample(c.values[i]) else badgeSample(c.values[i]), null)
                     }
                 }
             }
@@ -401,6 +401,18 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
 }
 
 /** A numeric setting as an inline M3 slider, one stop per value, saved when the thumb is let go. */
+/** [shape] as a filled 36 dp icon blank, for the icon shape sheet. */
+private fun SettingsActivity.shapeSample(shape: String): Drawable = object : Drawable() {
+    private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = m3.outline }
+    override fun draw(canvas: android.graphics.Canvas) {
+        val b = bounds; val inset = b.width() / 9
+        canvas.drawPath(shapePath(shape, android.graphics.Rect(b.left + inset, b.top + inset, b.right - inset, b.bottom - inset)), paint)
+    }
+    override fun setAlpha(alpha: Int) {}
+    override fun setColorFilter(cf: android.graphics.ColorFilter?) {}
+    @Deprecated("Deprecated in Java") override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
+}.apply { val px = (36 * dp).toInt(); setBounds(0, 0, px, px) }
+
 /** A small icon wearing a badge of [shape], in the badge colour and position. */
 private fun SettingsActivity.badgeSample(shape: String): Drawable {
     val color = looks.color("badgeColor"); val pos = looks.str("badgePos"); val iconColor = m3.primaryContainer
