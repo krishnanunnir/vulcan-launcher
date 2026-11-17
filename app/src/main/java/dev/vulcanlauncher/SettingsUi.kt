@@ -266,12 +266,12 @@ private fun SettingsActivity.settingsHome(page: LinearLayout): (String) -> Unit 
     panel(list, getString(R.string.panel_launcher), listOf(
         listItem(symbol("archive", m3.onPrimaryContainer), getString(R.string.backup_restore), getString(R.string.backup_restore_info), tonalIcon = true) { showPage(BACKUP) },
         listItem(symbol("shield", m3.onPrimaryContainer), getString(R.string.permissions), getString(R.string.permissions_info), tonalIcon = true) { showPage(PERMISSIONS) },
-        listItem(symbol("home", m3.onPrimaryContainer), getString(R.string.default_home), getString(R.string.default_home_info), tonalIcon = true) {
+        listItem(symbol("home", m3.onPrimaryContainer), getString(R.string.default_home), getString(if (runCatching { home.launcherApps.hasShortcutHostPermission() }.getOrDefault(false)) R.string.default_home_is else R.string.default_home_info), tonalIcon = true) {
             startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
         },
         listItem(symbol("refresh", m3.onPrimaryContainer), getString(R.string.restart), null, tonalIcon = true) { restartHome() },
         listItem(symbol("person", m3.onPrimaryContainer), getString(R.string.contributors), getString(R.string.contrib_info), tonalIcon = true) { showPage(CONTRIBUTORS_PAGE) },
-        listItem(symbol("info", m3.onPrimaryContainer), getString(R.string.about), getString(R.string.version, versionName), tonalIcon = true) {
+        listItem(symbol("info", m3.onPrimaryContainer), getString(R.string.about), null, tonalIcon = true) {
             dialog().setTitle(R.string.app_name).setIcon(R.mipmap.ic_launcher)
                 .setMessage(R.string.about_text)
                 .setNeutralButton(R.string.privacy_policy) { _, _ -> showPrivacyPolicy() }
