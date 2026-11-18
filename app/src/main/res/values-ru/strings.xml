@@ -841,4 +841,5 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="tab_private_fixed">Всегда после вкладки «Все приложения»</string>
     <string name="work_paused">Рабочий профиль приостановлен</string>
     <string name="work_resumed">Рабочий профиль включён</string>
+    <string name="glanceStyle_theme">Крупный формат в теме Appliance, в остальных — только дата</string>
 </resources>

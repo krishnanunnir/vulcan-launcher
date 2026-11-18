@@ -798,4 +798,5 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="tab_private_fixed">Immer nach dem Tab „Alle Apps“</string>
     <string name="work_paused">Arbeitsprofil pausiert</string>
     <string name="work_resumed">Arbeitsprofil aktiviert</string>
+    <string name="glanceStyle_theme">Groß im Appliance-Theme, bei anderen Themes nur das Datum</string>
 </resources>
