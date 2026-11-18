@@ -1,0 +1,4 @@
+Polish the last four days' changes
+Keep shortcuts working after a restore and while work apps are paused
+Edit apps inside home screen folders
+Reshape plated and gradient legacy icons
