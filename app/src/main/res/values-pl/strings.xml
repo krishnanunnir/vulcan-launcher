@@ -51,7 +51,7 @@
     <string name="set_widgetRadius">Promień zaokrąglenia narożników widżetów</string>
     <string name="set_autoAdd">Dodawaj ikony nowych aplikacji do ekranu głównego</string>
     <string name="set_hideClock">Ukryj zegar na pasku stanu</string>
-    <string name="set_hideClock_info">Na ekranie głównym. Wymaga jednorazowego nadania uprawnień przez adb</string>
+    <string name="set_hideClock_info">Na ekranie głównym. Wymaga jednorazowego nadania uprawnień z poziomu komputera</string>
     <string name="set_statusBar">Pasek powiadomień</string>
     <string name="statusBar_show">Pokaż</string>
     <string name="statusBar_hide">Ukryj</string>
@@ -156,6 +156,7 @@
     <string name="set_nightEnd">Koniec harmonogramu</string>
     <string name="set_badges">Styl plakietek</string>
     <string name="set_badgePos">Pozycja</string>
+    <string name="set badge Shape">Kształt</string>
     <string name="badgePos_topleft">Górny lewy róg</string>
     <string name="badgePos_topright">Górny prawy róg</string>
     <string name="badgePos_bottomleft">Dolny lewy róg</string>
@@ -234,6 +235,7 @@
     <string name="folderbg_disc">Dysk</string>
     <string name="folderbg_platform">Platforma</string>
     <string name="folderbg_square">Kwadrat</string>
+    <string name="folderbg_icon">Taki sam jak kształt ikon</string>
     <string name="shape_system">Domyślny systemu</string>
     <string name="shape_circle">Okrągły</string>
     <string name="shape_square">Kwadratowy</string>
@@ -243,7 +245,7 @@
     <string name="shape_pebble">Kamyk</string>
     <string name="shape_flower">Kwiatek</string>
     <string name="shape_vessel">Naczynie</string>
-    <string name="shape_tapered">Przycięty</string>
+    <string name="shape_tapered">Zwężany</string>
     <string name="shape_crop">Kadrowanie</string>
     <string name="shape_pentagon">Pięciokąt</string>
     <string name="shape_hexagon">Sześciokąt</string>
@@ -352,6 +354,9 @@
     <string name="permissions_info">Do czego launcher ma dostęp</string>
     <string name="default_home">Domyślny ekran główny</string>
     <string name="default_home_info">Ustaw Vulcan jako swój ekran główny</string>
+    <string name="default_home_is">Vulcan jest Twoim ekranem głównym</string>
+    <string name="choose_hidden_apps">Wybierz ukryte aplikacje</string>
+    <string name="default_page_one">Dodaj stronę, aby wybrać domyślną</string>
     <string name="restart">Uruchom ponownie launcher</string>
     <string name="about">O aplikacji</string>
     <string name="contributors">Twórcy</string>
@@ -387,6 +392,8 @@
     <string name="settings_no_match">Brak pasujących ustawień</string>
     <string name="dock_shadow_no_bg">Nieużywane bez tła docku</string>
     <string name="dock_shadow_housing">Dock z ramką ma swój własny cień</string>
+    <string name="tab_private_fixed">Zawsze po karcie Wszystkie aplikacje</string>
+    <string name="badges_off_unused">Nieużywane, gdy plakietki są wyłączone</string>
     <string name="not_used_by_bg">Nieużywane przez tło %1$s</string>
     <string name="panels_amoled">Zawsze ciemne przy motywie Czerń AMOLED</string>
     <string name="set_iconPack">Pakiet ikon</string>   
@@ -649,13 +656,15 @@
     <string name="low_contrast_info">Przy tym kolorze część tekstu będzie miała kontrast %1$s:1, podczas gdy wymagany kontrast do łatwego czytania to %2$s:1.</string>
     <string name="save_anyway">Zapisz mimo to</string>
     <string name="set_drawerSearch">Pasek wyszukiwania</string>
-    <string name="drawerSearch_style">Tam, gdzie umieszcza go styl szuflady</string>
+    <string name="drawerSearch_style">Zgodny ze stylem szuflady</string>
     <string name="labelSize_home">Taki sam jak na ekranie głównym</string>
     <string name="action_torch">Przełącz latarkę</string>
     <string name="action_locklayout">Zablokuj lub odblokuj układ</string>
     <string name="action_work">Wstrzymaj lub wznów aplikacje służbowe</string>
     <string name="action_open_folder">Otwórz folder</string>
     <string name="no_work_profile">Brak profilu służbowego</string>
+    <string name="work_paused">Profil służbowy jest wstrzymany</string>
+    <string name="work_resumed">Profil służbowy jest włączony</string>
     <string name="no_flashlight">Latarka jest obecnie niedostępna</string>
     <string name="name">Nazwa</string>
     <string name="backup_panel_save">Zapisz</string>
@@ -665,7 +674,7 @@
     <string name="backup_to_file">Zapisz kopię zapasową</string>
     <string name="backup_to_file_info">Twój układ i wszystkie ustawienia w jednym wybranym pliku</string>
     <string name="restore_from_file">Przywróć z pliku</string>
-    <string name="restore_from_file_info">Zastępuje obecny układ i ustawienia danymi z kopii zapasowej</string>
+    <string name="restore_from_file_info">Zastępuje Twój układ i ustawienia danymi z kopii zapasowej</string>
     <string name="restore_auto">Automatyczna kopia zapasowa</string>
     <string name="restore_auto_info">Zapisano %1$s</string>
     <string name="restore_auto_none">Brak automatycznych kopii zapasowych</string>
