@@ -45,6 +45,7 @@
     <string name="set_glanceStyle">Clock style</string>
     <string name="glanceStyle_clock">Big clock and date</string>
     <string name="glanceStyle_date">Date only</string>
+    <string name="glanceStyle_theme">Big with the Appliance theme, date only with others</string>
     <string name="clock">Clock</string>
     
     <string name="set_lockLayout">Lock layout</string>

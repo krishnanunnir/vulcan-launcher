@@ -96,6 +96,10 @@ class OfflineFeaturesTest {
         assertEquals(0, peeled[4 * n + 4])
         assertEquals(-1, peeled[15 * n + 15])
         assertEquals(green, peeled[10 * n + 10])
+        // Grown by one, the blended rim (9 and 22) goes too, and the icon inside it stays.
+        val grown = emui.copyOf().also { peelPlate(it, n, grow = 1) }
+        assertEquals(0, grown[9 * n + 15])
+        assertEquals(green, grown[10 * n + 15])
         // A thin green cross on the plate is a mark, not an icon: the shape fills white, nothing peeled.
         val cross = IntArray(n * n) { i -> when { (i % n in 15..16 || i / n in 15..16) && inBox(i, 8, 23) -> green; inBox(i, 2, 29) -> -1; else -> 0 } }
         val (c2, _, p2) = legacyFill(cross, n)!!

@@ -487,8 +487,9 @@ private fun SettingsActivity.swatch(c: Choice): View? {
                 "amoled" -> 0xFF000000.toInt()
                 else -> looks.color(c.key)
             })
-            // A visible ring: a housing-coloured swatch on a housing card was otherwise invisible.
-            setStroke((1.5f * dp).toInt(), m3.outline)
+            // A visible ring: a housing-coloured swatch on a housing card was otherwise invisible. Not the outline:
+            // it vanished on dark cards and matched the Dividers swatch.
+            setStroke((1.5f * dp).toInt(), m3.onSurfaceVariant)
         }
         layoutParams = LinearLayout.LayoutParams((24 * dp).toInt(), (24 * dp).toInt())
     }
@@ -571,8 +572,11 @@ fun MainActivity.editDialog(title: String, label: String, defaultLabel: String, 
         .setNegativeButton(R.string.cancel, null).show()
 }
 
-/** [replace] puts the edited item back: on the home screen by default, or into its folder. */
-fun MainActivity.editItem(item: Item, replace: (Item) -> Unit = { new ->
+/**
+ * [replace] puts the edited item back: on the home screen by default, or into its folder. [swipes] false hides the
+ * swipe action, for an app in a folder, whose icons take no swipes; its own setting is kept.
+ */
+fun MainActivity.editItem(item: Item, swipes: Boolean = true, replace: (Item) -> Unit = { new ->
     items.indexOf(item).takeIf { it >= 0 }?.let { items[it] = new; save(); render() }
 }) {
     val default = when {
@@ -580,9 +584,9 @@ fun MainActivity.editItem(item: Item, replace: (Item) -> Unit = { new ->
         item.isApp -> appLabel(item.appKey) ?: ""
         else -> resolve(item.copy(label = ""))?.first?.toString() ?: ""
     }
-    editDialog(getString(if (item.folder) R.string.edit_folder else R.string.edit), item.label, default, item.icon, item.swipe,
+    editDialog(getString(if (item.folder) R.string.edit_folder else R.string.edit), item.label, default, item.icon, item.swipe.takeIf { swipes },
         { ic -> resolve(item.copy(icon = ic))?.second }, item.folder) { l, ic, sw ->
-        replace(item.copy(label = if (item.folder) l.ifEmpty { getString(R.string.folder) } else l, icon = ic, swipe = sw))
+        replace(item.copy(label = if (item.folder) l.ifEmpty { getString(R.string.folder) } else l, icon = ic, swipe = if (swipes) sw else item.swipe))
     }
 }
 

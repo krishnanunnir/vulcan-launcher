@@ -1608,7 +1608,7 @@ class MainActivity : VulcanActivity() {
                 val f = payload.folder
                 f.children.getOrNull(payload.index)?.takeIf { !it.isBlock }?.let { child ->
                     tile("edit", getString(R.string.edit)) {
-                        editItem(child) { setFolderChildren(f, f.children.toMutableList().apply { set(payload.index, it) }); refillFolder?.invoke() }
+                        editItem(child, swipes = false) { setFolderChildren(f, f.children.toMutableList().apply { set(payload.index, it) }); refillFolder?.invoke() }
                     }
                 }
                 tile("close", getString(R.string.remove)) { removeFromFolder(payload); save(); render(); refillFolder?.invoke() }

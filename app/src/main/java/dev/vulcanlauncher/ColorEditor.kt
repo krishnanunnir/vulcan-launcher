@@ -38,7 +38,8 @@ fun SettingsActivity.colorsPage(list: LinearLayout) {
 }
 
 private fun SettingsActivity.dot(color: Int) = View(this).apply {
-    background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color); setStroke(dp.toInt(), m3.outlineVariant) }
+    // The settings swatches' ring: the outline vanished on a dark card and matched the Dividers colour.
+    background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color); setStroke((1.5f * dp).toInt(), m3.onSurfaceVariant) }
     layoutParams = LinearLayout.LayoutParams((24 * dp).toInt(), (24 * dp).toInt())
 }
 

@@ -29,9 +29,10 @@ private fun sizes(group: String, key: String, title: Int, default: String = "48"
 /** As Nova, each icon layout has its own label size; "home" follows the home screen's. */
 /** [off]: an "Off" value last, hiding the labels (folders, #94). */
 private fun labelSize(group: String, key: String, off: Boolean = false) = range(8, 24).let {
+    // Off right after "Same as home screen", not past the 17 sizes.
     val extra = if (off) listOf("off") else emptyList()
-    Choice(group, key, R.string.set_labelSize, "home", listOf("home") + it + extra, listOf(R.string.labelSize_home) + it.map { 0 } + extra.map { R.string.off },
-        shown = listOf("") + it.map { s -> "$s sp" } + extra.map { "" })
+    Choice(group, key, R.string.set_labelSize, "home", listOf("home") + extra + it, listOf(R.string.labelSize_home) + extra.map { R.string.off } + it.map { 0 },
+        shown = listOf("") + extra.map { "" } + it.map { s -> "$s sp" })
 }
 private fun percent(group: String, key: String, title: Int, default: String) =
     Choice(group, key, title, default, range(0, 100, 10), shown = range(0, 100, 10).map { "$it%" })
@@ -87,7 +88,7 @@ val LOOKS = listOf(
     Choice(SEARCH_GROUP, "searchStyle", R.string.set_searchStyle, "pill", listOf("rect", "rounded", "pill"), listOf(R.string.searchStyle_rect, R.string.searchStyle_rounded, R.string.searchStyle_pill)),
     color(SEARCH_GROUP, "searchColor", R.string.set_searchColor, "system", themed = true),
     // The clock item (long-press home → Clock). "style": a big clock with the Appliance look, the date alone otherwise.
-    Choice(HOME, "glanceStyle", R.string.set_glanceStyle, "style", listOf("style", "clock", "date"), listOf(R.string.drawerSearch_style, R.string.glanceStyle_clock, R.string.glanceStyle_date)),
+    Choice(HOME, "glanceStyle", R.string.set_glanceStyle, "style", listOf("style", "clock", "date"), listOf(R.string.glanceStyle_theme, R.string.glanceStyle_clock, R.string.glanceStyle_date)),
     onOff(HOME, "lockLayout", R.string.set_lockLayout, false),
     onOff(HOME, "widgetOverlap", R.string.set_widgetOverlap, false),
     // 0: the widget keeps its own corners.

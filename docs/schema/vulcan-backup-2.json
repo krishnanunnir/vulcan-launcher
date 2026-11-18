@@ -1091,10 +1091,11 @@
             "21": "21 sp",
             "off": "Off"
           },
-          "description": "Folders. Values: home (Same as home screen), 8 (8 sp), 9 (9 sp), 10 (10 sp), 11 (11 sp), 12 (12 sp), 13 (13 sp), 14 (14 sp), 15 (15 sp), 16 (16 sp), 17 (17 sp), 18 (18 sp), 19 (19 sp), 20 (20 sp), 21 (21 sp), 22 (22 sp), 23 (23 sp), 24 (24 sp), off (Off).",
+          "description": "Folders. Values: home (Same as home screen), off (Off), 8 (8 sp), 9 (9 sp), 10 (10 sp), 11 (11 sp), 12 (12 sp), 13 (13 sp), 14 (14 sp), 15 (15 sp), 16 (16 sp), 17 (17 sp), 18 (18 sp), 19 (19 sp), 20 (20 sp), 21 (21 sp), 22 (22 sp), 23 (23 sp), 24 (24 sp).",
           "title": "Label size",
           "enum": [
             "home",
+            "off",
             "8",
             "9",
             "10",
@@ -1111,8 +1112,7 @@
             "21",
             "22",
             "23",
-            "24",
-            "off"
+            "24"
           ]
         },
         "subgrid": {
@@ -2030,10 +2030,10 @@
           "default": "style",
           "x-names": {
             "date": "Date only",
-            "style": "Where the drawer style puts it",
+            "style": "Big with the Appliance theme, date only with others",
             "clock": "Big clock and date"
           },
-          "description": "Home screen. Values: style (Where the drawer style puts it), clock (Big clock and date), date (Date only).",
+          "description": "Home screen. Values: style (Big with the Appliance theme, date only with others), clock (Big clock and date), date (Date only).",
           "title": "Clock style",
           "enum": [
             "style",

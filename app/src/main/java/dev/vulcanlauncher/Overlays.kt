@@ -150,6 +150,9 @@ fun MainActivity.searchBar(): View {
     }
 }
 
+/** Tag of an overlay on a dark scrim, which keeps light status bar icons over it. */
+const val DARK_SCRIM = "darkScrim"
+
 /** [depth]: home recedes (blur, scale) behind it; folders keep home as it is, as in Launcher3. */
 fun MainActivity.showOverlay(v: View, depth: Boolean = true, onClose: () -> Unit = {}) {
     closeOverlay()
@@ -322,6 +325,7 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
     showOverlay(FrameLayout(this).apply {
         // The wallpaper under a dark scrim, as an open folder's: the overview stays on home, not on a grey sheet.
         setBackgroundColor(0xB3000000.toInt())
+        tag = DARK_SCRIM
         setOnClickListener { closeOverlay() }
         // Takes every page drag and its stray drops, so they never reach the home screen's drop targets underneath.
         setOnDragListener { _, e ->

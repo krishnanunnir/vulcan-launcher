@@ -62,6 +62,8 @@ class Reorder(private val a: VulcanActivity, private val rows: List<View>, priva
     private var heights = listOf<Int>()
     /** How far the rows that make room move: the dragged row's slot, including the gap to the next row. */
     private var slot = 0
+    /** The row given a surface for the drag, which goes again on drop. */
+    private var lifted: View? = null
     val dragging get() = from >= 0
 
     init {
@@ -90,6 +92,8 @@ class Reorder(private val a: VulcanActivity, private val rows: List<View>, priva
         heights = rows.map { it.height }
         slot = if (from + 1 < rows.size) tops[from + 1] - tops[from] else if (from > 0) tops[from] - tops[from - 1] else heights[from]
         row.parent?.requestDisallowInterceptTouchEvent(true)
+        // A bare row (Arrange apps) gets a surface while lifted: without one it casts no shadow and its text shows through.
+        if (row.background == null) { row.background = a.rounded(a.m3.surfaceHighest, 12 * a.dp); lifted = row }
         row.animate().scaleX(1.03f).scaleY(1.03f).translationZ(8 * a.dp).setDuration(120).start()
         row.tick()
     }
@@ -122,6 +126,7 @@ class Reorder(private val a: VulcanActivity, private val rows: List<View>, priva
                 val land = (tops[t] - tops[f] + if (t > f) heights[t] - heights[f] else 0).toFloat()
                 row.animate().translationY(land).scaleX(1f).scaleY(1f).translationZ(0f).setDuration(150).withEndAction {
                     rows.forEach { it.translationY = 0f }
+                    if (lifted === row) { row.background = null; lifted = null }
                     if (t != f) onDrop(f, t)
                 }.start()
             }

@@ -292,7 +292,7 @@ fun VulcanActivity.listItem(icon: Drawable?, title: CharSequence, summary: CharS
     trailing?.let { addView(it, ((it.layoutParams as? LinearLayout.LayoutParams) ?: LinearLayout.LayoutParams(-2, -2)).apply { marginStart = (16 * dp).toInt() }) }
 }
 
-/** A search field shaped as the drawer's: a 56 dp pill (the housing's recessed well) with a leading search glyph. */
+/** A search field shaped as the drawer's: a 56 dp pill (a recessed well only in the housing drawer) with a leading search glyph. */
 fun VulcanActivity.searchField(hintText: String) = android.widget.EditText(this).apply {
     hint = hintText
     setSingleLine()
@@ -303,7 +303,9 @@ fun VulcanActivity.searchField(hintText: String) = android.widget.EditText(this)
     setPaddingRelative((16 * dp).toInt(), 0, (16 * dp).toInt(), 0)
     compoundDrawablePadding = (12 * dp).toInt()
     setCompoundDrawablesRelative(symbol("search", m3.onSurfaceVariant).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
-    background = if (m3.housing) well(28 * dp) else rounded(m3.surfaceHighest, 28 * dp)
+    // The drawer style, not the Appliance theme, decides the well: the grid drawer's pill is flat in every theme.
+    val housing = getSharedPreferences("looks", android.content.Context.MODE_PRIVATE).getString("drawerStyle", "grid") == "housing"
+    background = if (housing) well(28 * dp) else rounded(m3.surfaceHighest, 28 * dp)
 }
 
 /** M3 outlined text field: 56 dp tall, a 4 dp corner, the outline turning primary while focused. */
@@ -479,8 +481,9 @@ fun MainActivity.setDepth(p: Float, blur: Boolean = true) {
     depth = p
     // Dark status bar icons while a light panel covers home.
     @Suppress("DEPRECATION") window.decorView.apply {
-        // The housing drawer stops below the status bar, over a dimmed home: light icons stay.
-        val light = p > 0.5f && !m3.dark && (this@setDepth.overlay != null || looks.str("drawerStyle") != "housing") || looks.on("darkStatusIcons")
+        // The housing drawer stops below the status bar, over a dimmed home: light icons stay. So does a dark scrim (Pages).
+        val o = this@setDepth.overlay
+        val light = p > 0.5f && !m3.dark && o?.tag != DARK_SCRIM && (o != null || looks.str("drawerStyle") != "housing") || looks.on("darkStatusIcons")
         val f = if (light) systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR else systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
         if (f != systemUiVisibility) systemUiVisibility = f
     }

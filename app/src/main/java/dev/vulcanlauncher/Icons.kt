@@ -211,9 +211,10 @@ fun extendEdge(px: IntArray, n: Int) {
 
 /**
  * Clears an icon's white plate in place: the light grey, white and see-through pixels reachable from its border, so
- * white marks inside the icon on it stay.
+ * white marks inside the icon on it stay. [grow] more pixels go inward from there: the icon's edge blended into the
+ * plate, opaque and tinted, which showed as a light seam once the shape is filled in the icon's own colour.
  */
-fun peelPlate(px: IntArray, n: Int) {
+fun peelPlate(px: IntArray, n: Int, grow: Int = 0) {
     // Light and near grey: a plate is white with a shaded edge.
     fun plate(c: Int): Boolean {
         val r = c shr 16 and 0xFF; val g = c shr 8 and 0xFF; val b = c and 0xFF
@@ -221,14 +222,23 @@ fun peelPlate(px: IntArray, n: Int) {
     }
     val seen = BooleanArray(n * n)
     val todo = ArrayDeque<Int>()
-    for (i in 0 until n) for (p in intArrayOf(i, (n - 1) * n + i, i * n, i * n + n - 1)) if (!seen[p]) { seen[p] = true; todo += p }
-    while (todo.isNotEmpty()) {
-        val p = todo.removeFirst()
-        if (!plate(px[p])) continue
-        px[p] = 0
+    fun next(p: Int, into: MutableCollection<Int>) {
         val x = p % n
         for (q in intArrayOf(if (x > 0) p - 1 else -1, if (x < n - 1) p + 1 else -1, p - n, p + n))
-            if (q in 0 until n * n && !seen[q]) { seen[q] = true; todo += q }
+            if (q in 0 until n * n && !seen[q]) { seen[q] = true; into += q }
+    }
+    for (i in 0 until n) for (p in intArrayOf(i, (n - 1) * n + i, i * n, i * n + n - 1)) if (!seen[p]) { seen[p] = true; todo += p }
+    var edge = ArrayList<Int>() // the first pixels past the plate
+    while (todo.isNotEmpty()) {
+        val p = todo.removeFirst()
+        if (!plate(px[p])) { edge += p; continue }
+        px[p] = 0
+        next(p, todo)
+    }
+    repeat(grow) {
+        val more = ArrayList<Int>()
+        for (p in edge) { px[p] = 0; next(p, more) }
+        edge = more
     }
 }
 
@@ -467,7 +477,11 @@ class Icons(private val context: Context, private val looks: Looks) {
         val (color, extent, peel, extend) = legacyFill(px, n) ?: return AdaptiveIconDrawable(ColorDrawable(android.graphics.Color.WHITE), InsetDrawable(icon, 0.28f))
         // The layer is 108 units with the shape's 72 in its middle: the icon's visible part is scaled to just past
         // the shape's edge (1.04), so its own rounded corners are clipped away and its edge colour fills the rest.
-        val inset = ((1 - 2 * 1.04f / (3 * extent)) / 2).coerceIn(-0.25f, 0.4f)
+        val fill = ((1 - 2 * 1.04f / (3 * extent)) / 2).coerceIn(-0.25f, 0.4f)
+        // A peeled icon is small inside its plate: enlarged to the shape's edge it went soft (#92). It grows only up to
+        // its own pixels (never smaller than on its plate, 1/6), and its edge colour fills the shape around it.
+        val src = (icon as? BitmapDrawable)?.bitmap?.width ?: icon.intrinsicWidth
+        val inset = if (peel) maxOf(fill, minOf((1 - src / (1.5f * size)) / 2, 1 / 6f)) else fill
         if (extend) {
             // The whole layer drawn once, the icon's edge stretched out over the corners it leaves.
             val m = (2 * size).coerceAtLeast(n)
@@ -483,7 +497,7 @@ class Icons(private val context: Context, private val looks: Looks) {
             val big = Bitmap.createBitmap(m, m, Bitmap.Config.ARGB_8888)
             icon.setBounds(0, 0, m, m); icon.draw(Canvas(big))
             val all = IntArray(m * m).also { big.getPixels(it, 0, m, 0, 0, m, m) }
-            peelPlate(all, m); big.setPixels(all, 0, m, 0, 0, m, m)
+            peelPlate(all, m, grow = maxOf(1, m / 48)); big.setPixels(all, 0, m, 0, 0, m, m)
             BitmapDrawable(context.resources, big)
         }
         return AdaptiveIconDrawable(ColorDrawable(color), InsetDrawable(drawn, inset))
