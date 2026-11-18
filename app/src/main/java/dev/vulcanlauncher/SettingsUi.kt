@@ -571,7 +571,10 @@ fun MainActivity.editDialog(title: String, label: String, defaultLabel: String, 
         .setNegativeButton(R.string.cancel, null).show()
 }
 
-fun MainActivity.editItem(item: Item) {
+/** [replace] puts the edited item back: on the home screen by default, or into its folder. */
+fun MainActivity.editItem(item: Item, replace: (Item) -> Unit = { new ->
+    items.indexOf(item).takeIf { it >= 0 }?.let { items[it] = new; save(); render() }
+}) {
     val default = when {
         item.folder -> getString(R.string.folder)
         item.isApp -> appLabel(item.appKey) ?: ""
@@ -579,11 +582,7 @@ fun MainActivity.editItem(item: Item) {
     }
     editDialog(getString(if (item.folder) R.string.edit_folder else R.string.edit), item.label, default, item.icon, item.swipe,
         { ic -> resolve(item.copy(icon = ic))?.second }, item.folder) { l, ic, sw ->
-        val i = items.indexOf(item)
-        if (i < 0) return@editDialog
-        items[i] = item.copy(label = if (item.folder) l.ifEmpty { getString(R.string.folder) } else l, icon = ic, swipe = sw)
-        save()
-        render()
+        replace(item.copy(label = if (item.folder) l.ifEmpty { getString(R.string.folder) } else l, icon = ic, swipe = sw))
     }
 }
 

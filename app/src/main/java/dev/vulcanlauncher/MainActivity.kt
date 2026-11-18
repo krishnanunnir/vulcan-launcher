@@ -1589,7 +1589,15 @@ class MainActivity : VulcanActivity() {
                 if (!locked) tile("add", getString(R.string.menu_add)) { addItem(groupItem(payload)) }
                 tile("edit", getString(R.string.edit)) { editGroup(payload) }
             }
-            payload is FolderChild && !locked -> tile("close", getString(R.string.remove)) { removeFromFolder(payload); save(); render(); refillFolder?.invoke() }
+            payload is FolderChild && !locked -> {
+                val f = payload.folder
+                f.children.getOrNull(payload.index)?.takeIf { !it.isBlock }?.let { child ->
+                    tile("edit", getString(R.string.edit)) {
+                        editItem(child) { setFolderChildren(f, f.children.toMutableList().apply { set(payload.index, it) }); refillFolder?.invoke() }
+                    }
+                }
+                tile("close", getString(R.string.remove)) { removeFromFolder(payload); save(); render(); refillFolder?.invoke() }
+            }
         }
         if (app != null) {
             tile("info", getString(R.string.app_info)) { launcherApps.startAppDetailsActivity(app.info.componentName, app.info.user, null, null) }
