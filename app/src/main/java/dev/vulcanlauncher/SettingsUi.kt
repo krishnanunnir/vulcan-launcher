@@ -1412,6 +1412,8 @@ fun VulcanActivity.restoreBackup(uri: android.net.Uri, restart: () -> Unit) {
             if (result.rejected.isNotEmpty()) toast(R.string.skipped_settings, result.rejected.joinToString())
             // Widget IDs belong to the install that made them; drop the ones this install doesn't own.
             if (result.replacedLayout) home.dropForeignWidgets()
+            // Android opens a shortcut only for the launcher that pinned it: after a fresh install, none are.
+            home.repinShortcuts()
             restart()
         }.onFailure { toast(R.string.restore_failed, it.message) }
 }

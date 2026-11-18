@@ -697,10 +697,21 @@ class MainActivity : VulcanActivity() {
     /** Work profiles that are paused: their apps show greyed out, as in Launcher3 (#73). */
     private var pausedUsers = emptySet<UserHandle>()
 
-    fun icon(a: App): Drawable = baseIcon(a).let { d ->
-        if (a.info.user !in pausedUsers) d else d.constantState!!.newDrawable(resources).mutate().apply {
-            colorFilter = android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply { setSaturation(0f) }); alpha = 140
-        }
+    fun icon(a: App): Drawable = baseIcon(a).let { d -> if (a.info.user !in pausedUsers) d else greyed(d.constantState!!.newDrawable(resources)) }
+
+    private fun greyed(d: Drawable) = d.mutate().apply {
+        colorFilter = android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply { setSaturation(0f) }); alpha = 140
+    }
+
+    /** Each pinned shortcut's last real icon: a paused profile can't be asked for it, and just after it resumes it still can't (#103). */
+    private val shortcutFaces = HashMap<String, Drawable.ConstantState>()
+
+    private fun shortcutFace(item: Item, s: ShortcutInfo?): Drawable? {
+        val key = "${item.user}/${item.pkg}/${item.shortcutId}"
+        s?.let { runCatching { launcherApps.getShortcutIconDrawable(it, resources.displayMetrics.densityDpi) }.getOrNull() }
+            ?.let { d -> d.constantState?.let { shortcutFaces[key] = it } ?: return d }
+        val d = shortcutFaces[key]?.newDrawable(resources) ?: return null
+        return if (userOf(item.user) in pausedUsers) greyed(d) else d
     }
 
     private fun baseIcon(a: App): Drawable = iconCache.get(a.key) ?: run {
@@ -766,7 +777,11 @@ class MainActivity : VulcanActivity() {
 
     /** Private Space (or a work profile) locked, unlocked, paused or resumed. */
     private val profileReceiver = object : android.content.BroadcastReceiver() {
-        override fun onReceive(c: android.content.Context, i: Intent) { loadApps(); drawer.invalidate(); render() }
+        override fun onReceive(c: android.content.Context, i: Intent) {
+            loadApps(); drawer.invalidate(); render()
+            // ponytail: a resumed profile answers shortcut queries only a moment later, with no callback; listen for user unlock if 2 s proves short.
+            if (i.action == Intent.ACTION_PROFILE_AVAILABLE) window.decorView.postDelayed(::render, 2000)
+        }
     }
 
     fun launch(a: App, v: View?) {
@@ -880,7 +895,7 @@ class MainActivity : VulcanActivity() {
                 else -> ACTION_SYMBOLS[item.action] ?: "bolt"
             }))
         item.isShortcut -> pinnedShortcut(item).let { s ->
-            item.label.ifEmpty { s?.shortLabel?.toString() ?: "" } to (icons.custom(item.icon) ?: s?.let(::shortcutIcon) ?: packageManager.defaultActivityIcon)
+            item.label.ifEmpty { s?.shortLabel?.toString() ?: "" } to (icons.custom(item.icon) ?: shortcutFace(item, s) ?: packageManager.defaultActivityIcon)
         }
         item.action == "activity" -> runCatching { packageManager.getActivityInfo(ComponentName(item.pkg, item.cls), 0) }.getOrNull()?.let {
             item.label.ifEmpty { it.loadLabel(packageManager).toString() } to (icons.custom(item.icon) ?: it.loadIcon(packageManager))
@@ -2258,6 +2273,11 @@ class MainActivity : VulcanActivity() {
         // As Launcher3: the steps change only with the page count, so they're set then rather than every scroll frame.
         if (n != wallpaperPages) { wm.setWallpaperOffsetSteps(if (n > 1) 1f / (n - 1) else 1f, 1f); wallpaperPages = n }
         wm.setWallpaperOffsets(token, x, 0.5f)
+    }
+
+    /** Pins every shortcut the stored layout and actions use: a restored backup's, which this install never pinned (#103). */
+    fun repinShortcuts() = pinsByApp(store.load(looks.sub), settingActions()).forEach { (key, ids) ->
+        runCatching { launcherApps.pinShortcuts(key.first, ids, userOf(key.second)) }
     }
 
     /** After a restore: widget IDs belong to the install that made them; drop the ones this install doesn't own. */
