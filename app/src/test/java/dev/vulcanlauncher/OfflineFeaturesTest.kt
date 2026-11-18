@@ -45,9 +45,62 @@ class OfflineFeaturesTest {
         val (color, extent) = legacyFill(disc, n)!!
         assertEquals(orange, color)
         assertEquals(28f / n, extent, 0.05f)
-        // Left half red, right half blue: no one edge colour, so a white plate.
-        assertNull(legacyFill(IntArray(n * n) { i -> if (i % n < n / 2) 0xFFFF0000.toInt() else 0xFF0000FF.toInt() }, n))
+        // Left half red, right half blue: no one edge colour, but a clean split, so its edge is stretched.
+        assertTrue(legacyFill(IntArray(n * n) { i -> if (i % n < n / 2) 0xFFFF0000.toInt() else 0xFF0000FF.toInt() }, n)!!.extend)
         assertNull(legacyFill(IntArray(n * n), n))
+    }
+
+    @Test
+    fun legacyIconGradientEdge() {
+        val n = 32
+        fun inSquare(i: Int) = i % n in 4..27 && i / n in 4..27
+        // A square shading from purple at the top to orange at the bottom: stretched, not plated.
+        val grad = IntArray(n * n) { i ->
+            val t = i / n * 255 / (n - 1)
+            if (inSquare(i)) 0xFF shl 24 or (0x80 + t / 2 shl 16) or (0x20 + t / 3 shl 8) or (0xC0 - t * 3 / 4) else 0
+        }
+        val fill = legacyFill(grad, n)!!
+        assertTrue(fill.extend)
+        assertFalse(fill.peel)
+        assertEquals(24f / n, fill.extent, 0.01f)
+        // Stretched: outside the square takes the colour just inside its edge (a pixel in, past anti-aliasing), so the
+        // top stays purple and the bottom orange.
+        val out = grad.copyOf().also { extendEdge(it, n) }
+        assertEquals(grad[4 * n + 4], out[0]) // the corner pixel itself: one step on a diagonal rounds back onto it
+        assertEquals(grad[5 * n + 16], out[16])
+        assertEquals(grad[26 * n + 16], out[31 * n + 16])
+        assertEquals(grad[16 * n + 16], out[16 * n + 16])
+        // A noisy square (a photo to its edge) is busy all round: a white plate.
+        var seed = 7
+        val noisy = IntArray(n * n) { i -> seed = seed * 1103515245 + 12345; if (inSquare(i)) seed or (0xFF shl 24) else 0 }
+        assertNull(legacyFill(noisy, n))
+    }
+
+    @Test
+    fun legacyIconOnSystemPlate() {
+        val n = 32
+        val green = 0xFF2EBD59.toInt()
+        // EMUI's white plate (2..29, shaded at the bottom) with a green square app icon (9..22) on it, its edge blended
+        // into the plate, and a white glyph (14..17) in it.
+        fun inBox(i: Int, a: Int, b: Int) = i % n in a..b && i / n in a..b
+        val emui = IntArray(n * n) { i ->
+            when { inBox(i, 14, 17) -> -1; inBox(i, 10, 21) -> green; inBox(i, 9, 22) -> 0xFF97DEAC.toInt()
+                inBox(i, 2, 29) -> if (i / n >= 28) 0xFFE6E6E6.toInt() else -1; else -> 0 }
+        }
+        val (color, extent, peel) = legacyFill(emui, n)!!
+        assertEquals(green, color)
+        assertEquals(14f / n, extent, 0.01f)
+        assertTrue(peel)
+        // The plate goes; the glyph inside the icon stays.
+        val peeled = emui.copyOf().also { peelPlate(it, n) }
+        assertEquals(0, peeled[4 * n + 4])
+        assertEquals(-1, peeled[15 * n + 15])
+        assertEquals(green, peeled[10 * n + 10])
+        // A thin green cross on the plate is a mark, not an icon: the shape fills white, nothing peeled.
+        val cross = IntArray(n * n) { i -> when { (i % n in 15..16 || i / n in 15..16) && inBox(i, 8, 23) -> green; inBox(i, 2, 29) -> -1; else -> 0 } }
+        val (c2, _, p2) = legacyFill(cross, n)!!
+        assertEquals(-1, c2)
+        assertFalse(p2)
     }
 
     @Test
