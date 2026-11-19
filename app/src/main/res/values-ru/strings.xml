@@ -773,7 +773,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="apply_style_review">Проверить</string>
     <string name="apply_style_invalid">Вставьте корректную ссылку на стиль Vulcan Designer.</string>
     <string name="apply_style_empty_clipboard">В буфере обмена нет ссылки.</string>
-    <string name="apply_style_no_changes">В этой ссылке нет настроек, которые нужно изменить</string>
+    <string name="apply_style_no_changes">Нет изменений для применения</string>
     <string name="apply_style_apply">Применить</string>
     <string name="apply_style_done">Стиль применён</string>
     <plurals name="apply_style_confirm">
@@ -802,7 +802,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="now_card_widget">Виджет</string>
     <string name="set_tabBar">Панель вкладок</string>
     <string name="shortcut_requires_home">Чтобы добавлять ярлыки приложений, установите Vulcan в качестве приложения главного экрана по умолчанию.</string>
-    <string name="suggest_folders">Предлагать папки</string>
+    <string name="suggest_folders">Предложить папки</string>
     <string name="suggest_info">Группировка основана на категории, которую указывает само приложение. Приложения, уже находящиеся в папке, остаются на месте.</string>
     <string name="suggest_title">Предлагаемые папки</string>
     <string name="tab_bar_scroll">Прокрутка</string>

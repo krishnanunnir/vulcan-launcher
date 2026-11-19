@@ -738,7 +738,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="apply_style_review">Prüfen</string>
     <string name="apply_style_invalid">Füge einen gültigen Designer-Stil-Link ein.</string>
     <string name="apply_style_empty_clipboard">In der Zwischenablage ist kein Link.</string>
-    <string name="apply_style_no_changes">Dieser Link enthält keine Einstellungen, die geändert werden müssen.</string>
+    <string name="apply_style_no_changes">Keine Änderungen zum Anwenden</string>
     <string name="apply_style_apply">Anwenden</string>
     <string name="apply_style_done">Stil angewendet</string>
     <plurals name="apply_style_confirm">
