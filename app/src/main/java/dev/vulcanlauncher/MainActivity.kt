@@ -1119,6 +1119,8 @@ class MainActivity : VulcanActivity() {
      * A drawer folder's app has no drop targets: it only reorders or copies to home.
      */
     fun liftDrag(shrink: Boolean = true) {
+        // Every drag, shrunk or not, strokes its drop outline in the accent: unset it drew black (#106).
+        (pages + dockPages).forEach { it.outlineColor = workspaceAccent() }
         if (shrink) setHomeState(HomeState.DRAG)
         addDragPage()
     }
@@ -1202,10 +1204,7 @@ class MainActivity : VulcanActivity() {
      * [animate] false jumps there (a rebuild reopening the overview).
      */
     private fun springLoad(on: Boolean, animate: Boolean = true) {
-        // Launcher3's workspace accent: its light tone over a dark wallpaper (light labels), its dark tone otherwise.
-        // The Appliance look keeps to its legends' colour.
-        val label = looks.color("labelColor")
-        val accent = if (m3.housing) label else m3.ramps[0](if (luminance(label) > 0.5) 90 else 10)
+        val accent = workspaceAccent()
         (pages + dockPages).forEach { it.outlineColor = accent; if (!on) it.landing = null }
         val box = workspace.parent as ViewGroup
         if (on && spring == 0f) {
@@ -1248,12 +1247,18 @@ class MainActivity : VulcanActivity() {
         }
     }
 
-    /** A shrunk page's card: a light fill and an outline in the accent. */
-    private fun pageCard(): Drawable {
+    /**
+     * Launcher3's workspace accent: its light tone over a dark wallpaper (light labels), its dark tone otherwise.
+     * The Appliance look keeps to its legends' colour.
+     */
+    private fun workspaceAccent(): Int {
         val label = looks.color("labelColor")
-        val accent = if (m3.housing) label else m3.ramps[0](if (luminance(label) > 0.5) 90 else 10)
-        return rounded(label and 0xFFFFFF or 0x1F000000, 28 * dp, accent and 0xFFFFFF or 0x99000000.toInt(), 2 * dp)
+        return if (m3.housing) label else m3.ramps[0](if (luminance(label) > 0.5) 90 else 10)
     }
+
+    /** A shrunk page's card: a light fill and an outline in the accent. */
+    private fun pageCard(): Drawable =
+        rounded(looks.color("labelColor") and 0xFFFFFF or 0x1F000000, 28 * dp, workspaceAccent() and 0xFFFFFF or 0x99000000.toInt(), 2 * dp)
 
     fun dragEnded() {
         folderFx.clearHover()
@@ -1262,6 +1267,8 @@ class MainActivity : VulcanActivity() {
         wiggles.forEach { it.cancel() }
         iconViews.forEach { it.image.rotation = 0f }
         wiggles = emptyList()
+        // A drag that never shrank home doesn't go through springLoad's cleanup: its last outline stayed (#106).
+        (pages + dockPages).forEach { it.landing = null }
         setHomeState(HomeState.NORMAL)
         src.alpha = 1f
         val moved = dragMoved
