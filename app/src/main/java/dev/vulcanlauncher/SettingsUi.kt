@@ -51,7 +51,10 @@ private val leftAt = mutableMapOf<String, Int>()
 
 /** Opens settings at [page] ("" for settings home). */
 fun MainActivity.showSettings(page: String = "") {
-    startActivity(Intent(this, SettingsActivity::class.java).putExtra("page", page))
+    // Its own task, as in Nova and Lawnchair: in home's task the Home gesture animated home away with it (#100).
+    // Cleared each time so it opens on [page], not where it was left.
+    startActivity(Intent(this, SettingsActivity::class.java).putExtra("page", page)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
 }
 
 class SettingsActivity : VulcanActivity() {
