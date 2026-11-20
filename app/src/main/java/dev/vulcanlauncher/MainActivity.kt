@@ -950,16 +950,43 @@ class MainActivity : VulcanActivity() {
                 (v as AppWidgetHostView).updateAppWidgetSize(null, w, h, w, h)
             }
         }
-        val radius = looks.int("widgetRadius") * dp
-        return WidgetFrame(this).apply {
-            addView(hv)
-            if (radius > 0) {
-                outlineProvider = object : android.view.ViewOutlineProvider() {
-                    override fun getOutline(v: View, o: android.graphics.Outline) = o.setRoundRect(0, 0, v.width, v.height, radius)
-                }
-                clipToOutline = true
-            }
-        }.also { widgetFrames[item.widgetId] = it }
+        roundCorners(hv, looks.int("widgetRadius") * dp)
+        return WidgetFrame(this).apply { addView(hv) }.also { widgetFrames[item.widgetId] = it }
+    }
+
+    /**
+     * Rounds the card a widget draws, not its cell (#109): that card often sits inside the cell, so clipping the cell
+     * missed its corners. As Launcher3's rounded-corner enforcement: the widget's own background view is rounded, and a
+     * widget that already clips its background is left alone.
+     */
+    private fun roundCorners(hv: AppWidgetHostView, radius: Float) {
+        if (radius <= 0) return
+        val box = android.graphics.Rect()
+        hv.outlineProvider = object : android.view.ViewOutlineProvider() {
+            override fun getOutline(v: View, o: android.graphics.Outline) = o.setRoundRect(box, radius)
+        }
+        // On every layout: the widget's views come and go with its updates, while the host keeps its size.
+        hv.viewTreeObserver.addOnGlobalLayoutListener {
+            val bg = widgetBackground(hv)
+            if (bg == null || bg.id == android.R.id.background && bg.clipToOutline) { hv.clipToOutline = false; return@addOnGlobalLayoutListener }
+            val was = android.graphics.Rect(box)
+            box.set(0, 0, bg.width, bg.height)
+            var v: View = bg
+            while (v !== hv) { box.offset(v.left, v.top); v = v.parent as? View ?: return@addOnGlobalLayoutListener }
+            hv.clipToOutline = true
+            if (box != was) hv.invalidateOutline()
+        }
+    }
+
+    /** The view that draws a widget's card: the one marked as its background, else the first view down with a background. */
+    private fun widgetBackground(hv: ViewGroup): View? {
+        val marked = ArrayList<View>()
+        fun walk(v: View) { if (v.id == android.R.id.background) marked += v; (v as? ViewGroup)?.let { g -> repeat(g.childCount) { walk(g.getChildAt(it)) } } }
+        walk(hv)
+        if (marked.size == 1) return marked[0]
+        var v = hv.getChildAt(0) ?: return null
+        while (v.background == null && v is ViewGroup && v.childCount == 1) v = v.getChildAt(0)
+        return v
     }
 
     /** Which widget of each stack shows, by the stack's first widget id; back to the first after a restart. */
