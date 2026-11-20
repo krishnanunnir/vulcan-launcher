@@ -19,20 +19,28 @@ open class WidgetFrame(context: Context) : FrameLayout(context) {
     private var downX = 0f
     private var downY = 0f
     private var fired = false
+    private var stolen = false
     private val longPress = Runnable { fired = true; performLongClick() }
+    /** Where the touch that may become a long-press went down, on screen: the widget takes the DOWN, not us. */
+    var downRawY = 0f
+        private set
 
     // In dispatch, not intercept: a touch on a part of the widget no child takes never reaches intercept again after
     // DOWN, so its UP didn't cancel the timer and a plain tap became a failed drag that left the widget hidden (#60).
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                fired = false; downX = ev.x; downY = ev.y
+                fired = false; downX = ev.x; downY = ev.y; downRawY = ev.rawY
                 postDelayed(longPress, ViewConfiguration.getLongPressTimeout().toLong())
             }
             MotionEvent.ACTION_MOVE ->
                 if (abs(ev.x - downX) > slop || abs(ev.y - downY) > slop) removeCallbacks(longPress)
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> removeCallbacks(longPress)
         }
+        // The event that intercepting takes only cancels the widget; sent again, it reaches our own touch listener, so a
+        // hold let go without moving still gets its UP (the Now page's Remove, #105).
+        if (fired && !stolen && ev.actionMasked != MotionEvent.ACTION_DOWN) { stolen = true; super.dispatchTouchEvent(ev) }
+        if (ev.actionMasked == MotionEvent.ACTION_DOWN) stolen = false
         return super.dispatchTouchEvent(ev)
     }
 

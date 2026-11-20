@@ -290,6 +290,12 @@ fun MainActivity.showNow(slide: Boolean = true) {
         }
         val start = View.OnLongClickListener { menuOnUp = v in removers; if (shown.size > 1) reorder.begin(v, downY); shown.size > 1 || menuOnUp }
         listOf(v, (v as LinearLayout).getChildAt(0)).forEach { it.setOnTouchListener(hold); it.setOnLongClickListener(start) }
+        // Holding the widget itself, the obvious place, opens the same menu (#105): the widget takes the DOWN, so its
+        // frame's long-press is the start, and the frame gets the rest of the touch once it has fired.
+        (v.getChildAt(1) as? WidgetFrame)?.let { f ->
+            f.setOnTouchListener(hold)
+            f.setOnLongClickListener { downY = f.downRawY; start.onLongClick(it) }
+        }
     }
 
     val panel = NowPanel(this).apply {
