@@ -134,9 +134,22 @@ data class LegacyFill(val color: Int, val extent: Float, val peel: Boolean = fal
  */
 fun legacyFill(px: IntArray, n: Int): LegacyFill? = plateFill(px, n) ?: smoothEdge(px, n)
 
+/**
+ * The plate for a legacy icon that can't fill its shape: a pale tint of its main colour (the median of its
+ * coloured pixels, 46% into white, as Nova's plates measure), or white when it has little colour.
+ */
+fun plateTint(px: IntArray, n: Int): Int {
+    val opaque = px.filter { it ushr 24 > 200 }
+    val coloured = opaque.filter { c -> (0..16 step 8).map { c shr it and 0xFF }.let { it.max() - it.min() >= 48 } }
+    if (coloured.size < maxOf(opaque.size / 10, 1)) return android.graphics.Color.WHITE
+    fun ch(shift: Int) = coloured.map { it shr shift and 0xFF }.sorted()[coloured.size / 2].let { 255 - (255 - it) * 46 / 100 }
+    return 0xFF shl 24 or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
+}
+
 private fun plateFill(px: IntArray, n: Int): LegacyFill? {
     val outer = solidEdge(px, n)?.let { (fill, extent) -> LegacyFill(fill, extent) }
-    if (outer != null && (0..16 step 8).any { outer.color shr it and 0xFF < 230 }) return outer
+    // A coloured edge fills the shape only round a solid icon: "C++" or a robot in one colour would be swallowed by it.
+    if (outer != null && (0..16 step 8).any { outer.color shr it and 0xFF < 230 }) return outer.takeIf { solidShape(px, n) { it ushr 24 > 200 } }
     // A white plate with a solid icon inside: the system's (EMUI puts every unthemed icon on one, #92). Peel it, and
     // fill the shape on the inner icon's own edge colour, if that icon is a solid shape, not a mark on the plate.
     val inner = px.copyOf().also { peelPlate(it, n) }
@@ -147,13 +160,13 @@ private fun plateFill(px: IntArray, n: Int): LegacyFill? {
     return if (solidShape(inner, n) { it != 0 }) LegacyFill(innerFill, innerExtent, peel = true) else outer
 }
 
-/** Row spans over the bounding box of the [solid] pixels: ~0.95 for a rounded square, 0.79 for a circle, well under for a figure. */
+/** [solid] pixels over their bounding box: ~0.95 for a rounded square, 0.79 for a circle, well under for a figure or letters. */
 private fun solidShape(px: IntArray, n: Int, solid: (Int) -> Boolean): Boolean {
     var area = 0; var t = n; var b = -1; var l = n; var r = -1
     for (y in 0 until n) {
         val a = (0 until n).firstOrNull { solid(px[y * n + it]) } ?: continue
         val z = (n - 1 downTo 0).first { solid(px[y * n + it]) }
-        area += z - a + 1; t = minOf(t, y); b = y; l = minOf(l, a); r = maxOf(r, z)
+        area += (a..z).count { solid(px[y * n + it]) }; t = minOf(t, y); b = y; l = minOf(l, a); r = maxOf(r, z)
     }
     return b >= 0 && area >= 0.72f * (r - l + 1) * (b - t + 1)
 }
@@ -373,15 +386,17 @@ fun flatIcon(context: Context, icon: Drawable, px: Int): Drawable = BitmapDrawab
 /**
  * Each app's finished icon and label on disk, as Launcher3's IconCache keeps them. Asking the app itself opens its APK,
  * and its resource table stays mapped until a GC (Gmail's is 10 MB): with this, a start opens only apps that changed.
- * An entry holds while the app's APK and the system build match, and [looks] ([Icons.signature]) or the locale.
+ * An entry holds while the app's APK, Vulcan's own and the system build match, and [looks] ([Icons.signature]) or the locale.
  */
 class AppCache(context: Context, private val looks: String) {
     private val dir = File(context.cacheDir, "apps").apply { mkdirs() }
     private val locale = context.resources.configuration.locales.toLanguageTags()
+    // Vulcan's own APK too: an update that draws icons differently (#92) must not keep serving the old ones.
+    private val self = File(context.applicationInfo.sourceDir).lastModified()
 
     private fun name(key: String) = key.replace('/', '#')
     private fun stamp(a: App, extra: String) =
-        a.info.applicationInfo.sourceDir.let { "$it|${File(it).lastModified()}|${android.os.Build.FINGERPRINT}|$extra" }
+        a.info.applicationInfo.sourceDir.let { "$it|${File(it).lastModified()}|${android.os.Build.FINGERPRINT}|$self|$extra" }
 
     fun label(a: App): String {
         val f = File(dir, name(a.key) + ".label"); val s = stamp(a, locale)
@@ -474,7 +489,7 @@ class Icons(private val context: Context, private val looks: Looks) {
         val bmp = Bitmap.createBitmap(n, n, Bitmap.Config.ARGB_8888)
         icon.setBounds(0, 0, n, n); icon.draw(Canvas(bmp))
         val px = IntArray(n * n).also { bmp.getPixels(it, 0, n, 0, 0, n, n) }
-        val (color, extent, peel, extend) = legacyFill(px, n) ?: return AdaptiveIconDrawable(ColorDrawable(android.graphics.Color.WHITE), InsetDrawable(icon, 0.28f))
+        val (color, extent, peel, extend) = legacyFill(px, n) ?: return AdaptiveIconDrawable(ColorDrawable(plateTint(px, n)), InsetDrawable(icon, 0.28f))
         // The layer is 108 units with the shape's 72 in its middle: the icon's visible part is scaled to just past
         // the shape's edge (1.04), so its own rounded corners are clipped away and its edge colour fills the rest.
         val fill = ((1 - 2 * 1.04f / (3 * extent)) / 2).coerceIn(-0.25f, 0.4f)

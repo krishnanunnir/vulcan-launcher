@@ -48,6 +48,15 @@ class OfflineFeaturesTest {
         // Left half red, right half blue: no one edge colour, but a clean split, so its edge is stretched.
         assertTrue(legacyFill(IntArray(n * n) { i -> if (i % n < n / 2) 0xFFFF0000.toInt() else 0xFF0000FF.toInt() }, n)!!.extend)
         assertNull(legacyFill(IntArray(n * n), n))
+        // An orange "C" with a see-through middle (Calculator++, #92): one edge colour, but not a solid shape, so a plate.
+        val letter = IntArray(n * n) { i ->
+            val dx = i % n - 15.5; val dy = i / n - 15.5
+            if (Math.hypot(dx, dy) in 8.0..14.0 && !(dx > 0 && Math.abs(dy) < 5)) orange else 0
+        }
+        assertNull(legacyFill(letter, n))
+        // Its plate is a pale tint of its orange; a grey icon's is white.
+        assertEquals(0xFFFBC38A.toInt(), plateTint(letter, n))
+        assertEquals(-1, plateTint(IntArray(n * n) { 0xFF808080.toInt() }, n))
     }
 
     @Test
