@@ -1094,15 +1094,17 @@ class MainActivity : VulcanActivity() {
      * keeps it and the drawer behind it until the drag leaves the folder.
      */
     fun trackDrag(v: View, e: DragEvent, keepOverlay: Boolean = false) {
-        if (e.action != DragEvent.ACTION_DRAG_LOCATION || dragMoved) return
+        if (e.action != DragEvent.ACTION_DRAG_LOCATION) return
         val loc = IntArray(2).also { v.getLocationOnScreen(it) }
         val x = loc[0] + e.x
         val y = loc[1] + e.y
+        // A drag on home keeps the page full size (#106) until it reaches the drop targets' strip at the top.
+        if (dragMoved) { if (homeState == HomeState.NORMAL && dragSource != null && y < insets.top + 72 * dp) setHomeState(HomeState.DRAG); return }
         val s = dragStart ?: PointF(x, y).also { dragStart = it }
         if (hypot(x - s.x, y - s.y) > 16 * dp) {
             dragMoved = true
             // As Nova: a drag within a folder keeps home as it is until it leaves the folder (openFolderWindow's leave).
-            if (!keepOverlay) liftDrag()
+            if (!keepOverlay) liftDrag(shrink = drawer.visible || overlay != null)
             root.tick()
             closeMenu()
             if (!keepOverlay) { drawer.hide(animate = false); closeOverlay() }
@@ -1111,10 +1113,11 @@ class MainActivity : VulcanActivity() {
 
     /**
      * Home's drag mode: drop targets and the shrunk page. A drag that never moves stays a long-press: none until it does.
+     * [shrink] false (a drag that started on home): both wait until the drag nears the top (trackDrag).
      * A drawer folder's app has no drop targets: it only reorders or copies to home.
      */
-    fun liftDrag() {
-        setHomeState(HomeState.DRAG)
+    fun liftDrag(shrink: Boolean = true) {
+        if (shrink) setHomeState(HomeState.DRAG)
         addDragPage()
     }
 
