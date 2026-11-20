@@ -407,9 +407,11 @@ class MainActivity : VulcanActivity() {
                 val top = if (!barHidden) ins.systemWindowInsetTop
                     else if (android.os.Build.VERSION.SDK_INT >= 28) ins.displayCutout?.safeInsetTop ?: 0 else 0
                 val behind = looks.on("dockBehindNav") && looks.dockOn && !floatingDock && !landscape
-                content.setPadding(ins.systemWindowInsetLeft, top, ins.systemWindowInsetRight,
-                    if (behind) 0 else ins.systemWindowInsetBottom)
-                dockBox.setPadding(0, 0, 0, if (behind) ins.systemWindowInsetBottom else 0)
+                // The keyboard (renaming a folder) mustn't squash home: only the drawer and the folder card move for it.
+                val bars = if (android.os.Build.VERSION.SDK_INT >= 30) ins.getInsets(android.view.WindowInsets.Type.systemBars()).bottom
+                    else ins.stableInsetBottom
+                content.setPadding(ins.systemWindowInsetLeft, top, ins.systemWindowInsetRight, if (behind) 0 else bars)
+                dockBox.setPadding(0, 0, 0, if (behind) bars else 0)
                 drawer.applyInsets(ins.systemWindowInsetLeft, top, ins.systemWindowInsetRight, ins.systemWindowInsetBottom)
                 dropBar.setPadding(dropBar.paddingLeft, top + dropBar.paddingBottom, dropBar.paddingRight, dropBar.paddingBottom)
                 insets.set(ins.systemWindowInsetLeft, top, ins.systemWindowInsetRight, ins.systemWindowInsetBottom)
