@@ -149,7 +149,9 @@ class IconView(context: Context, label: CharSequence, icon: Drawable, style: Ico
             textSize = style.labelSize
             gravity = if (style.horizontal) Gravity.START else Gravity.TOP or Gravity.CENTER_HORIZONTAL
             // A little air between icon and label; touching labels look cramped.
-            if (style.horizontal) setPadding(style.sizePx / 3, 0, 0, 0) else setPadding(0, style.sizePx / 10, 0, 0)
+            // Side air too, so a label that fills its cell doesn't run into the next one.
+            val side = (3 * resources.displayMetrics.density).toInt()
+            if (style.horizontal) setPadding(style.sizePx / 3, 0, 0, 0) else setPadding(side, style.sizePx / 10, side, 0)
             if (style.shadow) setShadowLayer(4f, 0f, 1f, 0xAA000000.toInt())
             setTextColor(style.labelColor)
         }
