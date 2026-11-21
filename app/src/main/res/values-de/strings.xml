@@ -268,7 +268,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="page_remove_confirm">Seite %1$d und alles darauf entfernen?</string>
     <string name="page_set_default">Als Standardseite festlegen</string>
     <string name="pages">Seiten</string>
-    <string name="pages_hint">Tippen zum Öffnen · halten und ziehen zum Verschieben oder Entfernen</string>
+    <string name="pages_hint">Tippen zum Öffnen · ⌂ tippen für Startseite · halten und ziehen zum Verschieben oder Entfernen</string>
     <string name="panel_launcher">Launcher</string>
     <string name="permissions">Berechtigungen</string>
     <string name="permissions_info">Worauf der Launcher zugreifen kann</string>

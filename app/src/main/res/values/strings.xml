@@ -518,7 +518,7 @@
     <string name="charged">Charged</string>
     <string name="search">Search</string>
     <string name="voice_search">Voice search</string>
-    <string name="pages_hint">Tap to open · hold and drag to move or remove</string>
+    <string name="pages_hint">Tap to open · tap ⌂ to make it home · hold and drag to move or remove</string>
     <string name="page_set_default">Set as default page</string>
     <string name="page_remove">Remove page</string>
     <string name="page_add">Add page</string>

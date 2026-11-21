@@ -268,7 +268,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="page_remove_confirm">Удалить страницу %1$d и всё на ней?</string>
     <string name="page_set_default">Сделать страницей по умолчанию</string>
     <string name="pages">Страницы</string>
-    <string name="pages_hint">Коснитесь, чтобы открыть · удерживайте и перетащите, чтобы переместить или удалить</string>
+    <string name="pages_hint">Коснитесь, чтобы открыть · ⌂ — сделать главной · удерживайте и перетащите, чтобы переместить или удалить</string>
     <string name="panel_launcher">Лаунчер</string>
     <string name="permissions">Разрешения</string>
     <string name="permissions_info">К чему у лаунчера есть доступ</string>

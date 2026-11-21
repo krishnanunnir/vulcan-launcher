@@ -508,7 +508,7 @@
     <string name="charged">Naładowano</string>
     <string name="search">Szukaj</string>
     <string name="voice_search">Wyszukiwanie głosowe</string>
-    <string name="pages_hint">Dotknij, aby otworzyć · przytrzymaj i przeciągnij, aby przenieść lub usunąć</string>
+    <string name="pages_hint">Dotknij, aby otworzyć · dotknij ⌂, aby ustawić jako główną · przytrzymaj i przeciągnij, aby przenieść lub usunąć</string>
     <string name="page_set_default">Ustaw jako stronę domyślną</string>
     <string name="page_remove">Usuń stronę</string>
     <string name="page_add">Dodaj stronę</string>
