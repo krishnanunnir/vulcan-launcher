@@ -285,6 +285,7 @@ class MainActivity : VulcanActivity() {
         pages = List(looks.pages) { newPage(it) }
         indicator = Indicator(this, looks.pages, looks.str("indicator"), looks.color("labelColor"), m3.signal)
         workspace = Workspace(this).apply {
+            paddingOf(looks.str("pageMargin")).let { (x, y) -> marginX = (x * dp).toInt(); marginY = (y * dp).toInt() }
             pages.forEach { addView(it) }
             onGesture = gesture
             effect = looks.str("scrollEffect")

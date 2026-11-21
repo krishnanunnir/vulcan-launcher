@@ -48,6 +48,9 @@
 
     <string name="set_lockLayout">Zablokuj układ</string>
     <string name="set_widgetOverlap">Nakładanie widżetów podczas umieszczania</string>
+    <string name="set_pageMargin">Odstęp strony</string>
+    <string name="padding_sides">Lewo i prawo</string>
+    <string name="padding_ends">Góra i dół</string>
     <string name="set_widgetRadius">Promień zaokrąglenia narożników widżetów</string>
     <string name="set_autoAdd">Dodawaj ikony nowych aplikacji do ekranu głównego</string>
     <string name="set_hideClock">Ukryj zegar na pasku stanu</string>

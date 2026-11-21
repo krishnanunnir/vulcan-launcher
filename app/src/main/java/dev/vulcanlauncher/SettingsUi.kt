@@ -389,6 +389,7 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
         // One page leaves nothing to choose between.
         c.key == "defaultPage" && looks.int("pages") <= 1 ->
             listItem(null, getString(c.title), getString(R.string.default_page_one)) {}.apply { alpha = 0.5f }
+        c.key == "pageMargin" -> paddingRow(c)
         c.values.size > 2 && c.values.all { it.toIntOrNull() != null } -> slider(c)
         else -> listItem(null, getString(c.title), valueName(c), trailing = swatch(c)) { pick(c) }
     }.apply { tag = c.key }
@@ -474,6 +475,217 @@ private fun SettingsActivity.slider(c: Choice): View {
         setPadding(0, (8 * dp).toInt(), 0, (4 * dp).toInt())
         addView(listItem(null, getString(c.title), trailing = value, onClick = null).apply { minimumHeight = 0; setPadding(paddingLeft, 0, paddingRight, 0) })
         addView(bar, LinearLayout.LayoutParams(-1, (40 * dp).toInt()))
+    }
+}
+
+/**
+ * Page padding (#96), as Nova's Padding: a row saying "24 × 16 dp" that opens a dialog with a phone beside two
+ * sliders, Left & right and Top & bottom. The phone draws the home grid as it is set (columns, rows, dock) and moves
+ * it in as a slider moves, the space it gives up tinted in the signal colour, so the change is seen before OK saves it.
+ */
+private fun SettingsActivity.paddingRow(c: Choice): View {
+    fun name(v: String) = paddingOf(v).let { (x, y) -> if (x == 0 && y == 0) getString(R.string.none) else getString(R.string.padding_value, x, y) }
+    return listItem(null, getString(c.title), name(looks[c])) {
+        var (px, py) = paddingOf(looks[c])
+        val steps = PADDING_STEPS
+        val preview = PaddingPreview(this, looks.cols, looks.rows, looks.dockCols, looks.dockOn, looks.str("shape"), looks.on("labels")).apply { set(px, py, animate = false) }
+        fun bar(title: Int, start: Int, onMove: (Int) -> Unit): View {
+            val value = text("$start dp", 14f, m3.onSurfaceVariant)
+            val seek = android.widget.SeekBar(this).apply {
+                max = steps.size - 1
+                progress = steps.indexOf(start).coerceAtLeast(0)
+                contentDescription = getString(title)
+                val tint = android.content.res.ColorStateList.valueOf(m3.on)
+                progressTintList = tint; thumbTintList = tint; tickMarkTintList = tint
+                tickMark = GradientDrawable().apply { shape = GradientDrawable.OVAL; setSize((4 * dp).toInt(), (4 * dp).toInt()) }
+                if (android.os.Build.VERSION.SDK_INT >= 30) stateDescription = value.text
+                setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(b: android.widget.SeekBar, i: Int, user: Boolean) {
+                        value.text = "${steps[i]} dp"
+                        if (android.os.Build.VERSION.SDK_INT >= 30) stateDescription = value.text
+                        if (user) onMove(steps[i])
+                    }
+                    override fun onStartTrackingTouch(b: android.widget.SeekBar) {}
+                    override fun onStopTrackingTouch(b: android.widget.SeekBar) {}
+                })
+            }
+            return LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(LinearLayout(context).apply {
+                    setPadding((16 * dp).toInt(), 0, (16 * dp).toInt(), 0)
+                    addView(text(getString(title), 14f, m3.onSurface), LinearLayout.LayoutParams(0, -2, 1f))
+                    addView(value)
+                })
+                addView(seek, LinearLayout.LayoutParams(-1, (40 * dp).toInt()))
+            }
+        }
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((8 * dp).toInt(), (8 * dp).toInt(), (8 * dp).toInt(), 0)
+            // The phone in a recessed well, large enough to read the grid; the sliders under it, as Nova's.
+            addView(android.widget.FrameLayout(context).apply {
+                background = rounded(m3.well, 20 * dp)
+                setPadding(0, (12 * dp).toInt(), 0, (16 * dp).toInt())
+                addView(preview, android.widget.FrameLayout.LayoutParams(preview.width(), preview.height(), Gravity.CENTER_HORIZONTAL))
+            }, LinearLayout.LayoutParams(-1, -2).apply { setMargins((8 * dp).toInt(), 0, (8 * dp).toInt(), (20 * dp).toInt()) })
+            addView(bar(R.string.padding_sides, px) { px = it; preview.set(px, py) })
+            addView(bar(R.string.padding_ends, py) { py = it; preview.set(px, py) }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = (8 * dp).toInt() })
+        }
+        dialog().setTitle(c.title).setView(box)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.ok) { _, _ ->
+                applyChoice(c, "${px}x$py")
+                changed()
+            }.show()
+    }
+}
+
+/**
+ * [paddingRow]'s phone, drawn as a spec sheet: the screen's own shape with its camera and status bar, the home grid
+ * ([cols] x [rows] icons in the icon shape, label lines under them) inset by the padding, the space given up hatched
+ * in the signal colour, and the dock under it, which padding leaves alone. Dimension callouts outside the body name
+ * each side's padding. Eases to each new value.
+ */
+private class PaddingPreview(private val a: SettingsActivity, private val cols: Int, private val rows: Int,
+                             private val dockCols: Int, private val dock: Boolean, shape: String,
+                             private val labels: Boolean) : View(a) {
+    private val dp = a.resources.displayMetrics.density
+    private val screenW = a.resources.displayMetrics.widthPixels / dp
+    private val screenH = a.resources.displayMetrics.heightPixels / dp
+    // The phone, and the gutters either side of it and above it for the callouts.
+    private val phoneW = 132 * dp
+    private val phoneH = phoneW * screenH / screenW
+    private val side = 44 * dp
+    private val above = 8 * dp
+    private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+    private val type = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        textSize = 11 * a.resources.displayMetrics.scaledDensity
+        typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+    }
+    private val r = android.graphics.RectF()
+    // The icon shape once, 100 px square; each icon scales it.
+    private val icon = shapePath(shape, android.graphics.Rect(0, 0, 100, 100))
+    private var x = 0f; private var y = 0f
+    private var anim: android.animation.ValueAnimator? = null
+
+    init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
+
+    fun width() = (phoneW + 2 * side).toInt()
+    fun height() = (phoneH + above + 2 * dp).toInt()
+
+    fun set(px: Int, py: Int, animate: Boolean = true) {
+        anim?.cancel()
+        if (!animate) { x = px.toFloat(); y = py.toFloat(); invalidate(); return }
+        val x0 = x; val y0 = y
+        anim = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 220
+            interpolator = android.view.animation.DecelerateInterpolator(1.5f)
+            addUpdateListener { val f = it.animatedValue as Float; x = x0 + (px - x0) * f; y = y0 + (py - y0) * f; invalidate() }
+            start()
+        }
+    }
+
+    private fun alpha(c: Int, a: Int) = c and 0xFFFFFF or (a shl 24)
+
+    private fun drawIcon(canvas: android.graphics.Canvas, cx: Float, cy: Float, size: Float, color: Int) {
+        paint.color = color
+        canvas.save()
+        canvas.translate(cx - size / 2, cy - size / 2)
+        canvas.scale(size / 100f, size / 100f)
+        canvas.drawPath(icon, paint)
+        canvas.restore()
+    }
+
+    override fun onDraw(canvas: android.graphics.Canvas) {
+        val m3 = a.m3
+        val s = phoneW / screenW // px per screen dp
+        val edge = 1.5f * dp
+        val corner = 16 * dp
+        val pl = side; val pt = above; val pr = pl + phoneW; val pb = pt + phoneH
+        paint.style = android.graphics.Paint.Style.FILL
+
+        // The body: the panel colour, a touch lighter at the top, as lit from above.
+        paint.shader = android.graphics.LinearGradient(0f, pt, 0f, pb, m3.raised, m3.surfaceHigh, android.graphics.Shader.TileMode.CLAMP)
+        r.set(pl, pt, pr, pb)
+        canvas.drawRoundRect(r, corner, corner, paint)
+        paint.shader = null
+
+        // Status bar: the time on the left, the camera in the middle, two dots on the right.
+        val sy = pt + 9 * dp
+        paint.color = alpha(m3.onSurfaceVariant, 0x99)
+        r.set(pl + 10 * dp, sy - dp, pl + 22 * dp, sy + dp); canvas.drawRoundRect(r, dp, dp, paint)
+        canvas.drawCircle(pr - 12 * dp, sy, 1.6f * dp, paint); canvas.drawCircle(pr - 17 * dp, sy, 1.6f * dp, paint)
+        paint.color = m3.onSurface
+        canvas.drawCircle((pl + pr) / 2, sy, 2.4f * dp, paint)
+
+        // Where the pages sit: under the status bar, over the dock (or the navigation bar without one).
+        val top = pt + 28 * s
+        val bottom = pb - (if (dock) 112 else 28) * s
+        val il = pl + x * s; val ir = pr - x * s; val it = top + y * s; val ib = bottom - y * s
+
+        // The space the padding gives up: a light wash, hatched at 45 degrees, in the signal colour.
+        if (x > 0.5f || y > 0.5f) {
+            canvas.save()
+            canvas.clipRect(pl, top, pr, bottom)
+            canvas.clipOutRect(il, it, ir, ib)
+            paint.color = alpha(m3.signal, 0x24)
+            canvas.drawRect(pl, top, pr, bottom, paint)
+            paint.style = android.graphics.Paint.Style.STROKE; paint.strokeWidth = dp; paint.color = alpha(m3.signal, 0x8C)
+            val step = 5 * dp
+            var d = -(bottom - top)
+            while (d < phoneW) { canvas.drawLine(pl + d, bottom, pl + d + (bottom - top), top, paint); d += step }
+            canvas.restore()
+            // The page's new edge, in the signal itself.
+            paint.color = m3.signal; paint.strokeWidth = 1.2f * dp
+            r.set(il, it, ir, ib); canvas.drawRoundRect(r, 4 * dp, 4 * dp, paint)
+            paint.style = android.graphics.Paint.Style.FILL
+        }
+
+        // The grid: an icon in the icon shape per column and row, a label line under each.
+        val cw = (ir - il) / cols; val ch = (ib - it) / rows
+        val size = minOf(cw, ch * (if (labels) 0.72f else 1f)) * 0.62f
+        for (i in 0 until cols) for (j in 0 until rows) {
+            val cx = il + cw * (i + 0.5f); val cy = it + ch * (j + 0.5f) - (if (labels) size * 0.18f else 0f)
+            drawIcon(canvas, cx, cy, size, alpha(m3.onSurfaceVariant, if ((i + j) % 3 == 0) 0x73 else 0x52))
+            if (labels) {
+                paint.color = alpha(m3.onSurfaceVariant, 0x40)
+                r.set(cx - size * 0.38f, cy + size * 0.66f, cx + size * 0.38f, cy + size * 0.66f + 1.2f * dp)
+                canvas.drawRoundRect(r, dp, dp, paint)
+            }
+        }
+
+        // The dock, untouched by the padding: a row of icons across the full width, then the gesture bar.
+        if (dock) {
+            val dw = (phoneW - 2 * edge) / dockCols; val dc = minOf(dw, 64 * s) * 0.66f; val dy = pb - 64 * s
+            for (i in 0 until dockCols) drawIcon(canvas, pl + edge + dw * (i + 0.5f), dy, dc, alpha(m3.onSurfaceVariant, 0xB3))
+        }
+        paint.color = alpha(m3.onSurface, 0x66)
+        r.set((pl + pr) / 2 - 14 * dp, pb - 6 * dp, (pl + pr) / 2 + 14 * dp, pb - 4.5f * dp); canvas.drawRoundRect(r, dp, dp, paint)
+
+        // The outline last, over the corners.
+        paint.style = android.graphics.Paint.Style.STROKE; paint.strokeWidth = edge; paint.color = m3.outline
+        r.set(pl + edge / 2, pt + edge / 2, pr - edge / 2, pb - edge / 2)
+        canvas.drawRoundRect(r, corner, corner, paint)
+
+        // Callouts, as on a drawing: Left & right beside the left edge at mid height, Top & bottom beside the right
+        // edge at the top band. A leader runs from the number to the band it names; each fades in from 0.
+        fun callout(value: Float, left: Boolean, ly: Float) {
+            val shown = (value / 8f).coerceIn(0f, 1f)
+            if (shown == 0f) return
+            val text = "${kotlin.math.round(value).toInt()} dp"
+            type.color = alpha(m3.signalInk, (shown * 255).toInt())
+            type.textAlign = if (left) android.graphics.Paint.Align.RIGHT else android.graphics.Paint.Align.LEFT
+            val tx = if (left) pl - 10 * dp else pr + 10 * dp
+            canvas.drawText(text, tx, ly - (type.ascent() + type.descent()) / 2, type)
+            paint.style = android.graphics.Paint.Style.STROKE; paint.strokeWidth = dp; paint.color = alpha(m3.signal, (shown * 255).toInt())
+            val from = if (left) pl - 7 * dp else pr + 7 * dp
+            val to = if (left) pl + value * s / 2 else pr - 6 * dp
+            canvas.drawLine(from, ly, to, ly, paint)
+            paint.style = android.graphics.Paint.Style.FILL
+            canvas.drawCircle(to, ly, 1.6f * dp, paint)
+        }
+        callout(x, true, (top + bottom) / 2)
+        callout(y, false, top + y * s / 2)
     }
 }
 

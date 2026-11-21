@@ -141,15 +141,22 @@ class Workspace(context: Context) : ViewGroup(context) {
     private val end = FloatArray(4)
     private var anim: ValueAnimator? = null
 
+    /** Space (px) between each page's grid and the edges of its slot, left and right and top and bottom: Page padding (#96). */
+    var marginX = 0
+    var marginY = 0
+
     override fun onMeasure(widthSpec: Int, heightSpec: Int) {
-        for (i in 0 until childCount) getChildAt(i).measure(widthSpec, heightSpec)
-        setMeasuredDimension(MeasureSpec.getSize(widthSpec), MeasureSpec.getSize(heightSpec))
+        val w = MeasureSpec.getSize(widthSpec); val h = MeasureSpec.getSize(heightSpec)
+        val mx = marginX.coerceAtMost(w / 4); val my = marginY.coerceAtMost(h / 4)
+        for (i in 0 until childCount) getChildAt(i).measure(MeasureSpec.makeMeasureSpec(w - 2 * mx, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(h - 2 * my, MeasureSpec.EXACTLY))
+        setMeasuredDimension(w, h)
     }
 
     // ponytail: pages run left to right in right-to-left languages too (each page's grid is mirrored, see CellLayout);
     // Launcher3 also reverses the page order, which means mirroring scrollX, the transition effects and the edge gestures.
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-        for (i in 0 until childCount) getChildAt(i).layout(i * width, 0, (i + 1) * width, height)
+        val mx = marginX.coerceAtMost(width / 4); val my = marginY.coerceAtMost(height / 4)
+        for (i in 0 until childCount) getChildAt(i).layout(i * width + mx, my, (i + 1) * width - mx, height - my)
         scrollTo(current * width, 0)
         // A page added while shrunk (the overview's "+") takes its place in the gap once it's laid out.
         if (gap > 0f) onScrollChanged(scrollX, 0, scrollX, 0)
@@ -192,8 +199,10 @@ class Workspace(context: Context) : ViewGroup(context) {
     }
 
     /** True when the point (in this view's coordinates) is on an icon or widget of the current page. */
-    private fun onItem(x: Float, y: Float): Boolean {
+    private fun onItem(wx: Float, wy: Float): Boolean {
         val page = getChildAt(current) as? ViewGroup ?: return false
+        // Into the page's own coordinates: Page margins inset it in its slot (#96).
+        val x = wx - page.left + scrollX; val y = wy - page.top
         for (i in 0 until page.childCount) {
             val c = page.getChildAt(i)
             if (c.visibility == View.VISIBLE && x >= c.left && x < c.right && y >= c.top && y < c.bottom) return true
@@ -202,8 +211,10 @@ class Workspace(context: Context) : ViewGroup(context) {
     }
 
     /** True when the point is on an icon of the current page that takes its own swipe up (icon swipe actions). */
-    private fun swipesItself(x: Float, y: Float): Boolean {
+    private fun swipesItself(wx: Float, wy: Float): Boolean {
         val page = getChildAt(current) as? ViewGroup ?: return false
+        // Into the page's own coordinates: Page margins inset it in its slot (#96).
+        val x = wx - page.left + scrollX; val y = wy - page.top
         for (i in 0 until page.childCount) {
             val c = page.getChildAt(i)
             if (c is IconView && c.onSwipe != null && c.visibility == View.VISIBLE && x >= c.left && x < c.right && y >= c.top && y < c.bottom) return true
@@ -212,14 +223,18 @@ class Workspace(context: Context) : ViewGroup(context) {
     }
 
     /** True when the point is on a widget stack of the current page. */
-    private fun onStack(x: Float, y: Float): Boolean {
+    private fun onStack(wx: Float, wy: Float): Boolean {
         val page = getChildAt(current) as? ViewGroup ?: return false
+        // Into the page's own coordinates: Page margins inset it in its slot (#96).
+        val x = wx - page.left + scrollX; val y = wy - page.top
         return (0 until page.childCount).map(page::getChildAt).any { it is WidgetStack && it.visibility == View.VISIBLE && x >= it.left && x < it.right && y >= it.top && y < it.bottom }
     }
 
     /** True when the point is on a widget of the current page holding a list that can still scroll [dir] (1: down). */
-    private fun widgetScrolls(x: Float, y: Float, dir: Int): Boolean {
+    private fun widgetScrolls(wx: Float, wy: Float, dir: Int): Boolean {
         val page = getChildAt(current) as? ViewGroup ?: return false
+        // Into the page's own coordinates: Page margins inset it in its slot (#96).
+        val x = wx - page.left + scrollX; val y = wy - page.top
         for (i in 0 until page.childCount) {
             val c = page.getChildAt(i)
             if (c is WidgetFrame && c.visibility == View.VISIBLE && x >= c.left && x < c.right && y >= c.top && y < c.bottom)

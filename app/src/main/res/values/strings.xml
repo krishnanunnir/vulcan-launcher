@@ -50,6 +50,10 @@
     
     <string name="set_lockLayout">Lock layout</string>
     <string name="set_widgetOverlap">Widget overlap when placing</string>
+    <string name="set_pageMargin">Page padding</string>
+    <string name="padding_sides">Left &amp; right</string>
+    <string name="padding_ends">Top &amp; bottom</string>
+    <string name="padding_value">%1$d × %2$d dp</string>
     <string name="set_widgetRadius">Widget corner radius</string>
     <string name="set_autoAdd">Add icons of new apps to home screen</string>
     <string name="set_hideClock">Hide the status bar clock</string>

@@ -93,8 +93,18 @@ class LooksTest {
             if (keys !== GESTURE_KEYS) assertTrue("$group section $title has ${keys.size} rows", keys.size <= MAX_SECTION_ROWS)
     }
 
+    @Test
+    fun pagePaddingReadsBothSides() {
+        assertEquals(16 to 8, paddingOf("16x8"))
+        assertEquals(0 to 0, paddingOf("0x0"))
+        // Out of range is held to the last step; anything else, such as the old one-number value, is none.
+        assertEquals(48 to 0, paddingOf("99x0"))
+        assertEquals(0 to 0, paddingOf("32"))
+        assertEquals(0 to 0, paddingOf(""))
+    }
+
     private companion object {
-        const val SETTINGS_BUDGET = 118
+        const val SETTINGS_BUDGET = 119 // 119 for Page padding (#96), the owner's yes 2026-11-21
         const val MAX_SECTION_ROWS = 8
     }
 }

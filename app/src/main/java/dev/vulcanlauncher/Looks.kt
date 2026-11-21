@@ -22,6 +22,14 @@ fun Context.choiceName(c: Choice, i: Int) = if (c.key == "nightStart" || c.key =
     else c.name(i, ::getString)
 
 private fun range(from: Int, to: Int, step: Int = 1) = (from..to step step).map { it.toString() }
+
+/** Page padding steps (dp), the same for left and right as for top and bottom (#96). */
+val PADDING_STEPS = (0..48 step 8).toList()
+private val PADDING_VALUES = PADDING_STEPS.flatMap { w -> PADDING_STEPS.map { h -> "${w}x$h" } }
+
+/** A page padding value ("16x8": left and right x top and bottom, in dp) as a pair; anything else is none. */
+fun paddingOf(v: String): Pair<Int, Int> =
+    v.split('x').mapNotNull { it.toIntOrNull()?.coerceIn(0, PADDING_STEPS.last()) }.takeIf { it.size == 2 }?.let { it[0] to it[1] } ?: (0 to 0)
 private fun onOff(group: String, key: String, title: Int, default: Boolean, info: Int = 0) =
     Choice(group, key, title, if (default) "on" else "off", listOf("on", "off"), listOf(R.string.on, R.string.off), info = info)
 private fun sizes(group: String, key: String, title: Int, default: String = "48") =
@@ -74,6 +82,8 @@ val LOOKS = listOf(
     Choice(HOME, "defaultPage", R.string.set_defaultPage, "0", range(0, 8), shown = range(1, 9)),
     onOff(HOME, "subgrid", R.string.set_subgrid, false, R.string.set_subgrid_info),
     sizes(HOME, "iconSize", R.string.set_iconSize, "64"),
+    // As Nova's Padding: one row holding both, left and right x top and bottom (#96). SettingsUi.paddingRow edits it.
+    Choice(HOME, "pageMargin", R.string.set_pageMargin, "0x0", PADDING_VALUES, shown = PADDING_VALUES.map { v -> paddingOf(v).let { "${it.first} × ${it.second} dp" } }),
     onOff(HOME, "labels", R.string.set_labels, true),
     Choice(HOME, "labelSize", R.string.set_labelSize, "12", range(8, 24), shown = range(8, 24).map { "$it sp" }),
     color(HOME, "labelColor", R.string.set_labelColor, "#FFFFFF"),
@@ -197,7 +207,7 @@ val LOOKS = listOf(
  */
 val SECTIONS: Map<String, List<Pair<Int, List<String>>>> = mapOf(
     HOME to listOf(
-        R.string.sec_layout to listOf("cols", "rows", "pages", "defaultPage", "subgrid", "iconSize", "@dock"),
+        R.string.sec_layout to listOf("cols", "rows", "pages", "defaultPage", "subgrid", "iconSize", "pageMargin", "@dock"),
         R.string.sec_labels to listOf("labels", "labelSize", "labelColor", "labelFont", "labelLines", "labelShadow"),
         R.string.sec_search to listOf("searchBar"),
         R.string.sec_scroll to listOf("wallpaperScroll", "scrollEffect", "infiniteScroll", "indicator"),
