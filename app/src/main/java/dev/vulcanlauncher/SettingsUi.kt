@@ -855,6 +855,7 @@ private fun SettingsActivity.segmented(options: List<String>, chosen: Int, onPic
         addView(text(label, 14f, if (i == chosen) m3.onSecondaryContainer else m3.onSurface, medium = true).apply {
             gravity = Gravity.CENTER
             minimumHeight = (40 * dp).toInt()
+            setPaddingRelative((4 * dp).toInt(), (2 * dp).toInt(), (4 * dp).toInt(), (2 * dp).toInt())
             background = pressable(if (i == chosen) rounded(m3.secondaryContainer, 20 * dp) else null, 20 * dp)
             accessibilityDelegate = object : View.AccessibilityDelegate() {
                 override fun onInitializeAccessibilityNodeInfo(v: View, info: android.view.accessibility.AccessibilityNodeInfo) {
