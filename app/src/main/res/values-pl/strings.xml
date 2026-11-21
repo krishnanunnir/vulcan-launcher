@@ -44,13 +44,11 @@
     <string name="set_glanceStyle">Styl zegara</string>
     <string name="glanceStyle_clock">Duży zegar i data</string>
     <string name="glanceStyle_date">Tylko data</string>
+    <string name="glanceStyle_theme">Duży w motywie Urządzenie, w pozostałych tylko data</string>
     <string name="clock">Zegar</string>
 
     <string name="set_lockLayout">Zablokuj układ</string>
     <string name="set_widgetOverlap">Nakładanie widżetów podczas umieszczania</string>
-    <string name="set_pageMargin">Odstęp strony</string>
-    <string name="padding_sides">Lewo i prawo</string>
-    <string name="padding_ends">Góra i dół</string>
     <string name="set_widgetRadius">Promień zaokrąglenia narożników widżetów</string>
     <string name="set_autoAdd">Dodawaj ikony nowych aplikacji do ekranu głównego</string>
     <string name="set_hideClock">Ukryj zegar na pasku stanu</string>
@@ -511,7 +509,7 @@
     <string name="charged">Naładowano</string>
     <string name="search">Szukaj</string>
     <string name="voice_search">Wyszukiwanie głosowe</string>
-    <string name="pages_hint">Dotknij, aby otworzyć · dotknij ⌂, aby ustawić jako główną · przytrzymaj i przeciągnij, aby przenieść lub usunąć</string>
+    <string name="pages_hint">Dotknij, aby otworzyć · przytrzymaj i przeciągnij, aby przenieść lub usunąć</string>
     <string name="page_set_default">Ustaw jako stronę domyślną</string>
     <string name="page_remove">Usuń stronę</string>
     <string name="page_add">Dodaj stronę</string>
@@ -659,6 +657,8 @@
     <string name="action_work">Wstrzymaj lub wznów aplikacje służbowe</string>
     <string name="action_open_folder">Otwórz folder</string>
     <string name="no_work_profile">Brak profilu służbowego</string>
+    <string name="work_paused">Profil służbowy wstrzymany</string>
+    <string name="work_resumed">Profil służbowy włączony</string>
     <string name="no_flashlight">Latarka jest obecnie niedostępna</string>
     <string name="name">Nazwa</string>
     <string name="backup_panel_save">Zapisz</string>
