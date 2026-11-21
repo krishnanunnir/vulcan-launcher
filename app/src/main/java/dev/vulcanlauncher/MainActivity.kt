@@ -710,7 +710,7 @@ class MainActivity : VulcanActivity() {
 
     private fun shortcutFace(item: Item, s: ShortcutInfo?): Drawable? {
         val key = "${item.user}/${item.pkg}/${item.shortcutId}"
-        s?.let { runCatching { launcherApps.getShortcutIconDrawable(it, resources.displayMetrics.densityDpi) }.getOrNull() }
+        s?.let { runCatching { launcherApps.getShortcutBadgedIconDrawable(it, resources.displayMetrics.densityDpi) }.getOrNull() }
             ?.let { d -> d.constantState?.let { shortcutFaces[key] = it } ?: return d }
         val d = shortcutFaces[key]?.newDrawable(resources) ?: return null
         return if (userOf(item.user) in pausedUsers) greyed(d) else d

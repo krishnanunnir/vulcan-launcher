@@ -427,7 +427,8 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
             cell.addView(IconView(this, label, icon, style, badgeStyle(), c.pkg).also { order[i] = it }.apply {
                 layoutParams = CellLayout.CellParams(i % cols, i / cols, 1, 1)
                 if (looks.str("badges") != "off") badge(image, c.pkg)
-                setOnClickListener { v -> closeOverlay(); open(c, v) }
+                // The flashlight keeps the folder open, so the same tap turns it off again (#103).
+                setOnClickListener { v -> if (c.isAction && c.action == "torch") open(c, v) else { closeOverlay(); open(c, v) } }
                 setOnLongClickListener { v -> startDrag(v, payload(i)); true }
             })
         }
