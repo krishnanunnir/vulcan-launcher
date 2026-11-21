@@ -26,6 +26,7 @@ import android.widget.TextView
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 // The Now page: feed cards that work offline (date, media controls, calendar, contacts, frequent apps).
 // Weather, news and Google Discover need the network and aren't here.
@@ -50,6 +51,15 @@ fun nowCardId(card: Item) = if (card.isWidget) "w${card.widgetId}" else "a" + ca
 
 fun MainActivity.nowCards(): List<Item> = runCatching { itemsFromJson(store.data.getString(NOW_CUSTOM, null) ?: "[]") }.getOrDefault(emptyList())
 fun MainActivity.saveNowCards(cards: List<Item>) = store.data.edit().putString(NOW_CUSTOM, itemsToJson(cards)).apply()
+
+/** A widget card's height is saved as its item's h, in steps of this many dp. 1, the default, is the widget's own height. */
+const val NOW_CARD_STEP = 8
+
+/** The least height of a widget card, in dp, when the widget doesn't resize vertically. */
+const val NOW_CARD_MIN = 48
+
+/** The steps of a widget card [dp] tall: the nearest, and never under [minDp]. */
+fun nowCardSteps(dp: Float, minDp: Int) = maxOf((dp / NOW_CARD_STEP).roundToInt(), (minDp + NOW_CARD_STEP - 1) / NOW_CARD_STEP)
 
 /** Adds a card of apps picked from a list, or of a widget (through the widget picker, see placeWidget). */
 fun MainActivity.addNowCard() {
@@ -81,16 +91,17 @@ fun MainActivity.showNow(slide: Boolean = true) {
     val pad = (16 * dp).toInt()
     val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, pad, pad, insets.bottom + pad) }
     // M3 filled cards on a translucent surface.
-    /** Cards of your own, to their remove action: held and let go without dragging, they offer Remove, as Nova's widgets. */
-    val removers = HashMap<View, () -> Unit>()
-    fun card(title: String, body: View, onRemove: (() -> Unit)? = null): View = LinearLayout(this).apply {
+    /** Cards of your own, to their menu: held and let go without dragging, they offer Resize (widgets) and Remove, as Nova's widgets. */
+    val menus = HashMap<View, List<Triple<String, String, () -> Unit>>>()
+    fun card(title: String, body: View, onRemove: (() -> Unit)? = null, onResize: (() -> Unit)? = null): View = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         background = rounded(m3.surfaceContainer, 24 * dp)
         setPadding(pad + pad / 4, pad, pad + pad / 4, pad + pad / 4)
         addView(text(title, 14f, m3.primary, medium = true).apply { setPadding(0, 0, 0, pad * 3 / 4) })
         addView(body)
         layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = pad * 3 / 4 }
-        if (onRemove != null) removers[this] = onRemove
+        if (onRemove != null) menus[this] = listOfNotNull(onResize?.let { Triple("resize", getString(R.string.resize), it) },
+            Triple("close", getString(R.string.remove), onRemove))
     }
     fun text(s: CharSequence, size: Float = 15f) = text(s, size, m3.onSurface)
     fun action(label: String, onClick: () -> Unit) = LinearLayout(this).apply { addView(tonalButton(label, onClick)) }
@@ -235,8 +246,8 @@ fun MainActivity.showNow(slide: Boolean = true) {
         if (c.isWidget) {
             val info = awm.getAppWidgetInfo(c.widgetId) ?: return null
             val frame = widgetView(c) ?: return null
-            frame.layoutParams = LinearLayout.LayoutParams(-1, maxOf(info.minHeight, (64 * dp).toInt()))
-            return card(info.loadLabel(packageManager), frame, remove)
+            frame.layoutParams = LinearLayout.LayoutParams(-1, if (c.h > 1) (c.h * NOW_CARD_STEP * dp).toInt() else maxOf(info.minHeight, (64 * dp).toInt()))
+            return card(info.loadLabel(packageManager), frame, remove) { resizeNowCard(c, info, frame) }
         }
         val shownApps = c.children.mapNotNull { child -> resolve(child)?.let { child to it } }
         if (shownApps.isEmpty()) return null
@@ -283,12 +294,12 @@ fun MainActivity.showNow(slide: Boolean = true) {
                 MotionEvent.ACTION_MOVE -> if (kotlin.math.abs(ev.rawY - downY) > slop) menuOnUp = false
                 MotionEvent.ACTION_UP -> if (menuOnUp) {
                     menuOnUp = false
-                    removers[v]?.let { r -> showMenu(screenRect(v), narrow = true) { addActions(listOf(Triple("close", getString(R.string.remove), r)), 4, emptySet()) } }
+                    menus[v]?.let { m -> showMenu(screenRect(v), narrow = true) { addActions(m, 4, emptySet()) } }
                 }
             }
             reorder.onTouch(ev)
         }
-        val start = View.OnLongClickListener { menuOnUp = v in removers; if (shown.size > 1) reorder.begin(v, downY); shown.size > 1 || menuOnUp }
+        val start = View.OnLongClickListener { menuOnUp = v in menus; if (shown.size > 1) reorder.begin(v, downY); shown.size > 1 || menuOnUp }
         listOf(v, (v as LinearLayout).getChildAt(0)).forEach { it.setOnTouchListener(hold); it.setOnLongClickListener(start) }
         // Holding the widget itself, the obvious place, opens the same menu (#105): the widget takes the DOWN, so its
         // frame's long-press is the start, and the frame gets the rest of the touch once it has fired.
@@ -317,6 +328,57 @@ fun MainActivity.showNow(slide: Boolean = true) {
 fun MainActivity.reopenNow() {
     overlayExit = null; closeOverlay(); showNow(slide = false)
     (overlay as? NowPanel)?.progress = 1f
+}
+
+/** Tags a widget card's resize handle, so Resize again puts it away instead of adding another. */
+private const val RESIZE_HANDLE = "nowResizeHandle"
+
+/**
+ * A widget card's height ([info]'s widget in [frame]): a handle under it that drags its bottom edge, saved in
+ * [NOW_CARD_STEP]s when let go. TalkBack can't drag it: the heights, as a list.
+ */
+@SuppressLint("ClickableViewAccessibility")
+private fun MainActivity.resizeNowCard(c: Item, info: android.appwidget.AppWidgetProviderInfo, frame: View) {
+    val card = frame.parent as? LinearLayout ?: return
+    card.findViewWithTag<View>(RESIZE_HANDLE)?.let { card.removeView(it); return }
+    // As home: a widget that resizes vertically keeps its minResizeHeight; one that doesn't can shrink to NOW_CARD_MIN.
+    val vertical = info.resizeMode and android.appwidget.AppWidgetProviderInfo.RESIZE_VERTICAL != 0
+    val min = maxOf(NOW_CARD_MIN, if (vertical) ((info.minResizeHeight.takeIf { it > 0 } ?: info.minHeight) / dp).roundToInt() else 0)
+    val save = { steps: Int -> saveNowCards(nowCards().map { if (nowCardId(it) == nowCardId(c)) it.copy(h = steps) else it }) }
+    if (touchExploring) {
+        val now = nowCardSteps(frame.height / dp, min)
+        // Twelve heights 48dp apart from the least, and the current one.
+        val first = nowCardSteps(0f, min)
+        val sizes = (List(12) { first + it * 48 / NOW_CARD_STEP } + now).distinct().sorted()
+        val names = sizes.map { steps ->
+            val s = getString(R.string.now_card_height, steps * NOW_CARD_STEP)
+            if (steps == now) getString(R.string.resize_current, s) else s
+        }
+        sheet().setTitle(R.string.resize).setItems(names.toTypedArray()) { _, i -> save(sizes[i]); reopenNow() }.show()
+        return
+    }
+    var downY = 0f
+    var start = 0
+    var steps = -1
+    card.addView(FrameLayout(this).apply {
+        tag = RESIZE_HANDLE
+        contentDescription = getString(R.string.resize)
+        addView(View(context).apply { background = rounded(m3.onSurfaceVariant, 2 * dp) },
+            FrameLayout.LayoutParams((32 * dp).toInt(), (4 * dp).toInt(), Gravity.CENTER))
+        setOnTouchListener { v, ev ->
+            when (ev.actionMasked) {
+                // The page scrolls, and closes on a sideways swipe: neither while the edge is held.
+                MotionEvent.ACTION_DOWN -> { downY = ev.rawY; start = frame.height; v.parent.requestDisallowInterceptTouchEvent(true) }
+                MotionEvent.ACTION_MOVE -> {
+                    steps = nowCardSteps((start + ev.rawY - downY) / dp, min)
+                    frame.layoutParams.height = (steps * NOW_CARD_STEP * dp).toInt(); frame.requestLayout()
+                }
+                // Removed once the touch is through: removing a view while it's handling the touch crashes.
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { card.post { card.removeView(v) }; if (steps > 0) save(steps) }
+            }
+            true
+        }
+    }, LinearLayout.LayoutParams(-1, (32 * dp).toInt()))
 }
 
 /**

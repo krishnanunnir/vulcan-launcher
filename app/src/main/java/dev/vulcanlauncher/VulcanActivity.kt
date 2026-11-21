@@ -81,6 +81,9 @@ abstract class VulcanActivity : Activity() {
         m3 = palette(this, darkPanels, looks.str("accent"), looks.colors())
     }
 
+    /** TalkBack (or another touch explorer) is on: it can't drag handles, so resizing offers a list instead. */
+    val touchExploring get() = getSystemService(android.view.accessibility.AccessibilityManager::class.java).isTouchExplorationEnabled
+
     // Light or dark text by the dialog's own background (styleDialog), which custom colours can flip from the scheme's.
     /** A picker or form: [dialog] as a bottom sheet (see styleDialog). */
     fun sheet() = dialog(sheet = true)
