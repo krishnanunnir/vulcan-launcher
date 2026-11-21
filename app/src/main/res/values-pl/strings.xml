@@ -396,7 +396,7 @@
     <string name="tab_private_fixed">Zawsze po karcie Wszystkie aplikacje</string>
     <string name="badges_off_unused">Nieużywane, gdy plakietki są wyłączone</string>
     <string name="not_used_by_bg">Nieużywane przez tło %1$s</string>
-    <string name="panels_amoled">Zawsze ciemne przy motywie Czerń AMOLED</string>
+    <string name="panels_amoled">Zawsze ciemne przy motywie Czarny AMOLED</string>
     <string name="set_iconPack">Pakiet ikon</string>   
     <string name="iconPack_system">Ikony systemowe</string>
     <string name="housing_follows_theme">Ramka (zgodnie z motywem)</string>
@@ -645,7 +645,7 @@
     <string name="color_default">Domyślny</string>
     <string name="theme_appliance">Urządzenie</string>
     <string name="theme_wallpaper">Tapeta</string>
-    <string name="theme_amoled">Czerń AMOLED</string>
+    <string name="theme_amoled">Czarny AMOLED</string>
     <string name="theme_yours">Twój kolor</string>
     <string name="color_preview_search">Szukaj</string>
     <string name="hsv_hue">Odcień</string>
