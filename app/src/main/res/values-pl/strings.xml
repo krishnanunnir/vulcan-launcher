@@ -44,6 +44,7 @@
     <string name="set_glanceStyle">Styl zegara</string>
     <string name="glanceStyle_clock">Duży zegar i data</string>
     <string name="glanceStyle_date">Tylko data</string>
+    <string name="glanceStyle_theme">Duży w motywie Urządzenie, w pozostałych tylko data</string>
     <string name="clock">Zegar</string>
 
     <string name="set_lockLayout">Zablokuj układ</string>
@@ -509,6 +510,7 @@
     <string name="now_add_card">Dodaj kartę</string>
     <string name="now_card_apps">Aplikacje</string>
     <string name="now_card_widget">Widżet</string>
+     <string name="now_card_height">%1$d dp</string>
     <string name="now_frequent">Często używane</string>
     <string name="now_now">Teraz</string>
     <string name="charging">Ładowanie · %1$d%%</string>
@@ -662,7 +664,7 @@
     <string name="action_locklayout">Zablokuj lub odblokuj układ</string>
     <string name="action_work">Wstrzymaj lub wznów aplikacje służbowe</string>
     <string name="action_open_folder">Otwórz folder</string>
-    <string name="no_work_profile">Brak profilu służbowego</string>
+    <string name="no_work_profile">Brak profilu służbowego</string>  
     <string name="work_paused">Profil służbowy jest wstrzymany</string>
     <string name="work_resumed">Profil służbowy jest włączony</string>
     <string name="no_flashlight">Latarka jest obecnie niedostępna</string>
