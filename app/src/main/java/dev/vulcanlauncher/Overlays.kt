@@ -150,6 +150,24 @@ fun MainActivity.searchBar(): View {
     }
 }
 
+/**
+ * The Pages hint on two lines, broken at its last " · " rather than mid-phrase, with ⌂ drawn as the same house icon
+ * that marks the home page under its thumbnail.
+ */
+private fun MainActivity.pagesHint(): CharSequence {
+    val raw = getString(R.string.pages_hint)
+    val cut = raw.lastIndexOf(" · ")
+    val text = if (cut < 0) raw else raw.substring(0, cut) + "\n" + raw.substring(cut + 3).replaceFirstChar { it.titlecase(java.util.Locale.getDefault()) }
+    return android.text.SpannableString(text).apply {
+        val at = text.indexOf('⌂')
+        if (at >= 0) {
+            val s = (16 * dp).toInt()
+            setSpan(android.text.style.ImageSpan(symbol("home", 0xB3FFFFFF.toInt(), 16f).apply { setBounds(0, 0, s, s) }, android.text.style.DynamicDrawableSpan.ALIGN_CENTER),
+                at, at + 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+    }
+}
+
 /** Tag of an overlay on a dark scrim, which keeps light status bar icons over it. */
 const val DARK_SCRIM = "darkScrim"
 
@@ -213,7 +231,7 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
         row.addView(v, LinearLayout.LayoutParams(w, h + (24 * dp).toInt()).apply { setMargins((6 * dp).toInt(), (6 * dp).toInt(), (6 * dp).toInt(), (6 * dp).toInt()) })
         if (row.childCount == 3) row = LinearLayout(this)
     }
-    val hint = text(getString(if (locked) R.string.layout_locked else R.string.pages_hint), 14f, 0xB3FFFFFF.toInt()).apply { gravity = Gravity.CENTER }
+    val hint = text(if (locked) getString(R.string.layout_locked) else pagesHint(), 14f, 0xB3FFFFFF.toInt()).apply { gravity = Gravity.CENTER }
     val remove = text(getString(R.string.page_remove), 14f, medium = true).apply {
         gravity = Gravity.CENTER
         val p = (16 * dp).toInt()
