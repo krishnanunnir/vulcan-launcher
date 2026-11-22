@@ -157,7 +157,7 @@
     <string name="set_nightEnd">Koniec harmonogramu</string>
     <string name="set_badges">Styl plakietek</string>
     <string name="set_badgePos">Pozycja</string>
-    <string name="set badge Shape">Kształt</string>
+    <string name="set_badgeShape">Kształt</string>
     <string name="badgePos_topleft">Górny lewy róg</string>
     <string name="badgePos_topright">Górny prawy róg</string>
     <string name="badgePos_bottomleft">Dolny lewy róg</string>
