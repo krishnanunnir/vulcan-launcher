@@ -174,7 +174,8 @@ val LOOKS = listOf(
     onOff(LOOK, "wiggle", R.string.set_wiggle, false),
     Choice(LOOK, "launchAnim", R.string.set_launchAnim, "zoom", listOf("system", "zoom", "reveal", "fade", "slideUp", "slideLeft", "none"), listOf(R.string.launchAnim_system, R.string.launchAnim_zoom, R.string.launchAnim_reveal, R.string.launchAnim_fade, R.string.launchAnim_slideup, R.string.launchAnim_slideleft, R.string.launchAnim_none)),
     Choice(LOOK, "accent", R.string.set_accent, "appliance", listOf("appliance", "system", "amoled") + COLOR_VALUES, listOf(R.string.accent_appliance, R.string.color_system, R.string.accent_amoled) + COLOR_NAMES),
-    onOff(LOOK, "blur", R.string.set_blur, false, R.string.set_blur_info),
+    // The note only where it applies: it read as a fault on Android 12 and later.
+    onOff(LOOK, "blur", R.string.set_blur, false, if (android.os.Build.VERSION.SDK_INT < 31) R.string.set_blur_info else 0),
     onOff(LOOK, "popupShortcuts", R.string.set_popupShortcuts, true),
     onOff(LOOK, "popupNotifications", R.string.set_popupNotifications, true),
     onOff(LOOK, "undoBar", R.string.set_undoBar, true),
