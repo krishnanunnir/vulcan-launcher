@@ -1,0 +1,8 @@
+New: Page padding, with a preview, for the sides and the ends.
+New: resize Now page widget cards; hold one to remove it.
+Now in Spanish; better German and Russian.
+Dragging an icon on home no longer shrinks the page until you reach the top.
+Old icons with see-through gaps show whole instead of cropped.
+Rounded widget corners work on widgets with their own card.
+Settings no longer drag home away when you go Home.
+Fixed: home squashing under the keyboard; folders closing for the flashlight.
