@@ -582,10 +582,12 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         val iconCorner = minOf(anchor.width(), anchor.height()) * if (looks.str("folderBg") == "square") 0.2f else 0.5f
         // The spots the first icons hold in the folder icon's preview, so each flies out of (and back into) its own.
         val slots = folderPreview(looks.str("folderPreview"), children.take(6).count { resolve(it) != null }, looks.on("folderFirstBig"))
-        icon?.alpha = 0f
+        // As Launcher3: the whole folder icon hides while open, its label too (it showed under the window).
+        val tile = icon?.parent as? IconView ?: icon
+        tile?.alpha = 0f
         reveal(card, cell, footer, anchor, slots, iconCorner, corner, open = true)
         // Dragging an icon out, Back, or a tap outside: the window shrinks back into its folder.
-        overlayExit = { done -> reveal(card, cell, footer, anchor, slots, iconCorner, corner, open = false) { icon?.alpha = 1f; done() } }
+        overlayExit = { done -> reveal(card, cell, footer, anchor, slots, iconCorner, corner, open = false) { tile?.alpha = 1f; done() } }
     } else if (!full) {
         card.scaleX = 0.9f; card.scaleY = 0.9f; card.alpha = 0f
         card.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(150).setInterpolator(DecelerateInterpolator()).start()
