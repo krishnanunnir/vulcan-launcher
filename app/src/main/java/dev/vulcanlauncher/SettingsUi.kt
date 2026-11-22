@@ -1064,11 +1064,12 @@ private fun SettingsActivity.segmented(options: List<String>, chosen: Int, onPic
     isBaselineAligned = false
     gravity = Gravity.CENTER_VERTICAL
     options.forEachIndexed { i, label ->
-        addView(text(label, 14f, if (i == chosen) m3.onSecondaryContainer else m3.onSurface, medium = true).apply {
+        // Filled as the drawer's selected tab chip: secondaryContainer barely stood out on the Appliance panels.
+        addView(text(label, 14f, if (i == chosen) onColor(tabFill()) else m3.onSurface, medium = true).apply {
             gravity = Gravity.CENTER
             minimumHeight = (40 * dp).toInt()
             setPaddingRelative((4 * dp).toInt(), (2 * dp).toInt(), (4 * dp).toInt(), (2 * dp).toInt())
-            background = pressable(if (i == chosen) rounded(m3.secondaryContainer, 20 * dp) else null, 20 * dp)
+            background = pressable(if (i == chosen) rounded(tabFill(), 20 * dp) else null, 20 * dp)
             accessibilityDelegate = object : View.AccessibilityDelegate() {
                 override fun onInitializeAccessibilityNodeInfo(v: View, info: android.view.accessibility.AccessibilityNodeInfo) {
                     super.onInitializeAccessibilityNodeInfo(v, info)
