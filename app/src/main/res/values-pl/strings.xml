@@ -44,7 +44,7 @@
     <string name="set_glanceStyle">Styl zegara</string>
     <string name="glanceStyle_clock">Duży zegar i data</string>
     <string name="glanceStyle_date">Tylko data</string>
-    <string name="glanceStyle_theme">Duży w motywie Urządzenie, w pozostałych tylko data</string>
+    <string name="glanceStyle_theme">Duży w motywie Aparatura, w pozostałych tylko data</string>
     <string name="clock">Zegar</string>
 
     <string name="set_lockLayout">Zablokuj układ</string>
@@ -643,7 +643,7 @@
     <string name="color_from_theme">Z motywu</string>
     <string name="exact_color">Dokładny kolor</string>
     <string name="color_default">Domyślny</string>
-    <string name="theme_appliance">Urządzenie</string>
+    <string name="theme_appliance">Aparatura</string>
     <string name="theme_wallpaper">Tapeta</string>
     <string name="theme_amoled">Czarny AMOLED</string>
     <string name="theme_yours">Twój kolor</string>
