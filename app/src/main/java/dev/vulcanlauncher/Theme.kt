@@ -611,7 +611,15 @@ fun VulcanActivity.styleDialog(d: AlertDialog, sheet: Boolean = false) {
                 if (onColor(m3.surfaceHigh) != Color.WHITE) insetsController?.setSystemBarsAppearance(
                     android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS, android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS)
                 // The keyboard still lifts the sheet: it's padded by whichever is taller, the navigation bar or the keyboard.
+                // The keyboard's pad lays the sheet out once more in its old, shorter frame before the window grows. A short
+                // sheet's content is squeezed to 0 there, which drops its focus (View.sizeChange): the field being typed in
+                // lost it, and Backspace with it (an app's Edit in a folder). It gets it back once it has a size again.
+                var refocus: View? = null
+                decorView.viewTreeObserver.addOnGlobalLayoutListener {
+                    refocus?.takeIf { it.height > 0 }?.let { f -> refocus = null; if (f.isAttachedToWindow && !f.isFocused) f.requestFocus() }
+                }
                 decorView.setOnApplyWindowInsetsListener { v, insets ->
+                    refocus = v.findFocus() ?: refocus
                     v.setPadding(0, v.paddingTop, 0, pad + insets.getInsets(android.view.WindowInsets.Type.navigationBars() or android.view.WindowInsets.Type.ime()).bottom)
                     insets
                 }
