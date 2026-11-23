@@ -748,7 +748,8 @@ private fun SettingsActivity.applyChoice(c: Choice, value: String) {
  * [preview] draws an icon value ("" is the default icon).
  */
 fun MainActivity.editDialog(title: String, label: String, defaultLabel: String, icon: String?, swipe: String?,
-                            preview: (String) -> Drawable?, folder: Boolean = false, onSave: (String, String, String) -> Unit) {
+                            preview: (String) -> Drawable?, folder: Boolean = false, defaultIcon: String = "",
+                            onSave: (String, String, String) -> Unit) {
     var iconV = icon ?: ""
     var swipeV = swipe ?: ""
     val pad = (24 * dp).toInt()
@@ -764,7 +765,7 @@ fun MainActivity.editDialog(title: String, label: String, defaultLabel: String, 
             val p = (8 * dp).toInt()
             setPadding(p, p, p, p)
             background = pressable(rounded(m3.surfaceHighest, 16 * dp), 16 * dp)
-            setOnClickListener { pickIcon { iconV = it; show() } }
+            setOnClickListener { pickIcon { iconV = it.ifEmpty { defaultIcon }; show() } }
         }, LinearLayout.LayoutParams((56 * dp).toInt(), (56 * dp).toInt()).apply { marginEnd = (16 * dp).toInt() })
         addView(name, LinearLayout.LayoutParams(0, -2, 1f))
     })
@@ -799,9 +800,15 @@ fun MainActivity.editItem(item: Item, swipes: Boolean = true, replace: (Item) ->
         item.isApp -> appLabel(item.appKey) ?: ""
         else -> resolve(item.copy(label = ""))?.first?.toString() ?: ""
     }
+    // An app's Default is its own icon: without it, Default here fell back to an icon set from the drawer's Edit, so
+    // that one could never be undone from the home screen (#92). Saved as no override, the drawer's icon cleared.
+    val own = if (item.isApp) "app:${item.pkg}/${item.cls}" else ""
     editDialog(getString(if (item.folder) R.string.edit_folder else R.string.edit), item.label, default, item.icon, item.swipe.takeIf { swipes },
-        { ic -> resolve(item.copy(icon = ic))?.second }, item.folder) { l, ic, sw ->
-        replace(item.copy(label = if (item.folder) l.ifEmpty { getString(R.string.folder) } else l, icon = ic, swipe = if (swipes) sw else item.swipe))
+        { ic -> resolve(item.copy(icon = ic))?.second }, item.folder, own) { l, ic, sw ->
+        if (own.isNotEmpty() && ic == own) customs.optJSONObject(item.appKey)?.takeIf { it.optString("icon").isNotEmpty() }?.let {
+            it.put("icon", ""); store.putObj("custom", customs); loadApps(listOf(item.pkg))
+        }
+        replace(item.copy(label = if (item.folder) l.ifEmpty { getString(R.string.folder) } else l, icon = if (ic == own) "" else ic, swipe = if (swipes) sw else item.swipe))
     }
 }
 
