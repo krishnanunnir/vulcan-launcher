@@ -85,9 +85,10 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
         val l = (width - s) / 2
         val t = (height - s) / 2
         if (shadow) {
-            val bmp = shadowBmp ?: Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888).also { b ->
+            val bmp = shadowBmp ?: Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888).let { b ->
                 icon.setBounds(0, 0, s, s); icon.draw(Canvas(b))
-                shadowBmp = b.extractAlpha(Paint().apply { maskFilter = BlurMaskFilter(s / 24f, BlurMaskFilter.Blur.NORMAL) }, null)
+                // Only the blurred alpha is kept: free the full-colour copy now instead of at some later GC.
+                b.extractAlpha(Paint().apply { maskFilter = BlurMaskFilter(s / 24f, BlurMaskFilter.Blur.NORMAL) }, null).also { shadowBmp = it; b.recycle() }
             }
             paint.color = 0x66000000
             canvas.drawBitmap(bmp, l.toFloat(), t + s / 30f, paint)
