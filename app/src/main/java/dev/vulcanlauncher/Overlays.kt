@@ -395,7 +395,7 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
 private fun MainActivity.reopenOverview(pop: Int = -1) = afterRebuild { showOverview(enter = false, pop = pop) }
 
 /** [then]: after the move; the previews reopen by default. */
-fun MainActivity.movePageTo(from: Int, to: Int, then: () -> Unit = { showOverview(enter = false) }) {
+fun MainActivity.movePageTo(from: Int, to: Int, then: () -> Unit = { reopenOverview() }) {
     if (locked) { toast(R.string.layout_locked); return }
     val default = looks.int("defaultPage")
     items = movePage(items, from, to).toMutableList()
