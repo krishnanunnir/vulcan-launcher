@@ -410,7 +410,15 @@ private fun packXml(res: Resources, pkg: String, name: String): XmlPullParser {
     else XmlPullParserFactory.newInstance().newPullParser().apply { setInput(res.assets.open("$name.xml"), null) }
 }
 
+/**
+ * Packs already parsed, by package and that package's [android.content.pm.PackageInfo.lastUpdateTime], so picking an
+ * icon from a pack that isn't the active one costs no XML parse (#100). Concurrent: icons are also made on the prefetch thread.
+ */
+private val parsedPacks = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, IconPack>>()
+
 fun loadIconPack(context: Context, pkg: String): IconPack? = runCatching {
+    val version = context.packageManager.getPackageInfo(pkg, 0).lastUpdateTime
+    parsedPacks[pkg]?.takeIf { it.first == version }?.let { return it.second }
     val res = context.packageManager.getResourcesForApplication(pkg)
     val parser = packXml(res, pkg, "appfilter")
     val map = HashMap<String, String>()
@@ -432,7 +440,7 @@ fun loadIconPack(context: Context, pkg: String): IconPack? = runCatching {
             "scale" -> scale = parser.getAttributeValue(null, "factor")?.toFloatOrNull() ?: 1f
         }
     }
-    IconPack(pkg, res, map, back, mask, upon, scale)
+    IconPack(pkg, res, map, back, mask, upon, scale).also { parsedPacks[pkg] = version to it }
 }.getOrNull()
 
 /**
