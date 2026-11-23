@@ -2186,7 +2186,8 @@ class MainActivity : VulcanActivity() {
                         runCatching { startActivityForResult(Intent(Intent.ACTION_CREATE_SHORTCUT).setComponent(ComponentName(a.packageName, a.name)), REQ_SHORTCUT) }
                     }
                 }
-                else -> pickApp(getString(R.string.activity)) { app ->
+                // PackageManager sees the personal profile only: a work app would offer no activities (#103).
+                else -> pickApp(getString(R.string.activity), { it.info.user == Process.myUserHandle() }) { app ->
                     val acts = runCatching { packageManager.getPackageInfo(app.pkg, PackageManager.GET_ACTIVITIES).activities }
                         .getOrNull().orEmpty().filter { it.exported }
                     // An activity without a label of its own shows the app's ("Settings" a hundred times): name it from its class.

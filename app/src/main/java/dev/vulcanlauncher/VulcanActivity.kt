@@ -138,8 +138,8 @@ abstract class VulcanActivity : Activity() {
         }
         return isNight(looks.str("nightMode"), cal.get(Calendar.HOUR_OF_DAY), looks.int("nightStart"), looks.int("nightEnd"), sys)
     }
-    fun pickApp(title: String, onPicked: (App) -> Unit) = home.run {
-        val list = apps.values.sortedWith(compareBy(labelOrder()) { label(it) })
+    fun pickApp(title: String, only: (App) -> Boolean = { true }, onPicked: (App) -> Unit) = home.run {
+        val list = apps.values.filter(only).sortedWith(compareBy(labelOrder()) { label(it) })
         this@VulcanActivity.pickList(title, list.map { icon(it) to if (isWork(it)) getString(R.string.work_app, label(it)) else label(it) }, appIcon = true) { onPicked(list[it]) }
     }
 
