@@ -260,7 +260,10 @@ fun readableBackup(looks: Map<String, String>, items: List<Item>, sub: Int, data
     .put("reference", JSONObject()
         .put("settings", JSONObject().apply {
             for (c in LOOKS) put(c.key, JSONObject().put("group", c.group).put("title", text(c.title)).put("default", c.default)
-                .put("values", if (c.action) "an action code" else JSONObject().apply { c.values.forEachIndexed { i, v -> put(v, c.name(i, text)) } }))
+                .put("values", if (c.action) "an action code"
+                    // Three numbers, 343 combinations: said in words rather than listed.
+                    else if (c.key == "pageMargin") "left and right x top x bottom in dp, each 0 to 48 in steps of 8, such as 16x8x24"
+                    else JSONObject().apply { c.values.forEachIndexed { i, v -> put(v, c.name(i, text)) } }))
         })
         .put("actions", JSONObject().apply { ACTIONS.zip(ACTION_NAMES).forEach { (v, n) -> put(v, text(n)) } })
         .put("installedApps", JSONArray(apps.sortedWith(compareBy(labelOrder()) { it.first.first }).map { (a, user) ->

@@ -422,7 +422,8 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="set_widgetOverlap">Widget-Überlappung beim Platzieren</string>
     <string name="set_pageMargin">Seitenabstand</string>
     <string name="padding_sides">Links &amp; rechts</string>
-    <string name="padding_ends">Oben &amp; unten</string>
+    <string name="padding_top">Oben</string>
+    <string name="padding_bottom">Unten</string>
     <string name="set_widgetRadius">Widget-Eckenradius</string>
     <string name="set_wiggle">Symbole beim Ziehen und Ablegen wackeln</string>
     <string name="settings">Einstellungen</string>

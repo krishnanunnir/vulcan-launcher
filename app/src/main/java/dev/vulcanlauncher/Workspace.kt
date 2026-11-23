@@ -141,22 +141,23 @@ class Workspace(context: Context) : ViewGroup(context) {
     private val end = FloatArray(4)
     private var anim: ValueAnimator? = null
 
-    /** Space (px) between each page's grid and the edges of its slot, left and right and top and bottom: Page padding (#96). */
+    /** Space (px) between each page's grid and the edges of its slot, left and right, top, and bottom: Page padding (#96). */
     var marginX = 0
-    var marginY = 0
+    var marginTop = 0
+    var marginBottom = 0
 
     override fun onMeasure(widthSpec: Int, heightSpec: Int) {
         val w = MeasureSpec.getSize(widthSpec); val h = MeasureSpec.getSize(heightSpec)
-        val mx = marginX.coerceAtMost(w / 4); val my = marginY.coerceAtMost(h / 4)
-        for (i in 0 until childCount) getChildAt(i).measure(MeasureSpec.makeMeasureSpec(w - 2 * mx, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(h - 2 * my, MeasureSpec.EXACTLY))
+        val mx = marginX.coerceAtMost(w / 4); val mt = marginTop.coerceAtMost(h / 4); val mb = marginBottom.coerceAtMost(h / 4)
+        for (i in 0 until childCount) getChildAt(i).measure(MeasureSpec.makeMeasureSpec(w - 2 * mx, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(h - mt - mb, MeasureSpec.EXACTLY))
         setMeasuredDimension(w, h)
     }
 
     // ponytail: pages run left to right in right-to-left languages too (each page's grid is mirrored, see CellLayout);
     // Launcher3 also reverses the page order, which means mirroring scrollX, the transition effects and the edge gestures.
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-        val mx = marginX.coerceAtMost(width / 4); val my = marginY.coerceAtMost(height / 4)
-        for (i in 0 until childCount) getChildAt(i).layout(i * width + mx, my, (i + 1) * width - mx, height - my)
+        val mx = marginX.coerceAtMost(width / 4); val mt = marginTop.coerceAtMost(height / 4); val mb = marginBottom.coerceAtMost(height / 4)
+        for (i in 0 until childCount) getChildAt(i).layout(i * width + mx, mt, (i + 1) * width - mx, height - mb)
         scrollTo(current * width, 0)
         // A page added while shrunk (the overview's "+") takes its place in the gap once it's laid out.
         if (gap > 0f) onScrollChanged(scrollX, 0, scrollX, 0)

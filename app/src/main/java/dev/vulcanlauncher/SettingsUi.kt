@@ -479,16 +479,19 @@ private fun SettingsActivity.slider(c: Choice): View {
 }
 
 /**
- * Page padding (#96), as Nova's Padding: a row saying "24 × 16 dp" that opens a dialog with a phone beside two
- * sliders, Left & right and Top & bottom. The phone draws the home grid as it is set (columns, rows, dock) and moves
+ * Page padding (#96), as Nova's Padding: a row saying "24 × 16 dp" that opens a dialog with a phone over three
+ * sliders, Left & right, Top and Bottom. The phone draws the home grid as it is set (columns, rows, dock) and moves
  * it in as a slider moves, the space it gives up tinted in the signal colour, so the change is seen before OK saves it.
  */
 private fun SettingsActivity.paddingRow(c: Choice): View {
-    fun name(v: String) = paddingOf(v).let { (x, y) -> if (x == 0 && y == 0) getString(R.string.none) else getString(R.string.padding_value, x, y) }
+    fun name(v: String) = paddingOf(v).let { (x, t, b) ->
+        if (x == 0 && t == 0 && b == 0) getString(R.string.none)
+        else if (t == b) getString(R.string.padding_value, x, t) else getString(R.string.padding_value_ends, x, t, b)
+    }
     return listItem(null, getString(c.title), name(looks[c])) {
-        var (px, py) = paddingOf(looks[c])
+        var (px, pt, pb) = paddingOf(looks[c])
         val steps = PADDING_STEPS
-        val preview = PaddingPreview(this, looks.cols, looks.rows, looks.dockCols, looks.dockOn, looks.str("shape"), looks.on("labels")).apply { set(px, py, animate = false) }
+        val preview = PaddingPreview(this, looks.cols, looks.rows, looks.dockCols, looks.dockOn, looks.str("shape"), looks.on("labels")).apply { set(px, pt, pb, animate = false) }
         fun bar(title: Int, start: Int, onMove: (Int) -> Unit): View {
             val value = text("$start dp", 14f, m3.onSurfaceVariant)
             val seek = android.widget.SeekBar(this).apply {
@@ -528,13 +531,14 @@ private fun SettingsActivity.paddingRow(c: Choice): View {
                 setPadding(0, (12 * dp).toInt(), 0, (16 * dp).toInt())
                 addView(preview, android.widget.FrameLayout.LayoutParams(preview.width(), preview.height(), Gravity.CENTER_HORIZONTAL))
             }, LinearLayout.LayoutParams(-1, -2).apply { setMargins((8 * dp).toInt(), 0, (8 * dp).toInt(), (20 * dp).toInt()) })
-            addView(bar(R.string.padding_sides, px) { px = it; preview.set(px, py) })
-            addView(bar(R.string.padding_ends, py) { py = it; preview.set(px, py) }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = (8 * dp).toInt() })
+            addView(bar(R.string.padding_sides, px) { px = it; preview.set(px, pt, pb) })
+            addView(bar(R.string.padding_top, pt) { pt = it; preview.set(px, pt, pb) }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = (8 * dp).toInt() })
+            addView(bar(R.string.padding_bottom, pb) { pb = it; preview.set(px, pt, pb) }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = (8 * dp).toInt() })
         }
         dialog().setTitle(c.title).setView(box)
             .setNegativeButton(R.string.cancel, null)
             .setPositiveButton(R.string.ok) { _, _ ->
-                applyChoice(c, "${px}x$py")
+                applyChoice(c, "${px}x${pt}x$pb")
                 changed()
             }.show()
     }
@@ -565,7 +569,7 @@ private class PaddingPreview(private val a: SettingsActivity, private val cols: 
     private val r = android.graphics.RectF()
     // The icon shape once, 100 px square; each icon scales it.
     private val icon = shapePath(shape, android.graphics.Rect(0, 0, 100, 100))
-    private var x = 0f; private var y = 0f
+    private var x = 0f; private var yt = 0f; private var yb = 0f
     private var anim: android.animation.ValueAnimator? = null
 
     init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
@@ -573,14 +577,14 @@ private class PaddingPreview(private val a: SettingsActivity, private val cols: 
     fun width() = (phoneW + 2 * side).toInt()
     fun height() = (phoneH + above + 2 * dp).toInt()
 
-    fun set(px: Int, py: Int, animate: Boolean = true) {
+    fun set(px: Int, pt: Int, pb: Int, animate: Boolean = true) {
         anim?.cancel()
-        if (!animate) { x = px.toFloat(); y = py.toFloat(); invalidate(); return }
-        val x0 = x; val y0 = y
+        if (!animate) { x = px.toFloat(); yt = pt.toFloat(); yb = pb.toFloat(); invalidate(); return }
+        val x0 = x; val t0 = yt; val b0 = yb
         anim = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 220
             interpolator = android.view.animation.DecelerateInterpolator(1.5f)
-            addUpdateListener { val f = it.animatedValue as Float; x = x0 + (px - x0) * f; y = y0 + (py - y0) * f; invalidate() }
+            addUpdateListener { val f = it.animatedValue as Float; x = x0 + (px - x0) * f; yt = t0 + (pt - t0) * f; yb = b0 + (pb - b0) * f; invalidate() }
             start()
         }
     }
@@ -621,10 +625,10 @@ private class PaddingPreview(private val a: SettingsActivity, private val cols: 
         // Where the pages sit: under the status bar, over the dock (or the navigation bar without one).
         val top = pt + 28 * s
         val bottom = pb - (if (dock) 112 else 28) * s
-        val il = pl + x * s; val ir = pr - x * s; val it = top + y * s; val ib = bottom - y * s
+        val il = pl + x * s; val ir = pr - x * s; val it = top + yt * s; val ib = bottom - yb * s
 
         // The space the padding gives up: a light wash, hatched at 45 degrees, in the signal colour.
-        if (x > 0.5f || y > 0.5f) {
+        if (x > 0.5f || yt > 0.5f || yb > 0.5f) {
             canvas.save()
             canvas.clipRect(pl, top, pr, bottom)
             canvas.clipOutRect(il, it, ir, ib)
@@ -667,8 +671,8 @@ private class PaddingPreview(private val a: SettingsActivity, private val cols: 
         r.set(pl + edge / 2, pt + edge / 2, pr - edge / 2, pb - edge / 2)
         canvas.drawRoundRect(r, corner, corner, paint)
 
-        // Callouts, as on a drawing: Left & right beside the left edge at mid height, Top & bottom beside the right
-        // edge at the top band. A leader runs from the number to the band it names; each fades in from 0.
+        // Callouts, as on a drawing: Left & right beside the left edge at mid height, Top and Bottom beside the right
+        // edge, each at its own band. A leader runs from the number to the band it names; each fades in from 0.
         fun callout(value: Float, left: Boolean, ly: Float) {
             val shown = (value / 8f).coerceIn(0f, 1f)
             if (shown == 0f) return
@@ -685,7 +689,8 @@ private class PaddingPreview(private val a: SettingsActivity, private val cols: 
             canvas.drawCircle(to, ly, 1.6f * dp, paint)
         }
         callout(x, true, (top + bottom) / 2)
-        callout(y, false, top + y * s / 2)
+        callout(yt, false, top + yt * s / 2)
+        callout(yb, false, bottom - yb * s / 2)
     }
 }
 

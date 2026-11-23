@@ -23,13 +23,17 @@ fun Context.choiceName(c: Choice, i: Int) = if (c.key == "nightStart" || c.key =
 
 private fun range(from: Int, to: Int, step: Int = 1) = (from..to step step).map { it.toString() }
 
-/** Page padding steps (dp), the same for left and right as for top and bottom (#96). */
+/** Page padding steps (dp), the same for left and right, for the top and for the bottom (#96). */
 val PADDING_STEPS = (0..48 step 8).toList()
-private val PADDING_VALUES = PADDING_STEPS.flatMap { w -> PADDING_STEPS.map { h -> "${w}x$h" } }
+// "16x8x24": left and right x top x bottom. "16x8", from before top and bottom were split, stays valid for old installs and backups.
+private val PADDING_VALUES = PADDING_STEPS.flatMap { w -> PADDING_STEPS.map { h -> "${w}x$h" } } +
+    PADDING_STEPS.flatMap { w -> PADDING_STEPS.flatMap { t -> PADDING_STEPS.map { b -> "${w}x${t}x$b" } } }
 
-/** A page padding value ("16x8": left and right x top and bottom, in dp) as a pair; anything else is none. */
-fun paddingOf(v: String): Pair<Int, Int> =
-    v.split('x').mapNotNull { it.toIntOrNull()?.coerceIn(0, PADDING_STEPS.last()) }.takeIf { it.size == 2 }?.let { it[0] to it[1] } ?: (0 to 0)
+/** A page padding value in dp as (left and right, top, bottom); "16x8" has one number for top and bottom; anything else is none. */
+fun paddingOf(v: String): Triple<Int, Int, Int> {
+    val n = v.split('x').map { it.toIntOrNull()?.coerceIn(0, PADDING_STEPS.last()) ?: return Triple(0, 0, 0) }
+    return when (n.size) { 2 -> Triple(n[0], n[1], n[1]); 3 -> Triple(n[0], n[1], n[2]); else -> Triple(0, 0, 0) }
+}
 private fun onOff(group: String, key: String, title: Int, default: Boolean, info: Int = 0) =
     Choice(group, key, title, if (default) "on" else "off", listOf("on", "off"), listOf(R.string.on, R.string.off), info = info)
 private fun sizes(group: String, key: String, title: Int, default: String = "48") =
@@ -83,7 +87,7 @@ val LOOKS = listOf(
     onOff(HOME, "subgrid", R.string.set_subgrid, false, R.string.set_subgrid_info),
     sizes(HOME, "iconSize", R.string.set_iconSize, "64"),
     // As Nova's Padding: one row holding both, left and right x top and bottom (#96). SettingsUi.paddingRow edits it.
-    Choice(HOME, "pageMargin", R.string.set_pageMargin, "0x0", PADDING_VALUES, shown = PADDING_VALUES.map { v -> paddingOf(v).let { "${it.first} × ${it.second} dp" } }),
+    Choice(HOME, "pageMargin", R.string.set_pageMargin, "0x0", PADDING_VALUES, shown = PADDING_VALUES.map { v -> paddingOf(v).let { (x, t, b) -> if (t == b) "$x × $t dp" else "$x × $t / $b dp" } }),
     onOff(HOME, "labels", R.string.set_labels, true),
     Choice(HOME, "labelSize", R.string.set_labelSize, "12", range(8, 24), shown = range(8, 24).map { "$it sp" }),
     color(HOME, "labelColor", R.string.set_labelColor, "#FFFFFF"),

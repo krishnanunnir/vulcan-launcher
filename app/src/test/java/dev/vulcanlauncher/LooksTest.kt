@@ -94,13 +94,16 @@ class LooksTest {
     }
 
     @Test
-    fun pagePaddingReadsBothSides() {
-        assertEquals(16 to 8, paddingOf("16x8"))
-        assertEquals(0 to 0, paddingOf("0x0"))
+    fun pagePaddingReadsSidesTopAndBottom() {
+        assertEquals(Triple(16, 8, 24), paddingOf("16x8x24"))
+        // Two numbers, from before top and bottom were split (#96): the second is both.
+        assertEquals(Triple(16, 8, 8), paddingOf("16x8"))
+        assertEquals(Triple(0, 0, 0), paddingOf("0x0"))
         // Out of range is held to the last step; anything else, such as the old one-number value, is none.
-        assertEquals(48 to 0, paddingOf("99x0"))
-        assertEquals(0 to 0, paddingOf("32"))
-        assertEquals(0 to 0, paddingOf(""))
+        assertEquals(Triple(48, 0, 0), paddingOf("99x0"))
+        assertEquals(Triple(0, 0, 0), paddingOf("32"))
+        assertEquals(Triple(0, 0, 0), paddingOf("16xax8"))
+        assertEquals(Triple(0, 0, 0), paddingOf(""))
     }
 
     private companion object {
