@@ -822,6 +822,7 @@ fun MainActivity.editApp(app: App) {
         loadApps(listOf(app.pkg))
         drawer.refresh()
         render()
+        refillFolder?.invoke()
     }
 }
 

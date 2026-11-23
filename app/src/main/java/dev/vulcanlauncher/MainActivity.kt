@@ -692,6 +692,7 @@ class MainActivity : VulcanActivity() {
         private fun reload(pkgs: List<String>, homeOnly: Boolean = false) {
             loadApps(pkgs)
             drawer.invalidate()
+            refillFolder?.invoke()
             if (!homeOnly || (items + items.flatMap { it.children }).any { it.pkg in pkgs }) render()
         }
     }
