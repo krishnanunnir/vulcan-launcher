@@ -500,6 +500,8 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         setTextColor(ink)
         background = null
         setSingleLine()
+        // A folder name: the keyboard starts capitalised.
+        if (this is EditText) inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
         ellipsize = android.text.TextUtils.TruncateAt.END
         // Inset by the ⋮ button's width on both sides, so the name stays centred.
         val side = if (more != null) (48 * dp).toInt() else 0

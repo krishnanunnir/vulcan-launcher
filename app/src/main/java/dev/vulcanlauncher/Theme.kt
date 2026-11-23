@@ -313,6 +313,8 @@ fun VulcanActivity.field(value: String, hintText: String) = android.widget.EditT
     setText(value)
     hint = hintText
     setSingleLine()
+    // Names and labels, so the keyboard starts capitalised; callers that want another kind (a URL) set their own after.
+    inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
     textSize = 16f
     setTextColor(m3.onSurface)
     setHintTextColor(m3.onSurfaceVariant)
