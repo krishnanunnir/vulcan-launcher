@@ -577,8 +577,9 @@ class MainActivity : VulcanActivity() {
         if (!::drawer.isInitialized) return // handed off to home in onCreate; Android 11 still delivers that home intent here
         // Without focus an app was in front: coming home only closes what was open, the action is for a second press.
         val onHome = hasWindowFocus()
-        // Home leaves pickers and dialogs too (#99: the icon pack grid kept it).
-        dialogs.toList().forEach { it.dismiss() }
+        // Home leaves pickers and dialogs too (#99: the icon pack grid kept it), at once: their slide-outs, one per open
+        // dialog, ran while the activity paused and resumed under them, and stuttered (#100).
+        dialogs.toList().forEach { it.window?.setWindowAnimations(0); it.dismiss() }
         when {
             menu != null -> closeMenu()
             overlay != null -> closeOverlay()
