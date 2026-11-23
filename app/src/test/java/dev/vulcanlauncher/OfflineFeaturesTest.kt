@@ -2,6 +2,7 @@ package dev.vulcanlauncher
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -45,8 +46,9 @@ class OfflineFeaturesTest {
         val (color, extent) = legacyFill(disc, n)!!
         assertEquals(orange, color)
         assertEquals(28f / n, extent, 0.05f)
-        // Left half red, right half blue: no one edge colour, but a clean split, so its edge is stretched.
-        assertTrue(legacyFill(IntArray(n * n) { i -> if (i % n < n / 2) 0xFFFF0000.toInt() else 0xFF0000FF.toInt() }, n)!!.extend)
+        // Left half red, right half blue: no one edge colour, but a clean split, so its edge is stretched. At the size
+        // reshaped() analyses (64), where a few pixels by the split are within the bound for art.
+        assertNotNull(legacyFill(IntArray(64 * 64) { i -> if (i % 64 < 32) 0xFFFF0000.toInt() else 0xFF0000FF.toInt() }, 64))
         assertNull(legacyFill(IntArray(n * n), n))
         // An orange "C" with a see-through middle (Calculator++, #92): one edge colour, but not a solid shape, so a plate.
         val letter = IntArray(n * n) { i ->
@@ -54,9 +56,19 @@ class OfflineFeaturesTest {
             if (Math.hypot(dx, dy) in 8.0..14.0 && !(dx > 0 && Math.abs(dy) < 5)) orange else 0
         }
         assertNull(legacyFill(letter, n))
-        // Its plate is a pale tint of its orange; a grey icon's is white.
-        assertEquals(0xFFFBC38A.toInt(), plateTint(letter, n))
+        // Its plate is white, as for any warm colour; a blue one's is a pale tint of its blue; a grey icon's is white.
+        assertEquals(-1, plateTint(letter, n))
+        assertEquals(0xFF98C9F4.toInt(), plateTint(letter.map { if (it == 0) 0 else 0xFF1E88E5.toInt() }.toIntArray(), n))
         assertEquals(-1, plateTint(IntArray(n * n) { 0xFF808080.toInt() }, n))
+        // An orange square with a white mark in its corner: the circle would cut the mark off, so a plate (as Nova does).
+        fun inBox(i: Int, a: Int, b: Int) = i % n in a..b && i / n in a..b
+        val marked = IntArray(n * n) { i -> when { inBox(i, 5, 9) -> -1; inBox(i, 4, 27) -> orange; else -> 0 } }
+        assertNull(legacyFill(marked, n))
+        // Without the mark it fills; with the mark in its middle it fills too.
+        assertNotNull(legacyFill(IntArray(n * n) { i -> if (inBox(i, 4, 27)) orange else 0 }, n))
+        assertNotNull(legacyFill(IntArray(n * n) { i -> when { inBox(i, 13, 18) -> -1; inBox(i, 4, 27) -> orange; else -> 0 } }, n))
+        // A wide banner isn't an icon shape: a plate.
+        assertNull(legacyFill(IntArray(n * n) { i -> if (i % n in 1..30 && i / n in 9..22) orange else 0 }, n))
     }
 
     @Test
@@ -69,7 +81,6 @@ class OfflineFeaturesTest {
             if (inSquare(i)) 0xFF shl 24 or (0x80 + t / 2 shl 16) or (0x20 + t / 3 shl 8) or (0xC0 - t * 3 / 4) else 0
         }
         val fill = legacyFill(grad, n)!!
-        assertTrue(fill.extend)
         assertFalse(fill.peel)
         assertEquals(24f / n, fill.extent, 0.01f)
         // Stretched: outside the square takes the colour just inside its edge (a pixel in, past anti-aliasing), so the

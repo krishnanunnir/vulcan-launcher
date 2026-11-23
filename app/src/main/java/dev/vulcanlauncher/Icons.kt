@@ -121,81 +121,140 @@ fun visibleExtent(alpha: List<Int>, n: Int): Float? {
 }
 
 /**
- * How a legacy icon fills its shape: on [color], or with [extend] its own edge stretched out to the shape's (a
- * gradient); [extent] is its visible size, to scale it to the shape's edge; [peel] clears a system plate off it first.
+ * How a legacy icon fills its shape: scaled so its visible part ([extent] of its box) just covers the shape, its edge
+ * stretched out over whatever the shape shows past it ([extendEdge]), on [color]; [peel] clears a system plate off it
+ * first.
  */
-data class LegacyFill(val color: Int, val extent: Float, val peel: Boolean = false, val extend: Boolean = false)
+data class LegacyFill(val color: Int, val extent: Float, val peel: Boolean = false)
+
+/** The circle as an [n]×[n] mask: [legacyFill]'s default shape, the one that crops an icon the most. */
+fun circleMask(n: Int) = BooleanArray(n * n) { i -> Math.hypot(i % n - (n - 1) / 2.0, i / n - (n - 1) / 2.0) <= n / 2.0 }
 
 /**
- * How to reshape a legacy icon, from its [n]×[n] ARGB pixels (row-major), when it's a solid shape (a square, rounded
- * square or circle icon): on its edge's one colour, or its edge stretched when that changes smoothly. Null for any
- * other icon (a mascot, a cut-out logo, a photo to its edge): it goes on a white plate instead. As Nova reshapes them
- * (#92).
+ * How to reshape a legacy icon, from its [n]×[n] ARGB pixels (row-major), to fill [shape] (an [n]×[n] mask of the
+ * shape's visible area). It fills when the icon is itself an icon shape (a square, squircle or circle) that, scaled
+ * to cover [shape], loses only background: nothing of its art (a letter, a figure) reaches what the shape cuts off.
+ * Null for any other icon (a mascot, a cut-out logo, art to its edge, a wide banner): it goes on a plate instead.
+ * As Nova 8.9.4 reshapes them, measured on 324 F-Droid icons (#92).
  */
-fun legacyFill(px: IntArray, n: Int): LegacyFill? = plateFill(px, n) ?: smoothEdge(px, n)
+fun legacyFill(px: IntArray, n: Int, shape: BooleanArray = circleMask(n)): LegacyFill? {
+    val outer = solidEdge(px, n)?.let { (fill, extent) -> LegacyFill(fill, extent) }
+    val fills = { a: IntArray, f: LegacyFill, solid: (Int) -> Boolean -> iconBody(a, n, solid) && keepsArt(a, n, f.extent, shape) }
+    // A white plate with a solid icon inside: the system's (EMUI puts every unthemed icon on one, #92). Peel it, and
+    // fill the shape on the inner icon's own edge colour, if that icon is an icon shape, not a mark on the plate.
+    if (outer == null || (0..16 step 8).all { outer.color shr it and 0xFF >= 230 }) {
+        val inner = px.copyOf().also { peelPlate(it, n) }
+        val opaque = { a: IntArray -> a.count { it ushr 24 > 200 } }
+        val extent = visibleExtent(px.map { it ushr 24 }, n)
+        val peeled = solidEdge(inner, n, n / 32)?.takeIf { extent != null && it.second < extent * 0.9f && opaque(px) - opaque(inner) >= n * n / 4 }
+            ?.let { (fill, e) -> LegacyFill(fill, e, peel = true) }
+        // Judged as drawn, without the rim the plate blended into it (reshaped() peels with a grow too).
+        val drawn = px.copyOf().also { peelPlate(it, n, grow = maxOf(1, n / 48)) }
+        if (peeled != null && iconBody(inner, n) { it != 0 } && keepsArt(drawn, n, peeled.extent, shape)) return peeled
+    }
+    if (outer != null) return outer.takeIf { fills(px, it) { p -> p ushr 24 >= 250 } }
+    // (An icon shape is opaque: a see-through one would show through its stretched edge, so it goes on a plate.)
+    // No one edge colour (a gradient, a two-tone split, a photo to its edge): on the mean of its edge.
+    val ring = edgeRing(px, n) ?: return null
+    fun mean(shift: Int) = ring.sumOf { it shr shift and 0xFF } / ring.size
+    val fill = LegacyFill(0xFF shl 24 or (mean(16) shl 16) or (mean(8) shl 8) or mean(0), visibleExtent(px.map { it ushr 24 }, n) ?: return null)
+    return fill.takeIf { fills(px, it) { p -> p ushr 24 >= 250 } }
+}
 
 /**
- * The plate for a legacy icon that can't fill its shape: a pale tint of its main colour (the median of its
- * coloured pixels, 46% into white, as Nova's plates measure), or white when it has little colour.
+ * The plate for a legacy icon that can't fill its shape: a pale tint of its main colour (the middle of its most
+ * common hue, 46% into white), or white when it has little colour or a warm one (red, orange, brown), as Nova's
+ * plates are.
  */
 fun plateTint(px: IntArray, n: Int): Int {
     val opaque = px.filter { it ushr 24 > 200 }
     val coloured = opaque.filter { c -> (0..16 step 8).map { c shr it and 0xFF }.let { it.max() - it.min() >= 48 } }
-    if (coloured.size < maxOf(opaque.size / 10, 1)) return android.graphics.Color.WHITE
-    fun ch(shift: Int) = coloured.map { it shr shift and 0xFF }.sorted()[coloured.size / 2].let { 255 - (255 - it) * 46 / 100 }
-    return 0xFF shl 24 or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
+    if (coloured.size < maxOf(opaque.size / 5, 1)) return android.graphics.Color.WHITE
+    fun chroma(c: Int) = (0..16 step 8).map { c shr it and 0xFF }.let { it.max() - it.min() }
+    val main = coloured.groupBy { hue(it) / 30 }.maxBy { (_, cs) -> cs.sumOf(::chroma) }.value
+    fun ch(shift: Int) = main.map { it shr shift and 0xFF }.sorted()[main.size / 2]
+    val c = 0xFF shl 24 or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
+    if (hue(c) < 45 || hue(c) >= 315) return android.graphics.Color.WHITE
+    fun tint(shift: Int) = 255 - (255 - (c shr shift and 0xFF)) * 46 / 100
+    return 0xFF shl 24 or (tint(16) shl 16) or (tint(8) shl 8) or tint(0)
 }
 
-private fun plateFill(px: IntArray, n: Int): LegacyFill? {
-    val outer = solidEdge(px, n)?.let { (fill, extent) -> LegacyFill(fill, extent) }
-    // A coloured edge fills the shape only round a solid icon: "C++" or a robot in one colour would be swallowed by it.
-    if (outer != null && (0..16 step 8).any { outer.color shr it and 0xFF < 230 }) return outer.takeIf { solidShape(px, n) { it ushr 24 > 200 } }
-    // A white plate with a solid icon inside: the system's (EMUI puts every unthemed icon on one, #92). Peel it, and
-    // fill the shape on the inner icon's own edge colour, if that icon is a solid shape, not a mark on the plate.
-    val inner = px.copyOf().also { peelPlate(it, n) }
-    val opaque = { a: IntArray -> a.count { it ushr 24 > 200 } }
-    if (opaque(px) - opaque(inner) < n * n / 4) return outer
-    val extent = visibleExtent(px.map { it ushr 24 }, n) ?: return outer
-    val (innerFill, innerExtent) = solidEdge(inner, n, n / 32)?.takeIf { it.second < extent * 0.9f } ?: return outer
-    return if (solidShape(inner, n) { it != 0 }) LegacyFill(innerFill, innerExtent, peel = true) else outer
+/** Hue of an RGB colour in degrees, 0 until 360. */
+fun hue(c: Int): Int {
+    val r = c shr 16 and 0xFF; val g = c shr 8 and 0xFF; val b = c and 0xFF
+    val max = maxOf(r, g, b); val d = (max - minOf(r, g, b)).toFloat()
+    if (d == 0f) return 0
+    val h = when (max) { r -> (g - b) / d; g -> 2 + (b - r) / d; else -> 4 + (r - g) / d } * 60
+    return ((h + 360) % 360).toInt()
 }
 
-/** [solid] pixels over their bounding box: ~0.95 for a rounded square, 0.79 for a circle, well under for a figure or letters. */
-private fun solidShape(px: IntArray, n: Int, solid: (Int) -> Boolean): Boolean {
-    var area = 0; var t = n; var b = -1; var l = n; var r = -1
-    for (y in 0 until n) {
-        val a = (0 until n).firstOrNull { solid(px[y * n + it]) } ?: continue
-        val z = (n - 1 downTo 0).first { solid(px[y * n + it]) }
-        area += (a..z).count { solid(px[y * n + it]) }; t = minOf(t, y); b = y; l = minOf(l, a); r = maxOf(r, z)
-    }
-    return b >= 0 && area >= 0.72f * (r - l + 1) * (b - t + 1)
-}
+/** Visible size of a plated legacy icon, as a part of the shape: Nova's plates measure 0.62 to 0.66. */
+const val PLATE_FILL = 0.64f
 
 /**
- * A solid-shape icon whose edge isn't one colour but changes smoothly around it (a gradient, a two-tone split): its
- * edge is stretched out to fill the shape ([extendEdge]). Null when the edge is busy (a photo, a game's art).
+ * Whether [solid] pixels make an icon shape: about as wide as tall, and close to a superellipse in their box (one
+ * of a circle, squircle, rounded or plain square). Not a figure, letters, a shield, a speech bubble or a banner.
  */
-private fun smoothEdge(px: IntArray, n: Int): LegacyFill? {
-    if (!solidShape(px, n) { it ushr 24 > 200 }) return null
+private fun iconBody(px: IntArray, n: Int, solid: (Int) -> Boolean): Boolean {
+    var t = n; var b = -1; var l = n; var r = -1
+    for (i in px.indices) if (solid(px[i])) { val x = i % n; val y = i / n; t = minOf(t, y); b = y; l = minOf(l, x); r = maxOf(r, x) }
+    if (b < 0) return false
+    val w = r - l + 1f; val h = b - t + 1f
+    if (w / h !in 0.88f..1.14f) return false
+    return listOf(2.0, 2.5, 3.0, 4.0, 6.0, 12.0).any { e ->
+        var both = 0; var either = 0
+        for (y in t..b) for (x in l..r) {
+            val u = abs((x + 0.5f - l) / w * 2 - 1).toDouble(); val v = abs((y + 0.5f - t) / h * 2 - 1).toDouble()
+            val inShape = u.pow(e) + v.pow(e) <= 1; val on = solid(px[y * n + x])
+            if (inShape && on) both++; if (inShape || on) either++
+        }
+        both >= ICON_BODY * either
+    }
+}
+
+/** How close (intersection over union) an icon's outline must be to a superellipse to be an icon shape. */
+const val ICON_BODY = 0.92f
+
+/**
+ * The edge colour at 96 angles round an [n]×[n] icon: in from the box's corner to the first solid pixel, then past
+ * its anti-aliasing. Null when a ray finds none.
+ */
+private fun edgeRing(px: IntArray, n: Int): List<Int>? {
     val c = (n - 1) / 2f; val skip = n / 32
     fun at(r: Int, dx: Float, dy: Float): Int? {
         val x = Math.round(c + dx * r); val y = Math.round(c + dy * r)
         return if (x in 0 until n && y in 0 until n) px[y * n + x] else null
     }
-    // The edge colour at 96 angles: in from the box's corner to the first solid pixel, then past its anti-aliasing.
-    val ring = (0 until 96).map { k ->
+    return (0 until 96).map { k ->
         val dx = cos(k * PI / 48).toFloat(); val dy = sin(k * PI / 48).toFloat()
         val hit = (n * 3 / 4 downTo 0).firstOrNull { (at(it, dx, dy) ?: 0) ushr 24 > 200 } ?: return null
         at(maxOf(hit - skip, 0), dx, dy)!!
     }
-    fun diff(a: Int, b: Int) = (0..16 step 8).sumOf { abs((a shr it and 0xFF) - (b shr it and 0xFF)) }
-    val steps = ring.indices.map { diff(ring[it], ring[(it + 1) % ring.size]) }
-    // A gradient moves a little at each step; a split jumps a few times; a busy edge jumps all the way round.
-    if (steps.average() > 16 || steps.count { it > 90 } > 4) return null
-    fun mean(shift: Int) = ring.sumOf { it shr shift and 0xFF } / ring.size
-    val extent = visibleExtent(px.map { it ushr 24 }, n) ?: return null
-    return LegacyFill(0xFF shl 24 or (mean(16) shl 16) or (mean(8) shl 8) or mean(0), extent, extend = true)
 }
+
+private fun diff(a: Int, b: Int) = (0..16 step 8).sumOf { abs((a shr it and 0xFF) - (b shr it and 0xFF)) }
+
+/**
+ * Whether an icon of visible [extent], scaled to just cover [shape] (1.04 of it), loses only background: of its solid
+ * pixels the shape cuts off, almost none (a thousandth of the icon, a stray shadow pixel) differ from its edge
+ * colour at their angle. Any letter, figure or line that reaches the cut puts the icon on a plate: that strict a
+ * bound matched Nova best on the #92 corpus (267 of 324 icons, against 244 with no art check).
+ */
+private fun keepsArt(px: IntArray, n: Int, extent: Float, shape: BooleanArray): Boolean {
+    val ring = edgeRing(px, n) ?: return false
+    val c = (n - 1) / 2f; val s = 1.04f / extent
+    var art = 0
+    for (y in 0 until n) for (x in 0 until n) {
+        val p = px[y * n + x]
+        if (p ushr 24 <= 200) continue
+        val u = Math.round(c + (x - c) * s); val v = Math.round(c + (y - c) * s)
+        if (u in 0 until n && v in 0 until n && shape[v * n + u]) continue
+        val k = Math.floorMod(Math.round(Math.atan2((y - c).toDouble(), (x - c).toDouble()) / (PI / 48)).toInt(), 96)
+        if (diff(p, ring[k]) > 120) art++
+    }
+    return art <= n * n / 1000
+}
+
 
 /**
  * Fills, in place, every pixel of an [n]×[n] icon layer that isn't fully solid with the icon's colour just inside
@@ -480,42 +539,52 @@ class Icons(private val context: Context, private val looks: Looks) {
 
     private fun flat(icon: Drawable) = flatIcon(context, icon, size)
 
+    /** The shape's visible area as a 64×64 mask, for [legacyFill] to see what it would cut off. */
+    private val shapeMask by lazy {
+        val n = 64
+        val bmp = Bitmap.createBitmap(n, n, Bitmap.Config.ARGB_8888)
+        Canvas(bmp).drawPath(shapePath(looks.str("shape"), Rect(0, 0, n, n)), Paint(Paint.ANTI_ALIAS_FLAG))
+        val px = IntArray(n * n).also { bmp.getPixels(it, 0, n, 0, 0, n, n) }
+        BooleanArray(n * n) { px[it] ushr 24 >= 128 }
+    }
+
     /**
-     * A legacy icon as an adaptive one, so the shape clips it: one with a solid edge fills the shape on its own edge
-     * colour, or one with a smooth gradient edge has it stretched out ([legacyFill]); any other sits on a white plate.
+     * A legacy icon as an adaptive one, so the shape clips it: an icon shape that loses none of its art fills the
+     * shape, its edge stretched out ([legacyFill]); any other sits on a plate ([plateTint]).
      */
     private fun reshaped(icon: Drawable): Drawable {
         val n = 64
         val bmp = Bitmap.createBitmap(n, n, Bitmap.Config.ARGB_8888)
         icon.setBounds(0, 0, n, n); icon.draw(Canvas(bmp))
         val px = IntArray(n * n).also { bmp.getPixels(it, 0, n, 0, 0, n, n) }
-        val (color, extent, peel, extend) = legacyFill(px, n) ?: return AdaptiveIconDrawable(ColorDrawable(plateTint(px, n)), InsetDrawable(icon, 0.28f))
-        // The layer is 108 units with the shape's 72 in its middle: the icon's visible part is scaled to just past
-        // the shape's edge (1.04), so its own rounded corners are clipped away and its edge colour fills the rest.
-        val fill = ((1 - 2 * 1.04f / (3 * extent)) / 2).coerceIn(-0.25f, 0.4f)
-        // A peeled icon is small inside its plate: enlarged to the shape's edge it went soft (#92). It grows only up to
-        // its own pixels (never smaller than on its plate, 1/6), and its edge colour fills the shape around it.
-        val src = (icon as? BitmapDrawable)?.bitmap?.width ?: icon.intrinsicWidth
-        val inset = if (peel) maxOf(fill, minOf((1 - src / (1.5f * size)) / 2, 1 / 6f)) else fill
-        if (extend) {
-            // The whole layer drawn once, the icon's edge stretched out over the corners it leaves.
-            val m = (2 * size).coerceAtLeast(n)
-            val layer = Bitmap.createBitmap(m, m, Bitmap.Config.ARGB_8888)
-            InsetDrawable(icon, inset).apply { setBounds(0, 0, m, m); draw(Canvas(layer)) }
-            val all = IntArray(m * m).also { layer.getPixels(it, 0, m, 0, 0, m, m) }
-            extendEdge(all, m); layer.setPixels(all, 0, m, 0, 0, m, m)
-            return AdaptiveIconDrawable(ColorDrawable(color), BitmapDrawable(context.resources, layer))
+        val (color, extent, peel) = legacyFill(px, n, shapeMask) ?: run {
+            // The layer is 108 units with the shape's 72 in its middle: the icon's visible part takes PLATE_FILL of it.
+            val visible = visibleExtent(px.map { it ushr 24 }, n) ?: 1f
+            val inset = ((1 - 2 * PLATE_FILL / (3 * visible)) / 2).coerceIn(0f, 0.4f)
+            return AdaptiveIconDrawable(ColorDrawable(plateTint(px, n)), InsetDrawable(icon, inset))
         }
-        val drawn = if (!peel) icon else {
-            // The plate cleared from a full-size copy, so none of it shows over the fill inside the shape.
-            val m = (2 * size).coerceAtLeast(n) // the inner icon is enlarged to fill the shape
+        // The icon's visible part is scaled to just past the shape's edge (1.04), so its own rounded corners are
+        // clipped away and its edge colour fills the rest.
+        val fill = ((1 - 2 * 1.04f / (3 * extent)) / 2).coerceIn(-0.25f, 0.4f)
+        val m = (2 * size).coerceAtLeast(n)
+        val layer = Bitmap.createBitmap(m, m, Bitmap.Config.ARGB_8888)
+        if (peel) {
+            // A peeled icon is small inside its plate: enlarged to the shape's edge it went soft (#92). It grows only
+            // up to its own pixels (never smaller than on its plate, 1/6), and its edge colour fills the shape around
+            // it. The plate is cleared from a full-size copy, so none of it shows over the fill.
+            val src = (icon as? BitmapDrawable)?.bitmap?.width ?: icon.intrinsicWidth
+            val inset = maxOf(fill, minOf((1 - src / (1.5f * size)) / 2, 1 / 6f))
             val big = Bitmap.createBitmap(m, m, Bitmap.Config.ARGB_8888)
             icon.setBounds(0, 0, m, m); icon.draw(Canvas(big))
             val all = IntArray(m * m).also { big.getPixels(it, 0, m, 0, 0, m, m) }
             peelPlate(all, m, grow = maxOf(1, m / 48)); big.setPixels(all, 0, m, 0, 0, m, m)
-            BitmapDrawable(context.resources, big)
+            return AdaptiveIconDrawable(ColorDrawable(color), InsetDrawable(BitmapDrawable(context.resources, big), inset))
         }
-        return AdaptiveIconDrawable(ColorDrawable(color), InsetDrawable(drawn, inset))
+        // The whole layer drawn once, the icon's edge stretched out over its corners and any shadow or halo past it.
+        InsetDrawable(icon, fill).apply { setBounds(0, 0, m, m); draw(Canvas(layer)) }
+        val all = IntArray(m * m).also { layer.getPixels(it, 0, m, 0, 0, m, m) }
+        extendEdge(all, m); layer.setPixels(all, 0, m, 0, 0, m, m)
+        return AdaptiveIconDrawable(ColorDrawable(color), BitmapDrawable(context.resources, layer))
     }
 
     /** Scales a legacy icon so its visible (non-transparent) part fills [NORMAL_FILL] of the icon box. */
