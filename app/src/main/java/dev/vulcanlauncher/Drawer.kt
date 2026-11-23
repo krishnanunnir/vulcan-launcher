@@ -424,7 +424,12 @@ class Drawer(private val a: MainActivity) {
         addView(a.tonalButton(a.getString(R.string.unlock)) { a.setPrivateLocked(false) }, LinearLayout.LayoutParams(-2, -2))
     }
     /** As Nova: the most-launched apps in their own row above the list, in every style; they stay in the list too. */
-    private val frequentRow = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
+    private val frequentRow = object : LinearLayout(a) {
+        // A pull down from the row's apps: their own touch would keep the drag, so take it over once it's a pull.
+        override fun onInterceptTouchEvent(ev: MotionEvent) = pullDown.handle(ev) || super.onInterceptTouchEvent(ev)
+        // The row is the touch's target on the gaps between its apps; claim those too, so a pull can start anywhere on it.
+        override fun onTouchEvent(ev: MotionEvent): Boolean { pullDown.handle(ev); return true }
+    }.apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
 
     private fun buildPrivateBar() {
         privateBar.removeAllViews()
@@ -442,6 +447,15 @@ class Drawer(private val a: MainActivity) {
         privateBar.addView(a.iconButton(if (locked) "unlock" else "lock", a.getString(if (locked) R.string.private_unlock else R.string.private_lock)) {
             a.setPrivateLocked(!locked)
         })
+    }
+
+    /** The bar, the field and the frequent row: one pull, all of it closing. */
+    private val pullDown = PullDown()
+    /** Also cancels the view's own touch (a tap, a cursor) once the pull owns the gesture. */
+    private val pullTouch = View.OnTouchListener { v, ev ->
+        val handled = pullDown.handle(ev)
+        if (pullDown.started) MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; v.onTouchEvent(it); it.recycle() }
+        handled
     }
 
     val root = object : LinearLayout(a) {
@@ -485,22 +499,8 @@ class Drawer(private val a: MainActivity) {
         }
         searchBar = bar
         // A pull down on the search bar closes the drawer, wherever the list is scrolled (#56). Taps still reach the field.
-        var barDownY = 0f
-        val pullClose = View.OnTouchListener { v, ev ->
-            when (ev.actionMasked) {
-                MotionEvent.ACTION_DOWN -> { barDownY = ev.rawY; false }
-                MotionEvent.ACTION_MOVE -> (ev.rawY - barDownY > 48 * a.dp).also { pulled ->
-                    if (pulled) {
-                        barDownY = Float.MAX_VALUE
-                        MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; v.onTouchEvent(it); it.recycle() }
-                        hide()
-                    }
-                }
-                else -> false
-            }
-        }
-        bar.setOnTouchListener(pullClose)
-        search.setOnTouchListener(pullClose)
+        bar.setOnTouchListener(pullTouch)
+        search.setOnTouchListener(pullTouch)
         val barParams = LinearLayout.LayoutParams(-1, ((if (bottomBar) 48 else 56) * a.dp).toInt()).apply { setMargins(pad, pad / 2, pad, pad / 2) }
         if (!bottomBar) addView(bar, barParams)
         tabs.setPaddingRelative(pad + (4 * a.dp).toInt(), if (bottomBar || fromBottom) pad / 2 else 0, pad, (8 * a.dp).toInt())
@@ -524,6 +524,9 @@ class Drawer(private val a: MainActivity) {
     }
 
     val visible get() = root.visibility == View.VISIBLE
+
+    /** The list's pull down (see [PullDown]), only from its top, and pull-to-search when that's on. */
+    private val listPull = PullDown(start = { !grid.canScrollVertically(-1) }, search = ::focusSearch)
 
     /** Where the housing sheet's top edge sits below the status bar, and the grip area under it. */
     private val sheetGap = 12 * a.dp
@@ -605,28 +608,17 @@ class Drawer(private val a: MainActivity) {
             }
             setOnItemClickListener { _, v, pos, _ -> this@Drawer.adapter.getItem(pos)?.let { open(it, v) } }
             setOnItemLongClickListener { _, v, pos, _ -> this@Drawer.adapter.getItem(pos)?.let { longPress(it, v) }; true }
-            var downY = 0f
-            var closing = false
-            var velocity: android.view.VelocityTracker? = null
             val touchSlop = android.view.ViewConfiguration.get(a).scaledTouchSlop
             var startX = 0f
             var startY = 0f
             var sideways = false
             var sideStart = 0f
             var sideVelocity: android.view.VelocityTracker? = null
-            fun track(tracker: android.view.VelocityTracker?, ev: MotionEvent) {
-                tracker?.let {
-                    val sample = MotionEvent.obtain(ev)
-                    sample.setLocation(ev.rawX, ev.rawY)
-                    it.addMovement(sample)
-                    sample.recycle()
-                }
-            }
             setOnTouchListener { _, ev ->
                 // GridView keeps a tap alive until the finger leaves the whole list, so a sideways swipe that started on
                 // an icon would open it on release. Sideways is no tap: cancel it, and the rest of that touch moves the tabs:
                 // the list follows the finger with the next or previous tab beside it, as pages do.
-                if (ev.actionMasked == MotionEvent.ACTION_DOWN) sideways = false
+                if (ev.actionMasked == MotionEvent.ACTION_DOWN) { sideways = false; startX = ev.x; startY = ev.y }
                 else if (sideways) {
                     track(sideVelocity, ev)
                     val dx = ev.rawX - sideStart
@@ -644,56 +636,21 @@ class Drawer(private val a: MainActivity) {
                     }
                     return@setOnTouchListener true
                 }
-                if (ev.actionMasked == MotionEvent.ACTION_MOVE && !closing && abs(ev.x - startX) > touchSlop && abs(ev.x - startX) > abs(ev.y - startY)) {
+                if (ev.actionMasked == MotionEvent.ACTION_MOVE && !listPull.closing && abs(ev.x - startX) > touchSlop && abs(ev.x - startX) > abs(ev.y - startY)) {
                     sideways = true
                     val dx = ev.x - startX
                     sideStart = ev.rawX - dx + if (dx > 0) touchSlop else -touchSlop
                     sideVelocity?.recycle()
                     sideVelocity = android.view.VelocityTracker.obtain().also { track(it, ev) }
-                    velocity?.recycle(); velocity = null
                     MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; onTouchEvent(it); it.recycle() }
                     dragTabs(ev.rawX - sideStart)
                     return@setOnTouchListener true
                 }
                 // Pull down from the top of the list: the drawer follows the finger and closes on release (or searches).
-                // In screen coordinates too, so a flick's speed isn't halved by the moving list.
-                track(velocity, ev)
-                when (ev.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> {
-                        // Screen coordinates: the list moves with the sheet, so its own would halve the pull.
-                        downY = ev.rawY; closing = false
-                        startX = ev.x; startY = ev.y
-                        velocity?.recycle(); velocity = android.view.VelocityTracker.obtain().also { track(it, ev) }
-                    }
-                    MotionEvent.ACTION_MOVE -> if (!closing && ev.rawY - downY > 24 * a.dp && !canScrollVertically(-1)) {
-                        if (a.looks.on("pullToSearch")) {
-                            if (ev.rawY - downY > 96 * a.dp) {
-                                downY = Float.MAX_VALUE
-                                focusSearch()
-                            }
-                        } else {
-                            closing = true; held = true; downY = ev.rawY; stop()
-                            // As Launcher3, the keyboard goes as the drag down starts, not once the drawer is gone (#73).
-                            hideKeyboard()
-                            // The list sees no more of this touch: cancel it, or its pending long press lifts an app.
-                            MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; onTouchEvent(it); it.recycle() }
-                        }
-                    }
-                }
-                if (!closing) {
-                    if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
-                        velocity?.recycle(); velocity = null
-                    }
-                    return@setOnTouchListener false
-                }
-                if (ev.actionMasked == MotionEvent.ACTION_MOVE) setProgress(1 - (ev.rawY - downY) / travel())
-                if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
-                    velocity?.computeCurrentVelocity(1000)
-                    release(-(velocity?.yVelocity ?: 0f), 0.7f)
-                    velocity?.recycle(); velocity = null
-                    closing = false; held = false
-                }
-                true
+                val handled = listPull.handle(ev)
+                // The list sees no more of this touch: cancel it, or its pending long press lifts an app.
+                if (listPull.started) MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; onTouchEvent(it); it.recycle() }
+                handled
             }
         }
         pager.onGesture = { if (it == "swipeDown") hide() }
@@ -712,6 +669,72 @@ class Drawer(private val a: MainActivity) {
 
     /** Finger travel that fully opens or closes the drawer (Launcher3's phones: 300 dp; shorter here, so it's quicker). */
     private fun travel() = 220 * a.dp
+
+    /** A VelocityTracker sample in screen coordinates: the list moves with the sheet, so its own would halve a flick. */
+    private fun track(tracker: android.view.VelocityTracker?, ev: MotionEvent) {
+        tracker?.let {
+            val sample = MotionEvent.obtain(ev)
+            sample.setLocation(ev.rawX, ev.rawY)
+            it.addMovement(sample)
+            sample.recycle()
+        }
+    }
+
+    /**
+     * A finger pulled down on the list, the search bar, the field or the frequent row: the drawer follows it and
+     * closes on release, or springs back open. [start] gates the pull (the list only pulls from its top); [search], on
+     * the list alone, turns a longer pull into search instead when 'pull to search' is on.
+     */
+    private inner class PullDown(
+        private val start: () -> Boolean = { true },
+        private val search: (() -> Unit)? = null,
+    ) {
+        /** The drawer is following this touch. */
+        var closing = false
+            private set
+        /** This event started the pull, so the view's own touch must be cancelled. */
+        var started = false
+            private set
+        private var downY = 0f
+        private var velocity: android.view.VelocityTracker? = null
+
+        fun handle(ev: MotionEvent): Boolean {
+            started = false
+            if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
+                // Screen coordinates: the list moves with the sheet, so its own would halve the pull.
+                closing = false; downY = ev.rawY
+                velocity?.recycle(); velocity = android.view.VelocityTracker.obtain()
+            }
+            track(velocity, ev)
+            if (!closing) {
+                if (ev.actionMasked == MotionEvent.ACTION_MOVE && ev.rawY - downY > 24 * a.dp && start()) {
+                    if (search != null && a.looks.on("pullToSearch")) {
+                        if (ev.rawY - downY > 96 * a.dp) { downY = Float.MAX_VALUE; search() }
+                    } else {
+                        closing = true; started = true; held = true; downY = ev.rawY; stop()
+                        // As Launcher3, the keyboard goes as the drag down starts, not once the drawer is gone (#73).
+                        hideKeyboard()
+                    }
+                }
+                if (!closing) {
+                    if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
+                        velocity?.recycle(); velocity = null
+                    }
+                    return false
+                }
+            }
+            // On release too: the finger's last position decides whether it's past the threshold, even if the last move dropped.
+            if (ev.actionMasked == MotionEvent.ACTION_MOVE || ev.actionMasked == MotionEvent.ACTION_UP)
+                setProgress(1 - (ev.rawY - downY) / travel())
+            if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
+                velocity?.computeCurrentVelocity(1000)
+                release(-(velocity?.yVelocity ?: 0f), 0.7f)
+                velocity?.recycle(); velocity = null
+                closing = false; held = false
+            }
+            return true
+        }
+    }
 
     /**
      * Opaque panels hand home over, as One UI does: home lifts and fades out as the drawer covers it, so it isn't
