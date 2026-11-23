@@ -2139,16 +2139,12 @@ class MainActivity : VulcanActivity() {
     fun resizeWidget(item: Item) {
         val v = views[item] ?: return
         val cell = v.parent as? CellLayout ?: return
-        // The clock: any size from two cells wide and one tall.
-        val info = if (item.isClock) null else awm.getAppWidgetInfo(item.widgetId) ?: return
-        // As Nova, every widget resizes both ways, whatever its resizeMode says (#74). Along an axis it declares
-        // resizable it keeps its minResize; along one it doesn't, it can shrink to a single cell.
-        val fitsW = info != null && info.resizeMode and AppWidgetProviderInfo.RESIZE_HORIZONTAL != 0
-        val fitsH = info != null && info.resizeMode and AppWidgetProviderInfo.RESIZE_VERTICAL != 0
-        val minW = if (info == null) minOf(2 * sub, item.w) else if (!fitsW) 1
-            else ceil(info.minResizeWidth.coerceAtLeast(1) / cell.cellW.toFloat()).toInt().coerceIn(1, item.w)
-        val minH = if (info == null) minOf(sub, item.h) else if (!fitsH) 1
-            else ceil(info.minResizeHeight.coerceAtLeast(1) / cell.cellH.toFloat()).toInt().coerceIn(1, item.h)
+        // The clock: any size from two cells wide and one tall. A widget that is gone has nothing to resize.
+        if (!item.isClock && awm.getAppWidgetInfo(item.widgetId) == null) return
+        // As Nova, every widget resizes both ways and down to a single cell, whatever its resizeMode and minResize
+        // say (#74, #115): the grid's half cells are finer than a widget declares, and the user sees what still fits.
+        val minW = if (item.isClock) minOf(2 * sub, item.w) else 1
+        val minH = if (item.isClock) minOf(sub, item.h) else 1
         if (touchExploring) resizeByList(cell, item, v, minW, minH, true, true)
         else showResize(cell, item, v, minW, minH, true, true)
     }
