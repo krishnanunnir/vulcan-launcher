@@ -44,6 +44,9 @@ fun widgetSlot(provider: String): Item? = intentComponent("component=$provider")
 /** In Store.data: set by an import with widgets, until each spot is filled or the user stops (MainActivity.restoreNextWidget). */
 const val RESTORING_WIDGETS = "restoringWidgets"
 
+/** In Store.data: set by a restore or import made while Vulcan isn't the default home app, until its shortcuts are pinned (#103). */
+const val REPIN_SHORTCUTS = "repinShortcuts"
+
 /** Result of converting an imported layout: items, whether it uses half cells, and how many rows couldn't be brought over. */
 class ImportedLayout(val items: List<Item>, val subgrid: Boolean, val skipped: Int) {
     val widgets get() = items.count { it.isWidgetSlot }

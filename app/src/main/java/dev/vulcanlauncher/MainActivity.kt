@@ -499,6 +499,8 @@ class MainActivity : VulcanActivity() {
         updateGlance()
         // PinActivity may have added an item while we were in the background.
         reloadItems()
+        // Shortcuts restored before Vulcan was the default home app: pinned now that it is, and drawn with their icons.
+        if (store.data.getBoolean(REPIN_SHORTCUTS, false)) { repinShortcuts(); if (!store.data.getBoolean(REPIN_SHORTCUTS, false)) render() }
     }
 
     /** Takes [items] from the store, where PinActivity may have added something meanwhile. */
@@ -2322,9 +2324,19 @@ class MainActivity : VulcanActivity() {
         wm.setWallpaperOffsets(token, x, 0.5f)
     }
 
-    /** Pins every shortcut the stored layout and actions use: a restored backup's, which this install never pinned (#103). */
-    fun repinShortcuts() = pinsByApp(store.load(looks.sub), settingActions()).forEach { (key, ids) ->
-        runCatching { launcherApps.pinShortcuts(key.first, ids, userOf(key.second)) }
+    /**
+     * Pins every shortcut the stored layout and actions use: a restored backup's, which this install never pinned (#103).
+     * Android pins only for the default home app, so a restore made before Vulcan is one waits here for onResume.
+     */
+    fun repinShortcuts() {
+        if (!runCatching { launcherApps.hasShortcutHostPermission() }.getOrDefault(false)) {
+            store.data.edit().putBoolean(REPIN_SHORTCUTS, true).apply()
+            return
+        }
+        store.data.edit().remove(REPIN_SHORTCUTS).apply()
+        pinsByApp(store.load(looks.sub), settingActions()).forEach { (key, ids) ->
+            runCatching { launcherApps.pinShortcuts(key.first, ids, userOf(key.second)) }
+        }
     }
 
     /** After a restore: widget IDs belong to the install that made them; drop the ones this install doesn't own. */

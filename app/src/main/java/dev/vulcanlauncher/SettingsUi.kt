@@ -1624,7 +1624,7 @@ private fun SettingsActivity.backupPage(list: LinearLayout) {
             dialog().setMessage(getString(R.string.restore_auto_confirm, saved))
                 .setPositiveButton(R.string.restore) { _, _ ->
                     runCatching { store.import(f.readText(), home::mainActivity) }
-                        .onSuccess { if (it.replacedLayout) home.dropForeignWidgets(); restartHome() }
+                        .onSuccess { if (it.replacedLayout) home.dropForeignWidgets(); home.repinShortcuts(); restartHome() }
                         .onFailure { toast(getString(R.string.restore_failed, it.message)) }
                 }.setNegativeButton(R.string.cancel, null).show()
         }
@@ -1676,9 +1676,8 @@ fun VulcanActivity.applyImport(layout: ImportedLayout, settings: Map<String, Str
     looks["pages"] = maxOf(pages, settings["pages"]?.toIntOrNull() ?: 1).coerceAtMost(9).toString()
     store.save(layout.items, if (layout.subgrid) 2 else 1)
     if (layout.widgets > 0) store.data.edit().putBoolean(RESTORING_WIDGETS, true).commit()
-    pinsByApp(layout.items, settings.values).forEach { (key, ids) ->
-        runCatching { home.launcherApps.pinShortcuts(key.first, ids, home.userOf(key.second)) }
-    }
+    // The same pins as these, from what was just stored; it waits for onResume when Vulcan isn't the default home app yet.
+    home.repinShortcuts()
 }
 
 /** What Vulcan may reach outside itself, each with its state; a row opens the Android page that changes it. */
