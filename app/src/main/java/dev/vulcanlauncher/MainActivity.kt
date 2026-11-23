@@ -1601,14 +1601,19 @@ class MainActivity : VulcanActivity() {
         fun tile(sym: String, title: String, click: () -> Unit) { tiles += Triple(sym, title, click) }
         val item = payload as? Item
         val app = appOf(payload)
+        // A pinned shortcut has no app item of its own: the app owning its package gives it the info tile and notification
+        // row (not that app's shortcuts, widgets or uninstall). A shortcut inside a folder is the folder's child at its index.
+        val shortcut = item?.takeIf { it.isShortcut }
+            ?: (payload as? FolderChild)?.let { it.folder.children.getOrNull(it.index) }?.takeIf { it.isShortcut }
+        val owner = app ?: shortcut?.let { s -> apps.values.firstOrNull { it.pkg == s.pkg && it.serial == s.user } }
         if (app != null && looks.on("popupShortcuts")) shortcutsFor(app).forEach { s ->
             row(shortcutIcon(s), s.shortLabel?.toString() ?: "", long = { v -> if (!locked) startDrag(v, s) }) {
                 startShortcut(s.`package`, s.id, s.userHandle, anchor)
             }
         }
-        if (app != null && looks.on("popupNotifications")) {
+        if (owner != null && looks.on("popupNotifications")) {
             // The newest only, as Launcher3 shows one notification at a time.
-            BadgeService.byPackage[app.pkg].orEmpty().sortedByDescending { it.postTime }.take(1).forEach { n ->
+            BadgeService.byPackage[owner.pkg].orEmpty().sortedByDescending { it.postTime }.take(1).forEach { n ->
                 val title = n.notification.extras.getCharSequence("android.title") ?: ""
                 val body = n.notification.extras.getCharSequence("android.text") ?: ""
                 row(symbol("notifications"), title.toString(), body.toString(), long = { BadgeService.instance?.cancelNotification(n.key) }) {
@@ -1655,11 +1660,11 @@ class MainActivity : VulcanActivity() {
                 tile("close", getString(R.string.remove)) { removeFromFolder(payload); save(); render(); refillFolder?.invoke() }
             }
         }
-        if (app != null) {
-            tile("info", getString(R.string.app_info)) { launcherApps.startAppDetailsActivity(app.info.componentName, app.info.user, null, null) }
+        if (owner != null) {
+            tile("info", getString(R.string.app_info)) { launcherApps.startAppDetailsActivity(owner.info.componentName, owner.info.user, null, null) }
             // The optional ones last, so every app's other tiles keep their places.
-            if (awm.installedProviders.any { it.provider.packageName == app.pkg }) tile("widgets", getString(R.string.widgets)) { pickWidget(app.pkg) }
-            if (!isSystemApp(app)) tile("delete", getString(R.string.uninstall)) { uninstall(app) }
+            if (app != null && awm.installedProviders.any { it.provider.packageName == app.pkg }) tile("widgets", getString(R.string.widgets)) { pickWidget(app.pkg) }
+            if (app != null && !isSystemApp(app)) tile("delete", getString(R.string.uninstall)) { uninstall(app) }
         }
         if (rows.isEmpty() && tiles.isEmpty()) return
         // Lined up with the icon itself, not its cell; clear of its label.
