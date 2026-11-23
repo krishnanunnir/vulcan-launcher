@@ -596,6 +596,13 @@ class Drawer(private val a: MainActivity) {
                     index.current = this@Drawer.adapter.getSectionForPosition(first)
                 }
             })
+            // The reset from [forgetPosition], once the rows are laid out (and posted: a selection during layout warns).
+            addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                if (forgetScroll) {
+                    forgetScroll = false
+                    post { setSelection(if (fromBottom) this@Drawer.adapter.count - 1 else 0) }
+                }
+            }
             setOnItemClickListener { _, v, pos, _ -> this@Drawer.adapter.getItem(pos)?.let { open(it, v) } }
             setOnItemLongClickListener { _, v, pos, _ -> this@Drawer.adapter.getItem(pos)?.let { longPress(it, v) }; true }
             var downY = 0f
@@ -699,6 +706,8 @@ class Drawer(private val a: MainActivity) {
     private var settlingOpen = false
     /** A finger is moving the drawer (home's swipe up, or its own pull down). */
     private var held = false
+    /** [forgetPosition] waits for the list's next layout to send it to the top. */
+    private var forgetScroll = false
     private var keyboardOnOpen = false
 
     /** Finger travel that fully opens or closes the drawer (Launcher3's phones: 300 dp; shorter here, so it's quicker). */
@@ -753,14 +762,25 @@ class Drawer(private val a: MainActivity) {
     /** Stops a running open/close animation where it is (without its end action). */
     private fun stop() { val old = anim; anim = null; old?.cancel() }
 
+    /**
+     * 'Remember tab and scroll position' off: back to the home tab, and the list to the top (or the bottom, one-handed).
+     * The scroll waits for a layout: a rebuild's data change lays the list out at its old place first and a selection set
+     * before that is dropped, which is how a launch (the launch count changed) kept the old position (#111).
+     */
+    private fun forgetPosition() {
+        tab = homeTab
+        if (styleName == "pages") pager.snapTo(0, animate = false)
+        forgetScroll = true
+        grid.requestLayout()
+    }
+
     /** Clears search and resets position, ready to open. */
     private fun prepare() {
-        if (visible) return
+        // Not while it's open and at rest; a close still animating is fair game, so the next open lands at the top.
+        if (visible && progress >= 1f) return
         if (search.text.isNotEmpty()) search.text.clear()
-        val reset = !a.looks.on("rememberPosition")
-        if (reset) { tab = homeTab; if (styleName == "pages") pager.snapTo(0, animate = false) }
+        if (!a.looks.on("rememberPosition")) forgetPosition()
         if (inputs() != shown) refresh()
-        if (reset) grid.setSelection(if (fromBottom) adapter.count - 1 else 0)
     }
 
     private fun opened() {
@@ -799,7 +819,8 @@ class Drawer(private val a: MainActivity) {
         // A menu or overlay held open by this same finger: the swipe is swallowed, not opening the drawer over it.
         if (!visible && (a.menu != null || a.overlay != null)) return true
         if (!end && !visible && up <= 0f) return false
-        if (!visible) prepare()
+        // Once per gesture: a close still animating (held is false until this pull moves) is forgotten too.
+        if (!visible || !held) prepare()
         stop()
         held = !end
         if (end) {
