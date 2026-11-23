@@ -286,6 +286,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="reset_confirm">Удалить все настройки и весь макет главного экрана?</string>
     <string name="reset_defaults">Сбросить к значениям по умолчанию</string>
     <string name="reshape_always">Всегда</string>
+    <string name="reshape_icon">Изменять форму значка</string>
     <string name="reshape_off">Выкл.</string>
     <string name="reshape_unthemed">Только значки без темы</string>
     <string name="resize">Изменить размер</string>

@@ -492,6 +492,16 @@ class AppCache(context: Context, private val looks: String) {
 /** The largest power-of-two subsample that keeps a [side]-px image at least [target] px. */
 fun sampleSize(side: Int, target: Int): Int = Integer.highestOneBit((side / target.coerceAtLeast(1)).coerceAtLeast(1))
 
+/**
+ * A picked image icon as its URI and whether it is drawn in the icon shape: "uri:<uri>" is shaped, "uriraw:<uri>" is
+ * not (the edit dialog's per-icon opt-out, #92). Null for any other custom icon.
+ */
+fun imageIcon(custom: String): Pair<String, Boolean>? = when {
+    custom.startsWith("uriraw:") -> custom.removePrefix("uriraw:") to false
+    custom.startsWith("uri:") -> custom.removePrefix("uri:") to true
+    else -> null
+}
+
 /** App icons with the chosen icon pack, shape and legacy-icon options applied. Built once per activity. */
 class Icons(private val context: Context, private val looks: Looks) {
     private val outline = shapeOutline(looks.str("shape"))
@@ -534,8 +544,11 @@ class Icons(private val context: Context, private val looks: Looks) {
         } else if (icon !is AdaptiveIconDrawable && looks.on("normalize")) {
             icon = normalized(icon)
         }
-        return flat(if (outline != null && icon is AdaptiveIconDrawable) ShapedIcon(icon, outline) else icon)
+        return drawn(icon)
     }
+
+    /** The last step of every icon: flattened, and clipped to the shape when it is an adaptive one. */
+    private fun drawn(icon: Drawable) = flat(if (outline != null && icon is AdaptiveIconDrawable) ShapedIcon(icon, outline) else icon)
 
     private fun flat(icon: Drawable) = flatIcon(context, icon, size)
 
@@ -598,28 +611,34 @@ class Icons(private val context: Context, private val looks: Looks) {
         return InsetDrawable(icon, inset)
     }
 
-    fun custom(custom: String): Drawable? = when {
-        // Another app's icon, as this launcher draws it (pack, theming, shape). Gone app: null, so the default shows.
-        custom.startsWith("app:") -> custom.removePrefix("app:").split("/").let { (pkg, cls) ->
-            runCatching { context.packageManager.getActivityIcon(android.content.ComponentName(pkg, cls)) }.getOrNull()
-                ?.let { base -> get(pkg, cls, "") { base } }
+    fun custom(custom: String): Drawable? {
+        // A picked image is shaped like a legacy icon, unless the icon opted out (uriraw:) or the setting is off (#92).
+        imageIcon(custom)?.let { (uri, reshape) ->
+            return image(Uri.parse(uri))?.let { if (reshape && looks.str("reshape") != "off") drawn(reshaped(it)) else flat(it) }
         }
-        custom.startsWith("pack:") -> {
-            val (pkg, name) = custom.removePrefix("pack:").split(":", limit = 2).let { it[0] to it.getOrElse(1) { "" } }
-            (if (pkg == pack?.pkg) pack else loadIconPack(context, pkg))?.drawable(name)
-        }
-        custom.startsWith("uri:") -> runCatching {
-            // A photo picked as an icon can be 12 MP (48 MB decoded): read its size first and decode it subsampled.
-            val uri = Uri.parse(custom.removePrefix("uri:"))
-            val opts = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            context.contentResolver.openInputStream(uri)!!.use { android.graphics.BitmapFactory.decodeStream(it, null, opts) }
-            opts.inSampleSize = sampleSize(minOf(opts.outWidth, opts.outHeight), size); opts.inJustDecodeBounds = false
-            context.contentResolver.openInputStream(uri)!!.use {
-                BitmapDrawable(context.resources, android.graphics.BitmapFactory.decodeStream(it, null, opts))
+        return when {
+            // Another app's icon, as this launcher draws it (pack, theming, shape). Gone app: null, so the default shows.
+            custom.startsWith("app:") -> custom.removePrefix("app:").split("/").let { (pkg, cls) ->
+                runCatching { context.packageManager.getActivityIcon(android.content.ComponentName(pkg, cls)) }.getOrNull()
+                    ?.let { base -> get(pkg, cls, "") { base } }
             }
-        }.getOrNull()
-        else -> null
-    }?.let(::flat)
+            custom.startsWith("pack:") -> {
+                val (pkg, name) = custom.removePrefix("pack:").split(":", limit = 2).let { it[0] to it.getOrElse(1) { "" } }
+                (if (pkg == pack?.pkg) pack else loadIconPack(context, pkg))?.drawable(name)
+            }
+            else -> null
+        }?.let(::flat)
+    }
+
+    private fun image(uri: Uri): Drawable? = runCatching {
+        // A photo picked as an icon can be 12 MP (48 MB decoded): read its size first and decode it subsampled.
+        val opts = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)!!.use { android.graphics.BitmapFactory.decodeStream(it, null, opts) }
+        opts.inSampleSize = sampleSize(minOf(opts.outWidth, opts.outHeight), size); opts.inJustDecodeBounds = false
+        context.contentResolver.openInputStream(uri)!!.use {
+            BitmapDrawable(context.resources, android.graphics.BitmapFactory.decodeStream(it, null, opts))
+        }
+    }.getOrNull()
 
     /** ADW-style theming for apps the pack doesn't list: back plate, masked and scaled icon, overlay. */
     private fun autogen(icon: Drawable, pkg: String): Drawable? {

@@ -72,6 +72,17 @@ class OfflineFeaturesTest {
     }
 
     @Test
+    fun imageIconParsing() {
+        // A picked image is shaped by default; a legacy "uri:" icon keeps doing so on update (#92).
+        assertEquals("content://media/1" to true, imageIcon("uri:content://media/1"))
+        // The edit dialog's per-icon opt-out.
+        assertEquals("content://media/1" to false, imageIcon("uriraw:content://media/1"))
+        assertNull(imageIcon(""))
+        assertNull(imageIcon("pack:com.example.icons:mail"))
+        assertNull(imageIcon("app:com.example/com.example.Mail"))
+    }
+
+    @Test
     fun legacyIconGradientEdge() {
         val n = 32
         fun inSquare(i: Int) = i % n in 4..27 && i / n in 4..27

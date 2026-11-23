@@ -134,6 +134,7 @@
     <string name="reshape_off">Wył.</string>
     <string name="reshape_unthemed">Tylko bez własnego motywu</string>
     <string name="reshape_always">Zawsze</string>
+    <string name="reshape_icon">Zmieniaj kształt ikony</string>
     <string name="set_autogen">Zastosuj motyw do ikon nieobjętych pakietem ikon</string>
     <string name="set_normalize">Normalizuj rozmiar ikon</string>
     <string name="set_themedIcons">Ikony z motywem</string>

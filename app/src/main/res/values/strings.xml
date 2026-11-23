@@ -137,6 +137,7 @@
     <string name="reshape_off">Off</string>
     <string name="reshape_unthemed">Unthemed only</string>
     <string name="reshape_always">Always</string>
+    <string name="reshape_icon">Reshape icon</string>
     <string name="set_autogen">Theme icons the icon pack doesn\'t cover</string>
     <string name="set_normalize">Normalize icon size</string>
     <string name="set_themedIcons">Themed icons</string>

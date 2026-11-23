@@ -132,6 +132,7 @@
     <string name="reshape_off">Nunca</string>
     <string name="reshape_unthemed">Solo sin tema</string>
     <string name="reshape_always">Siempre</string>
+    <string name="reshape_icon">Dar forma al icono</string>
     <string name="set_autogen">Aplicar el tema a iconos que no cubre el paquete</string>
     <string name="set_normalize">Normalizar tamaño de iconos</string>
     <string name="set_themedIcons">Iconos temáticos</string>

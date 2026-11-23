@@ -286,6 +286,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="reset_confirm">Alle Einstellungen und das gesamte Startbildschirm-Layout entfernen?</string>
     <string name="reset_defaults">Auf Standard zurücksetzen</string>
     <string name="reshape_always">Immer</string>
+    <string name="reshape_icon">Symbol umformen</string>
     <string name="reshape_off">Aus</string>
     <string name="reshape_unthemed">Nur ungethemt</string>
     <string name="resize">Größe ändern</string>

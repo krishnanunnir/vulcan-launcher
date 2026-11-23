@@ -756,19 +756,31 @@ fun MainActivity.editDialog(title: String, label: String, defaultLabel: String, 
     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, (8 * dp).toInt(), pad, 0) }
     val name = field(label, defaultLabel.ifEmpty { getString(R.string.label) })
     // As Nova: the icon sits beside the name; tap it to change it.
+    val iconView = if (icon != null) ImageView(this).apply {
+        contentDescription = getString(R.string.icon)
+        val p = (8 * dp).toInt()
+        setPadding(p, p, p, p)
+        background = pressable(rounded(m3.surfaceHighest, 16 * dp), 16 * dp)
+    } else null
+    fun show() { iconView?.setImageDrawable(preview(iconV)) }
+    // A picked image is shaped like a legacy icon; this one can opt out, as Nova offers (#92).
+    val reshapeBox = android.widget.FrameLayout(this)
+    fun reshapeRow() {
+        reshapeBox.removeAllViews()
+        val (uri, reshape) = imageIcon(iconV) ?: return
+        if (looks.str("reshape") == "off") return
+        reshapeBox.addView(checkRow(getString(R.string.reshape_icon), reshape) { on ->
+            iconV = if (on) "uri:$uri" else "uriraw:$uri"; show()
+        })
+    }
+    show(); reshapeRow()
+    iconView?.setOnClickListener { pickIcon { iconV = it.ifEmpty { defaultIcon }; show(); reshapeRow() } }
     box.addView(LinearLayout(this).apply {
         gravity = Gravity.CENTER_VERTICAL
-        if (icon != null) addView(ImageView(context).apply {
-            fun show() = setImageDrawable(preview(iconV))
-            show()
-            contentDescription = getString(R.string.icon)
-            val p = (8 * dp).toInt()
-            setPadding(p, p, p, p)
-            background = pressable(rounded(m3.surfaceHighest, 16 * dp), 16 * dp)
-            setOnClickListener { pickIcon { iconV = it.ifEmpty { defaultIcon }; show() } }
-        }, LinearLayout.LayoutParams((56 * dp).toInt(), (56 * dp).toInt()).apply { marginEnd = (16 * dp).toInt() })
+        if (iconView != null) addView(iconView, LinearLayout.LayoutParams((56 * dp).toInt(), (56 * dp).toInt()).apply { marginEnd = (16 * dp).toInt() })
         addView(name, LinearLayout.LayoutParams(0, -2, 1f))
     })
+    box.addView(reshapeBox)
     if (swipe != null) {
         val holder = android.widget.FrameLayout(this)
         fun row() {
@@ -1090,7 +1102,7 @@ private fun SettingsActivity.segmented(options: List<String>, chosen: Int, onPic
 }
 
 /** A checkbox row inside a panel, indented under the row it belongs to. */
-private fun SettingsActivity.checkRow(title: String, on: Boolean, onChange: (Boolean) -> Unit): View {
+fun VulcanActivity.checkRow(title: String, on: Boolean, onChange: (Boolean) -> Unit): View {
     val box = android.widget.CheckBox(this).apply {
         isChecked = on; isClickable = false; isFocusable = false
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
