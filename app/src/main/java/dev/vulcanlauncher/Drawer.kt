@@ -1191,7 +1191,12 @@ class Drawer(private val a: MainActivity) {
                 accessibleActions(it, { a.showPopup(it, e.app) })
             }
         }
-        is Entry.FolderE -> IconView(a, e.group.name, a.folderIcon(folderItems(e.group)), iconStyle, a.badgeStyle(), "")
+        // As a folder on home: badged by the apps inside it (#118).
+        is Entry.FolderE -> folderItems(e.group).let { items ->
+            val keys = items.map { it.pkg }.distinct().joinToString("|")
+            IconView(a, e.group.name, a.folderIcon(items), iconStyle, a.badgeStyle(), keys)
+                .also { if (a.looks.str("badges") != "off") a.badge(it.image, keys) }
+        }
         // Short label so the query survives the one-line ellipsis; the globe says "web".
         is Entry.WebE -> IconView(a, a.getString(R.string.search_web_for, e.query),GlyphIcon(a.m3.primaryContainer, a.m3.onPrimaryContainer, symbol = "globe"), iconStyle, a.badgeStyle(), "")
         is Entry.ContactE -> IconView(a, e.name, e.photo?.let { p ->
