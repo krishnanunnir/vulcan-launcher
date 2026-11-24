@@ -425,6 +425,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="padding_top">Сверху</string>
     <string name="padding_bottom">Снизу</string>
     <string name="set_widgetRadius">Радиус углов виджетов</string>
+    <string name="set_widgetPadding">Отступы виджетов</string>
     <string name="set_wiggle">Покачивать значки при перетаскивании</string>
     <string name="settings">Настройки</string>
     <string name="setup_needed">Требуется однократная настройка</string>

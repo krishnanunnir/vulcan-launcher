@@ -425,6 +425,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="padding_top">Oben</string>
     <string name="padding_bottom">Unten</string>
     <string name="set_widgetRadius">Widget-Eckenradius</string>
+    <string name="set_widgetPadding">Widget-Innenabstand</string>
     <string name="set_wiggle">Symbole beim Ziehen und Ablegen wackeln</string>
     <string name="settings">Einstellungen</string>
     <string name="setup_needed">Einmalige Einrichtung erforderlich</string>
