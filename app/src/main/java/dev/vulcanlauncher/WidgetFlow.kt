@@ -96,7 +96,7 @@ class WidgetFlow(private val a: MainActivity) {
     /** The same-size widget a dragged widget is over: dropped there, they stack. */
     fun stackTarget(cell: CellLayout, px: Float, py: Float, payload: Any?): Item? {
         val moving = payload as? Item
-        if (!a.dragMoved || moving == null || !moving.isWidget) return null
+        if (!a.drag.dragMoved || moving == null || !moving.isWidget) return null
         val (fx, fy) = cell.cellAt(px, py)
         return cell.viewAt(fx, fy)?.let { a.viewItems[it] }?.takeIf { it != moving && it.isWidget && it.w == moving.w && it.h == moving.h }
     }

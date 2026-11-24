@@ -479,7 +479,7 @@ class Drawer(private val a: MainActivity) {
             else if (glass) android.graphics.drawable.ColorDrawable(a.glassTint(a.glassBlur))
             else a.panelBg(a.looks.int("drawerAlpha"), 0f, a.m3.surface)
         visibility = View.GONE
-        setOnDragListener(a.passDrag)
+        setOnDragListener(a.drag.passDrag)
         isClickable = true
         val pad = (16 * a.dp).toInt()
         // M3 search bar: a pill with a leading search icon and a trailing menu button. Glass puts it at the bottom,
@@ -1242,9 +1242,9 @@ class Drawer(private val a: MainActivity) {
     private fun longPress(e: Entry, v: View) {
         if (!settled) return
         when (e) {
-            is Entry.AppE -> a.startDrag(v, e.app)
+            is Entry.AppE -> a.drag.startDrag(v, e.app)
             // As an app: drag to copy it to home; its menu (Add, Edit) shows if the finger stays.
-            is Entry.FolderE -> a.startDrag(v, e.group)
+            is Entry.FolderE -> a.drag.startDrag(v, e.group)
             is Entry.WebE, is Entry.ContactE, is Entry.ActionE -> {}
         }
     }

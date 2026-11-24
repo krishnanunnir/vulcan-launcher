@@ -209,7 +209,7 @@ class FolderFx(private val a: MainActivity) {
 
 /** The icon or folder under ([px], [py]) that dropping [payload] there would merge into, or null. */
 fun MainActivity.mergeTarget(cell: CellLayout, px: Float, py: Float, payload: Any?): Item? {
-    if (!dragMoved || asChild(payload) == null) return null
+    if (!drag.dragMoved || drag.asChild(payload) == null) return null
     val (fx, fy) = cell.cellAt(px, py)
     val target = cell.viewAt(fx, fy)?.let { viewItems[it] } ?: return null
     return target.takeIf { it != payload && !(payload is FolderChild && payload.folder == it) &&
@@ -219,7 +219,7 @@ fun MainActivity.mergeTarget(cell: CellLayout, px: Float, py: Float, payload: An
 /** Drops [child] (the dragged [payload] as a folder item) onto [target]: into it if it's a folder, else a new folder of both. */
 fun MainActivity.mergeIntoFolder(target: Item, child: Item, payload: Any?) {
     val merged = if (target.folder) target.copy(children = target.children + child)
-        else Item(target.page, target.x, target.y, target.w, target.h, folder = true, label = getString(R.string.folder), children = listOf(asChild(target)!!, child))
+        else Item(target.page, target.x, target.y, target.w, target.h, folder = true, label = getString(R.string.folder), children = listOf(drag.asChild(target)!!, child))
     detach(payload)
     items[items.indexOf(target)] = merged
     root.confirm()
@@ -354,10 +354,10 @@ fun MainActivity.folderActions(f: Item, reopen: Boolean = false) = listOf(
 
 /** Ticks the folder's apps on or off: kept ones stay in place, new ones go at the end; its shortcuts and actions stay. */
 private fun MainActivity.selectFolderApps(f: Item) {
-    val keys = f.children.mapNotNull { c -> appOf(c)?.key?.takeIf { c.isApp } }
+    val keys = f.children.mapNotNull { c -> drag.appOf(c)?.key?.takeIf { c.isApp } }
     appSwitches(f.label, keys) { chosen ->
-        val kept = f.children.filter { c -> !c.isApp || appOf(c)?.key in chosen }
-        val added = chosen.filter { it !in keys }.mapNotNull { repo.apps[it]?.let(::asChild) }
+        val kept = f.children.filter { c -> !c.isApp || drag.appOf(c)?.key in chosen }
+        val added = chosen.filter { it !in keys }.mapNotNull { repo.apps[it]?.let(drag::asChild) }
         setFolderChildren(f, kept + added)
     }
 }
@@ -429,7 +429,7 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
                 if (looks.str("badges") != "off") badge(image, c.pkg)
                 // The flashlight keeps the folder open, so the same tap turns it off again (#103).
                 setOnClickListener { v -> if (c.isAction && c.action == "torch") open(c, v) else { closeOverlay(); open(c, v) } }
-                setOnLongClickListener { v -> startDrag(v, payload(i)); true }
+                setOnLongClickListener { v -> drag.startDrag(v, payload(i)); true }
             })
         }
     }
@@ -463,23 +463,23 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
     }
     val shuffle = Runnable { moveGap(target) }
     var leaving = false
-    val leave = Runnable { leaving = false; closeOverlay(); drawer.hide(animate = false); liftDrag() }
+    val leave = Runnable { leaving = false; closeOverlay(); drawer.hide(animate = false); drag.liftDrag() }
     fun stay() { leaving = false; root.removeCallbacks(leave) }
     if (reorder != null) cell.setOnDragListener { v, e ->
-        trackDrag(v, e, keepOverlay = true)
+        drag.trackDrag(v, e, keepOverlay = true)
         when (e.action) {
-            DragEvent.ACTION_DRAG_STARTED -> order.indexOf(dragSource).takeIf { it >= 0 }?.let {
+            DragEvent.ACTION_DRAG_STARTED -> order.indexOf(drag.dragSource).takeIf { it >= 0 }?.let {
                 from = it; gap = it; target = it
                 order[it]?.alpha = 0f
             }
-            DragEvent.ACTION_DRAG_LOCATION -> if (dragMoved && gap >= 0) {
+            DragEvent.ACTION_DRAG_LOCATION -> if (drag.dragMoved && gap >= 0) {
                 stay()
                 val (x, y) = cell.cellAt(e.x, e.y)
                 val t = minOf(y * cols + x, order.size - 1)
                 if (t != target) { target = t; root.removeCallbacks(shuffle); root.postDelayed(shuffle, 250) }
             }
             DragEvent.ACTION_DROP -> {
-                if (!dragMoved || gap < 0) return@setOnDragListener false
+                if (!drag.dragMoved || gap < 0) return@setOnDragListener false
                 root.removeCallbacks(shuffle)
                 moveGap(target)
                 order[gap]?.alpha = 1f
@@ -489,7 +489,7 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
                 root.tick()
             }
             // Only the view that took the drop hears ENDED.
-            DragEvent.ACTION_DRAG_ENDED -> { root.removeCallbacks(shuffle); stay(); gap = -1; dragEnded() }
+            DragEvent.ACTION_DRAG_ENDED -> { root.removeCallbacks(shuffle); stay(); gap = -1; drag.dragEnded() }
         }
         true
     }
@@ -550,13 +550,13 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         setOnClickListener { closeOverlay() }
         // Off the folder (off the grid when full screen) for a moment, a reorderable icon leaves it for the home screen.
         setOnDragListener { v, e ->
-            if (reorder != null && dragMoved && e.action == DragEvent.ACTION_DRAG_LOCATION) {
+            if (reorder != null && drag.dragMoved && e.action == DragEvent.ACTION_DRAG_LOCATION) {
                 val at = screenRect(v)
                 root.removeCallbacks(shuffle)
                 if (screenRect(if (full) grid else card).contains(at.left + e.x.toInt(), at.top + e.y.toInt())) stay()
                 else if (!leaving) { leaving = true; root.postDelayed(leave, 400) }
             }
-            trackDrag(v, e, keepOverlay = reorder != null)
+            drag.trackDrag(v, e, keepOverlay = reorder != null)
             e.action != DragEvent.ACTION_DROP
         }
         addView(card, when {

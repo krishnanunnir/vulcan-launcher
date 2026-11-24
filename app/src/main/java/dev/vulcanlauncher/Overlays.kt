@@ -392,7 +392,7 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
  * After a page is added or removed, the rebuilt home must be measured before its thumbnails can be drawn: the previews
  * reopen then, before its first frame, so the change stays in the previews rather than returning to home.
  */
-private fun MainActivity.reopenOverview(pop: Int = -1) = afterRebuild { showOverview(enter = false, pop = pop) }
+private fun MainActivity.reopenOverview(pop: Int = -1) = drag.afterRebuild { showOverview(enter = false, pop = pop) }
 
 /** [then]: after the move; the previews reopen by default. */
 fun MainActivity.movePageTo(from: Int, to: Int, then: () -> Unit = { reopenOverview() }) {
