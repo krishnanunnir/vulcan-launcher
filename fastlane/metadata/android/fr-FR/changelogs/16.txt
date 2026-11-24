@@ -1,0 +1,8 @@
+- L’horloge est un élément d’accueil à déplacer, redimensionner, supprimer.
+- Gestes et prise d’icône à la Launcher3.
+- Dossiers qui grandissent depuis leur icône, adaptés aux petits écrans.
+- Page Maintenant et tiroir suivent le doigt.
+- Tiroir : remplissage par le bas, onglets balayables.
+- Menu d’appui long raccourci.
+- Paramètres : écran à part avec recherche ; groupes Sauvegarde, Autorisations et Tiroir complets.
+- Maintenir une page dans l’aperçu pour la déplacer ou la retirer.

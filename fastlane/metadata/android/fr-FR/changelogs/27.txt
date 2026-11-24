@@ -1,0 +1,4 @@
+Peaufinage des changements des quatre derniers jours
+Les raccourcis continuent de fonctionner après une restauration et pendant la pause des applis professionnelles
+Modifier les applis dans les dossiers de l’écran d’accueil
+Redonner forme aux icônes héritées platinées et en dégradé

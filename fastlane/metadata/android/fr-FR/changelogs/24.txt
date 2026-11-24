@@ -1,0 +1,7 @@
+Widgets empilés : même taille, glissez l’un sur l’autre, balayez.
+Cartes Maintenant personnelles : ligne d’applis ou widget.
+Gestes et glissements d’icône : raccourcis d’applis.
+Tiroir : pages Onglets et Dossiers, barre Bouclage ou Défilement.
+Sélecteur de couleur unique ; nouvelles formes de dossiers et pastilles.
+Recherche dans le sélecteur d’activité ; calendrier à la date du jour.
+Corrections : pastilles, fenêtres de dossier, dock superposé, widgets, défilement, onglets.

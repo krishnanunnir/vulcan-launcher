@@ -1,0 +1,8 @@
+- Les dossiers s’ouvrent depuis leur icône et s’y referment, sur l’accueil et dans le tiroir.
+- Glisser une appli sur une autre montre où le dossier sera créé.
+- Le retour depuis un dossier ramène au tiroir.
+- Le menu d’appui long s’ouvre dès l’appui reconnu.
+- Glissements d’icônes vers le haut fiables.
+- Un balayage latéral dans le tiroir n’ouvre plus d’appli.
+- Dossiers plein écran centrés, widgets groupés par appli, raccourcis illustrés.
+- Pas de flash quand une boîte en ouvre une autre.

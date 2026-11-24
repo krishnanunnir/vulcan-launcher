@@ -1,0 +1,8 @@
+Nouveau : marge des pages (côtés, extrémités), avec aperçu.
+Nouveau : cartes Maintenant redimensionnables, maintenues pour supprimer.
+En espagnol ; meilleur allemand et russe.
+Glisser une icône sur l’accueil ne rétrécit plus la page.
+Anciennes icônes à trous transparents affichées entières.
+Coins arrondis sur les widgets dotés de leur propre carte.
+Les paramètres ne déplacent plus l’accueil au retour.
+Corrigé : accueil écrasé par le clavier ; dossiers fermés par la torche.

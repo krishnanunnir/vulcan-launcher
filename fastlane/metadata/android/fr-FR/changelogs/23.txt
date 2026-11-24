@@ -1,0 +1,7 @@
+Halo et appel à l’action du designer sur l’accueil
+Liens du site vers vulcanlauncher.dev
+Site : page designer, aperçu en direct, looks, mélange, annulation
+Suppression du calendrier de la page Maintenant et du sélecteur Calendriers
+Onglets suivant le doigt, réordonnables, cartes Maintenant
+Corrections : effet, balayage des dossiers, clavier, taille des widgets, étiquettes
+Clés 0.29 : icon_from_app, action_locklayout, action_work, action_open_folder, no_work_profile

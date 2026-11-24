@@ -1,0 +1,7 @@
+Choisir une icône dans un pack ne plante plus le lanceur.
+Lignes du tiroir estompées sur les bords ; onglet actif rempli.
+Pages et page Maintenant gardent le fond d’écran et masquent l’accueil.
+Les dossiers suivent la forme des icônes aux nouvelles installations.
+Réorganisez les applis en les faisant glisser ; aperçus des formes d’icônes.
+Onglet Privé verrouillé, feuilles, nuanciers et libellés plus clairs.
+Le mode nuit passe dans Apparence.

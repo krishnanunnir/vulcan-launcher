@@ -1,0 +1,3 @@
+- Les applis fréquentes du tiroir sont séparées par un trait dans chaque style de tiroir.
+- « Élément supprimé » apparaît juste au-dessus de la barre de navigation et disparaît plus vite.
+- Les sélecteurs et boîtes de dialogue s’ouvrent déjà stylés, sans bref rectangle blanc.
