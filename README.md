@@ -51,6 +51,7 @@ Get it from [F-Droid](https://f-droid.org/packages/dev.vulcanlauncher/), [Obtain
 - [Privacy and permissions](docs/PERMISSIONS.md)
 - [Building from source](docs/BUILDING.md) and [architecture](docs/ARCHITECTURE.md)
 - [Translating](docs/TRANSLATING.md)
+- [Discord](https://discord.gg/SH4R7ERCVK): quick questions, help and home screen setups (bugs and ideas stay on GitHub)
 
 ## License
 
