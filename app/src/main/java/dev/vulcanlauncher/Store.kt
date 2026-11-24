@@ -85,6 +85,24 @@ private fun itemList(a: JSONArray) = (0 until a.length()).mapNotNull { runCatchi
 /** [items] without the apps and shortcuts of an uninstalled package. A folder left with one item turns back into it. */
 fun removePackage(items: List<Item>, pkg: String, user: Long) = removeApps(items) { it.pkg == pkg && it.user == user }
 
+/**
+ * [items] with [child] taken out of the folder on cell ([page], [x], [y]); a folder left with one item turns back into
+ * it, an empty one goes. Null, and nothing to do, when that folder or that child is no longer there.
+ */
+fun takeFromFolder(items: List<Item>, page: Int, x: Int, y: Int, child: Item): List<Item>? {
+    val i = items.indexOfFirst { it.folder && it.page == page && it.x == x && it.y == y }
+    val f = items.getOrNull(i) ?: return null
+    val j = f.children.indexOf(child).takeIf { it >= 0 } ?: return null
+    val rest = f.children.filterIndexed { k, _ -> k != j }
+    return items.toMutableList().apply {
+        when (rest.size) {
+            0 -> removeAt(i)
+            1 -> set(i, rest[0].copy(page = f.page, x = f.x, y = f.y, w = f.w, h = f.h))
+            else -> set(i, f.copy(children = rest))
+        }
+    }
+}
+
 private fun goneApp(i: Item, gone: (Item) -> Boolean) = i.pkg.isNotEmpty() && !i.isWidget && !i.isWidgetSlot && !i.folder && gone(i)
 
 /** How many icons [removeApps] would take out, folder entries included: what a restore reports as left out. */

@@ -108,7 +108,6 @@ fun MainActivity.editApp(app: App) {
         repo.loadApps(listOf(app.pkg))
         drawer.refresh()
         render()
-        refillFolder?.invoke()
     }
 }
 

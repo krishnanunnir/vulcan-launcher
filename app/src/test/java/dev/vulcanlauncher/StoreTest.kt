@@ -63,6 +63,23 @@ class StoreTest {
     }
 
     @Test
+    fun aDraggedFolderChildIsTakenFromTheFolderAsItIsNow() {
+        val a = Item(0, 0, 0, pkg = "a")
+        val b = Item(0, 0, 0, pkg = "b")
+        val c = Item(0, 0, 0, pkg = "c")
+        val other = Item(0, 3, 3, pkg = "z")
+        // Renamed and re-sorted since the drag began: found by its cell, and the child by itself, not by its old place.
+        val folder = Item(1, 2, 2, folder = true, label = "New name", children = listOf(c, b, a))
+        assertEquals(listOf(other, folder.copy(children = listOf(c, b))), takeFromFolder(listOf(other, folder), 1, 2, 2, a))
+        // Two left: the folder turns back into the one that stays, on the folder's cell.
+        val pair = folder.copy(children = listOf(a, b))
+        assertEquals(listOf(b.copy(page = 1, x = 2, y = 2)), takeFromFolder(listOf(pair), 1, 2, 2, a))
+        // The child or the folder is gone: nothing to do, so the drop places nothing.
+        assertEquals(null, takeFromFolder(listOf(other, folder), 1, 2, 2, Item(0, 0, 0, pkg = "gone")))
+        assertEquals(null, takeFromFolder(listOf(other), 1, 2, 2, a))
+    }
+
+    @Test
     fun appsGoneWhileTheLauncherWasDeadLeaveHome() {
         val gone = Item(0, 0, 0, pkg = "x")
         val kept = Item(0, 1, 0, pkg = "y")

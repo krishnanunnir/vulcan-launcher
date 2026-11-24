@@ -35,7 +35,11 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 /** Drag payload for an item dragged out of a home-screen folder. */
-class FolderChild(val folder: Item, val index: Int)
+/**
+ * An item inside the home folder on cell ([page], [x], [y]). The child itself and the folder's cell, not a copy of the
+ * folder and a position in it: a rename, sort or uninstall since would leave those pointing at the wrong thing.
+ */
+class FolderChild(val page: Int, val x: Int, val y: Int, val child: Item)
 
 /** Drag payload for an app in the drawer folder named [group]: it reorders there; dropped on home, it's a copy. */
 class GroupChild(val group: String, val app: App)
@@ -654,7 +658,6 @@ class MainActivity : VulcanActivity() {
         private fun reload(pkgs: List<String>, homeOnly: Boolean = false) {
             repo.loadApps(pkgs)
             drawer.invalidate()
-            refillFolder?.invoke()
             if (!homeOnly || (items + items.flatMap { it.children }).any { it.pkg in pkgs }) render()
         }
     }
@@ -758,6 +761,7 @@ class MainActivity : VulcanActivity() {
         updateBadges()
         updateGlance()
         folderFx.settle()
+        refillFolder?.invoke() // an open folder shows what home now has
     }
 
     /** Label and icon for any non-widget item, or null when its app is gone. */
@@ -842,11 +846,11 @@ class MainActivity : VulcanActivity() {
     }
 
     // ---- Drag and drop ----
-    fun detach(p: Any?) {
-        when (p) {
-            is Item -> items.remove(p)
-            is FolderChild -> removeFromFolder(p)
-        }
+    /** Takes a dragged item out of where it came from. False when it's no longer there: the drop must then do nothing. */
+    fun detach(p: Any?): Boolean = when (p) {
+        is Item -> items.remove(p)
+        is FolderChild -> removeFromFolder(p)
+        else -> true // from the drawer: a copy, with nothing to take out
     }
 
     /** Takes an app out of its drawer folder (from its menu: a drag only copies it to home); a folder left empty goes. */

@@ -40,7 +40,7 @@ class HomeMenus(private val a: MainActivity) {
         // A pinned shortcut has no app item of its own: the app owning its package gives it the info tile and notification
         // row (not that app's shortcuts, widgets or uninstall). A shortcut inside a folder is the folder's child at its index.
         val shortcut = item?.takeIf { it.isShortcut }
-            ?: (payload as? FolderChild)?.let { it.folder.children.getOrNull(it.index) }?.takeIf { it.isShortcut }
+            ?: (payload as? FolderChild)?.child?.takeIf { it.isShortcut }
         val owner = app ?: shortcut?.let { s -> a.repo.apps.values.firstOrNull { it.pkg == s.pkg && it.serial == s.user } }
         if (app != null && a.looks.on("popupShortcuts")) a.repo.shortcutsFor(app).forEach { s ->
             row(a.repo.shortcutIcon(s), s.shortLabel?.toString() ?: "", long = { v -> if (!a.locked) a.drag.startDrag(v, s) }) {
@@ -64,7 +64,7 @@ class HomeMenus(private val a: MainActivity) {
                 val hidden = app.key in a.store.strings("hidden")
                 tile(if (hidden) "show" else "hide", a.getString(if (hidden) R.string.unhide else R.string.hide)) { toggleHidden(app.key) }
                 tile("tabs", a.getString(R.string.menu_group)) { a.addToGroup(app.key) }
-                if (payload is GroupChild) tile("close", a.getString(R.string.remove)) { a.removeFromGroup(payload); a.refillFolder?.invoke() }
+                if (payload is GroupChild) tile("close", a.getString(R.string.remove)) { a.removeFromGroup(payload) }
             }
             item != null && !a.locked -> {
                 if (!item.isBlock) tile("edit", a.getString(R.string.edit)) { a.editItem(item) }
@@ -87,13 +87,14 @@ class HomeMenus(private val a: MainActivity) {
                 tile("edit", a.getString(R.string.edit)) { a.editGroup(payload) }
             }
             payload is FolderChild && !a.locked -> {
-                val f = payload.folder
-                f.children.getOrNull(payload.index)?.takeIf { !it.isBlock }?.let { child ->
-                    tile("edit", a.getString(R.string.edit)) {
-                        a.editItem(child, swipes = false) { a.setFolderChildren(f, f.children.toMutableList().apply { set(payload.index, it) }); a.refillFolder?.invoke() }
+                val child = payload.child
+                if (!child.isBlock) tile("edit", a.getString(R.string.edit)) {
+                    a.editItem(child, swipes = false) { new ->
+                        // Into the folder as it is now, at the place the child holds now.
+                        a.folderOf(payload)?.let { f -> f.children.indexOf(child).takeIf { it >= 0 }?.let { j -> a.setFolderChildren(f, f.children.toMutableList().apply { set(j, new) }) } }
                     }
                 }
-                tile("close", a.getString(R.string.remove)) { a.removeFromFolder(payload); a.save(); a.render(); a.refillFolder?.invoke() }
+                tile("close", a.getString(R.string.remove)) { if (a.removeFromFolder(payload)) { a.save(); a.render() } }
             }
         }
         if (owner != null) {

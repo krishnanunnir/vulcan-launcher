@@ -212,20 +212,22 @@ fun MainActivity.mergeTarget(cell: CellLayout, px: Float, py: Float, payload: An
     if (!drag.dragMoved || drag.asChild(payload) == null) return null
     val (fx, fy) = cell.cellAt(px, py)
     val target = cell.viewAt(fx, fy)?.let { viewItems[it] } ?: return null
-    return target.takeIf { it != payload && !(payload is FolderChild && payload.folder == it) &&
+    return target.takeIf { it != payload && !(payload is FolderChild && it.folder && it.page == payload.page && it.x == payload.x && it.y == payload.y) &&
         (it.isApp || it.folder || it.isShortcut || it.isAction) }
 }
 
 /** Drops [child] (the dragged [payload] as a folder item) onto [target]: into it if it's a folder, else a new folder of both. */
-fun MainActivity.mergeIntoFolder(target: Item, child: Item, payload: Any?) {
+fun MainActivity.mergeIntoFolder(target: Item, child: Item, payload: Any?): Boolean {
     val merged = if (target.folder) target.copy(children = target.children + child)
         else Item(target.page, target.x, target.y, target.w, target.h, folder = true, label = getString(R.string.folder), children = listOf(drag.asChild(target)!!, child))
-    detach(payload)
-    items[items.indexOf(target)] = merged
+    // Both still there, or nothing changes: the dragged icon then reappears where it was.
+    if (target !in items || !detach(payload)) return false
+    items[items.indexOf(target)] = merged // still there: detach only touches the dragged icon or its own folder, never the target
     root.confirm()
     save()
     folderFx.settleNext(merged, 1.3f)
     render()
+    return true
 }
 
 /**
@@ -236,18 +238,16 @@ fun MainActivity.folderIndex(f: Item) = items.indexOf(f).takeIf { it >= 0 }
     ?: items.indexOfFirst { it.folder && it.page == f.page && it.x == f.x && it.y == f.y }
 
 /** Takes one item out of a folder; a folder left with one item turns back into that item. The rest settles in place. */
-fun MainActivity.removeFromFolder(fc: FolderChild) {
-    val i = folderIndex(fc.folder)
-    if (i < 0) return
-    val f = items[i]
-    val rest = f.children.filterIndexed { j, _ -> j != fc.index }
-    when (rest.size) {
-        0 -> items.removeAt(i)
-        1 -> items[i] = rest[0].copy(page = f.page, x = f.x, y = f.y, w = f.w, h = f.h)
-        else -> items[i] = f.copy(children = rest)
-    }
-    items.getOrNull(i)?.takeIf { rest.isNotEmpty() }?.let { folderFx.settleNext(it, 0.82f) }
+fun MainActivity.removeFromFolder(fc: FolderChild): Boolean {
+    val now = takeFromFolder(items, fc.page, fc.x, fc.y, fc.child) ?: return false
+    // What's left on that cell (the folder, or its last icon) settles into place.
+    if (now.size == items.size) now.firstOrNull { it.page == fc.page && it.x == fc.x && it.y == fc.y }?.let { folderFx.settleNext(it, 0.82f) }
+    items = now.toMutableList()
+    return true
 }
+
+/** The folder [fc] came from, as it is now. */
+fun MainActivity.folderOf(fc: FolderChild) = items.firstOrNull { it.folder && it.page == fc.page && it.x == fc.x && it.y == fc.y }
 
 /**
  * Launcher3's folder reveal. [card]'s background grows out of the folder icon's shape at [from] (root coordinates) into
@@ -346,7 +346,7 @@ fun MainActivity.openFolder(item: Item) {
         homeMenus.showMenu(homeMenus.screenRect(v), narrow = true) { with(homeMenus) { addActions(folderActions(folder, reopen = true), 4, lead = setOf("check", "sort")) } }
     }, reload = {
         items.firstOrNull { it.folder && it.page == folder.page && it.x == folder.x && it.y == folder.y }?.also { folder = it }?.children
-    }) { FolderChild(folder, it) }
+    }) { _, child -> FolderChild(folder.page, folder.x, folder.y, child) }
 }
 
 /** Nova's folder actions: pick its apps, or sort them A to Z. [reopen] shows the folder again after a sort. */
@@ -407,7 +407,7 @@ fun folderGrid(n: Int, cellW: Int, minW: Int, avail: Int, want: Int? = null): Pa
  */
 fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename: ((String) -> Unit)?,
                                   reorder: ((from: Int, to: Int) -> List<Item>)? = null, icon: View? = null,
-                                  more: ((View) -> Unit)? = null, reload: (() -> List<Item>?)? = null, payload: (Int) -> Any) {
+                                  more: ((View) -> Unit)? = null, reload: (() -> List<Item>?)? = null, payload: (Int, Item) -> Any) {
     val anchor = icon?.takeIf { it.isLaidOut }?.let(homeMenus::screenRect)
     val full = looks.str("folderWindow") == "fullscreen"
     val base = style("")
@@ -437,7 +437,7 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
                 if (looks.str("badges") != "off") badge(image, c.pkg)
                 // The flashlight keeps the folder open, so the same tap turns it off again (#103).
                 setOnClickListener { v -> if (c.isAction && c.action == "torch") open(c, v) else { closeOverlay(); open(c, v) } }
-                setOnLongClickListener { v -> drag.startDrag(v, payload(i)); true }
+                setOnLongClickListener { v -> drag.startDrag(v, payload(i, c)); true }
             })
         }
     }
@@ -591,7 +591,8 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
     }
     showOverlay(dim, depth = false) { onRename?.invoke(name.text.toString().trim()) }
     // A folder that's gone (or became a single app) closes; the grid keeps its size, so the last slots stay empty.
-    if (reload != null) refillFolder = { reload()?.let(::fill) ?: closeOverlay() }
+    // ponytail: not while an icon is being dragged in here (the rebuild would lose the gap); the drop refills it.
+    if (reload != null) refillFolder = { if (gap < 0) reload()?.let(::fill) ?: closeOverlay() }
     if (spot != null && anchor != null) {
         val corner = looks.int("folderRadius") * dp
         val iconCorner = minOf(anchor.width(), anchor.height()) * if (looks.str("folderBg") == "square") 0.2f else 0.5f

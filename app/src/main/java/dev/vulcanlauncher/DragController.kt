@@ -165,7 +165,7 @@ class DragController(private val a: MainActivity) {
                             a.removePageAt(p.index) { afterRebuild { a.workspace.snapTo(minOf(p.index, a.looks.pages - 1), animate = false); a.homeMenus.homeOverview(animate = false) } }
                         }
                         is Item -> a.removeItem(p)
-                        is FolderChild -> { a.removeFromFolder(p); a.save() }
+                        is FolderChild -> if (a.removeFromFolder(p)) a.save()
                     }
                     "uninstall" -> appOf(p)?.let { a.uninstall(it) }
                 }
@@ -461,7 +461,7 @@ class DragController(private val a: MainActivity) {
         is App -> p
         is GroupChild -> p.app
         is Item -> if (p.isApp) a.repo.apps[p.appKey] else null
-        is FolderChild -> p.folder.children.getOrNull(p.index)?.let { if (it.isApp) a.repo.apps[it.appKey] else null }
+        is FolderChild -> if (p.child.isApp) a.repo.apps[p.child.appKey] else null
         else -> null
     }
 
@@ -470,7 +470,7 @@ class DragController(private val a: MainActivity) {
         is Item -> if (p.isBlock || p.folder) null else p.copy(page = 0, x = 0, y = 0, w = 1, h = 1)
         is App -> Item(0, 0, 0, pkg = p.pkg, cls = p.cls, user = p.serial)
         is GroupChild -> asChild(p.app)
-        is FolderChild -> p.folder.children.getOrNull(p.index)
+        is FolderChild -> p.child
         is ShortcutInfo -> Item(0, 0, 0, pkg = p.`package`, shortcutId = p.id, user = a.repo.serial(p.userHandle), label = p.shortLabel?.toString() ?: "")
         else -> null
     }
@@ -506,15 +506,15 @@ class DragController(private val a: MainActivity) {
         val child = asChild(payload)
         val target = a.mergeTarget(cell, px, py, payload)
         if (child != null && target != null) {
+            if (!a.mergeIntoFolder(target, child, payload)) return false
             dropped = true
-            a.mergeIntoFolder(target, child, payload)
             if (child.isShortcut) a.syncPins(child.pkg, child.user) // as the plain drop below: an unpinned shortcut stops resolving
             return true
         }
         a.widgetFlow.stackTarget(cell, px, py, payload)?.let { onto ->
-            dropped = true
             val moving = payload as Item
-            a.items.remove(moving)
+            if (onto !in a.items || !a.items.remove(moving)) return false
+            dropped = true
             a.items[a.items.indexOf(onto)] = onto.withWidgets(onto.widgetIds + moving.widgetIds)!!
             a.root.confirm()
             a.save()
@@ -522,9 +522,10 @@ class DragController(private val a: MainActivity) {
             return true
         }
         val spot = landing(cell, px, py, payload) ?: return false
-        dropped = true
         val placed = (asItem(payload) ?: child ?: return false).copy(page = cell.page, x = spot.left, y = spot.top, w = spot.width(), h = spot.height())
-        a.detach(payload)
+        // Gone from where it came from (its app was removed, its folder changed) since the drag began: placing it would make a second one.
+        if (!a.detach(payload)) return false
+        dropped = true
         a.items += placed
         a.root.tick()
         if (placed.isShortcut) a.syncPins(placed.pkg, placed.user)
