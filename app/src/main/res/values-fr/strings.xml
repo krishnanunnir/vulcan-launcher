@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="action_service_description">Permet à Vulcan de verrouiller l’écran et d’ouvrir les applis récentes, les réglages rapides et le menu d’alimentation depuis un geste. Ne lit aucun contenu de l’écran.</string>
     <string name="set_cols">Colonnes</string>
     <string name="set_rows">Lignes</string>
@@ -53,8 +53,6 @@
     <string name="padding_sides">Gauche &amp; droite</string>
     <string name="padding_top">Haut</string>
     <string name="padding_bottom">Bas</string>
-    <string name="padding_value">%1$d × %2$d dp</string>
-    <string name="padding_value_ends">%1$d × %2$d / %3$d dp</string>
     <string name="set_widgetRadius">Rayon des coins des widgets</string>
     <string name="set_autoAdd">Ajouter les icônes des nouvelles applis à l’écran d’accueil</string>
     <string name="set_hideClock">Masquer l’horloge de la barre d’état</string>
@@ -517,7 +515,6 @@
     <string name="now_add_card">Ajouter une carte</string>
     <string name="now_card_apps">Applis</string>
     <string name="now_card_widget">Widget</string>
-    <string name="now_card_height">%1$d dp</string>
     <string name="now_frequent">Fréquentes</string>
     <string name="now_now">Maintenant</string>
     <string name="charging">En charge · %1$d%%</string>
@@ -757,7 +754,8 @@
         <item quantity="other">%1$d pages</item>
     </plurals>
     <plurals name="widgets_title">
-        <item quantity="one">Récupérez votre widget</item>
+        <!-- one also covers 0 in French; that rare case reads singular in English too -->
+        <item quantity="one" tools:ignore="ImpliedQuantity">Récupérez votre widget</item>
         <item quantity="other">Récupérez vos %1$d widgets</item>
     </plurals>
     <string name="widgets_body">Android demande une autorisation unique avant que Vulcan puisse afficher des widgets. Cochez cette case et le reste revient tout seul.</string>
