@@ -266,7 +266,7 @@ class HomeMenus(private val a: MainActivity) {
 
     private fun isSystemApp(a: App) = a.info.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
 
-    fun toggleHidden(key: String) {
+    private fun toggleHidden(key: String) {
         val hidden = a.store.strings("hidden")
         if (!hidden.remove(key)) hidden += key
         a.store.putStrings("hidden", hidden)

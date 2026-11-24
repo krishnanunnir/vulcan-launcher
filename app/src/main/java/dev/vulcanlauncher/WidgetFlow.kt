@@ -220,7 +220,7 @@ class WidgetFlow(private val a: MainActivity) {
         set(v) { a.store.data.edit().putString("pendingSlot", v?.let { itemsToJson(listOf(it)) } ?: "").apply() }
 
     /** Puts a new widget from the same provider into an imported widget's spot. */
-    fun restoreWidget(slot: Item) {
+    private fun restoreWidget(slot: Item) {
         val info = slotProvider(slot) ?: run { a.toast(R.string.widget_slot_missing_toast); return }
         pendingSlot = slot
         addWidget(info)

@@ -74,7 +74,7 @@ class DragController(private val a: MainActivity) {
         }
     }
 
-    var wiggles = listOf<android.animation.Animator>()
+    private var wiggles = listOf<android.animation.Animator>()
 
     /**
      * A drag that never moves is a long-press: its menu stays. [keepOverlay]: a folder window reordering its icons, which
@@ -176,7 +176,7 @@ class DragController(private val a: MainActivity) {
     }
 
     var spring = 0f
-    var springAnim: ValueAnimator? = null
+    private var springAnim: ValueAnimator? = null
 
     /** Space [homeOverview]'s buttons take at the bottom of the screen; 0 for a drag, which has none. */
     var springBottom = 0
@@ -285,7 +285,7 @@ class DragController(private val a: MainActivity) {
     }
 
     /** The overview's last card: tapping its "+" adds a page there (up to the Pages setting's 9). */
-    var plusPage: CellLayout? = null
+    private var plusPage: CellLayout? = null
 
     private fun addPlusPage() {
         if (plusPage != null || a.locked || a.pages.size >= 9) return
@@ -410,7 +410,7 @@ class DragController(private val a: MainActivity) {
     }
 
     /** The empty page a drag adds after the last one ([addDragPage]), the home page it started on, and whether it landed on home. */
-    var dragPage: CellLayout? = null
+    private var dragPage: CellLayout? = null
     private var dragFrom: Int? = null
     private var dropped = false
 
