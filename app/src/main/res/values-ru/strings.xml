@@ -853,4 +853,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
         <item quantity="many">Пропущено %1$d значков: их приложения не установлены. Восстановите копию ещё раз, когда они будут установлены.</item>
         <item quantity="other">Пропущено %1$d значка: их приложения не установлены. Восстановите копию ещё раз, когда они будут установлены.</item>
     </plurals>
+    <string name="padding_value">%1$d × %2$d dp</string>
+    <string name="now_card_height">%1$d dp</string>
 </resources>
