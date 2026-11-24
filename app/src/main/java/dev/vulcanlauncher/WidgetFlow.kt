@@ -32,34 +32,22 @@ class WidgetFlow(private val a: MainActivity) {
     fun widgetView(item: Item): View? {
         val info = a.awm.getAppWidgetInfo(item.widgetId) ?: return null
         // A frame that was in a stack still sits in it, moved aside or hidden.
-        widgetFrames[item.widgetId]?.let {
-            (it.parent as? ViewGroup)?.removeView(it); it.translationX = 0f; it.visibility = View.VISIBLE
-            (it.getChildAt(0) as? AppWidgetHostView)?.let { hv -> setPad(hv, info) }
-            return it
-        }
+        widgetFrames[item.widgetId]?.let { (it.parent as? ViewGroup)?.removeView(it); it.translationX = 0f; it.visibility = View.VISIBLE; return it }
         // A widget whose view can't be made leaves its cells empty this time; it must not take home down.
         val hv: AppWidgetHostView = runCatching { a.host.createView(a.applicationContext, item.widgetId, info) }.getOrNull() ?: return null
-        hv.addOnLayoutChangeListener { _, l, t, r, b, ol, ot, or, ob -> if (r - l != or - ol || b - t != ob - ot) reportSize(hv, info) }
-        setPad(hv, info)
+        // Android's own widget padding, scaled by Widget padding (0–200%, as Lawnchair; #121). Changing it rebuilds home.
+        val d = AppWidgetHostView.getDefaultPaddingForWidget(a, info.provider, null)
+        val f = a.looks.int("widgetPadding") / 100f
+        hv.setPadding((d.left * f).toInt(), (d.top * f).toInt(), (d.right * f).toInt(), (d.bottom * f).toInt())
+        hv.addOnLayoutChangeListener { _, l, t, r, b, ol, ot, or, ob -> if (r - l != or - ol || b - t != ob - ot) reportSize(hv, d) }
         roundCorners(hv, a.looks.int("widgetRadius") * a.dp)
         return WidgetFrame(a).apply { addView(hv) }.also { widgetFrames[item.widgetId] = it }
     }
 
-    /** Android's own widget padding scaled by the Widget padding setting, 0–200% (#121, as Lawnchair). */
-    private fun setPad(hv: AppWidgetHostView, info: AppWidgetProviderInfo) {
-        val f = a.looks.int("widgetPadding") / 100f
-        val d = AppWidgetHostView.getDefaultPaddingForWidget(a, info.provider, null)
-        val p = Rect((d.left * f).toInt(), (d.top * f).toInt(), (d.right * f).toInt(), (d.bottom * f).toInt())
-        if (p == Rect(hv.paddingLeft, hv.paddingTop, hv.paddingRight, hv.paddingBottom)) return
-        hv.setPadding(p.left, p.top, p.right, p.bottom)
-        if (hv.width > 0) reportSize(hv, info) // same cells, more or less room inside them
-    }
-
-    /** Tells the widget the room it has inside its padding, in dp. */
+    /** Tells the widget the room it has inside its padding, in dp. [d]: Android's own widget padding. */
     @Suppress("DEPRECATION")
-    private fun reportSize(hv: AppWidgetHostView, info: AppWidgetProviderInfo) {
+    private fun reportSize(hv: AppWidgetHostView, d: Rect) {
         // updateAppWidgetSize takes Android's own padding off what it is given, so that goes back on first.
-        val d = AppWidgetHostView.getDefaultPaddingForWidget(a, info.provider, null)
         val w = ((hv.width - hv.paddingLeft - hv.paddingRight + d.left + d.right) / a.dp).toInt()
         val h = ((hv.height - hv.paddingTop - hv.paddingBottom + d.top + d.bottom) / a.dp).toInt()
         // Android 12+: the size list, which widgets with a layout per size choose from (the old call sends none).

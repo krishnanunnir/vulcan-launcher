@@ -433,12 +433,13 @@ fun MainActivity.showResize(cell: CellLayout, item: Item, v: View, minW: Int, mi
         val n = frame.result()
         val i = items.indexOf(item)
         if (n != item && i >= 0) { items[i] = n; save(); render() }
+        else v.layoutParams = CellLayout.CellParams(item.x, item.y, item.w, item.h) // the live preview, undone
     }
 }
 
 @SuppressLint("ViewConstructor")
 class ResizeFrame(
-    private val a: MainActivity, private val cell: CellLayout, private val item: Item, private val ignore: View,
+    private val a: MainActivity, private val cell: CellLayout, private val item: Item, private val widget: View,
     private val minW: Int, private val minH: Int, private val canW: Boolean, private val canH: Boolean,
 ) : View(a) {
     private var l = item.x
@@ -500,10 +501,11 @@ class ResizeFrame(
                     2 -> nr = cx.coerceIn(l + minW, cell.cols)
                     3 -> nb = cy.coerceIn(t + minH, cell.rows)
                 }
-                if (cell.isFree(nl, nt, nr - nl, nb - nt, ignore) || a.looks.on("widgetOverlap")) {
+                val moved = nl != l || nt != t || nr != r || nb != b
+                if (moved && (cell.isFree(nl, nt, nr - nl, nb - nt, widget) || a.looks.on("widgetOverlap"))) {
                     l = nl; t = nt; r = nr; b = nb; invalidate()
-                    // The widget is laid out at each new size, which tells its app to redraw for it.
-                    ignore.layoutParams = CellLayout.CellParams(l, t, r - l, b - t)
+                    // Laid out at each new size, the widget tells its app, which redraws it for that size (#121).
+                    widget.layoutParams = CellLayout.CellParams(l, t, r - l, b - t)
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> edge = -1
