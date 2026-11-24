@@ -94,7 +94,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
     }
     private fun clean() {
         settings?.let { s -> ui { dialogs(s).forEach { it.dismiss() }; s.finish() }; settle() }; settings = null
-        ui { dialogs().forEach { it.dismiss() }; a.closeMenu(); a.closeOverlay(); a.drawer.hide(false) }; settle(100)
+        ui { dialogs().forEach { it.dismiss() }; a.homeMenus.closeMenu(); a.closeOverlay(); a.drawer.hide(false) }; settle(100)
     }
     private fun setup(vararg prefs: Pair<String, String>) {
         clean()

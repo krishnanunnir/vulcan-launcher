@@ -288,7 +288,7 @@ private fun MainActivity.reveal(card: View, grid: ViewGroup, name: View, from: R
         flies = (0 until grid.childCount).mapNotNull { i ->
             val v = grid.getChildAt(i) as? IconView ?: return@mapNotNull null
             val img = v.image
-            val r = screenRect(img)
+            val r = homeMenus.screenRect(img)
             val size = minOf(img.width, img.height).toFloat().coerceAtLeast(1f)
             v.pivotX = img.left + img.width / 2f
             v.pivotY = img.top + img.height / 2f
@@ -336,7 +336,7 @@ fun MainActivity.openFolder(item: Item) {
         }
         folder.children
     }, icon = (views[item] as? IconView)?.image, more = { v ->
-        showMenu(screenRect(v), narrow = true) { addActions(folderActions(folder, reopen = true), 4, lead = setOf("check", "sort")) }
+        homeMenus.showMenu(homeMenus.screenRect(v), narrow = true) { with(homeMenus) { addActions(folderActions(folder, reopen = true), 4, lead = setOf("check", "sort")) } }
     }, reload = {
         items.firstOrNull { it.folder && it.page == folder.page && it.x == folder.x && it.y == folder.y }?.also { folder = it }?.children
     }) { FolderChild(folder, it) }
@@ -400,7 +400,7 @@ fun folderGrid(n: Int, cellW: Int, minW: Int, avail: Int, want: Int? = null): Pa
 fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename: ((String) -> Unit)?,
                                   reorder: ((from: Int, to: Int) -> List<Item>)? = null, icon: View? = null,
                                   more: ((View) -> Unit)? = null, reload: (() -> List<Item>?)? = null, payload: (Int) -> Any) {
-    val anchor = icon?.takeIf { it.isLaidOut }?.let(::screenRect)
+    val anchor = icon?.takeIf { it.isLaidOut }?.let(homeMenus::screenRect)
     val full = looks.str("folderWindow") == "fullscreen"
     val base = style("")
     // Folder background color paints the window as well as the icon (#87); its text turns dark on a light colour.
@@ -537,7 +537,7 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
     val w = cols * cellW + (32 * dp).toInt()
     val margin = (16 * dp).toInt()
     // The pop-up stays clear of the dock: above it, or left of it in landscape where it's a column on the right.
-    val dockR = if (dockBox.visibility == View.VISIBLE && dockBox.isLaidOut) screenRect(dockBox) else null
+    val dockR = if (dockBox.visibility == View.VISIBLE && dockBox.isLaidOut) homeMenus.screenRect(dockBox) else null
     val bottom = if (dockR != null && dockR.width() > dockR.height()) dockR.top else root.height - insets.bottom
     val right = if (dockR != null && dockR.width() <= dockR.height()) dockR.left else root.width
     val spot = if (full || anchor == null) null else {
@@ -551,9 +551,9 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         // Off the folder (off the grid when full screen) for a moment, a reorderable icon leaves it for the home screen.
         setOnDragListener { v, e ->
             if (reorder != null && drag.dragMoved && e.action == DragEvent.ACTION_DRAG_LOCATION) {
-                val at = screenRect(v)
+                val at = homeMenus.screenRect(v)
                 root.removeCallbacks(shuffle)
-                if (screenRect(if (full) grid else card).contains(at.left + e.x.toInt(), at.top + e.y.toInt())) stay()
+                if (homeMenus.screenRect(if (full) grid else card).contains(at.left + e.x.toInt(), at.top + e.y.toInt())) stay()
                 else if (!leaving) { leaving = true; root.postDelayed(leave, 400) }
             }
             drag.trackDrag(v, e, keepOverlay = reorder != null)

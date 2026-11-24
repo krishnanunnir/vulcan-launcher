@@ -294,7 +294,7 @@ fun MainActivity.showNow(slide: Boolean = true) {
                 MotionEvent.ACTION_MOVE -> if (kotlin.math.abs(ev.rawY - downY) > slop) menuOnUp = false
                 MotionEvent.ACTION_UP -> if (menuOnUp) {
                     menuOnUp = false
-                    menus[v]?.let { m -> showMenu(screenRect(v), narrow = true) { addActions(m, 4, emptySet()) } }
+                    menus[v]?.let { m -> homeMenus.showMenu(homeMenus.screenRect(v), narrow = true) { with(homeMenus) { addActions(m, 4, emptySet()) } } }
                 }
             }
             reorder.onTouch(ev)

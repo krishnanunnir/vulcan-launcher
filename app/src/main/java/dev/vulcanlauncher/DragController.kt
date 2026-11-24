@@ -41,7 +41,7 @@ class DragController(private val a: MainActivity) {
         private set
 
     fun startDrag(v: View, payload: Any) {
-        if (a.locked) { a.showPopup(v, payload); return }
+        if (a.locked) { a.homeMenus.showPopup(v, payload); return }
         dragSource = v
         dragPayload = payload
         dragStart = null
@@ -59,11 +59,11 @@ class DragController(private val a: MainActivity) {
             override fun onProvideShadowMetrics(size: Point, touchPoint: Point) { super.onProvideShadowMetrics(size, touchPoint); touchPoint.set(touch.x, touch.y) }
         }, payload, View.DRAG_FLAG_OPAQUE)
         // No drag means no ENDED to undo what follows: show the menu instead.
-        if (!started) { dragSource = null; a.showPopup(v, payload); return }
+        if (!started) { dragSource = null; a.homeMenus.showPopup(v, payload); return }
         if (payload is Item) v.alpha = 0f
         // The menu shows the moment the long-press registers, as on the wallpaper; moving the drag closes it (trackDrag).
         // Not for a drag out of a menu row (a shortcut): that menu stays until the drag moves.
-        if (a.menu == null) a.root.post { if (dragSource === v && !dragMoved) a.showPopup(v, payload) }
+        if (a.homeMenus.menu == null) a.root.post { if (dragSource === v && !dragMoved) a.homeMenus.showPopup(v, payload) }
         if (a.looks.on("wiggle")) wiggles = a.iconViews.map { iv ->
             android.animation.ObjectAnimator.ofFloat(iv.image, "rotation", -4f, 4f).apply {
                 duration = 140
@@ -93,7 +93,7 @@ class DragController(private val a: MainActivity) {
             // As Nova: a drag within a folder keeps home as it is until it leaves the folder (openFolderWindow's leave).
             if (!keepOverlay) liftDrag(shrink = a.drawer.visible || a.overlay != null)
             a.root.tick()
-            a.closeMenu()
+            a.homeMenus.closeMenu()
             if (!keepOverlay) { a.drawer.hide(animate = false); a.closeOverlay() }
         }
     }
@@ -162,7 +162,7 @@ class DragController(private val a: MainActivity) {
                 DragEvent.ACTION_DROP -> when (kind) {
                     "remove" -> when (p) {
                         is PageMove -> a.root.post {
-                            a.removePageAt(p.index) { afterRebuild { a.workspace.snapTo(minOf(p.index, a.looks.pages - 1), animate = false); a.homeOverview(animate = false) } }
+                            a.removePageAt(p.index) { afterRebuild { a.workspace.snapTo(minOf(p.index, a.looks.pages - 1), animate = false); a.homeMenus.homeOverview(animate = false) } }
                         }
                         is Item -> a.removeItem(p)
                         is FolderChild -> { a.removeFromFolder(p); a.save() }
@@ -261,7 +261,7 @@ class DragController(private val a: MainActivity) {
         // Posted: adding or removing views while ENDED is still being dispatched throws
         // ConcurrentModificationException in ViewGroup.dispatchDragEvent.
         // A drag that never moved already shows its menu (startDrag); it stays open.
-        a.root.post { if (!moved && src.isAttachedToWindow) { if (a.menu == null) a.showPopup(src, payload) } else { a.render(); settleDragPages() } }
+        a.root.post { if (!moved && src.isAttachedToWindow) { if (a.homeMenus.menu == null) a.homeMenus.showPopup(src, payload) } else { a.render(); settleDragPages() } }
     }
 
     /** Home's one state; [setHomeState] changes it. */
@@ -309,9 +309,9 @@ class DragController(private val a: MainActivity) {
     private fun overviewTap(i: Int) {
         val page = a.pages.getOrNull(i)
         when {
-            page == null -> a.closeMenu()
+            page == null -> a.homeMenus.closeMenu()
             page === plusPage -> addPageInPlace(page)
-            else -> { a.workspace.snapTo(i); a.closeMenu() }
+            else -> { a.workspace.snapTo(i); a.homeMenus.closeMenu() }
         }
     }
 
@@ -322,7 +322,7 @@ class DragController(private val a: MainActivity) {
     private fun addPageInPlace(page: CellLayout) {
         plusPage = null
         page.contentDescription = null
-        page.setOnLongClickListener { a.homeOverview(); true }
+        page.setOnLongClickListener { a.homeMenus.homeOverview(); true }
         page.foreground?.let { plus ->
             ValueAnimator.ofInt(255, 0).apply {
                 duration = 180
@@ -406,7 +406,7 @@ class DragController(private val a: MainActivity) {
 
     fun newPage(i: Int) = CellLayout(a, a.looks.cols * a.sub, a.looks.rows * a.sub, i).apply {
         setOnDragListener(dropListener(this))
-        setOnLongClickListener { a.homeOverview(); true }
+        setOnLongClickListener { a.homeMenus.homeOverview(); true }
     }
 
     /** The empty page a drag adds after the last one ([addDragPage]), the home page it started on, and whether it landed on home. */

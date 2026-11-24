@@ -89,7 +89,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
     }
     private fun clean() {
         settings?.let { s -> ui { dialogs(s).forEach { it.dismiss() }; s.finish() }; settle() }; settings = null
-        ui { dialogs().forEach { it.dismiss() }; a.closeMenu(); a.closeOverlay(); a.drawer.hide(false) }; settle(100)
+        ui { dialogs().forEach { it.dismiss() }; a.homeMenus.closeMenu(); a.closeOverlay(); a.drawer.hide(false) }; settle(100)
     }
     private fun setup(vararg prefs: Pair<String, String>) {
         clean()
@@ -191,7 +191,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 check("#1/reorder",before!=after && after[2]==before[0],"folder reorder before=$before after=$after"); shot("01-folder-reordered")
                 setup(); val controlFolder=a.items.first { it.folder }; tap(a.views[controlFolder]!!)
                 val controlIcons=all(a.overlay!!).filterIsInstance<IconView>()
-                drag(rect(controlIcons[0]),rect(controlIcons[2]),500,ViewConfiguration.getLongPressTimeout()+200L) { ui { a.closeMenu() } }
+                drag(rect(controlIcons[0]),rect(controlIcons[2]),500,ViewConfiguration.getLongPressTimeout()+200L) { ui { a.homeMenus.closeMenu() } }
                 val controlled=a.items.first { it.folder }.children.map { it.appKey }
                 note("#1/reorder-control","DIAGNOSTIC","same drag with long-press menu suppressed: children=$controlled; expected target=${before[0]} at index2")
                 clean(); ui { a.workspace.snapTo(0,false) }; settle()
@@ -206,7 +206,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 setup(); val icon=a.views[a.items.first { it.label=="Repro swipe" }]!!; val r=rect(icon)
                 val time=SystemClock.uptimeMillis(); event(time,MotionEvent.ACTION_DOWN,r.exactCenterX(),r.exactCenterY())
                 SystemClock.sleep(ViewConfiguration.getLongPressTimeout()+250L)
-                check("#20",a.menu!=null,"context menu visible while finger still down=${a.menu!=null}"); shot("20-menu-during-hold")
+                check("#20",a.homeMenus.menu!=null,"context menu visible while finger still down=${a.homeMenus.menu!=null}"); shot("20-menu-during-hold")
                 event(time,MotionEvent.ACTION_UP,r.exactCenterX(),r.exactCenterY()); clean()
                 setup()
                 val swipeIcon=a.views[a.items.first { it.label=="Repro swipe" }]!!
@@ -297,9 +297,9 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 clean()
                 val cm=a.getSystemService(android.hardware.camera2.CameraManager::class.java)
                 val flash=cm.cameraIdList.filter { cm.getCameraCharacteristics(it).get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE)==true }
-                ui { a.perform("torch") }; settle()
+                ui { a.homeMenus.perform("torch") }; settle()
                 val first=field(a,"torchOn")
-                ui { a.perform("torch") }; settle()
+                ui { a.homeMenus.perform("torch") }; settle()
                 note("#15/hardware",if(flash.isEmpty()) "LIMITED" else "OBSERVED","flash cameras=$flash; two toggles=$first -> ${field(a,"torchOn")}; no physical light verification")
                 note("#24","LIMITED","Settings navigated. GrapheneOS Android 17 unavailable")
             }

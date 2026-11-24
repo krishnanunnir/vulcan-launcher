@@ -109,10 +109,10 @@ fun MainActivity.searchBar(): View {
             scaleType = ImageView.ScaleType.CENTER
             val wellColor = if (system) m3.well else blend(color, Color.BLACK, if (light) 0.07f else 0.3f)
             background = pressable(well(minOf(radius, key / 2), wellColor), minOf(radius, key / 2), ink)
-            setOnClickListener { perform("voice") }
+            setOnClickListener { homeMenus.perform("voice") }
         }, LinearLayout.LayoutParams(key.toInt(), key.toInt()))
-        setOnClickListener { perform("search") }
-        setOnLongClickListener { homeMenu(); true }
+        setOnClickListener { homeMenus.perform("search") }
+        setOnLongClickListener { homeMenus.homeMenu(); true }
     }
     val slop = android.view.ViewConfiguration.get(this).scaledTouchSlop
     // Swipe up from the bar does what it does from the rest of home (pulls the drawer up); a tap or hold stays the pill's.
@@ -123,7 +123,7 @@ fun MainActivity.searchBar(): View {
         override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
             if (ev.actionMasked == MotionEvent.ACTION_DOWN) { downY = ev.y; velocity?.recycle(); velocity = android.view.VelocityTracker.obtain() }
             velocity?.addMovement(ev)
-            return ev.actionMasked == MotionEvent.ACTION_MOVE && menu == null && downY - ev.y > slop
+            return ev.actionMasked == MotionEvent.ACTION_MOVE && homeMenus.menu == null && downY - ev.y > slop
         }
 
         override fun onTouchEvent(ev: MotionEvent): Boolean {
@@ -135,7 +135,7 @@ fun MainActivity.searchBar(): View {
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     v.computeCurrentVelocity(1000)
                     val pull = workspace.onPull
-                    if (pull != null) pull(up, -v.yVelocity, true) else if (up > slop * 2) perform(looks.str("g_swipeUp"))
+                    if (pull != null) pull(up, -v.yVelocity, true) else if (up > slop * 2) homeMenus.perform(looks.str("g_swipeUp"))
                     v.recycle(); velocity = null
                 }
             }

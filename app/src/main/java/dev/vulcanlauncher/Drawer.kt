@@ -840,7 +840,7 @@ class Drawer(private val a: MainActivity) {
      */
     fun pull(up: Float, vy: Float, end: Boolean): Boolean {
         // A menu or overlay held open by this same finger: the swipe is swallowed, not opening the drawer over it.
-        if (!visible && (a.menu != null || a.overlay != null)) return true
+        if (!visible && (a.homeMenus.menu != null || a.overlay != null)) return true
         if (!end && !visible && up <= 0f) return false
         // Once per gesture: a close still animating (held is false until this pull moves) is forgotten too.
         if (!visible || !held) prepare()
@@ -1188,7 +1188,7 @@ class Drawer(private val a: MainActivity) {
                 view = it
                 bound[it] = e.app.key
                 if (a.looks.str("badges") != "off") a.badge(it.image, e.app.pkg)
-                accessibleActions(it, { a.showPopup(it, e.app) })
+                accessibleActions(it, { a.homeMenus.showPopup(it, e.app) })
             }
         }
         // As a folder on home: badged by the apps inside it (#118).
@@ -1256,8 +1256,8 @@ class Drawer(private val a: MainActivity) {
     }
 
     private fun menu() {
-        a.showMenu(a.screenRect(menuButton), narrow = true) {
-            fun row(sym: String, title: String, act: () -> Unit) = addView(a.listItem(a.symbol(sym), title, dense = true) { a.closeMenu(); act() })
+        a.homeMenus.showMenu(a.homeMenus.screenRect(menuButton), narrow = true) {
+            fun row(sym: String, title: String, act: () -> Unit) = addView(a.listItem(a.symbol(sym), title, dense = true) { a.homeMenus.closeMenu(); act() })
             row(if (showHidden) "hide" else "show", a.getString(if (showHidden) R.string.hidden_hide else R.string.hidden_show)) { showHidden = !showHidden; refresh() }
             row("sort", a.getString(R.string.set_drawerSort)) {
                 a.sheet().setTitle(R.string.set_drawerSort).setSingleChoiceItems(SORT_NAMES.map(a::getString).toTypedArray(), SORTS.indexOf(a.looks.str("drawerSort"))) { d, i ->
