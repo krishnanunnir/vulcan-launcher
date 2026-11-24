@@ -24,12 +24,16 @@ class App(val info: LauncherActivityInfo, val serial: Long, labelOf: (App) -> St
 }
 
 /**
- * How many finished icons (about 110 kB each) the in-memory cache holds: roughly a sixteenth of the heap, between
- * 64 and 256 icons (about 7 to 28 MB). Bounded, so entries are evicted one by one instead of the whole cache being
- * dropped whenever home is hidden.
+ * How many finished icons (about 110 kB each) the in-memory cache holds: roughly a thirty-second of the heap, between
+ * 64 and 112 icons (about 7 to 12 MB), which is two to three drawer screens. The drawer prefetches the next screen
+ * off the UI thread and the disk cache serves the rest, so more than that only held memory (30 MB after one scroll
+ * through 600 apps).
  */
 fun iconCacheCapacity(maxMemoryBytes: Long): Int =
-    ((maxMemoryBytes / 16) / (110 * 1024)).coerceIn(64, 256).toInt()
+    ((maxMemoryBytes / 32) / (110 * 1024)).coerceIn(64, 112).toInt()
+
+/** Icons kept in memory while home is hidden: the two drawer screens seen last, so coming back draws at once. */
+const val ICONS_KEPT_HIDDEN = 48
 
 /**
  * The installed apps of every profile, with their labels, icons and shortcuts. Owns the icon caches.
@@ -50,9 +54,9 @@ class AppRepo(private val context: Context, private val store: Store, private va
     /** Counts [restyle]s: an icon the worker thread began in the old style must not land in the new style's cache. */
     private var generation = 0
 
-    /** Memory pressure: drops every icon held in memory ([all]) or the oldest half. The disk cache stays. */
+    /** Memory pressure: drops every icon held in memory ([all]) or all but the [ICONS_KEPT_HIDDEN] used last. The disk cache stays. */
     fun trim(all: Boolean) {
-        if (all) iconCache.evictAll() else iconCache.snapshot().keys.take(iconCache.size() / 2).forEach(iconCache::remove)
+        if (all) iconCache.evictAll() else iconCache.trimToSize(ICONS_KEPT_HIDDEN)
     }
 
     /** The launcher activities of [pkg] in profile [user]. */

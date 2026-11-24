@@ -484,9 +484,9 @@ class MainActivity : VulcanActivity() {
     }
 
     /**
-     * Memory pressure: drop the oldest half of the icon cache when home hides, and all of it only under a complete
-     * trim. Emptying it on every hide meant the next drawer open decoded every icon again on the UI thread, which
-     * is what made scrolling lag until the icons were cached once more. The disk cache stays the fallback.
+     * Memory pressure: keep only the icons used last when home hides, and none under a complete trim. Emptying
+     * the cache on every hide meant the next drawer open decoded every icon again on the UI thread, which is what
+     * made scrolling lag until the icons were cached once more. The disk cache stays the fallback.
      */
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
