@@ -787,7 +787,8 @@ class Drawer(private val a: MainActivity) {
     }
 
     /** Hidden apps stay out of a folder as they do out of a tab. */
-    private fun folderItems(g: Group) = a.store.strings("hidden").let { hidden -> g.apps.filter { showHidden || it !in hidden } }.mapNotNull { a.repo.apps[it] }.map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) }
+    private fun folderApps(g: Group) = a.store.strings("hidden").let { hidden -> g.apps.filter { showHidden || it !in hidden } }.mapNotNull { a.repo.apps[it] }
+    private fun folderItems(g: Group) = folderApps(g).map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) }
 
     /**
      * Fully open, at rest, no finger moving it. As Launcher3's item handlers: a tap or hold that lands any other way
@@ -801,17 +802,18 @@ class Drawer(private val a: MainActivity) {
             is Entry.AppE -> a.launch(e.app, v)
             is Entry.FolderE -> {
                 var group = e.group
-                var apps = group.apps.mapNotNull { a.repo.apps[it] }
+                // The apps the window shows, in its order: its positions index this list, so it must leave out what the window does.
+                var apps = folderApps(group)
                 a.openFolderWindow(group.name, folderItems(group), null, reorder = { from, to ->
-                    // Uninstalled apps' keys aren't shown: they keep their place at the end.
+                    // Uninstalled and hidden apps' keys aren't shown: they keep their place at the end.
                     val keys = apps.map { it.key }.toMutableList().apply { add(to, removeAt(from)) }
                     group = group.copy(apps = keys + (group.apps - keys.toSet()))
-                    apps = group.apps.mapNotNull { a.repo.apps[it] }
+                    apps = folderApps(group)
                     a.saveGroups(groups().map { if (it.name == group.name) group else it })
                     folderItems(group)
-                }, icon = (v as? IconView)?.image, reload = {
+                }, icon = (v as? IconView)?.image, more = { a.closeOverlay(); a.editGroup(group) }, reload = {
                     groups().firstOrNull { it.name == group.name && it.type == "folder" }?.let {
-                        group = it; apps = it.apps.mapNotNull { k -> a.repo.apps[k] }; folderItems(it)
+                        group = it; apps = folderApps(it); folderItems(it)
                     }
                 }) { i -> GroupChild(group.name, apps[i]) }
             }

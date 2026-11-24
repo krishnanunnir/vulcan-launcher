@@ -38,7 +38,9 @@ class WidgetFlow(private val a: MainActivity) {
             if (r - l != or - ol || b - t != ob - ot) {
                 val w = ((r - l) / a.dp).toInt()
                 val h = ((b - t) / a.dp).toInt()
-                (v as AppWidgetHostView).updateAppWidgetSize(null, w, h, w, h)
+                // Android 12+: the size list, which widgets with a layout per size choose from (the old call sends none).
+                if (android.os.Build.VERSION.SDK_INT >= 31) (v as AppWidgetHostView).updateAppWidgetSize(android.os.Bundle(), listOf(android.util.SizeF(w.toFloat(), h.toFloat())))
+                else (v as AppWidgetHostView).updateAppWidgetSize(null, w, h, w, h)
             }
         }
         roundCorners(hv, a.looks.int("widgetRadius") * a.dp)
@@ -57,16 +59,21 @@ class WidgetFlow(private val a: MainActivity) {
             override fun getOutline(v: View, o: android.graphics.Outline) = o.setRoundRect(box, radius)
         }
         // On every layout: the widget's views come and go with its updates, while the host keeps its size.
-        hv.viewTreeObserver.addOnGlobalLayoutListener {
+        val round = android.view.ViewTreeObserver.OnGlobalLayoutListener {
             val bg = widgetBackground(hv)
-            if (bg == null || bg.id == android.R.id.background && bg.clipToOutline) { hv.clipToOutline = false; return@addOnGlobalLayoutListener }
+            if (bg == null || bg.id == android.R.id.background && bg.clipToOutline) { hv.clipToOutline = false; return@OnGlobalLayoutListener }
             val was = android.graphics.Rect(box)
             box.set(0, 0, bg.width, bg.height)
             var v: View = bg
-            while (v !== hv) { box.offset(v.left, v.top); v = v.parent as? View ?: return@addOnGlobalLayoutListener }
+            while (v !== hv) { box.offset(v.left, v.top); v = v.parent as? View ?: return@OnGlobalLayoutListener }
             hv.clipToOutline = true
             if (box != was) hv.invalidateOutline()
         }
+        // Only while it's on screen: left on the window, every widget ever made would be walked on each layout pass.
+        hv.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) = v.viewTreeObserver.addOnGlobalLayoutListener(round)
+            override fun onViewDetachedFromWindow(v: View) = v.viewTreeObserver.removeOnGlobalLayoutListener(round)
+        })
     }
 
     /** The view that draws a widget's card: the one marked as its background, else the first view down with a background. */
