@@ -804,4 +804,8 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="work_paused">Arbeitsprofil pausiert</string>
     <string name="work_resumed">Arbeitsprofil aktiviert</string>
     <string name="glanceStyle_theme">Groß im Appliance-Theme, bei anderen Themes nur das Datum</string>
+    <plurals name="restore_missing">
+        <item quantity="one">%1$d Symbol wurde ausgelassen: Die zugehörige App ist nicht installiert. Stelle die Sicherung erneut wieder her, sobald sie installiert ist.</item>
+        <item quantity="other">%1$d Symbole wurden ausgelassen: Die zugehörigen Apps sind nicht installiert. Stelle die Sicherung erneut wieder her, sobald sie installiert sind.</item>
+    </plurals>
 </resources>

@@ -144,8 +144,8 @@ class GlyphIcon(private val bg: Int, private val fg: Int, private val text: Stri
 // ---- Folder behaviour: making one by dragging, emptying it, and its window (as in Launcher3) ----
 
 /** Fill of folder icons, also used by the hover disc that previews a new folder. */
-fun MainActivity.folderTint() = if (looks.str("folderColor") == "system") m3.surfaceHigh and 0xFFFFFF or 0xE6000000.toInt()
-    else looks.color("folderColor") and 0xFFFFFF or 0x99000000.toInt()
+// A chosen colour is as solid as the theme's: at 60% a dark wallpaper showed through, and the icon was darker than its open window.
+fun MainActivity.folderTint() = (if (looks.str("folderColor") == "system") m3.surfaceHigh else looks.color("folderColor")) and 0xFFFFFF or 0xE6000000.toInt()
 
 fun MainActivity.folderIcon(children: List<Item>) = FolderIcon(children.take(6).mapNotNull { resolve(it)?.second },
     looks.str("folderPreview"), looks.str("folderBg").let { if (it == "icon") "icon:" + looks.str("shape") else it }, folderTint(), looks.on("folderClip"), looks.on("folderFirstBig"))

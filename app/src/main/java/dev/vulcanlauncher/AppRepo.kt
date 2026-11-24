@@ -141,7 +141,9 @@ class AppRepo(private val context: Context, private val store: Store, private va
         val key = "${item.user}/${item.pkg}/${item.shortcutId}"
         s?.let { runCatching { launcherApps.getShortcutBadgedIconDrawable(it, resources.displayMetrics.densityDpi) }.getOrNull() }
             ?.let { d -> d.constantState?.let { shortcutFaces[key] = it } ?: return d }
-        val d = shortcutFaces[key]?.newDrawable(resources) ?: return null
+        // Not seen since Vulcan started (#103): its app's icon, as Launcher3 shows it, not Android's generic one.
+        val d = shortcutFaces[key]?.newDrawable(resources)
+            ?: return userOf(item.user).let { u -> apps.values.firstOrNull { it.pkg == item.pkg && it.info.user == u } }?.let(::icon)
         return if (userOf(item.user) in pausedUsers) greyed(d) else d
     }
 

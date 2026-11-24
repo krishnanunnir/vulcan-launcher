@@ -451,7 +451,7 @@ private fun SettingsActivity.slider(c: Choice): View {
         max = if (c.key == "defaultPage") (looks.int("pages") - 1).coerceIn(1, c.values.size - 1) else c.values.size - 1
         progress = c.values.indexOf(looks[c]).coerceAtLeast(0)
         contentDescription = getString(c.title)
-        val tint = android.content.res.ColorStateList.valueOf(m3.on)
+        val tint = android.content.res.ColorStateList.valueOf(m3.slider)
         progressTintList = tint; thumbTintList = tint; tickMarkTintList = tint
         if (c.values.size <= 12) tickMark = GradientDrawable().apply { shape = GradientDrawable.OVAL; setSize((4 * dp).toInt(), (4 * dp).toInt()) }
         setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
@@ -493,14 +493,14 @@ private fun SettingsActivity.paddingRow(c: Choice): View {
     return listItem(null, getString(c.title), name(looks[c])) {
         var (px, pt, pb) = paddingOf(looks[c])
         val steps = PADDING_STEPS
-        val preview = PaddingPreview(this, looks.cols, looks.rows, looks.dockCols, looks.dockOn, looks.str("shape"), looks.on("labels")).apply { set(px, pt, pb, animate = false) }
+        val preview = PaddingPreview(this, looks.cols, looks.rows, looks.dockCols, looks.dockOn, looks.str("shape"), looks.on("labels"), looks.str("searchBar")).apply { set(px, pt, pb, animate = false) }
         fun bar(title: Int, start: Int, onMove: (Int) -> Unit): View {
             val value = text("$start dp", 14f, m3.onSurfaceVariant)
             val seek = android.widget.SeekBar(this).apply {
                 max = steps.size - 1
                 progress = steps.indexOf(start).coerceAtLeast(0)
                 contentDescription = getString(title)
-                val tint = android.content.res.ColorStateList.valueOf(m3.on)
+                val tint = android.content.res.ColorStateList.valueOf(m3.slider)
                 progressTintList = tint; thumbTintList = tint; tickMarkTintList = tint
                 tickMark = GradientDrawable().apply { shape = GradientDrawable.OVAL; setSize((4 * dp).toInt(), (4 * dp).toInt()) }
                 if (android.os.Build.VERSION.SDK_INT >= 30) stateDescription = value.text
@@ -554,7 +554,7 @@ private fun SettingsActivity.paddingRow(c: Choice): View {
  */
 private class PaddingPreview(private val a: SettingsActivity, private val cols: Int, private val rows: Int,
                              private val dockCols: Int, private val dock: Boolean, shape: String,
-                             private val labels: Boolean) : View(a) {
+                             private val labels: Boolean, private val search: String) : View(a) {
     private val dp = a.resources.displayMetrics.density
     private val screenW = a.resources.displayMetrics.widthPixels / dp
     private val screenH = a.resources.displayMetrics.heightPixels / dp
@@ -625,8 +625,12 @@ private class PaddingPreview(private val a: SettingsActivity, private val cols: 
         canvas.drawCircle((pl + pr) / 2, sy, 2.4f * dp, paint)
 
         // Where the pages sit: under the status bar, over the dock (or the navigation bar without one).
-        val top = pt + 28 * s
-        val bottom = pb - (if (dock) 112 else 28) * s
+        // The search bar takes a 56 dp row: over or under the pages, or over or under the dock's icons.
+        val bar = 56 * s
+        val dockSearch = dock && search in listOf("dockAbove", "dockBelow")
+        val top = pt + 28 * s + (if (search == "top") bar else 0f)
+        val dockTop = pb - (if (dock) 112 else 28) * s - (if (dockSearch) bar else 0f)
+        val bottom = dockTop - (if (search == "bottom") bar else 0f)
         val il = pl + x * s; val ir = pr - x * s; val it = top + yt * s; val ib = bottom - yb * s
 
         // The space the padding gives up: a light wash, hatched at 45 degrees, in the signal colour.
@@ -662,8 +666,21 @@ private class PaddingPreview(private val a: SettingsActivity, private val cols: 
 
         // The dock, untouched by the padding: a row of icons across the full width, then the gesture bar.
         if (dock) {
-            val dw = (phoneW - 2 * edge) / dockCols; val dc = minOf(dw, 64 * s) * 0.66f; val dy = pb - 64 * s
+            val dw = (phoneW - 2 * edge) / dockCols; val dc = minOf(dw, 64 * s) * 0.66f
+            val dy = pb - 64 * s - (if (search == "dockBelow") bar else 0f)
             for (i in 0 until dockCols) drawIcon(canvas, pl + edge + dw * (i + 0.5f), dy, dc, alpha(m3.onSurfaceVariant, 0xB3))
+        }
+        // The search bar, a pill in its row; like the dock, the padding leaves it alone.
+        val sy2 = when (search) {
+            "top" -> top - bar / 2
+            "bottom" -> bottom + bar / 2
+            "dockAbove" -> if (dock) dockTop + bar / 2 else null
+            "dockBelow" -> if (dock) pb - 28 * s - bar / 2 else null
+            else -> null
+        }
+        if (sy2 != null) {
+            paint.color = alpha(m3.onSurfaceVariant, 0x52)
+            r.set(pl + 16 * s, sy2 - 18 * s, pr - 16 * s, sy2 + 18 * s); canvas.drawRoundRect(r, 18 * s, 18 * s, paint)
         }
         paint.color = alpha(m3.onSurface, 0x66)
         r.set((pl + pr) / 2 - 14 * dp, pb - 6 * dp, (pl + pr) / 2 + 14 * dp, pb - 4.5f * dp); canvas.drawRoundRect(r, dp, dp, paint)

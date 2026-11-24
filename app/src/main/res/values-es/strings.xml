@@ -463,7 +463,7 @@
     <string name="unstack">Desapilar</string>
     <string name="widgets">Widgets</string>
     <string name="shortcuts">Accesos directos</string>
-    <string name="wallpaper">Fondo de pantalla</string>
+    <string name="wallpaper">Fondo</string>
     <string name="pages">Páginas</string>
     <string name="unlock">Desbloquear</string>
     <string name="lock">Bloquear</string>
@@ -542,6 +542,7 @@
     <plurals name="move_apps_message">
         <item quantity="one">%1$d de estas aplicaciones también está en otro grupo.</item>
         <item quantity="other">%1$d de estas aplicaciones también están en otros grupos.</item>
+        <item quantity="many">%1$d de estas aplicaciones también están en otros grupos.</item>
     </plurals>
     <string name="move_apps_move">Mover aquí</string>
     <string name="move_apps_keep">Mantener en ambos</string>
@@ -590,32 +591,39 @@
     <plurals name="filter_icons">
         <item quantity="one">Filtrar %1$d icono</item>
         <item quantity="other">Filtrar %1$d iconos</item>
+        <item quantity="many">Filtrar %1$d iconos</item>
     </plurals>
     <plurals name="added_to_folders">
         <item quantity="one">%1$d aplicación añadida a carpetas</item>
         <item quantity="other">%1$d aplicaciones añadidas a carpetas</item>
+        <item quantity="many">%1$d aplicaciones añadidas a carpetas</item>
     </plurals>
     <plurals name="created_folders">
         <item quantity="one">%1$d carpeta creada</item>
         <item quantity="other">%1$d carpetas creadas</item>
+        <item quantity="many">%1$d carpetas creadas</item>
     </plurals>
     <plurals name="import_skipped">
         <item quantity="one">%1$d elemento no se puede traer: es propio de Nova o su aplicación no está en este teléfono.</item>
         <item quantity="other">%1$d elementos no se pueden traer: son propios de Nova o su aplicación no está en este teléfono.</item>
+        <item quantity="many">%1$d elementos no se pueden traer: son propios de Nova o su aplicación no está en este teléfono.</item>
     </plurals>
     <plurals name="import_items">
         <item quantity="one">%1$d elemento sustituirá tu pantalla de inicio.</item>
         <item quantity="other">%1$d elementos sustituirán tu pantalla de inicio.</item>
+        <item quantity="many">%1$d elementos sustituirán tu pantalla de inicio.</item>
     </plurals>
     <plurals name="import_widgets">
         <item quantity="one">%1$d widget volverá después de que Android te pregunte una vez.</item>
         <item quantity="other">%1$d widgets volverán después de que Android te pregunte una vez.</item>
+        <item quantity="many">%1$d widgets volverán después de que Android te pregunte una vez.</item>
     </plurals>
     <string name="custom_colors">Colores personalizados</string>
     <string name="custom_colors_info">Cada color sustituye al del tema en todos los estilos. Restablece uno para recuperar el del tema.</string>
     <plurals name="custom_colors_set">
         <item quantity="one">%1$d color cambiado</item>
         <item quantity="other">%1$d colores cambiados</item>
+        <item quantity="many">%1$d colores cambiados</item>
     </plurals>
     <string name="role_accent">Acento</string>
     <string name="role_surface">Fondo</string>
@@ -685,6 +693,7 @@
     <plurals name="apply_style_confirm">
         <item quantity="one">¿Aplicar %1$d ajuste de este enlace? Los elementos de tu pantalla de inicio se conservan, aunque los cambios en la cuadrícula pueden moverlos.</item>
         <item quantity="other">¿Aplicar %1$d ajustes de este enlace? Los elementos de tu pantalla de inicio se conservan, aunque los cambios en la cuadrícula pueden moverlos.</item>
+        <item quantity="many">¿Aplicar %1$d ajustes de este enlace? Los elementos de tu pantalla de inicio se conservan, aunque los cambios en la cuadrícula pueden moverlos.</item>
     </plurals>
     <string name="import_launcher_backup">Importar desde otro launcher</string>
     <string name="import_launcher_backup_info">Trae una pantalla de inicio desde un archivo .novabackup</string>
@@ -706,10 +715,12 @@
     <plurals name="group_apps">
         <item quantity="one">%1$d aplicación</item>
         <item quantity="other">%1$d aplicaciones</item>
+        <item quantity="many">%1$d aplicaciones</item>
     </plurals>
     <plurals name="widget_count">
         <item quantity="one">%1$d widget</item>
         <item quantity="other">%1$d widgets</item>
+        <item quantity="many">%1$d widgets</item>
     </plurals>
     <!-- First run -->
     <string name="welcome_tagline">Una pantalla de inicio sin acceso a internet. Nada de lo que hace puede salir de tu teléfono.</string>
@@ -729,11 +740,11 @@
     <string name="widget_slot_describe">Añadir el widget de %1$s</string>
     <string name="review_title">Tu pantalla de inicio de Nova</string>
     <string name="review_another">Elegir otro archivo</string>
-    <plurals name="review_apps"><item quantity="one">%1$d aplicación</item><item quantity="other">%1$d aplicaciones</item></plurals>
-    <plurals name="review_folders"><item quantity="one">%1$d carpeta</item><item quantity="other">%1$d carpetas</item></plurals>
-    <plurals name="review_widgets"><item quantity="one">%1$d widget</item><item quantity="other">%1$d widgets</item></plurals>
-    <plurals name="review_pages"><item quantity="one">%1$d página</item><item quantity="other">%1$d páginas</item></plurals>
-    <plurals name="widgets_title"><item quantity="one">Recupera tu widget</item><item quantity="other">Recupera tus %1$d widgets</item></plurals>
+    <plurals name="review_apps"><item quantity="one">%1$d aplicación</item><item quantity="other">%1$d aplicaciones</item><item quantity="many">%1$d aplicaciones</item></plurals>
+    <plurals name="review_folders"><item quantity="one">%1$d carpeta</item><item quantity="other">%1$d carpetas</item><item quantity="many">%1$d carpetas</item></plurals>
+    <plurals name="review_widgets"><item quantity="one">%1$d widget</item><item quantity="other">%1$d widgets</item><item quantity="many">%1$d widgets</item></plurals>
+    <plurals name="review_pages"><item quantity="one">%1$d página</item><item quantity="other">%1$d páginas</item><item quantity="many">%1$d páginas</item></plurals>
+    <plurals name="widgets_title"><item quantity="one">Recupera tu widget</item><item quantity="other">Recupera tus %1$d widgets</item><item quantity="many">Recupera tus %1$d widgets</item></plurals>
     <string name="widgets_body">Android pregunta una vez antes de que Vulcan pueda mostrar widgets. Marca esta casilla y el resto volverán por sí solos.</string>
     <string name="widgets_always">Permitir siempre a Vulcan</string>
     <string name="widgets_continue">Continuar</string>
@@ -754,6 +765,7 @@
     <plurals name="folders_count">
         <item quantity="one">%d carpeta</item>
         <item quantity="other">%d carpetas</item>
+        <item quantity="many">%d carpetas</item>
     </plurals>
     <string name="folders_in_grid">Carpetas en la cuadrícula</string>
     <string name="folders_first">Al principio</string>
@@ -771,17 +783,30 @@
     <plurals name="delete_tab_message">
         <item quantity="one">Solo se quita la pestaña. Su %d aplicación sigue en el cajón.</item>
         <item quantity="other">Solo se quita la pestaña. Sus %d aplicaciones siguen en el cajón.</item>
+        <item quantity="many">Solo se quita la pestaña. Sus %d aplicaciones siguen en el cajón.</item>
     </plurals>
     <plurals name="delete_folder_message">
         <item quantity="one">Solo se quita la carpeta. Su %d aplicación vuelve al cajón.</item>
         <item quantity="other">Solo se quita la carpeta. Sus %d aplicaciones vuelven al cajón.</item>
+        <item quantity="many">Solo se quita la carpeta. Sus %d aplicaciones vuelven al cajón.</item>
     </plurals>
     <plurals name="screens">
         <item quantity="one">%1$d pantalla</item>
         <item quantity="other">%1$d pantallas</item>
+        <item quantity="many">%1$d pantallas</item>
     </plurals>
     <plurals name="screens_matching">
         <item quantity="one">%1$d de %2$d pantalla</item>
         <item quantity="other">%1$d de %2$d pantallas</item>
+        <item quantity="many">%1$d de %2$d pantallas</item>
+    </plurals>
+    <string name="set_pageMargin">Margen de página</string>
+    <string name="padding_sides">Izquierda y derecha</string>
+    <string name="padding_top">Arriba</string>
+    <string name="padding_bottom">Abajo</string>
+    <plurals name="restore_missing">
+        <item quantity="one">%1$d icono se ha omitido: su aplicación no está instalada. Restaura de nuevo cuando lo esté.</item>
+        <item quantity="other">%1$d iconos se han omitido: sus aplicaciones no están instaladas. Restaura de nuevo cuando lo estén.</item>
+        <item quantity="many">%1$d iconos se han omitido: sus aplicaciones no están instaladas. Restaura de nuevo cuando lo estén.</item>
     </plurals>
 </resources>

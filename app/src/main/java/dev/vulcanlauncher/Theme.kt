@@ -136,6 +136,8 @@ class Palette(val dark: Boolean, a1: (Int) -> Int, a2: (Int) -> Int, n1: (Int) -
     val signalInk = ov["accent"] ?: if (housing) t(0xFFB85410.toInt(), SIGNAL) else primary
     /** A switch that's on. */
     val on = if (housing) t(0xFF4E8F3A.toInt(), 0xFF7DB862.toInt()) else primary
+    /** A slider's thumb and filled track: legend ink on the housing, since switch green is for toggles only. */
+    val slider = if (housing) onSurface else primary
 }
 
 /** Black or white, whichever reads better on [bg]. */

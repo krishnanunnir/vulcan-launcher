@@ -59,22 +59,18 @@ class WidgetFlow(private val a: MainActivity) {
         hv.outlineProvider = object : android.view.ViewOutlineProvider() {
             override fun getOutline(v: View, o: android.graphics.Outline) = o.setRoundRect(box, radius)
         }
-        // On every layout: the widget's views come and go with its updates, while the host keeps its size.
-        val round = android.view.ViewTreeObserver.OnGlobalLayoutListener {
+        // On each layout of the widget itself (its views come and go with its updates, and each change lays the host
+        // out again), not of the whole window: that walked every widget's views on every layout pass.
+        hv.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             val bg = widgetBackground(hv)
-            if (bg == null || bg.id == android.R.id.background && bg.clipToOutline) { hv.clipToOutline = false; return@OnGlobalLayoutListener }
+            if (bg == null || bg.id == android.R.id.background && bg.clipToOutline) { hv.clipToOutline = false; return@addOnLayoutChangeListener }
             val was = android.graphics.Rect(box)
             box.set(0, 0, bg.width, bg.height)
             var v: View = bg
-            while (v !== hv) { box.offset(v.left, v.top); v = v.parent as? View ?: return@OnGlobalLayoutListener }
+            while (v !== hv) { box.offset(v.left, v.top); v = v.parent as? View ?: return@addOnLayoutChangeListener }
             hv.clipToOutline = true
             if (box != was) hv.invalidateOutline()
         }
-        // Only while it's on screen: left on the window, every widget ever made would be walked on each layout pass.
-        hv.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
-            override fun onViewAttachedToWindow(v: View) = v.viewTreeObserver.addOnGlobalLayoutListener(round)
-            override fun onViewDetachedFromWindow(v: View) = v.viewTreeObserver.removeOnGlobalLayoutListener(round)
-        })
     }
 
     /** The view that draws a widget's card: the one marked as its background, else the first view down with a background. */
