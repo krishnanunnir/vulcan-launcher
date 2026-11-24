@@ -226,6 +226,8 @@ class Store(private val context: Context) {
         // ponytail: three commits, not one transaction; an I/O failure between them can mix old and new files. The layout
         // carries its own subgrid factor, so its positions still read right; only grid sizes could be the old ones (fitItems copes)
         val replacedLayout = "layout" in files
+        // What's about to be replaced stays restorable from Settings. It throws, and nothing is replaced, if it can't be saved.
+        if (replacedLayout) rotateAutoBackup()
         for ((name, values) in files) context.getSharedPreferences(name, Context.MODE_PRIVATE).edit().apply {
             if (replacedLayout) clear()
             // data keeps its flags as booleans; the backup has them as "true"/"false"
@@ -234,7 +236,8 @@ class Store(private val context: Context) {
         return RestoreResult(replacedLayout, rejected)
     }
 
-    fun reset() = FILES.forEach { context.getSharedPreferences(it, Context.MODE_PRIVATE).edit().clear().commit() }
+    /** Clears everything, after saving what was there as an automatic backup (best effort: the reset was asked for). */
+    fun reset() = runCatching { rotateAutoBackup() }.let { _ -> FILES.forEach { context.getSharedPreferences(it, Context.MODE_PRIVATE).edit().clear().commit() } }
 
     companion object { val FILES = listOf("layout", "looks", "data") }
 }

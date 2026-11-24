@@ -33,7 +33,8 @@ class WidgetFlow(private val a: MainActivity) {
         val info = a.awm.getAppWidgetInfo(item.widgetId) ?: return null
         // A frame that was in a stack still sits in it, moved aside or hidden.
         widgetFrames[item.widgetId]?.let { (it.parent as? ViewGroup)?.removeView(it); it.translationX = 0f; it.visibility = View.VISIBLE; return it }
-        val hv: AppWidgetHostView = a.host.createView(a.applicationContext, item.widgetId, info)
+        // A widget whose view can't be made leaves its cells empty this time; it must not take home down.
+        val hv: AppWidgetHostView = runCatching { a.host.createView(a.applicationContext, item.widgetId, info) }.getOrNull() ?: return null
         hv.addOnLayoutChangeListener { v, l, t, r, b, ol, ot, or, ob ->
             if (r - l != or - ol || b - t != ob - ot) {
                 val w = ((r - l) / a.dp).toInt()

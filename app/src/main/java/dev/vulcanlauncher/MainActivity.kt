@@ -468,7 +468,8 @@ class MainActivity : VulcanActivity() {
     override fun onStart() {
         super.onStart()
         if (stale) { stale = false; rebuild() }
-        host.startListening()
+        // The system answers with every widget's waiting update at once; too big a reply throws, and home must still open.
+        runCatching { host.startListening() }
     }
 
     override fun onStop() {
