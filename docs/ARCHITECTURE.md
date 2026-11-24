@@ -17,7 +17,17 @@ MainActivity root (FrameLayout, handles window insets itself)
 
 ## Where things live
 
-One Kotlin file per area (home grid, drawer, settings, icons, theme, Now page, Nova import, and so on) named after it. `MainActivity` builds the screen and holds the items. Pure logic (grid geometry, gestures, page effects, parsing, colour) is kept in top-level functions so it can be unit-tested without a device.
+One Kotlin file per area (home grid, drawer, settings, icons, theme, Now page, Nova import, and so on) named after it. `MainActivity` builds the screen, holds the items and renders them; the rest of the home screen sits in classes it owns, each taking the activity:
+
+- `AppRepo` (`repo`): the installed apps, their icons and labels, profiles and shortcuts. The only one that doesn't know the activity.
+- `WidgetFlow` (`widgetFlow`): widget views and stacks, and the pick, bind, configure and place steps of adding one.
+- `DragController` (`drag`): drag and drop, the drop bar, and the shrunk-page states with their extra pages.
+- `HomeMenus` (`homeMenus`): the long-press menu, the home overview and menu, and the actions a gesture or menu row runs.
+- `Drawer` (`drawer`) and `FolderFx` (`folderFx`): the app drawer and the folder window.
+
+Settings are split by job: `SettingsUi.kt` (the screen and its pages), `EditDialogs.kt` (an item's label, icon and swipe) and `GroupEditor.kt` (app pickers, drawer tabs and folders).
+
+Pure logic (grid geometry, gestures, page effects, parsing, colour) is kept in top-level functions so it can be unit-tested without a device.
 
 Settings are declared once, as `Choice` entries in `LOOKS` (`Looks.kt`): stored keys and values are English identifiers, and titles come from string resources. The model and storage are in `Store.kt`, in three SharedPreferences files: `layout`, `looks` and `data`. The backup file (format 2) is a readable JSON with a `howTo` and a `reference` section; it's a user-facing contract, so older formats stay readable.
 
