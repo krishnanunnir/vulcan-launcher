@@ -158,3 +158,5 @@ fun VulcanActivity.workTabShown() = !store.data.getBoolean(WORK_HIDDEN, looks.ra
 const val WORK_HIDDEN = "hideWorkTab"
 /** data key: how many of the user's tabs (hidden ones too) come before the Work profile tab; 0 puts it right after All apps. */
 const val WORK_AT = "workTabAt"
+/** [WORK_AT]'s value. Stored as an int, but a restored backup brings every value back as text, and getInt throws on text. */
+fun android.content.SharedPreferences.workAt() = runCatching { getInt(WORK_AT, 0) }.getOrElse { getString(WORK_AT, null)?.toIntOrNull() ?: 0 }

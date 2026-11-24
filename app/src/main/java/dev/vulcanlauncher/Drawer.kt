@@ -581,7 +581,7 @@ class Drawer(private val a: MainActivity) {
         empty.visibility = if (q.isNotEmpty() && entries.none { it !is Entry.WebE }) View.VISIBLE else View.GONE
         // The user's tabs with Work at its place among them, hidden tabs counted so hiding one doesn't move Work.
         val shownTabs = groups.filter { it.type == "tab" }.map { it.name }.toSet()
-        val order = withWorkSlot(this.groups().filter { it.type == "tab" }.map { it.name }, a.store.data.getInt(WORK_AT, 0))
+        val order = withWorkSlot(this.groups().filter { it.type == "tab" }.map { it.name }, a.store.data.workAt())
             .filter { if (it == WORK_SLOT) workTab else it in shownTabs }.map { if (it == WORK_SLOT) "work" else it }
         rebuildTabs = { buildTabs(groups, order, privateTab, q.isEmpty()) }
         rebuildTabs()

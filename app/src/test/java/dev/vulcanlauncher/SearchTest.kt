@@ -50,6 +50,10 @@ class SearchTest {
         assertEquals(Command.Timer(300), command("timer 5"))
         assertEquals(Command.Timer(5400), command("Timer 1h 30m"))
         assertEquals(Command.Timer(90), command("timer 90 sec"))
+        // A number too long for an Int (a pasted phone number) is no timer, not a crash.
+        assertEquals(null, command("timer 3000000000"))
+        assertEquals(null, command("timer 99999999999999999999999"))
+        assertEquals(null, command("timer 2000000 h"))
         assertEquals(Command.Alarm(7, 0), command("alarm 7"))
         assertEquals(Command.Alarm(19, 30), command("alarm 7:30 pm"))
         assertEquals(Command.Alarm(0, 15), command("alarm 12.15am"))

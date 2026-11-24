@@ -176,4 +176,15 @@ class StoreTest {
         assertEquals(listOf(Group("T", "tab", listOf("k"), "#E53935")), groupsFromJson(groupsToJson(listOf(Group("T", "tab", listOf("k"), "#E53935")))))
         assertEquals(listOf(Group("T", "tab", emptyList())), groupsFromJson("""[{"name":"T","type":"tab","apps":[],"color":"red"}]"""))
     }
+
+    @Test fun aBackupWithoutHomeItemsIsRefusedNotReadAsEmpty() {
+        for (home in listOf("", ""","home":{}""", ""","home":{"Items":[]}""", ""","home":[]"""))
+            assertThrows(IllegalArgumentException::class.java) { readableBackupFiles(org.json.JSONObject("""{"format":"vulcan-backup-2","data":{}$home}""")) { _, _ -> null } }
+        assertEquals(emptyList<Item>(), itemsFromJson(readableBackupFiles(org.json.JSONObject("""{"format":"vulcan-backup-2","home":{"items":[]}}""")) { _, _ -> null }.first.getValue("layout").getValue("items")))
+    }
+
+    @Test fun appPickerKeepsTickedAppsItCouldNotShow() {
+        assertEquals(listOf("a", "c", "locked"), pickerResult(listOf("a", "b", "c"), setOf("c", "locked", "a")))
+        assertEquals(emptyList<String>(), pickerResult(listOf("a"), emptySet()))
+    }
 }

@@ -263,8 +263,8 @@ class WidgetFlow(private val a: MainActivity) {
 
     fun configureWidget() {
         val (id, info) = pendingWidget ?: return
-        if (info.configure != null) a.host.startAppWidgetConfigureActivityForResult(a, id, 0, MainActivity.REQ_CONFIG, null)
-        else placeWidget()
+        // A setup screen that's missing or closed to us throws: the widget is then placed without it.
+        if (info.configure == null || runCatching { a.host.startAppWidgetConfigureActivityForResult(a, id, 0, MainActivity.REQ_CONFIG, null) }.isFailure) placeWidget()
     }
 
     fun placeWidget() {

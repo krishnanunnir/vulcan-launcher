@@ -294,9 +294,10 @@ fun readableBackupFiles(root: JSONObject, cls: (pkg: String, user: Long) -> Stri
         require(root.optJSONObject("settings") != null) { "Missing settings" }
         return mapOf("looks" to looks) to rejected
     }
-    val home = root.optJSONObject("home") ?: JSONObject()
+    // Restoring replaces the layout: a home section that's missing, misspelt or the wrong shape must not read as an empty one.
+    val home = requireNotNull(root.optJSONObject("home")?.takeIf { it.optJSONArray("items") != null }) { "Missing home items" }
     fun fill(i: Item): Item = i.copy(cls = if (i.isApp && i.cls.isEmpty()) cls(i.pkg, i.user).orEmpty() else i.cls, children = i.children.map(::fill))
-    val items = itemList(home.optJSONArray("items") ?: JSONArray()).map(::fill)
+    val items = itemList(home.getJSONArray("items")).map(::fill)
     val sub = home.optInt("sub", if (looks["subgrid"] == "on") 2 else 1)
     val data = root.optJSONObject("data")?.let { d -> d.keys().asSequence().associateWith { d.get(it).toString() } } ?: emptyMap()
     return mapOf("layout" to mapOf("items" to itemsToJson(items), "version" to LAYOUT_VERSION.toString(), "sub" to sub.toString()),

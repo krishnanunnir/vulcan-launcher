@@ -18,6 +18,12 @@ import kotlin.math.roundToInt
 
 // Picking and arranging apps, and the drawer tabs and folders built from them.
 
+/**
+ * What an app picker saves: the ticked apps in [shown] order, then ticked ones that aren't shown right now (a locked
+ * Private Space, an app mid-update), which nobody could untick and so stay chosen.
+ */
+fun pickerResult(shown: List<String>, chosen: Set<String>) = shown.filter { it in chosen } + (chosen - shown.toSet())
+
 /** [others]: each app's other groups, shown under its name so a tab's apps can be picked from those not yet sorted (#55). */
 fun VulcanActivity.appSwitches(title: String, on: Collection<String>, others: Map<String, List<String>> = emptyMap(), onSave: (List<String>) -> Unit) {
     // Ticked apps first, as Supernova's app checklist: what's chosen is in view without searching.
@@ -70,7 +76,7 @@ fun VulcanActivity.appSwitches(title: String, on: Collection<String>, others: Ma
         addView(lv, LinearLayout.LayoutParams(-1, (resources.displayMetrics.heightPixels * 0.62f).toInt()))
     }
     sheet().setTitle(title).setView(box)
-        .setPositiveButton(R.string.save) { _, _ -> onSave(all.map { it.key }.filter { it in chosen }) }
+        .setPositiveButton(R.string.save) { _, _ -> onSave(pickerResult(all.map { it.key }, chosen)) }
         .setNegativeButton(R.string.cancel, null).show()
 }
 
@@ -271,7 +277,7 @@ private fun VulcanActivity.swipeToDelete(row: View, onDelete: () -> Unit) {
 fun SettingsActivity.tabsLink(): View {
     val tabs = home.drawer.groups().filter { it.type == "tab" }
     val hasWork = home.repo.apps.values.any { home.repo.isWork(it) }
-    val names = listOfNotNull(getString(R.string.tab_all), getString(R.string.tab_private).takeIf { home.repo.privateUser != null }) + withWorkSlot(tabs.map { it.name }, store.data.getInt(WORK_AT, 0))
+    val names = listOfNotNull(getString(R.string.tab_all), getString(R.string.tab_private).takeIf { home.repo.privateUser != null }) + withWorkSlot(tabs.map { it.name }, store.data.workAt())
         .filter { it != WORK_SLOT || hasWork }.map { if (it == WORK_SLOT) getString(R.string.tab_work) else it }
     val summary = if (names.size <= 3) names.joinToString() else getString(R.string.names_and_more, names.take(3).joinToString(), names.size - 3)
     return listItem(symbol("tabs", m3.onPrimaryContainer), getString(R.string.group_tabs), summary, tonalIcon = true) { showPage(TABS_GROUP) }
@@ -299,7 +305,7 @@ fun SettingsActivity.tabsPage(list: LinearLayout) {
     fun choice(key: String) = LOOKS.first { it.key == key }
 
     // The bar as the drawer will show it, selected tab first.
-    val workAt = store.data.getInt(WORK_AT, 0)
+    val workAt = store.data.workAt()
     val shownNames = listOfNotNull(getString(R.string.tab_all).takeIf { allShown }, getString(R.string.tab_private).takeIf { home.repo.privateUser != null }) +
         withWorkSlot(tabs.map { it.name }, workAt).filter { if (it == WORK_SLOT) hasWork && workShown else tabs.none { t -> t.name == it && t.hidden } }
             .map { if (it == WORK_SLOT) getString(R.string.tab_work) else it }
@@ -607,7 +613,10 @@ fun VulcanActivity.addToGroup(key: String) {
         .setMultiChoiceItems(groups.map { it.name }.toTypedArray(), checked) { _, i, on -> checked[i] = on }
         .setPositiveButton(R.string.ok) { _, _ -> save() }
         .setNegativeButton(R.string.cancel, null)
-        .setNeutralButton(R.string.new_folder) { _, _ -> askName(getString(R.string.new_folder), "") { save(listOf(Group(it, "folder", listOf(key)))) } }
+        .setNeutralButton(R.string.new_folder) { _, _ -> askName(getString(R.string.new_folder), "") {
+            // Groups are found by name: a second one of the same name would be edited and deleted along with the first.
+            if (groups.any { g -> g.name == it }) toast(R.string.group_exists) else save(listOf(Group(it, "folder", listOf(key))))
+        } }
         .show()
 }
 
