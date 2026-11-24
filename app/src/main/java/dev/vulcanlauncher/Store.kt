@@ -166,11 +166,12 @@ class Store(private val context: Context) {
         val saved = prefs.getString("sub", null)?.toIntOrNull()?.takeIf { it == 1 || it == 2 }
         runCatching { return layoutIn(itemsFromJson(raw), saved, sub).toMutableList() }
         runCatching { File(context.filesDir, "layout-unreadable.json").writeText(raw) }
+        // What's recovered is saved at once: export reads the stored layout, so a restore (which backs up first) would fail too.
         for (f in autoBackups) runCatching {
             val l = backupLayout(JSONObject(f.readText()))
-            return layoutIn(itemsFromJson(l.getValue("items")), l["sub"]?.toIntOrNull()?.takeIf { it == 1 || it == 2 }, sub).toMutableList()
+            return layoutIn(itemsFromJson(l.getValue("items")), l["sub"]?.toIntOrNull()?.takeIf { it == 1 || it == 2 }, sub).toMutableList().also { save(it, sub) }
         }
-        return mutableListOf()
+        return mutableListOf<Item>().also { save(it, sub) }
     }
 
     /** Saves [items], whose home positions are in subgrid factor [sub]. Strings only, so backups round-trip them. */
@@ -231,7 +232,7 @@ class Store(private val context: Context) {
         for ((name, values) in files) context.getSharedPreferences(name, Context.MODE_PRIVATE).edit().apply {
             if (replacedLayout) clear()
             // data keeps its flags as booleans; the backup has them as "true"/"false"
-            values.forEach { (k, v) -> if (name == "data" && (v == "true" || v == "false")) putBoolean(k, v == "true") else putString(k, v) }
+            values.forEach { (k, v) -> if (restoredAsFlag(name, k, v)) putBoolean(k, v == "true") else putString(k, v) }
         }.commit()
         return RestoreResult(replacedLayout, rejected)
     }
@@ -276,6 +277,12 @@ val BACKUP_HOW_TO = listOf(
  */
 /** data keys that say where a welcome or a widget's setup stands: true of the moment, so they stay out of backups. */
 val PASSING_STATE = setOf("welcome", "welcomeStep", "welcomeImport", "pendingWidget", "pendingSlot", RESTORING_WIDGETS)
+
+/** data keys read with getBoolean, which throws on text: on every start, for a hand-edited "hideWorkTab": "on". */
+val DATA_FLAGS = setOf(WELCOME, WELCOME_IMPORT, RESTORING_WIDGETS, REPIN_SHORTCUTS, ALL_HIDDEN, WORK_HIDDEN)
+
+/** Whether a restore stores [key] = [v] of preference file [file] as a boolean: a flag always, whatever the backup says. */
+fun restoredAsFlag(file: String, key: String, v: String) = file == "data" && (key in DATA_FLAGS || v == "true" || v == "false")
 
 fun readableBackup(looks: Map<String, String>, items: List<Item>, sub: Int, data: Map<String, String>,
                    apps: List<Pair<Triple<String, String, String>, Long>>, text: (Int) -> String): JSONObject = JSONObject()

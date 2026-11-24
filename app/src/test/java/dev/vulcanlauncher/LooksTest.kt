@@ -24,6 +24,13 @@ class LooksTest {
     }
 
     @Test
+    fun fitItemsMovesNegativeCellsAndEmptySizes() {
+        val keep = Item(0, 0, 0, pkg = "a")
+        val out = fitItems(listOf(keep, Item(0, -1, 0, pkg = "b"), Item(0, 2, 2, w = 0, h = -3, pkg = "c")), pages = 1, cols = 4, rows = 4, dockCols = 4)
+        assertEquals(listOf(keep, Item(0, 1, 0, pkg = "b"), Item(0, 2, 0, pkg = "c")), out)
+    }
+
+    @Test
     fun fitItemsKeepsItemWhenNoRoom() {
         val a = Item(0, 0, 0, pkg = "a")
         val b = Item(1, 0, 0, pkg = "b")

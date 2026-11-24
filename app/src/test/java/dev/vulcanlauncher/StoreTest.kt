@@ -28,6 +28,16 @@ class StoreTest {
     }
 
     @Test
+    fun restoredFlagsAreBooleansWhateverTheFileSays() {
+        // getBoolean throws on text, and these are read on every start.
+        for (k in listOf("welcome", "welcomeImport", "restoringWidgets", "repinShortcuts", "hideAllTab", "hideWorkTab"))
+            assertEquals(k, true, restoredAsFlag("data", k, "on"))
+        assertEquals(true, restoredAsFlag("data", "anything", "false"))
+        assertEquals(false, restoredAsFlag("data", "groups", "[]"))
+        assertEquals(false, restoredAsFlag("looks", "hideWorkTab", "true"))
+    }
+
+    @Test
     fun badItemIsDroppedNotTheLayout() {
         val json = """[{"page":0,"x":0,"y":0,"pkg":"a","cls":"b"}, {"page":"oops"}, 7,
             {"page":1,"x":0,"y":0,"folder":true,"children":[{"x":1}, {"page":0,"x":0,"y":0,"pkg":"c"}]}]"""

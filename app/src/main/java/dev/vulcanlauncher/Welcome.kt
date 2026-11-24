@@ -50,7 +50,7 @@ fun MainActivity.isDefaultHome() = packageManager.resolveActivity(Intent(Intent.
     PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName == packageName
 
 /** In Store.data: the welcome is only the import's review and widget steps (an import started from Settings). */
-private const val WELCOME_IMPORT = "welcomeImport"
+const val WELCOME_IMPORT = "welcomeImport"
 
 /** Over home, at the end of build(): home is already laid out under it, so finishing just lifts this away. */
 fun MainActivity.showWelcome() {
