@@ -194,7 +194,7 @@ fun MainActivity.closeOverlay() {
 
 /** A stable snapshot of the held page; hovering Remove tints the drag shadow without fading it with its source. */
 private class PageDrag(val index: Int, private val source: View, color: Int) : View.DragShadowBuilder(source) {
-    private val preview = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888).apply { source.draw(Canvas(this)) }
+    private val preview = rendered(source.width, source.height) { source.draw(it) }
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val tint = PorterDuffColorFilter(color and 0xFFFFFF or 0x99000000.toInt(), PorterDuff.Mode.SRC_ATOP)
     private var removing = false
@@ -266,13 +266,13 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
         remove.visibility = if (on) View.VISIBLE else View.INVISIBLE
     }
     pages.forEachIndexed { i, page ->
-        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-        // Some widgets hold hardware bitmaps, which a software canvas can't draw; the thumbnail is then left blank.
         // Without its overview card: opened from the hold-home buttons, the page still wears it while growing back,
         // and its outline drew a second border inside the thumbnail's.
         val card = page.background
         page.background = null
-        runCatching { Canvas(bmp).apply { scale(w / maxOf(1f, page.width.toFloat()), h / maxOf(1f, page.height.toFloat())); page.draw(this) } }
+        // Before Android 15 some widgets hold hardware bitmaps a software canvas can't draw; the thumbnail is then left blank.
+        val bmp = runCatching { rendered(w, h) { it.scale(w / maxOf(1f, page.width.toFloat()), h / maxOf(1f, page.height.toFloat())); page.draw(it) } }
+            .getOrElse { Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888) }
         page.background = card
         val current = i == workspace.current
         val thumb = ImageView(this).apply {

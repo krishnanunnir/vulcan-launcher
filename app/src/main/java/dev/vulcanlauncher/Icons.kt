@@ -451,6 +451,22 @@ fun flatIcon(context: Context, icon: Drawable, px: Int): Drawable = BitmapDrawab
     Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888).also { icon.setBounds(0, 0, px, px); icon.draw(Canvas(it)) })
 
 /**
+ * Whether cached app icons are hardware bitmaps (AppRepo.hardware). From Android 15, the oldest version checked: on
+ * Android 11 the system draws a drag's shadow into a software canvas, which refuses hardware bitmaps, so no icon,
+ * folder or page could be dragged.
+ * shortcut: Android 12 to 14 are untested and so left out; lower this once drags are checked there.
+ */
+val HARDWARE_ICONS = android.os.Build.VERSION.SDK_INT >= 35
+
+/**
+ * What [draw] paints, as a [w]×[h] bitmap. A bitmap's own canvas refuses hardware bitmaps too, so with
+ * [HARDWARE_ICONS] the drawing is recorded and rendered by the GPU, and the result is a hardware bitmap.
+ */
+fun rendered(w: Int, h: Int, draw: (Canvas) -> Unit): Bitmap =
+    if (HARDWARE_ICONS) Bitmap.createBitmap(android.graphics.Picture().apply { draw(beginRecording(w, h)); endRecording() })
+    else Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also { draw(Canvas(it)) }
+
+/**
  * Each app's finished icon and label on disk, as Launcher3's IconCache keeps them. Asking the app itself opens its APK,
  * and its resource table stays mapped until a GC (Gmail's is 10 MB): with this, a start opens only apps that changed.
  * An entry holds while the app's APK, Vulcan's own and the system build match, and [looks] ([Icons.signature]) or the locale.

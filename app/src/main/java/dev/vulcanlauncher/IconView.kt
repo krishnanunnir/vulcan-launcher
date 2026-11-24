@@ -85,8 +85,10 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
         val l = (width - s) / 2
         val t = (height - s) / 2
         if (shadow) {
-            val bmp = shadowBmp ?: Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888).let { b ->
-                icon.setBounds(0, 0, s, s); icon.draw(Canvas(b))
+            // A software copy: the alpha of a hardware bitmap can't be read.
+            val bmp = shadowBmp ?: rendered(s, s) { icon.setBounds(0, 0, s, s); icon.draw(it) }.let { r ->
+                if (r.config == Bitmap.Config.HARDWARE) r.copy(Bitmap.Config.ARGB_8888, false).also { r.recycle() } else r
+            }.let { b ->
                 // Only the blurred alpha is kept: free the full-colour copy now instead of at some later GC.
                 b.extractAlpha(Paint().apply { maskFilter = BlurMaskFilter(s / 24f, BlurMaskFilter.Blur.NORMAL) }, null).also { shadowBmp = it; b.recycle() }
             }
