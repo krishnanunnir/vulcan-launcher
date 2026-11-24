@@ -73,7 +73,6 @@ class HomeMenus(private val a: MainActivity) {
                 if (item.isWidget && a.awm.getAppWidgetInfo(a.widgetFlow.shownWidget(item))?.configure != null) tile("settings", a.getString(R.string.settings)) {
                     runCatching { a.host.startAppWidgetConfigureActivityForResult(a, a.widgetFlow.shownWidget(item), 0, MainActivity.REQ_RECONFIG, null) }
                 }
-                if (item.isWidget) tile("padding", a.getString(R.string.widget_padding)) { a.widgetFlow.choosePadding(item) }
                 if (item.isWidget && item.children.isNotEmpty()) tile("widgets", a.getString(R.string.unstack)) { a.widgetFlow.unstack(item) }
                 if (item.isClock) {
                     val big = a.views[item]?.tag == true

@@ -44,6 +44,7 @@
           "keys": [
             "glanceStyle",
             "widgetRadius",
+            "widgetPadding",
             "widgetOverlap"
           ],
           "title": "Widgets & clock"
@@ -348,12 +349,6 @@
         "type": "string"
       },
       "label": {"type": "string"},
-      "pad": {
-        "description": "A widget's padding on each side, in dp; -1 for Android's own widget padding.",
-        "default": -1,
-        "type": "integer",
-        "minimum": -1
-      },
       "pkg": {
         "description": "A package from reference.installedApps.",
         "type": "string"
@@ -3574,6 +3569,33 @@
             "48x48x32",
             "48x48x40",
             "48x48x48"
+          ]
+        },
+        "widgetPadding": {
+          "default": "100",
+          "x-names": {
+            "0": "0%",
+            "25": "25%",
+            "50": "50%",
+            "75": "75%",
+            "100": "100%",
+            "125": "125%",
+            "150": "150%",
+            "175": "175%",
+            "200": "200%"
+          },
+          "description": "Home screen.",
+          "title": "Widget padding",
+          "enum": [
+            "0",
+            "25",
+            "50",
+            "75",
+            "100",
+            "125",
+            "150",
+            "175",
+            "200"
           ]
         },
         "widgetRadius": {

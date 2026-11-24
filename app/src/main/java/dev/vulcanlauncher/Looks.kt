@@ -107,6 +107,8 @@ val LOOKS = listOf(
     onOff(HOME, "widgetOverlap", R.string.set_widgetOverlap, false),
     // 0: the widget keeps its own corners.
     Choice(HOME, "widgetRadius", R.string.set_widgetRadius, "0", range(0, 32, 4), shown = range(0, 32, 4).map { "$it dp" }),
+    // Android's own padding around each widget, scaled as Lawnchair does: 0% for edge to edge (#121).
+    Choice(HOME, "widgetPadding", R.string.set_widgetPadding, "100", range(0, 200, 25), shown = range(0, 200, 25).map { "$it%" }),
     onOff(HOME, "autoAdd", R.string.set_autoAdd, false),
     onOff(HOME, "hideClock", R.string.set_hideClock, false, R.string.set_hideClock_info),
     Choice(HOME, "statusBar", R.string.set_statusBar, "show", listOf("show", "hide"), listOf(R.string.statusBar_show, R.string.statusBar_hide)),
@@ -216,7 +218,7 @@ val SECTIONS: Map<String, List<Pair<Int, List<String>>>> = mapOf(
         R.string.sec_labels to listOf("labels", "labelSize", "labelColor", "labelFont", "labelLines", "labelShadow"),
         R.string.sec_search to listOf("searchBar"),
         R.string.sec_scroll to listOf("wallpaperScroll", "scrollEffect", "infiniteScroll", "indicator"),
-        R.string.sec_widgets to listOf("glanceStyle", "widgetRadius", "widgetOverlap"),
+        R.string.sec_widgets to listOf("glanceStyle", "widgetRadius", "widgetPadding", "widgetOverlap"),
         R.string.sec_status to listOf("statusBar", "darkStatusIcons", "hideClock"),
         R.string.sec_new_apps to listOf("autoAdd"),
         R.string.sec_advanced to listOf("lockLayout", "orientation"),

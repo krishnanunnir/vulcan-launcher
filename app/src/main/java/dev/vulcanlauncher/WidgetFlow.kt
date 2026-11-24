@@ -34,20 +34,22 @@ class WidgetFlow(private val a: MainActivity) {
         // A frame that was in a stack still sits in it, moved aside or hidden.
         widgetFrames[item.widgetId]?.let {
             (it.parent as? ViewGroup)?.removeView(it); it.translationX = 0f; it.visibility = View.VISIBLE
-            (it.getChildAt(0) as? AppWidgetHostView)?.let { hv -> setPad(hv, info, item.pad) }
+            (it.getChildAt(0) as? AppWidgetHostView)?.let { hv -> setPad(hv, info) }
             return it
         }
         // A widget whose view can't be made leaves its cells empty this time; it must not take home down.
         val hv: AppWidgetHostView = runCatching { a.host.createView(a.applicationContext, item.widgetId, info) }.getOrNull() ?: return null
         hv.addOnLayoutChangeListener { _, l, t, r, b, ol, ot, or, ob -> if (r - l != or - ol || b - t != ob - ot) reportSize(hv, info) }
-        setPad(hv, info, item.pad)
+        setPad(hv, info)
         roundCorners(hv, a.looks.int("widgetRadius") * a.dp)
         return WidgetFrame(a).apply { addView(hv) }.also { widgetFrames[item.widgetId] = it }
     }
 
-    /** [pad] dp on each side of the widget (#121), or Android's own widget padding for -1. */
-    private fun setPad(hv: AppWidgetHostView, info: AppWidgetProviderInfo, pad: Int) {
-        val p = if (pad < 0) AppWidgetHostView.getDefaultPaddingForWidget(a, info.provider, null) else (pad * a.dp).toInt().let { Rect(it, it, it, it) }
+    /** Android's own widget padding scaled by the Widget padding setting, 0–200% (#121, as Lawnchair). */
+    private fun setPad(hv: AppWidgetHostView, info: AppWidgetProviderInfo) {
+        val f = a.looks.int("widgetPadding") / 100f
+        val d = AppWidgetHostView.getDefaultPaddingForWidget(a, info.provider, null)
+        val p = Rect((d.left * f).toInt(), (d.top * f).toInt(), (d.right * f).toInt(), (d.bottom * f).toInt())
         if (p == Rect(hv.paddingLeft, hv.paddingTop, hv.paddingRight, hv.paddingBottom)) return
         hv.setPadding(p.left, p.top, p.right, p.bottom)
         if (hv.width > 0) reportSize(hv, info) // same cells, more or less room inside them
@@ -63,19 +65,6 @@ class WidgetFlow(private val a: MainActivity) {
         // Android 12+: the size list, which widgets with a layout per size choose from (the old call sends none).
         if (android.os.Build.VERSION.SDK_INT >= 31) hv.updateAppWidgetSize(android.os.Bundle(), listOf(android.util.SizeF(w.toFloat(), h.toFloat())))
         else hv.updateAppWidgetSize(null, w, h, w, h)
-    }
-
-    /** The padding choices in dp; -1 is Android's own. */
-    fun choosePadding(item: Item) {
-        val pads = listOf(-1, 0, 2, 4, 8, 12, 16)
-        val names = pads.map { p -> (if (p < 0) a.getString(R.string.color_default) else a.getString(R.string.now_card_height, p)).let { if (p == item.pad) a.getString(R.string.resize_current, it) else it } }
-        a.sheet().setTitle(R.string.widget_padding).setItems(names.toTypedArray()) { _, i ->
-            val at = a.items.indexOf(item)
-            if (at < 0) return@setItems // gone while the list was open
-            a.items[at] = item.copy(pad = pads[i])
-            a.save()
-            a.render()
-        }.show()
     }
 
     /**
@@ -127,7 +116,7 @@ class WidgetFlow(private val a: MainActivity) {
     fun shownWidget(item: Item) = item.widgetIds.getOrElse(stackShown[item.widgetId] ?: 0) { item.widgetId }
 
     fun stackView(item: Item): View? {
-        val shown = item.widgetIds.mapNotNull { id -> widgetView(Item(0, 0, 0, widgetId = id, pad = item.pad))?.let { id to it } }
+        val shown = item.widgetIds.mapNotNull { id -> widgetView(Item(0, 0, 0, widgetId = id))?.let { id to it } }
         if (shown.size < 2) return shown.firstOrNull()?.second
         val start = shown.indexOfFirst { it.first == shownWidget(item) }.coerceAtLeast(0)
         return WidgetStack(a, shown.map { it.second }, start, a.looks.color("labelColor")) { stackShown[item.widgetId] = item.widgetIds.indexOf(shown[it].first) }

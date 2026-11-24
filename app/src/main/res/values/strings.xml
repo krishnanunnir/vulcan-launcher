@@ -57,6 +57,7 @@
     <string name="padding_value" translatable="false">%1$d × %2$d dp</string>
     <string name="padding_value_ends" translatable="false">%1$d × %2$d / %3$d dp</string>
     <string name="set_widgetRadius">Widget corner radius</string>
+    <string name="set_widgetPadding">Widget padding</string>
     <string name="set_autoAdd">Add icons of new apps to home screen</string>
     <string name="set_hideClock">Hide the status bar clock</string>
     <string name="set_hideClock_info">On the home screen. Needs a one-time permission given from a computer</string>
@@ -468,7 +469,6 @@
     <string name="menu_group">Group</string>
     <string name="resize">Resize</string>
     <string name="unstack">Unstack</string>
-    <string name="widget_padding">Padding</string>
     <string name="widgets">Widgets</string>
     <string name="shortcuts">Shortcuts</string>
     <string name="wallpaper">Wallpaper</string>
