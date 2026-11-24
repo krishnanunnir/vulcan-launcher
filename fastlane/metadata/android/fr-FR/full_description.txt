@@ -1,0 +1,22 @@
+<p>Faites de votre écran d’accueil Android celui qui vous ressemble avec Vulcan : un lanceur personnalisable, sans pub, sans traceur, sans analyse et sans autorisation d’accès à internet.</p>
+
+<p>Organisez vos applis et vos widgets, rangez votre tiroir d’applis et choisissez une apparence qui s’accorde à votre fond d’écran. Vulcan fonctionne entièrement sur votre appareil et ne demande aucun compte.</p>
+
+<ul>
+<li><b>Votre disposition :</b> grilles d’accueil jusqu’à 12 × 12, jusqu’à 9 pages, positionnement en demi-cellule, widgets redimensionnables et un dock que vous pouvez masquer ou faire défiler. Verrouillez votre disposition pour éviter les modifications accidentelles.</li>
+<li><b>Vos applis, bien rangées :</b> un tiroir alphabétique avec recherche, un index alphabétique facultatif, des onglets, des dossiers et des applis masquées.</li>
+<li><b>Une recherche utile :</b> trouvez vos applis malgré les fautes de frappe ou par leurs initiales, ainsi que les raccourcis d’applis et les paramètres Android. Calculez des sommes et confiez minuteurs et alarmes à votre appli d’horloge.</li>
+<li><b>Gestes :</b> balayez, double-touchez ou pincez pour ouvrir des applis, les notifications, le tiroir et d’autres actions. Attribuez une action par glissement vers le haut aux icônes de vos applis.</li>
+<li><b>Votre style :</b> packs d’icônes, icônes thématiques sur Android 13 et versions ultérieures, formes d’icônes, étiquettes et icônes personnalisées, styles de dossiers, couleurs et mode nuit programmé.</li>
+<li><b>Page Maintenant :</b> commandes de musique, prochains événements du calendrier et contacts favoris, en option.</li>
+<li><b>Importez votre disposition :</b> récupérez applis, dossiers, dock et réglages de grille depuis un fichier Nova .novabackup. Les widgets doivent être ajoutés à nouveau.</li>
+<li><b>Sauvegardes locales :</b> exportez et restaurez votre configuration dans un fichier JSON lisible.</li>
+</ul>
+
+<p><b>Confidentialité et accès facultatifs</b><br>Vulcan n’a ni autorisation d’accès à internet ni SDK de suivi. Les contacts, le calendrier et la position approximative sont facultatifs et utilisés localement pour les fonctions que vous activez. L’accès aux notifications est facultatif et sert aux pastilles, aux aperçus et aux commandes de médias. Les sauvegardes vont à l’emplacement que vous choisissez. Des applis externes gèrent la recherche web et vocale lorsque vous les sollicitez.</p>
+
+<p><b>Service d’accessibilité</b><br>Vulcan utilise l’API AccessibilityService uniquement pour les actions système que vous déclenchez par des gestes ou des raccourcis : verrouiller l’écran, applis récentes, notifications, réglages rapides et menu d’alimentation. Il ne peut pas lire le contenu de l’écran et n’enregistre pas les interactions, ne collecte ni ne partage aucune donnée personnelle. Cet accès est facultatif et peut être désactivé dans les paramètres Android.</p>
+
+<p>Nécessite Android 8 ou une version ultérieure. Choisissez Vulcan dans Paramètres Android &gt; Applications &gt; Applications par défaut &gt; Application d’accueil. Vous pouvez revenir à un autre lanceur à tout moment.</p>
+
+<p>Logiciel libre sous licence MIT. Assistance : krishnanunnir97@gmail.com</p>

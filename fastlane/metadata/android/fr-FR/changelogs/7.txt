@@ -1,0 +1,5 @@
+- Les nouvelles installations démarrent comme Nova : grille 5 × 6, dock de cinq applis avec la recherche en dessous, tiroir opaque. Votre disposition actuelle reste inchangée.
+- Le bouton Accueil peut lancer n’importe quelle action ; le premier appui va à la page par défaut.
+- Rayon des coins des widgets et des dossiers ; la barre d’annulation peut être masquée.
+- Barre de recherche et points de page plus sobres.
+- Pages plus fluides ; les menus de dossiers évitent le dock.

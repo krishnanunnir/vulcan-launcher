@@ -1,0 +1,4 @@
+- Couleurs personnalisées : accent, fond, texte, cartes, dock, recherche et séparateurs, par-dessus n’importe quel thème.
+- Nuanciers du fond d’écran, curseurs teinte/saturation/luminosité ou code hexadécimal, avec aperçu en direct.
+- Avertit avant d’enregistrer des couleurs qui rendent le texte difficile à lire.
+- Ligne d’applis fréquentes dans chaque style de tiroir ; titres des paramètres sur une ligne.

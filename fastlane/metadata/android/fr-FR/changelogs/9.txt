@@ -1,0 +1,4 @@
+- Nouveau logo « coucher de soleil » dans l’appli, les paramètres, À propos et le raccourci du lanceur.
+- Meilleur équilibre du logo dans les icônes rondes et thématiques.
+- Site web, raccourci navigateur et visuels de store assortis, avec de nouvelles captures d’émulateur.
+- Traductions allemande et russe mises à jour.

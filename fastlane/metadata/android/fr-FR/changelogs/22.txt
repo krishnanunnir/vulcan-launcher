@@ -1,0 +1,4 @@
+Préparé pour Google Play avec la prise en charge d’Android 16.
+Navigation Retour actualisée pour le tiroir d’applis et les paramètres.
+Politique de confidentialité hors ligne ajoutée dans Paramètres > À propos.
+Accès facultatif à l’accessibilité clarifié avant l’ouverture des paramètres Android.

@@ -1,0 +1,7 @@
+Recherche du tiroir plus fluide : plus de saccades à la saisie.
+Plus de saccade en revenant à l’accueil après un réglage.
+L’accueil ferme les sélecteurs ouverts, comme les packs d’icônes.
+Les icônes à l’ancienne remplissent la forme avec leur couleur.
+Étiquettes de dossiers désactivables ; noms masqués cachent aussi le « < ».
+Lignes du tiroir jusqu’à 12. Onglets bouclés seulement en défilement infini.
+Applis d’un profil professionnel en pause grisées.

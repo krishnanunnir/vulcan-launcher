@@ -1,0 +1,1 @@
+- Le menu contextuel d’un dossier s’ouvre à l’emplacement du dossier : ses applis sont sous votre pouce, plus au milieu de l’écran.

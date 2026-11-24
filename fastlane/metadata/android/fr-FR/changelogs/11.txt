@@ -1,0 +1,7 @@
+- Barre de recherche du tiroir : masquée, en haut ou en bas (comme Nova) ; masquée, elle apparaît en recherche.
+- Les lignes du tiroir fixent la hauteur de chaque grille.
+- Étiquettes de 8 à 24 sp, tailles distinctes pour tiroir et dossiers.
+- Nouvelle action : lampe torche, sans autorisation supplémentaire.
+- Pages de paramètres glissées ; Glissement, Fondu ou Aucun.
+- Modification remaniée, sélecteur d’icône plein écran, cases pour masquer les applis.
+- Traductions allemande et russe.

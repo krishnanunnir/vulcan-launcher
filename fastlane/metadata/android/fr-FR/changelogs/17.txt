@@ -1,0 +1,9 @@
+- Merci SadieVane, HatsyRei et PierBez (Paramètres > Contributeurs).
+- Le tiroir ignore les appuis avant ouverture ; plus de menus intempestifs.
+- Balayer la barre de recherche ouvre le tiroir.
+- Le sélecteur d’icônes affiche tout un pack.
+- Nombres en curseurs ; Masquer les applis en cases à cocher.
+- Colonnes et lignes des dossiers ; ordre Launcher3.
+- Tiroir rempli par le bas : ligne complète d’abord.
+- Widgets groupés par appli.
+- Aperçu maintenu sur Accueil ; suppression de page corrigée.

@@ -1,0 +1,4 @@
+- Les noms d’applis se trient selon l’ordre de votre langue (É avec A, le cyrillique avant le latin en russe).
+- Nouvelle couleur de thème Noir AMOLED : les couleurs du fond d’écran sur du noir pur.
+- Les applis de l’espace privé peuvent aller sur l’écran d’accueil ; elles disparaissent quand l’espace est verrouillé.
+- Installez des applis directement dans l’espace privé depuis son onglet du tiroir.
