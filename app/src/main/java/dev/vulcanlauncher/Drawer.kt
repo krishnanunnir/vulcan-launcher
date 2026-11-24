@@ -118,20 +118,9 @@ private const val APP_VIEW = "app"
 /** Material "emphasized" easing: quick start, long soft landing. */
 val EASE = android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f)
 
-/** Android's settings pages that drawer search can open, by title. */
-private val SETTINGS_PAGES = listOf(R.string.page_wifi to Settings.ACTION_WIFI_SETTINGS, R.string.page_bluetooth to Settings.ACTION_BLUETOOTH_SETTINGS,
-    R.string.page_network to Settings.ACTION_WIRELESS_SETTINGS, R.string.page_airplane to Settings.ACTION_AIRPLANE_MODE_SETTINGS,
-    R.string.page_display to Settings.ACTION_DISPLAY_SETTINGS, R.string.page_sound to Settings.ACTION_SOUND_SETTINGS,
-    R.string.page_battery to Intent.ACTION_POWER_USAGE_SUMMARY, R.string.page_apps to Settings.ACTION_APPLICATION_SETTINGS,
-    R.string.page_default_apps to Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS, R.string.page_storage to Settings.ACTION_INTERNAL_STORAGE_SETTINGS,
-    R.string.page_location to Settings.ACTION_LOCATION_SOURCE_SETTINGS, R.string.page_security to Settings.ACTION_SECURITY_SETTINGS,
-    R.string.page_accessibility to Settings.ACTION_ACCESSIBILITY_SETTINGS, R.string.page_language to Settings.ACTION_LOCALE_SETTINGS,
-    R.string.page_date to Settings.ACTION_DATE_SETTINGS, R.string.page_developer to Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS,
-    R.string.page_about to Settings.ACTION_DEVICE_INFO_SETTINGS)
-
 /** The app drawer overlay. Built once per activity; [refresh] rebuilds its contents. */
 class Drawer(private val a: MainActivity) {
-    private sealed class Entry {
+    internal sealed class Entry {
         class AppE(val app: App) : Entry()
         class FolderE(val group: Group) : Entry()
         class WebE(val query: String) : Entry()
@@ -159,6 +148,7 @@ class Drawer(private val a: MainActivity) {
     private var entries = listOf<Entry>()
     private var tab = ""
     private var showHidden = false
+    private val found = DrawerSearch(a)
     private val adapter = Adapter({ entries }, { grid })
     /** The neighbouring tab's apps, shown beside the list while a sideways swipe moves it. */
     private var peekEntries = listOf<Entry>()
@@ -723,7 +713,7 @@ class Drawer(private val a: MainActivity) {
         if (!visible) return
         hideKeyboard()
         search.text.clear()
-        shortcuts = null
+        found.forget()
         showHidden = false
         if (animate) settle(open = false)
         else { stop(); if (a.overlay == null) a.setDepth(0f); gone() }
@@ -765,10 +755,10 @@ class Drawer(private val a: MainActivity) {
         }
         entries = if (q.isNotEmpty()) {
             // Best match first; sortedByDescending is stable, so equal matches keep the drawer's order.
-            quick(q) + ordered.filter { showHidden || it.key !in hidden }.map { it to matchScore(a.repo.label(it), q) }
+            found.quick(q) + ordered.filter { showHidden || it.key !in hidden }.map { it to matchScore(a.repo.label(it), q) }
                 .filter { it.second > 0 }.sortedByDescending { it.second }.map { Entry.AppE(it.first) } +
-                shortcutHits(q, hidden) + settingsHits(q) +
-                contacts(q) + if (a.looks.on("webSearch")) listOf(Entry.WebE(q)) else emptyList()
+                found.shortcutHits(q, hidden, showHidden, iconStyle.sizePx) + found.settingsHits(q) +
+                found.contacts(q) + if (a.looks.on("webSearch")) listOf(Entry.WebE(q)) else emptyList()
         } else entriesOf(tab)
         // As Nova: the row sits above the tabs and stays whichever tab is open.
         buildFrequent(if (q.isEmpty() && a.looks.on("frequent"))
@@ -795,72 +785,6 @@ class Drawer(private val a: MainActivity) {
         a.repo.prefetchIcons(entries.filterIsInstance<Entry.AppE>().map { it.app }.take(cols * rows * 2))
         if (styleName == "pages") buildPages() else adapter.notifyDataSetChanged()
         index.invalidate() // its letters are the new list's
-    }
-
-    /** Up to four matching contacts, when contact search is on and the user granted access. */
-    private fun contacts(q: String): List<Entry> {
-        if (!a.looks.on("contactSearch") || !a.granted(android.Manifest.permission.READ_CONTACTS)) return emptyList()
-        val out = ArrayList<Entry>()
-        runCatching {
-            a.contentResolver.query(android.net.Uri.withAppendedPath(android.provider.ContactsContract.Contacts.CONTENT_FILTER_URI, android.net.Uri.encode(q)),
-                arrayOf("_id", "lookup", "display_name", "photo_thumb_uri"), null, null, null)?.use { c ->
-                while (c.moveToNext() && out.size < 4) out += Entry.ContactE(c.getString(2) ?: "", c.getString(3),
-                    android.provider.ContactsContract.Contacts.getLookupUri(c.getLong(0), c.getString(1)))
-            }
-        }
-        return out
-    }
-
-    private fun glyph(symbol: String? = null, text: String? = null) = GlyphIcon(a.m3.primaryContainer, a.m3.onPrimaryContainer, text, symbol)
-
-    /** A sum's answer (tap to copy it), or a timer or alarm to set, as the first result. */
-    private fun quick(q: String): List<Entry> {
-        calc(q)?.let { v ->
-            val t = calcText(v)
-            return listOf(Entry.ActionE("= $t", glyph(text = "=")) {
-                a.getSystemService(android.content.ClipboardManager::class.java).setPrimaryClip(android.content.ClipData.newPlainText(t, t))
-                // Android 13+ confirms a copy itself.
-                if (android.os.Build.VERSION.SDK_INT < 33) a.toast(R.string.copied)
-            })
-        }
-        fun clock(label: String, intent: Intent) = listOf(Entry.ActionE(label, glyph("clock")) {
-            runCatching { a.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { a.toast(R.string.no_clock_app) }
-        })
-        return when (val c = command(q)) {
-            is Command.Timer -> clock(a.getString(R.string.search_timer, android.text.format.DateUtils.formatElapsedTime(c.seconds.toLong())),
-                Intent(android.provider.AlarmClock.ACTION_SET_TIMER).putExtra(android.provider.AlarmClock.EXTRA_LENGTH, c.seconds))
-            is Command.Alarm -> clock(a.getString(R.string.search_alarm, android.text.format.DateFormat.getTimeFormat(a).format(
-                    java.util.Calendar.getInstance().apply { set(java.util.Calendar.HOUR_OF_DAY, c.hour); set(java.util.Calendar.MINUTE, c.minute) }.time)),
-                Intent(android.provider.AlarmClock.ACTION_SET_ALARM).putExtra(android.provider.AlarmClock.EXTRA_HOUR, c.hour)
-                    .putExtra(android.provider.AlarmClock.EXTRA_MINUTES, c.minute))
-            null -> emptyList()
-        }
-    }
-
-    /** Every app's shortcuts, read on the first search after the drawer opens and dropped when it closes. */
-    private var shortcuts: List<android.content.pm.ShortcutInfo>? = null
-
-    /** Up to four app shortcuts ("New tab", "Compose") whose names match, from apps the drawer shows. */
-    private fun shortcutHits(q: String, hidden: Set<String>): List<Entry> {
-        if (q.length < 3) return emptyList()
-        val shown = a.repo.apps.values.filter { showHidden || it.key !in hidden }.map { it.pkg to it.info.user }.toSet()
-        val all = shortcuts ?: a.repo.allShortcuts().also { shortcuts = it }
-        return all.filter { (it.`package` to it.userHandle) in shown }.map { it to matchScore(it.shortLabel?.toString() ?: "", q) }
-            .filter { it.second >= 2 }.sortedByDescending { it.second }.take(4).map { (s, _) ->
-                // Drawn once at cell size: a shortcut's own icon can be a 108 dp adaptive one.
-                Entry.ActionE(s.shortLabel.toString(), flatIcon(a, a.repo.shortcutIcon(s), iconStyle.sizePx)) { v -> a.startShortcut(s.`package`, s.id, s.userHandle, v) }
-            }
-    }
-
-    /** Up to three of Android's settings pages ("Wi-Fi settings", "Battery settings") whose names match. */
-    private fun settingsHits(q: String): List<Entry> {
-        if (q.length < 3) return emptyList()
-        return SETTINGS_PAGES.map { a.getString(it.first) to it.second }.filter { matchScore(it.first, q) >= 2 }
-            .sortedByDescending { matchScore(it.first, q) }.take(3).map { (title, action) ->
-                Entry.ActionE(title, glyph("settings")) {
-                    runCatching { a.startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { a.toast(R.string.cant_open, title) }
-                }
-            }
     }
 
     /** Something it shows changed: rebuilt now if open, else on the next open. */
