@@ -23,7 +23,8 @@ One Kotlin file per area (home grid, drawer, settings, icons, theme, Now page, N
 - `WidgetFlow` (`widgetFlow`): widget views and stacks, and the pick, bind, configure and place steps of adding one.
 - `DragController` (`drag`): drag and drop, the drop bar, and the shrunk-page states with their extra pages.
 - `HomeMenus` (`homeMenus`): the long-press menu, the home overview and menu, and the actions a gesture or menu row runs.
-- `Drawer` (`drawer`) and `FolderFx` (`folderFx`): the app drawer and the folder window.
+- `Drawer` (`drawer`): the app drawer's tabs, pages and app grid. Its open and close motion is in `DrawerMotion`, what search finds besides apps in `DrawerSearch`, and tabs and folders as data in `Groups.kt`.
+- `FolderFx` (`folderFx`): the folder window.
 
 Settings are split by job: `SettingsUi.kt` (the screen and its pages), `EditDialogs.kt` (an item's label, icon and swipe) and `GroupEditor.kt` (app pickers, drawer tabs and folders).
 
