@@ -154,6 +154,7 @@ internal class DrawerMotion(private val a: MainActivity, private val d: Drawer) 
     fun stop() { val old = anim; anim = null; old?.cancel() }
 
     fun gone() {
+        d.closed()
         d.endTabSwipe()
         d.root.alpha = 1f
         for (i in 0 until d.root.childCount) d.root.getChildAt(i).alpha = 1f

@@ -228,11 +228,18 @@ fun MainActivity.mergeIntoFolder(target: Item, child: Item, payload: Any?) {
     render()
 }
 
+/**
+ * Where [f] is in items. A folder window, menu or drag holds the folder as it was when it opened, and a rename or sort
+ * since has replaced that item: it's then found by its cell.
+ */
+fun MainActivity.folderIndex(f: Item) = items.indexOf(f).takeIf { it >= 0 }
+    ?: items.indexOfFirst { it.folder && it.page == f.page && it.x == f.x && it.y == f.y }
+
 /** Takes one item out of a folder; a folder left with one item turns back into that item. The rest settles in place. */
 fun MainActivity.removeFromFolder(fc: FolderChild) {
-    val f = fc.folder
-    val i = items.indexOf(f)
+    val i = folderIndex(fc.folder)
     if (i < 0) return
+    val f = items[i]
     val rest = f.children.filterIndexed { j, _ -> j != fc.index }
     when (rest.size) {
         0 -> items.removeAt(i)
@@ -325,8 +332,8 @@ fun MainActivity.openFolder(item: Item) {
     drawer.hide()
     var folder = item
     openFolderWindow(item.label, item.children, { name ->
-        val i = items.indexOf(folder)
-        if (i >= 0 && name != folder.label) { items[i] = folder.copy(label = name.ifEmpty { getString(R.string.folder) }); save(); render() }
+        val i = folderIndex(folder)
+        if (i >= 0 && name != items[i].label) { folder = items[i].copy(label = name.ifEmpty { getString(R.string.folder) }); items[i] = folder; save(); render() }
     }, reorder = { from, to ->
         val i = items.indexOf(folder)
         if (i >= 0) {
@@ -363,9 +370,10 @@ private fun MainActivity.selectFolderApps(f: Item) {
 }
 
 /** Replaces [f]'s children; with one left it turns back into that item, with none it goes. */
-fun MainActivity.setFolderChildren(f: Item, children: List<Item>) {
-    val i = items.indexOf(f)
+fun MainActivity.setFolderChildren(old: Item, children: List<Item>) {
+    val i = folderIndex(old)
     if (i < 0) return
+    val f = items[i]
     when (children.size) {
         0 -> items.removeAt(i)
         1 -> items[i] = children[0].copy(page = f.page, x = f.x, y = f.y, w = f.w, h = f.h)

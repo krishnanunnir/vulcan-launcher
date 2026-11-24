@@ -273,6 +273,8 @@ class Workspace(context: Context) : ViewGroup(context) {
                 if (overviewTouch) { doubleTapDown = false; postDelayed(hold, ViewConfiguration.getLongPressTimeout().toLong()) }
             }
             MotionEvent.ACTION_POINTER_DOWN -> if (ev.pointerCount == 2 && mode != HORIZONTAL) {
+                // A second finger ends the drawer's pull here: release only ends it in VERTICAL, and a pull left open swallows every touch.
+                if (pulling) { onPull?.invoke(downY - ev.y - slop, 0f, true); pulling = false }
                 mode = MULTI
                 for (i in 0..1) { start[i * 2] = ev.getX(i); start[i * 2 + 1] = ev.getY(i) }
                 start.copyInto(end)

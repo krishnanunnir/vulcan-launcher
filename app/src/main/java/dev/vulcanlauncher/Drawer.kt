@@ -517,13 +517,14 @@ class Drawer(private val a: MainActivity) {
         search.clearFocus()
     }
 
+    /** What every close resets, a pull down included: called from [DrawerMotion.gone]. */
+    internal fun closed() { found.forget(); showHidden = false }
+
     /** [animate] false for a drag leaving the drawer: it must be out of the way at once. */
     fun hide(animate: Boolean = true) {
         if (!visible) return
         hideKeyboard()
         search.text.clear()
-        found.forget()
-        showHidden = false
         if (animate) motion.settle(open = false)
         else { motion.stop(); if (a.overlay == null) a.setDepth(0f); motion.gone() }
     }
