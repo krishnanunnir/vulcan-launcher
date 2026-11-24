@@ -199,6 +199,46 @@ class MainActivity : VulcanActivity() {
     /** Everything the settings shape: palette, icons, layout and the views. At creation, and again in [rebuild]. */
     @Suppress("DEPRECATION")
     private fun build() {
+        loadItems()
+        styleWindow()
+
+        val gesture = { g: String -> homeMenus.perform(looks.str("g_$g")) }
+        pages = List(looks.pages) { drag.newPage(it) }
+        indicator = Indicator(this, looks.pages, looks.str("indicator"), looks.color("labelColor"), m3.signal)
+        workspace = Workspace(this).apply {
+            paddingOf(looks.str("pageMargin")).let { (x, t, b) -> marginX = (x * dp).toInt(); marginTop = (t * dp).toInt(); marginBottom = (b * dp).toInt() }
+            pages.forEach { addView(it) }
+            onGesture = gesture
+            effect = looks.str("scrollEffect")
+            infinite = looks.on("infiniteScroll")
+            onScroll = { indicator.position = it; wallpaperScroll(it) }
+            snapTo(looks.int("defaultPage").coerceAtMost(looks.pages - 1), animate = false)
+        }
+        val search = looks.str("searchBar")
+        buildDock(gesture, search)
+        val pagesBox = pagesBox(search)
+        content = if (!landscape) pagesBox else LinearLayout(this).apply {
+            addView(pagesBox, LinearLayout.LayoutParams(0, -1, 1f))
+            addView(dockBox, LinearLayout.LayoutParams(-2, -1).apply {
+                if (floatingDock) setMargins((4 * dp).toInt(), (14 * dp).toInt(), (10 * dp).toInt(), (14 * dp).toInt())
+            })
+        }
+        content.forceHasOverlappingRendering(false) // faded as the drawer opens: no full-screen offscreen buffer (see Drawer.root)
+        drawer = Drawer(this)
+        // Swipe up opens the drawer under the finger instead of after the gesture ends.
+        if (looks.str("g_swipeUp") == "drawer") { workspace.onPull = drawer::pull; dock.onPull = drawer::pull }
+        // Likewise swipe right on the first page pulls the Now page in under the finger.
+        if (looks.str("g_swipeRight") == "now") workspace.onEdgePull = ::pullNow
+        drag.dropBar = dropBar()
+        root = homeRoot()
+        setContentView(root)
+        root.viewTreeObserver.addOnGlobalLayoutListener(::coverDock)
+        render()
+        showWelcome()
+    }
+
+    /** The stored items, fitted to the grid the settings give. */
+    private fun loadItems() {
         sub = looks.sub
         icons = Icons(this, looks)
         repo.restyle(icons)
@@ -214,7 +254,11 @@ class MainActivity : VulcanActivity() {
                 ?.let { items += it.copy(action = "clock") }
         }
         save()
+    }
 
+    /** Transparent system bars, home drawn behind them and into the notch. */
+    @Suppress("DEPRECATION")
+    private fun styleWindow() {
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
@@ -228,22 +272,12 @@ class MainActivity : VulcanActivity() {
         }
         barHidden = looks.str("statusBar") == "hide"
         applyBar()
+    }
 
-        val gesture = { g: String -> homeMenus.perform(looks.str("g_$g")) }
-        pages = List(looks.pages) { drag.newPage(it) }
-        indicator = Indicator(this, looks.pages, looks.str("indicator"), looks.color("labelColor"), m3.signal)
-        workspace = Workspace(this).apply {
-            paddingOf(looks.str("pageMargin")).let { (x, t, b) -> marginX = (x * dp).toInt(); marginTop = (t * dp).toInt(); marginBottom = (b * dp).toInt() }
-            pages.forEach { addView(it) }
-            onGesture = gesture
-            effect = looks.str("scrollEffect")
-            infinite = looks.on("infiniteScroll")
-            onScroll = { indicator.position = it; wallpaperScroll(it) }
-            snapTo(looks.int("defaultPage").coerceAtMost(looks.pages - 1), animate = false)
-        }
+    /** The dock's pages and the box around them, with its background and its search bar. */
+    private fun buildDock(gesture: (String) -> Unit, search: String) {
         dockPages = List(looks.dockPages) { CellLayout(this, looks.dockCols, 1, -1 - it, landscape).apply { setOnDragListener(drag.dropListener(this)) } }
         dock = Workspace(this).apply { dockPages.forEach { addView(it) }; onGesture = gesture }
-        val search = looks.str("searchBar")
         dockBox = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             visibility = if (looks.dockOn) View.VISIBLE else View.GONE
@@ -280,8 +314,12 @@ class MainActivity : VulcanActivity() {
                 outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
             }
         }
+    }
+
+    /** The pages with what sits under them: indicator, swipe arrow, and in portrait the dock. */
+    private fun pagesBox(search: String): LinearLayout {
         val dockHeight = ((looks.int("dockIconSize") + 28 + (if (looks.on("dockLabels")) 22 else 0)) * dp).toInt()
-        val pagesBox = LinearLayout(this).apply {
+        return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             if (search == "top") addView(searchBar())
             // As an overlay, later children (indicator, dock) are pulled up over the bottom of the pages.
@@ -324,19 +362,11 @@ class MainActivity : VulcanActivity() {
                 e.action != DragEvent.ACTION_DROP
             }
         }
-        content = if (!landscape) pagesBox else LinearLayout(this).apply {
-            addView(pagesBox, LinearLayout.LayoutParams(0, -1, 1f))
-            addView(dockBox, LinearLayout.LayoutParams(-2, -1).apply {
-                if (floatingDock) setMargins((4 * dp).toInt(), (14 * dp).toInt(), (10 * dp).toInt(), (14 * dp).toInt())
-            })
-        }
-        content.forceHasOverlappingRendering(false) // faded as the drawer opens: no full-screen offscreen buffer (see Drawer.root)
-        drawer = Drawer(this)
-        // Swipe up opens the drawer under the finger instead of after the gesture ends.
-        if (looks.str("g_swipeUp") == "drawer") { workspace.onPull = drawer::pull; dock.onPull = drawer::pull }
-        // Likewise swipe right on the first page pulls the Now page in under the finger.
-        if (looks.str("g_swipeRight") == "now") workspace.onEdgePull = ::pullNow
-        drag.dropBar = LinearLayout(this).apply {
+    }
+
+    /** Remove and Uninstall, shown at the top while an item is dragged. */
+    private fun dropBar(): LinearLayout {
+        return LinearLayout(this).apply {
             visibility = View.GONE
             gravity = Gravity.CENTER
             alpha = 0f
@@ -347,7 +377,12 @@ class MainActivity : VulcanActivity() {
                 addView(drag.dropTarget(it), LinearLayout.LayoutParams(-2, (48 * dp).toInt()).apply { setMargins(p / 2, 0, p / 2, 0) })
             }
         }
-        root = FrameLayout(this).apply {
+    }
+
+    /** Home, the drawer and the drop bar stacked, each kept clear of the system bars. */
+    @Suppress("DEPRECATION")
+    private fun homeRoot(): FrameLayout {
+        return FrameLayout(this).apply {
             addView(content)
             addView(drawer.root)
             addView(drag.dropBar, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
@@ -367,10 +402,6 @@ class MainActivity : VulcanActivity() {
                 ins
             }
         }
-        setContentView(root)
-        root.viewTreeObserver.addOnGlobalLayoutListener(::coverDock)
-        render()
-        showWelcome()
     }
 
     /**
