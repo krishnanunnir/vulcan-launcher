@@ -426,10 +426,10 @@ fun MainActivity.removePageAt(i: Int, then: () -> Unit = { reopenOverview() }) {
         .setPositiveButton(R.string.remove) { _, _ -> doRemove() }.setNegativeButton(R.string.cancel, null).show()
 }
 
-/** Drag handles on a widget's edges; tapping outside applies the new size. */
+/** Drag handles on a widget's edges: the widget follows them, and tapping outside keeps the new size. Home stays as it is behind (#121). */
 fun MainActivity.showResize(cell: CellLayout, item: Item, v: View, minW: Int, minH: Int, canW: Boolean, canH: Boolean) {
     val frame = ResizeFrame(this, cell, item, v, minW, minH, canW, canH)
-    showOverlay(frame) {
+    showOverlay(frame, depth = false) {
         val n = frame.result()
         val i = items.indexOf(item)
         if (n != item && i >= 0) { items[i] = n; save(); render() }
@@ -458,13 +458,10 @@ class ResizeFrame(
         return (c[0] - origin[0]).toFloat() to (c[1] - origin[1]).toFloat()
     }
 
-    /** Home sinks back under an overlay (setDepth): the grid's on-screen scale. */
-    private val s get() = a.content.scaleX
-
     private fun rect(): RectF {
         val (ox, oy) = cellOrigin()
-        val left = ox + s * cell.spanLeft(l, r - l)
-        return RectF(left, oy + s * t * cell.cellH, left + s * (r - l) * cell.cellW, oy + s * b * cell.cellH)
+        val left = ox + cell.spanLeft(l, r - l)
+        return RectF(left, oy + t * cell.cellH.toFloat(), left + (r - l) * cell.cellW.toFloat(), oy + b * cell.cellH.toFloat())
     }
 
     /** Right to left, the handle drawn on the left moves the grid's end column, and the one on the right its start. */
@@ -494,8 +491,8 @@ class ResizeFrame(
             }
             MotionEvent.ACTION_MOVE -> if (edge >= 0) {
                 val (ox, oy) = cellOrigin()
-                val cx = cell.column((ev.x - ox) / s).roundToInt()
-                val cy = ((ev.y - oy) / s / cell.cellH).roundToInt()
+                val cx = cell.column(ev.x - ox).roundToInt()
+                val cy = ((ev.y - oy) / cell.cellH).roundToInt()
                 var nl = l; var nt = t; var nr = r; var nb = b
                 when (if (rtl && edge % 2 == 0) 2 - edge else edge) {
                     0 -> nl = cx.coerceIn(0, r - minW)
@@ -503,7 +500,11 @@ class ResizeFrame(
                     2 -> nr = cx.coerceIn(l + minW, cell.cols)
                     3 -> nb = cy.coerceIn(t + minH, cell.rows)
                 }
-                if (cell.isFree(nl, nt, nr - nl, nb - nt, ignore) || a.looks.on("widgetOverlap")) { l = nl; t = nt; r = nr; b = nb; invalidate() }
+                if (cell.isFree(nl, nt, nr - nl, nb - nt, ignore) || a.looks.on("widgetOverlap")) {
+                    l = nl; t = nt; r = nr; b = nb; invalidate()
+                    // The widget is laid out at each new size, which tells its app to redraw for it.
+                    ignore.layoutParams = CellLayout.CellParams(l, t, r - l, b - t)
+                }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> edge = -1
         }

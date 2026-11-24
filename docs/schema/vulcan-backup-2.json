@@ -348,6 +348,12 @@
         "type": "string"
       },
       "label": {"type": "string"},
+      "pad": {
+        "description": "A widget's padding on each side, in dp; -1 for Android's own widget padding.",
+        "default": -1,
+        "type": "integer",
+        "minimum": -1
+      },
       "pkg": {
         "description": "A package from reference.installedApps.",
         "type": "string"

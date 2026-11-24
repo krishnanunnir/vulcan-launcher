@@ -99,6 +99,7 @@ class Symbol(private val name: String, private val color: Int, private val size:
             "delete" -> { line(4f, 7f, 20f, 7f); poly(9f, 7f, 9f, 4f, 15f, 4f, 15f, 7f); poly(6f, 7f, 7f, 20f, 17f, 20f, 18f, 7f); line(10f, 11f, 10f, 16f); line(14f, 11f, 14f, 16f) }
             "info" -> { circle(12f, 12f, 9f); line(12f, 11f, 12f, 16.5f); dot(12f, 7.8f, 1.3f) }
             "resize" -> { poly(14f, 4f, 20f, 4f, 20f, 10f); line(20f, 4f, 13.5f, 10.5f); poly(10f, 20f, 4f, 20f, 4f, 14f); line(4f, 20f, 10.5f, 13.5f) }
+            "padding" -> { rect(3.5f, 3.5f, 20.5f, 20.5f, 3f); rect(8f, 8f, 16f, 16f, 1.5f) }
             "show" -> eye()
             "hide" -> { eye(); line(4f, 4f, 20f, 20f) }
             "folder" -> poly(3f, 6.5f, 3.5f, 5f, 9.5f, 5f, 11.5f, 7.5f, 20.5f, 7.5f, 21f, 9f, 21f, 18.5f, 20f, 19.5f, 4f, 19.5f, 3f, 18.5f, close = true)

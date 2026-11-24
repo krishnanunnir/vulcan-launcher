@@ -13,6 +13,9 @@ class StoreTest {
         assertEquals(Triple(1, 2, 4), Triple(stack.page, stack.x, stack.w))
         // Survives the store, so the stack is still whole after a restart or a backup.
         assertEquals(listOf(7, 8, 9), itemsFromJson(itemsToJson(listOf(stack)))[0].widgetIds)
+        // A widget's padding is kept; a layout saved before it existed reads as Android's own (-1).
+        assertEquals(4, itemsFromJson(itemsToJson(listOf(stack.copy(pad = 4))))[0].pad)
+        assertEquals(-1, itemsFromJson("""[{"page":0,"x":0,"y":0,"widgetId":7}]""")[0].pad)
         // Unstacking the front widget leaves the rest; the last one left is a plain widget.
         assertEquals(listOf(8, 9), stack.withWidgets(stack.widgetIds - 7)!!.widgetIds)
         assertEquals(emptyList<Item>(), stack.withWidgets(listOf(9))!!.children)

@@ -493,9 +493,8 @@ fun MainActivity.setDepth(p: Float, blur: Boolean = true) {
     }
     val s = 1 - 0.04f * p
     content.scaleX = s; content.scaleY = s
-    // The big clock text would read through a translucent panel and double up with its own clock. Not while it's
-    // being resized: the frame is around it.
-    clocks.forEach { it.alpha = if (overlay is ResizeFrame) 1f else 1 - p }
+    // The big clock text would read through a translucent panel and double up with its own clock.
+    clocks.forEach { it.alpha = 1 - p }
     if (Build.VERSION.SDK_INT < 31) return
     // [blur] false: home is fading out under the drawer, so blurring it each frame would be wasted work.
     val r = if (blur && looks.on("blur")) 24 * dp * p else 0f

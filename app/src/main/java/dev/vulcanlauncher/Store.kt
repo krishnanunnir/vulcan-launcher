@@ -38,6 +38,8 @@ data class Item(
     val label: String = "",
     val icon: String = "",
     val swipe: String = "",
+    /** A widget's padding on each side, in dp; -1 for the padding Android gives every widget (8 dp). */
+    val pad: Int = -1,
 ) {
     val isWidget get() = widgetId != -1
     val isShortcut get() = shortcutId.isNotEmpty()
@@ -66,7 +68,7 @@ fun appKey(pkg: String, cls: String, user: Long) = "$pkg/$cls/$user"
 
 fun Item.toJson(): JSONObject = JSONObject().put("page", page).put("x", x).put("y", y).put("w", w).put("h", h)
     .put("pkg", pkg).put("cls", cls).put("widgetId", widgetId).put("user", user).put("shortcutId", shortcutId)
-    .put("action", action).put("folder", folder).put("label", label).put("icon", icon).put("swipe", swipe)
+    .put("action", action).put("folder", folder).put("label", label).put("icon", icon).put("swipe", swipe).put("pad", pad)
     .put("children", JSONArray().apply { children.forEach { put(it.toJson()) } })
 
 fun itemFromJson(o: JSONObject): Item = Item(
@@ -74,7 +76,7 @@ fun itemFromJson(o: JSONObject): Item = Item(
     o.optString("pkg"), o.optString("cls"), o.optInt("widgetId", -1), o.optLong("user"), o.optString("shortcutId"),
     o.optString("action"), o.optBoolean("folder"),
     o.optJSONArray("children")?.let(::itemList) ?: emptyList(),
-    o.optString("label"), o.optString("icon"), o.optString("swipe"))
+    o.optString("label"), o.optString("icon"), o.optString("swipe"), o.optInt("pad", -1))
 
 fun itemsToJson(items: List<Item>) = JSONArray().apply { items.forEach { put(it.toJson()) } }.toString()
 /** The items of [s]; an item that can't be read is dropped, not the whole layout. Throws when [s] isn't a JSON array. */

@@ -468,6 +468,7 @@
     <string name="menu_group">Group</string>
     <string name="resize">Resize</string>
     <string name="unstack">Unstack</string>
+    <string name="widget_padding">Padding</string>
     <string name="widgets">Widgets</string>
     <string name="shortcuts">Shortcuts</string>
     <string name="wallpaper">Wallpaper</string>
