@@ -275,7 +275,7 @@ val BACKUP_HOW_TO = listOf(
  * string resource: setting titles and value names are in the phone's language.
  */
 /** data keys that say where a welcome or a widget's setup stands: true of the moment, so they stay out of backups. */
-val PASSING_STATE = setOf("welcome", "welcomeStep", "welcomeImport", "pendingWidget", "pendingSlot")
+val PASSING_STATE = setOf("welcome", "welcomeStep", "welcomeImport", "pendingWidget", "pendingSlot", RESTORING_WIDGETS)
 
 fun readableBackup(looks: Map<String, String>, items: List<Item>, sub: Int, data: Map<String, String>,
                    apps: List<Pair<Triple<String, String, String>, Long>>, text: (Int) -> String): JSONObject = JSONObject()

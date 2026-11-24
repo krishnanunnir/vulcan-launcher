@@ -209,7 +209,8 @@ class MainActivity : VulcanActivity() {
         val page = workspace.current
         depthAnim?.cancel()
         // Everything below belongs to the old views; none of it is shown again.
-        overlay = null; overlayClosed = {}; overlayExit = null; refillFolder = null; depth = 0f; homeMenus.menu = null
+        // setDepth, not the field alone: the window's blur outlives the old views.
+        overlay = null; overlayClosed = {}; overlayExit = null; refillFolder = null; setDepth(0f); homeMenus.menu = null
         drag.reset()
         badgeIcons.clear(); widgetFlow.keepViews(emptySet()) // build() reloads the apps, which drops the cached icons
         build()

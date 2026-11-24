@@ -495,6 +495,8 @@ class Drawer(private val a: MainActivity) {
         // Not while it's open and at rest; a close still animating is fair game, so the next open lands at the top.
         if (visible && motion.progress >= 1f) return
         if (search.text.isNotEmpty()) search.text.clear()
+        // A close cut short by this open never reached gone(): what it resets is reset here.
+        closed()
         if (!a.looks.on("rememberPosition")) forgetPosition()
         if (inputs() != shown) refresh()
     }
@@ -519,7 +521,11 @@ class Drawer(private val a: MainActivity) {
     }
 
     /** What every close resets, a pull down included: called from [DrawerMotion.gone]. */
-    internal fun closed() { found.forget(); showHidden = false }
+    internal fun closed() {
+        found.forget(); showHidden = false
+        // The focus goes before the text does on the way out, so the focus listener leaves the bar showing.
+        if (barOff) searchBar.visibility = View.GONE
+    }
 
     /** [animate] false for a drag leaving the drawer: it must be out of the way at once. */
     fun hide(animate: Boolean = true) {

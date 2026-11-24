@@ -492,14 +492,12 @@ private fun VulcanActivity.chooseApps(title: String, current: List<String>, grou
 fun VulcanActivity.editGroup(g: Group) {
     val name = field(g.name, getString(R.string.name))
     var color = g.color
-    var deleted = false
     lateinit var d: android.app.AlertDialog
     /** The group's name now: the typed one once [keep] has saved it. */
     var now = g.name
     fun current() = home.drawer.groups().firstOrNull { it.name == now }
     /** Saves the typed name and the colour. Run before anything else reads the groups, and when the sheet closes. */
     fun keep() {
-        if (deleted) return
         val groups = home.drawer.groups()
         val cur = groups.firstOrNull { it.name == now } ?: return
         val typed = name.text.toString().trim()
@@ -554,7 +552,8 @@ fun VulcanActivity.editGroup(g: Group) {
             compoundDrawablePadding = (8 * dp).toInt()
             setCompoundDrawablesRelative(symbol("delete", m3.error, 20f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
             background = pressable(null, 22 * dp, m3.error)
-            setOnClickListener { deleted = true; d.dismiss(); current()?.let { deleteGroup(it) } }
+            // Saved first: Delete can still be cancelled, and it deletes by the name as saved.
+            setOnClickListener { keep(); d.dismiss(); current()?.let { deleteGroup(it) } }
         })
         addView(View(context), LinearLayout.LayoutParams(0, 0, 1f))
         addView(text(getString(R.string.done), 14f, m3.onPrimary, medium = true).apply {

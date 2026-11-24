@@ -245,7 +245,7 @@ private fun SettingsActivity.settingsHome(page: LinearLayout): (String) -> Unit 
         list.visibility = if (q.isBlank()) View.VISIBLE else View.GONE
         if (q.isNotBlank()) {
             val hits = LOOKS.filter { c ->
-                c.group in GROUP_TITLES && listOf(c.title, c.info, GROUP_TITLES.getValue(c.group)).any { it != 0 && getString(it).contains(q.trim(), true) }
+                c.group in GROUP_TITLES && shows(c) && listOf(c.title, c.info, GROUP_TITLES.getValue(c.group)).any { it != 0 && getString(it).contains(q.trim(), true) }
             }
             if (hits.isEmpty()) results.addView(text(getString(R.string.settings_no_match), 15f, m3.onSurfaceVariant).apply {
                 gravity = Gravity.CENTER; setPadding(0, (32 * dp).toInt(), 0, 0)
@@ -324,11 +324,12 @@ private fun SettingsActivity.nameplate() = LinearLayout(this).apply {
     layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), (4 * dp).toInt()) }
 }
 
+/** Whether a setting has a row now. Schedule hours only where they're used: the schedule, and sunset to sunrise until a location is known. */
+private fun SettingsActivity.shows(c: Choice) =
+    c.key != "nightStart" && c.key != "nightEnd" || looks.str("nightMode") in listOf("schedule", "sun")
+
 private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout) {
-    // Schedule hours only where they're used: the schedule, and sunset to sunrise until a location is known.
-    val hours = looks.str("nightMode") in listOf("schedule", "sun")
-    val choices = (if (group == LOOK) listOf(iconPackChoice()) else emptyList()) +
-        LOOKS.filter { it.group == group && (hours || it.key != "nightStart" && it.key != "nightEnd") }
+    val choices = (if (group == LOOK) listOf(iconPackChoice()) else emptyList()) + LOOKS.filter { it.group == group && shows(it) }
     fun pickNamed(c: Choice) {
         val names = c.values.indices.map { choiceName(c, it) }
         val checked = c.values.indexOf(looks[c])
@@ -462,7 +463,12 @@ private fun SettingsActivity.slider(c: Choice): View {
                 if (user && !dragging) applyChoice(c, c.values[i])
             }
             override fun onStartTrackingTouch(b: android.widget.SeekBar) { dragging = true }
-            override fun onStopTrackingTouch(b: android.widget.SeekBar) { dragging = false; applyChoice(c, c.values[b.progress]) }
+            override fun onStopTrackingTouch(b: android.widget.SeekBar) {
+                dragging = false; applyChoice(c, c.values[b.progress])
+                // Default page's range and its "one page" row follow Pages.
+                // ponytail: not after a key or TalkBack move, where rebuilding the page would drop the focus; that row is right again when the page reopens.
+                if (c.key == "pages") refresh()
+            }
         })
         if (android.os.Build.VERSION.SDK_INT >= 30) stateDescription = value.text
     }
