@@ -1,0 +1,8 @@
+Now in French; Polish, German, Russian and Spanish complete.
+New: separate top and bottom page padding; any widget shrinks to one grid step.
+Drawer folders show badges, update live and open the group editor.
+Shortcuts get App info and notifications.
+Old and photo icons reshaped as on Nova, with a per-icon switch.
+A restore, import or reset saves a backup first.
+Less memory for icons.
+Fixed: crashes and lost layouts found in a full code review.
