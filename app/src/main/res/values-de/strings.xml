@@ -720,7 +720,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="tab_all_hide_info">Apps, die in keinem anderen Tab sind, lassen sich trotzdem über die Suche finden</string>
     <string name="tab_all_shown">Wird in der App-Übersicht an erster Stelle angezeigt</string>
     <string name="tab_all_hidden">Ausgeblendet. Apps, die in keinem anderen Tab sind, lassen sich trotzdem über die Suche finden</string>
-    <string name="tab_all_needs_tab">Füge zuerst einen Tab hinzu: Die App-Übersicht braucht mindestens einen Tab</string>
+    <string name="tab_all_needs_tab">Füge mindestens einen Tab hinzu</string>
     <string name="move_apps_title">Hierher verschieben?</string>
     <string name="move_apps_move">Hierher verschieben</string>
     <string name="move_apps_keep">In beiden Gruppen behalten</string>

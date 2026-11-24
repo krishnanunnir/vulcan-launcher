@@ -753,7 +753,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="tab_all_hide_info">Приложения, которых нет в других вкладках, всё равно можно найти через поиск</string>
     <string name="tab_all_shown">Отображается первой в меню приложений</string>
     <string name="tab_all_hidden">Скрыта. Приложения, которых нет в других вкладках, всё равно можно найти через поиск</string>
-    <string name="tab_all_needs_tab">Сначала добавьте вкладку: в меню приложений должна быть хотя бы одна вкладка</string>
+    <string name="tab_all_needs_tab">Добавьте хотя бы одну вкладку</string>
     <string name="move_apps_title">Переместить их сюда?</string>
     <string name="move_apps_move">Переместить сюда</string>
     <string name="move_apps_keep">Оставить в обеих группах</string>
