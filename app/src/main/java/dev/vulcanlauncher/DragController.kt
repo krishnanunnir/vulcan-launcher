@@ -476,8 +476,11 @@ class DragController(private val a: MainActivity) {
     }
 
     /** A drawer folder as a new home folder with the same apps (a copy: the drawer keeps its own). */
-    fun groupItem(g: Group) = Item(0, 0, 0, a.sub, a.sub, folder = true, label = g.name,
-        children = g.apps.mapNotNull { a.repo.apps[it] }.map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) })
+    fun groupItem(g: Group): Item? {
+        val apps = g.apps.mapNotNull { a.repo.apps[it] }.map { Item(0, 0, 0, a.sub, a.sub, pkg = it.pkg, cls = it.cls, user = it.serial) }
+        // As everywhere on home: a folder of one is that app, and there's no empty folder.
+        return when (apps.size) { 0 -> null; 1 -> apps[0]; else -> Item(0, 0, 0, a.sub, a.sub, folder = true, label = g.name, children = apps) }
+    }
 
     /** The payload as a home item, a drawer folder included. */
     private fun asItem(p: Any?) = if (p is Group) groupItem(p) else p as? Item
@@ -502,7 +505,12 @@ class DragController(private val a: MainActivity) {
         if (!dragMoved) return false
         val child = asChild(payload)
         val target = a.mergeTarget(cell, px, py, payload)
-        if (child != null && target != null) { dropped = true; a.mergeIntoFolder(target, child, payload); return true }
+        if (child != null && target != null) {
+            dropped = true
+            a.mergeIntoFolder(target, child, payload)
+            if (child.isShortcut) a.syncPins(child.pkg, child.user) // as the plain drop below: an unpinned shortcut stops resolving
+            return true
+        }
         a.widgetFlow.stackTarget(cell, px, py, payload)?.let { onto ->
             dropped = true
             val moving = payload as Item

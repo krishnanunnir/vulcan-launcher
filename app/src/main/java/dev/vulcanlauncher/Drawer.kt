@@ -204,7 +204,8 @@ class Drawer(private val a: MainActivity) {
             override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, af: Int) {}
             override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
         })
-        setOnEditorActionListener { _, _, _ -> entries.firstOrNull()?.let { open(it, null) }; true }
+        // With nothing typed the list is the open tab, and Go must not launch its first app.
+        setOnEditorActionListener { _, _, _ -> if (search.text.isNotBlank()) entries.firstOrNull()?.let { open(it, null) }; true }
         // Housing: a caret in the legend ink, so the search glyph stays the only signal.
         if (housing && android.os.Build.VERSION.SDK_INT >= 29) textCursorDrawable = android.graphics.drawable.GradientDrawable().apply {
             setColor(a.m3.onSurface); setSize((2 * a.dp).toInt(), (20 * a.dp).toInt())
@@ -523,6 +524,7 @@ class Drawer(private val a: MainActivity) {
     /** [animate] false for a drag leaving the drawer: it must be out of the way at once. */
     fun hide(animate: Boolean = true) {
         if (!visible) return
+        keyboardOnOpen = false // an open with the keyboard that's cancelled mid-way never reaches opened()
         hideKeyboard()
         search.text.clear()
         if (animate) motion.settle(open = false)
@@ -734,6 +736,7 @@ class Drawer(private val a: MainActivity) {
     }
 
     private fun buildPages() {
+        val page = pager.current // kept through a rebuild; forgetPosition() does the reset when positions aren't remembered
         pager.removeAllViews()
         entries.chunked(cols * rows).ifEmpty { listOf(emptyList()) }.forEach { chunk ->
             pager.addView(CellLayout(a, cols, rows, 0).apply {
@@ -746,7 +749,7 @@ class Drawer(private val a: MainActivity) {
                 }
             })
         }
-        pager.snapTo(0, animate = false)
+        pager.snapTo(page.coerceIn(0, pager.childCount - 1), animate = false)
     }
 
     /** [recycled]: a view GridView no longer shows; an app's view is rebound instead of built again. */
@@ -762,7 +765,7 @@ class Drawer(private val a: MainActivity) {
             val icon = if (!scrolling) a.repo.icon(e.app)
                 else a.repo.iconLater(e.app) { d -> view?.takeIf { bound[it] == e.app.key }?.image?.icon = d } ?: blank
             ((recycled as? IconView)?.takeIf { it.tag == APP_VIEW }?.apply { bind(a.repo.label(e.app), icon, e.app.pkg) }
-                ?: IconView(a, a.repo.label(e.app), icon, style, a.badgeStyle(), e.app.pkg).apply { tag = APP_VIEW }).also {
+                ?: IconView(a, a.repo.label(e.app), icon, style, a.badgeStyle(), a.repo.badgeKey(e.app.pkg, e.app.serial)).apply { tag = APP_VIEW }).also {
                 view = it
                 bound[it] = e.app.key
                 if (a.looks.str("badges") != "off") a.badge(it.image, e.app.pkg)
@@ -771,7 +774,7 @@ class Drawer(private val a: MainActivity) {
         }
         // As a folder on home: badged by the apps inside it (#118).
         is Entry.FolderE -> folderItems(e.group).let { items ->
-            val keys = items.map { it.pkg }.distinct().joinToString("|")
+            val keys = items.map { a.repo.badgeKey(it.pkg, it.user) }.distinct().joinToString("|")
             IconView(a, e.group.name, a.folderIcon(items), iconStyle, a.badgeStyle(), keys)
                 .also { if (a.looks.str("badges") != "off") a.badge(it.image, keys) }
         }
@@ -783,7 +786,8 @@ class Drawer(private val a: MainActivity) {
         is Entry.ActionE -> IconView(a, e.label, e.icon, iconStyle, a.badgeStyle(), "")
     }
 
-    private fun folderItems(g: Group) = g.apps.mapNotNull { a.repo.apps[it] }.map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) }
+    /** Hidden apps stay out of a folder as they do out of a tab. */
+    private fun folderItems(g: Group) = a.store.strings("hidden").let { hidden -> g.apps.filter { showHidden || it !in hidden } }.mapNotNull { a.repo.apps[it] }.map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) }
 
     /**
      * Fully open, at rest, no finger moving it. As Launcher3's item handlers: a tap or hold that lands any other way

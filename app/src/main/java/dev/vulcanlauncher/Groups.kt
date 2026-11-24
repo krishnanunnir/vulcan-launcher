@@ -158,5 +158,12 @@ fun VulcanActivity.workTabShown() = !store.data.getBoolean(WORK_HIDDEN, looks.ra
 const val WORK_HIDDEN = "hideWorkTab"
 /** data key: how many of the user's tabs (hidden ones too) come before the Work profile tab; 0 puts it right after All apps. */
 const val WORK_AT = "workTabAt"
+
+/** A new group's [name] can't be used: another group has it, or it's the key of the Work or Private tab. */
+fun nameTaken(groups: List<Group>, name: String) = name == "work" || name == "private" || groups.any { it.name == name }
+
+/** [WORK_AT] ([at]: how many tabs come before Work) after the tabs changed from [old] to [new]: tabs taken out before Work pull it forward. */
+fun workAtAfter(old: List<String>, new: List<String>, at: Int) =
+    if (new.size >= old.size) at else at - old.take(at.coerceAtLeast(0)).count { it !in new }
 /** [WORK_AT]'s value. Stored as an int, but a restored backup brings every value back as text, and getInt throws on text. */
 fun android.content.SharedPreferences.workAt() = runCatching { getInt(WORK_AT, 0) }.getOrElse { getString(WORK_AT, null)?.toIntOrNull() ?: 0 }

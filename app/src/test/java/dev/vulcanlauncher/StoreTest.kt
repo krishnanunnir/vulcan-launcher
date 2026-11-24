@@ -122,7 +122,8 @@ class StoreTest {
             {"page":0,"x":1,"y":0,"pkg":"maps","shortcutId":"s"}]}}"""
         val (files, rejected) = readableBackupFiles(org.json.JSONObject(json)) { pkg, _ -> if (pkg == "chrome") "Main" else null }
         assertEquals(setOf("cols=100", "accent=#12"), rejected.toSet())
-        assertEquals(mapOf("labels" to "off", "labelColor" to "#80FF8800", "g_doubleTap" to "lock", "g_swipeDown" to "page:2", "iconPack" to "x.pack"),
+        assertEquals(mapOf("labels" to "off", "labelColor" to "#80FF8800", "g_doubleTap" to "lock", "g_swipeDown" to "page:2", "iconPack" to "x.pack",
+            "defaults" to "nova", "defaults032" to "on"),
             files["looks"])
         assertEquals(listOf(Item(0, 0, 0, pkg = "chrome", cls = "Main"), Item(0, 1, 0, pkg = "maps", shortcutId = "s")),
             itemsFromJson(files["layout"]!!["items"]!!))
@@ -186,5 +187,21 @@ class StoreTest {
     @Test fun appPickerKeepsTickedAppsItCouldNotShow() {
         assertEquals(listOf("a", "c", "locked"), pickerResult(listOf("a", "b", "c"), setOf("c", "locked", "a")))
         assertEquals(emptyList<String>(), pickerResult(listOf("a"), emptySet()))
+    }
+
+    @Test fun groupNamesAndTheWorkTabsPlace() {
+        val groups = listOf(Group("Games", "tab", emptyList()))
+        assertEquals(listOf(true, true, true, false), listOf("Games", "work", "private", "Work").map { nameTaken(groups, it) })
+        // A, Work, B, C with A deleted: Work stays between what's left of its neighbours.
+        assertEquals(0, workAtAfter(listOf("A", "B", "C"), listOf("B", "C"), 1))
+        assertEquals(1, workAtAfter(listOf("A", "B", "C"), listOf("A", "B"), 1))
+        // A rename, an added tab or a reorder leaves it alone.
+        assertEquals(2, workAtAfter(listOf("A", "B"), listOf("A", "X"), 2))
+        assertEquals(1, workAtAfter(listOf("A"), listOf("A", "B"), 1))
+    }
+
+    @Test fun aHandWrittenBackupIsNotTakenForAnOldInstall() {
+        val looks = readableBackupFiles(org.json.JSONObject("""{"format":"vulcan-backup-2","settings":{"cols":"6"},"home":{"items":[]}}""")) { _, _ -> null }.first.getValue("looks")
+        assertEquals(mapOf("cols" to "6", "defaults" to "nova", "defaults032" to "on"), looks)
     }
 }

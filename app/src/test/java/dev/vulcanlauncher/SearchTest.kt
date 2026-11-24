@@ -52,6 +52,11 @@ class SearchTest {
         assertEquals(Command.Timer(90), command("timer 90 sec"))
         // A number too long for an Int (a pasted phone number) is no timer, not a crash.
         assertEquals(null, command("timer 3000000000"))
+        // A leading minus binds looser than a power.
+        assertEquals(-4.0, calc("-2^2")!!, 1e-9)
+        assertEquals(-18.0, calc("2*-3^2")!!, 1e-9)
+        assertEquals(4.0, calc("(-2)^2")!!, 1e-9)
+        assertEquals(0.125, calc("2^-3")!!, 1e-9)
         assertEquals(null, command("timer 99999999999999999999999"))
         assertEquals(null, command("timer 2000000 h"))
         assertEquals(Command.Alarm(7, 0), command("alarm 7"))

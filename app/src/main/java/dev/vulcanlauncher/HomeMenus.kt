@@ -49,7 +49,7 @@ class HomeMenus(private val a: MainActivity) {
         }
         if (owner != null && a.looks.on("popupNotifications")) {
             // The newest only, as Launcher3 shows one notification at a time.
-            BadgeService.byPackage[owner.pkg].orEmpty().sortedByDescending { it.postTime }.take(1).forEach { n ->
+            BadgeService.byPackage[a.repo.badgeKey(owner.pkg, owner.serial)].orEmpty().sortedByDescending { it.postTime }.take(1).forEach { n ->
                 val title = n.notification.extras.getCharSequence("android.title") ?: ""
                 val body = n.notification.extras.getCharSequence("android.text") ?: ""
                 row(a.symbol("notifications"), title.toString(), body.toString(), long = { BadgeService.instance?.cancelNotification(n.key) }) {
@@ -83,7 +83,7 @@ class HomeMenus(private val a: MainActivity) {
                 tile("close", a.getString(R.string.remove)) { a.removeItem(item); a.render() }
             }
             payload is Group -> {
-                if (!a.locked) tile("add", a.getString(R.string.menu_add)) { a.addItem(a.drag.groupItem(payload)) }
+                if (!a.locked) tile("add", a.getString(R.string.menu_add)) { a.drag.groupItem(payload)?.let(a::addItem) }
                 tile("edit", a.getString(R.string.edit)) { a.editGroup(payload) }
             }
             payload is FolderChild && !a.locked -> {
@@ -477,11 +477,19 @@ class HomeMenus(private val a: MainActivity) {
         val id = runCatching {
             cm.cameraIdList.firstOrNull { cm.getCameraCharacteristics(it).get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE) == true }
         }.getOrNull() ?: return a.toast(R.string.no_flashlight)
-        if (torchWatch == null) torchWatch = object : android.hardware.camera2.CameraManager.TorchCallback() {
-            override fun onTorchModeChanged(cameraId: String, enabled: Boolean) { if (cameraId == id) torchOn = enabled }
-        }.also { cm.registerTorchCallback(it, null) }
         // A camera app holding the camera makes this fail.
-        runCatching { cm.setTorchMode(id, !torchOn) }.onSuccess { torchOn = !torchOn }.onFailure { a.toast(R.string.no_flashlight) }
+        fun switch() { runCatching { cm.setTorchMode(id, !torchOn) }.onSuccess { torchOn = !torchOn }.onFailure { a.toast(R.string.no_flashlight) } }
+        if (torchWatch != null) return switch()
+        // The first report after registering is the torch as it is now, perhaps already on (quick settings): the first switch waits for it.
+        var first = true
+        torchWatch = object : android.hardware.camera2.CameraManager.TorchCallback() {
+            override fun onTorchModeChanged(cameraId: String, enabled: Boolean) {
+                if (cameraId != id) return
+                torchOn = enabled
+                if (first) { first = false; switch() }
+            }
+            override fun onTorchModeUnavailable(cameraId: String) { if (cameraId == id && first) { first = false; a.toast(R.string.no_flashlight) } }
+        }.also { cm.registerTorchCallback(it, null) }
     }
 
     private fun startAny(vararg intents: Intent) {

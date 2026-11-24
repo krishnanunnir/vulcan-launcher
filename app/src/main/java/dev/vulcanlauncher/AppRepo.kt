@@ -42,10 +42,13 @@ class AppRepo(private val context: Context, private val store: Store, private va
     private lateinit var icons: Icons
 
     /** New icon settings: [icons] draws from now on, with the disk cache that matches it. Follow with [loadApps]. */
-    fun restyle(icons: Icons) {
+    fun restyle(icons: Icons) = synchronized(this) {
         this.icons = icons
         appCache = AppCache(context, icons.signature)
+        generation++
     }
+    /** Counts [restyle]s: an icon the worker thread began in the old style must not land in the new style's cache. */
+    private var generation = 0
 
     /** Memory pressure: drops every icon held in memory ([all]) or the oldest half. The disk cache stays. */
     fun trim(all: Boolean) {
@@ -69,6 +72,10 @@ class AppRepo(private val context: Context, private val store: Store, private va
     private lateinit var appCache: AppCache
 
     fun serial(user: UserHandle) = um.getSerialNumberForUser(user)
+    private val ownSerial = um.getSerialNumberForUser(Process.myUserHandle())
+    /** What [BadgeService.byPackage] lists the notifications of [pkg] in profile [user] under, so a work app doesn't badge its personal twin. */
+    fun badgeKey(pkg: String, user: Long) = if (user == 0L || user == ownSerial) pkg else "$pkg#$user"
+
     fun userOf(serial: Long): UserHandle = um.getUserForSerialNumber(serial) ?: Process.myUserHandle()
 
     /** The Private Space profile (Android 15+), or null. Android lists it only to the home app holding ACCESS_HIDDEN_PROFILES. */
@@ -139,10 +146,12 @@ class AppRepo(private val context: Context, private val store: Store, private va
         val dated = dateIcons["${a.pkg}/${a.cls}"]?.takeIf { a.info.user == Process.myUserHandle() }
         val day = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_MONTH)
         // A date icon's disk entry also holds the day it shows, so tomorrow draws afresh.
+        val (gen, icons, appCache) = synchronized(this) { Triple(generation, icons, appCache) }
         val d = BitmapDrawable(resources, appCache.icon(a, if (dated == null) custom else "$custom|day$day") {
             (icons.get(a.pkg, a.cls, custom) { dated?.takeIf { it != 0 }?.let { dateIcon(a, it, day) } ?: a.info.getBadgedIcon(0) } as BitmapDrawable).bitmap
         })
-        iconCache.put(a.key, d); d
+        if (gen == synchronized(this) { generation }) iconCache.put(a.key, d)
+        d
     }
 
     /** Launcher activities that draw today's date ("<pkg>.dynamic_icons" meta-data: 31 drawables), to their array; 0 for a Samsung live icon. */

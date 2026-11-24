@@ -100,7 +100,11 @@ fun importedPrefs(xml: String): Map<String, String> {
         .associate { m -> m.groupValues[1] to (m.groupValues[2].ifEmpty { m.groupValues[3] }) }
     val map = mapOf("desktop_grid_cols" to "cols", "desktop_grid_rows" to "rows", "desktop_page_count" to "pages",
         "dock_grid_cols" to "dockCols", "dock_pages_count" to "dockPages", "drawer_app_grid_cols" to "drawerCols", "drawer_app_grid_rows" to "drawerRows")
-    return map.mapNotNull { (theirs, ours) -> values[theirs]?.toIntOrNull()?.let { ours to it.toString() } }.toMap()
+    // Kept within what the setting allows: a value outside it shows wrong in settings and is refused by a later restore.
+    return map.mapNotNull { (theirs, ours) ->
+        val allowed = LOOKS.first { it.key == ours }.values
+        values[theirs]?.toIntOrNull()?.let { ours to it.coerceIn(allowed.first().toInt(), allowed.last().toInt()).toString() }
+    }.toMap()
 }
 
 /** Reads a .novabackup chosen by the user. Throws with a readable message when the file isn't one. */

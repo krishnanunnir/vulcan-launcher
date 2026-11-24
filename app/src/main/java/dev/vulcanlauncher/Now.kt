@@ -69,7 +69,9 @@ fun MainActivity.addNowCard() {
         askName(getString(R.string.now_card_apps), "") { name ->
             appSwitches(name, emptyList()) { keys ->
                 val picked = keys.mapNotNull(repo.apps::get).map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) }
-                if (picked.isNotEmpty()) { saveNowCards(nowCards() + Item(0, 0, 0, children = picked, label = name)); reopenNow() }
+                val card = Item(0, 0, 0, children = picked, label = name)
+                // A card is named by its apps (nowCardId): a second one of the same apps would show once and be removed twice.
+                if (picked.isNotEmpty() && nowCards().none { nowCardId(it) == nowCardId(card) }) { saveNowCards(nowCards() + card); reopenNow() }
             }
         }
     }.show()
@@ -148,11 +150,16 @@ fun MainActivity.showNow(slide: Boolean = true) {
                 addView(iconButton("prev", getString(R.string.media_previous), m3.onSurfaceVariant) { c.transportControls.skipToPrevious() })
                 // The play/pause button is the card's filled primary action.
                 addView(ImageView(context).apply {
-                    setImageDrawable(symbol(if (playing) "pause" else "play", m3.onPrimary))
-                    contentDescription = getString(if (playing) R.string.media_pause else R.string.media_play)
+                    // The player reports its new state later than the tap, so the button follows the tap, not the player.
+                    var on = playing
+                    fun show() {
+                        setImageDrawable(symbol(if (on) "pause" else "play", m3.onPrimary))
+                        contentDescription = getString(if (on) R.string.media_pause else R.string.media_play)
+                    }
+                    show()
                     scaleType = ImageView.ScaleType.CENTER
                     background = pressable(rounded(m3.primary, 24 * dp), 24 * dp, m3.onPrimary)
-                    setOnClickListener { if (playing) c.transportControls.pause() else c.transportControls.play(); reopenNow() }
+                    setOnClickListener { if (on) c.transportControls.pause() else c.transportControls.play(); on = !on; show() }
                 }, LinearLayout.LayoutParams((48 * dp).toInt(), (48 * dp).toInt()))
                 addView(iconButton("next", getString(R.string.media_next), m3.onSurfaceVariant) { c.transportControls.skipToNext() })
                 setOnClickListener { c.sessionActivity?.let { runCatching { it.send() } } }
@@ -229,7 +236,7 @@ fun MainActivity.showNow(slide: Boolean = true) {
         if (top.isEmpty()) return null
         return card(getString(R.string.now_frequent), LinearLayout(this).apply {
             val st = style("").let { IconStyle(it.sizePx * 3 / 4, false, it.labelSize, panelText, false, false) }
-            top.forEach { app -> addView(IconView(context, repo.label(app), repo.icon(app), st, badgeStyle(), app.pkg).apply { setOnClickListener { v -> launch(app, v) } },
+            top.forEach { app -> addView(IconView(context, repo.label(app), repo.icon(app), st, badgeStyle(), repo.badgeKey(app.pkg, app.serial)).apply { setOnClickListener { v -> launch(app, v) } },
                 LinearLayout.LayoutParams(0, (st.sizePx + 16 * dp).toInt(), 1f)) }
         })
     }
@@ -259,7 +266,7 @@ fun MainActivity.showNow(slide: Boolean = true) {
             shownApps.chunked(6).forEach { row ->
                 addView(LinearLayout(context).apply {
                     row.forEach { (child, li) ->
-                        addView(IconView(context, li.first, li.second, st, badgeStyle(), child.pkg).apply { setOnClickListener { v -> open(child, v) } },
+                        addView(IconView(context, li.first, li.second, st, badgeStyle(), repo.badgeKey(child.pkg, child.user)).apply { setOnClickListener { v -> open(child, v) } },
                             LinearLayout.LayoutParams(0, (st.sizePx + 40 * dp).toInt(), 1f))
                     }
                     repeat(6 - row.size) { addView(View(context), LinearLayout.LayoutParams(0, 0, 1f)) }

@@ -193,6 +193,9 @@ class OfflineFeaturesTest {
         val xml = """<?xml version='1.0'?><map><int name="desktop_grid_cols" value="6" /><string name="desktop_grid_rows">7</string>
             <int name="dock_grid_cols" value="4" /><boolean name="x" value="true" /><int name="desktop_page_count" value="2" /></map>"""
         assertEquals(mapOf("cols" to "6", "rows" to "7", "dockCols" to "4", "pages" to "2"), importedPrefs(xml))
+        // Values outside what a setting allows are brought inside it.
+        assertEquals(mapOf("dockCols" to "3", "dockPages" to "3", "drawerCols" to "8"),
+            importedPrefs("""<int name="dock_grid_cols" value="0" /><int name="dock_pages_count" value="5" /><int name="drawer_app_grid_cols" value="11" />"""))
     }
 
     @Test

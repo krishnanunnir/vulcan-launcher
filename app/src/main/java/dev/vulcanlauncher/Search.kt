@@ -63,7 +63,6 @@ fun calc(q: String): Double? {
     fun peek() = s.getOrNull(i)
     lateinit var sum: () -> Double
     fun atom(): Double {
-        if (peek() == '-') { i++; return -atom() }
         if (peek() == '(') { i++; val v = sum(); if (peek() == ')') i++; return v }
         val start = i
         while (peek()?.let { it.isDigit() || it == '.' } == true) i++
@@ -71,7 +70,8 @@ fun calc(q: String): Double? {
         // A trailing % is a percentage: 50% is 0.5.
         return if (peek() == '%' && s.getOrNull(i + 1)?.let { it.isDigit() || it == '(' } != true) { i++; v / 100 } else v
     }
-    fun power(): Double { val b = atom(); return if (peek() == '^') { i++; b.pow(power()) } else b }
+    // A leading minus binds looser than ^, as on a calculator: -2^2 is -4.
+    fun power(): Double { if (peek() == '-') { i++; return -power() }; val b = atom(); return if (peek() == '^') { i++; b.pow(power()) } else b }
     fun product(): Double {
         var v = power()
         while (true) when (peek()) {

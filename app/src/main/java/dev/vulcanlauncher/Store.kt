@@ -157,9 +157,11 @@ class Store(private val context: Context) {
     /** Writes today's automatic backup, keeping the two before it. */
     fun rotateAutoBackup() {
         val (a, b, c) = autoBackups
+        // Written whole before the older ones move: a write cut short must not stand as today's backup.
+        val tmp = java.io.File(a.path + ".tmp").apply { writeText(export()) }
         if (b.exists()) b.renameTo(c)
         if (a.exists()) a.renameTo(b)
-        a.writeText(export())
+        tmp.renameTo(a)
     }
 
     // Lenient: a restored or hand-edited value of the wrong type reads as empty instead of crashing home on every start.
@@ -177,7 +179,7 @@ class Store(private val context: Context) {
         val looks = context.getSharedPreferences("looks", Context.MODE_PRIVATE).all.mapValues { it.value.toString() }
         val sub = prefs.getString("sub", null)?.toIntOrNull() ?: if (looks["subgrid"] == "on") 2 else 1
         val items = itemsFromJson(prefs.getString("items", "[]")!!)
-        val data = data.all.mapValues { it.value.toString() }
+        val data = data.all.filterKeys { it !in PASSING_STATE }.mapValues { it.value.toString() }
         return readableBackup(looks, items, sub, data, apps.map { Triple(it.title, it.pkg, it.cls) to it.serial }, context::getString).toString(2)
     }
 
@@ -246,6 +248,9 @@ val BACKUP_HOW_TO = listOf(
  * The readable backup document. [apps]: (label, package, activity) to profile serial of each installed app. [text] reads a
  * string resource: setting titles and value names are in the phone's language.
  */
+/** data keys that say where a welcome or a widget's setup stands: true of the moment, so they stay out of backups. */
+val PASSING_STATE = setOf("welcome", "welcomeStep", "welcomeImport", "pendingWidget", "pendingSlot")
+
 fun readableBackup(looks: Map<String, String>, items: List<Item>, sub: Int, data: Map<String, String>,
                    apps: List<Pair<Triple<String, String, String>, Long>>, text: (Int) -> String): JSONObject = JSONObject()
     .put("format", "vulcan-backup-2")
@@ -301,5 +306,7 @@ fun readableBackupFiles(root: JSONObject, cls: (pkg: String, user: Long) -> Stri
     val sub = home.optInt("sub", if (looks["subgrid"] == "on") 2 else 1)
     val data = root.optJSONObject("data")?.let { d -> d.keys().asSequence().associateWith { d.get(it).toString() } } ?: emptyMap()
     return mapOf("layout" to mapOf("items" to itemsToJson(items), "version" to LAYOUT_VERSION.toString(), "sub" to sub.toString()),
-        "looks" to looks, "data" to data) to rejected
+        // A phone's own file carries these markers; one written by hand doesn't, and without them the settings it left
+        // out would be filled with the defaults of an install from before 0.16 (Looks.adoptDefaults).
+        "looks" to (mapOf("defaults" to "nova", "defaults032" to "on") + looks), "data" to data) to rejected
 }

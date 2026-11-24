@@ -106,7 +106,9 @@ class WidgetFlow(private val a: MainActivity) {
         val id = shownWidget(item)
         val spot = firstFreeSpot(a.items.filter { !isDock(it.page) }, a.looks.pages, a.looks.cols * a.sub, a.looks.rows * a.sub, item.w, item.h, item.page)
         if (spot == null) { a.toast(R.string.no_room); return }
-        a.items[a.items.indexOf(item)] = item.withWidgets(item.widgetIds - id)!!
+        val i = a.items.indexOf(item)
+        if (i < 0) return // a second tap while the menu fades: the first already took it out
+        a.items[i] = item.withWidgets(item.widgetIds - id)!!
         a.items += Item(spot.page, spot.x, spot.y, item.w, item.h, widgetId = id)
         stackShown.remove(item.widgetId)
         a.save()
@@ -121,6 +123,7 @@ class WidgetFlow(private val a: MainActivity) {
     /** [toNow]: for a Now page card. */
     fun pickWidget(pkg: String? = null, toNow: Boolean = false) {
         widgetToNow = toNow
+        pendingSlot = null // a spot whose setup never reported back must not catch this widget
         val order = labelOrder()
         val page = a.pages[a.workspace.current]
         val groups = a.awm.installedProviders.filter { pkg == null || it.provider.packageName == pkg }.groupBy { it.provider.packageName }
@@ -223,6 +226,7 @@ class WidgetFlow(private val a: MainActivity) {
     private fun restoreWidget(slot: Item) {
         val info = slotProvider(slot) ?: run { a.toast(R.string.widget_slot_missing_toast); return }
         pendingSlot = slot
+        widgetToNow = false // left set by a Now page picker that was backed out of
         addWidget(info)
     }
 
@@ -336,7 +340,9 @@ class WidgetFlow(private val a: MainActivity) {
         a.sheet().setTitle(R.string.resize).setItems(sizes.map { (w, h) -> "${cells(w)} × ${cells(h)}".let { if (w == item.w && h == item.h) a.getString(R.string.resize_current, it) else it } }
             .toTypedArray()) { _, i ->
             val (w, h) = sizes[i]
-            a.items[a.items.indexOf(item)] = item.copy(w = w, h = h)
+            val at = a.items.indexOf(item)
+            if (at < 0) return@setItems // gone while the list was open
+            a.items[at] = item.copy(w = w, h = h)
             a.save()
             a.render()
         }.show()

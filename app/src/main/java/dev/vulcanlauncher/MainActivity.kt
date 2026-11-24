@@ -160,6 +160,17 @@ class MainActivity : VulcanActivity() {
             val c = ComponentName.unflattenFromString(provider)
             awm.installedProviders.firstOrNull { it.provider == c }?.let { widgetFlow.pendingWidget = id.toInt() to it }
         }
+        // A fresh start gets no result for a setup begun before it (a reboot or crash mid-setup): let that widget go,
+        // or its spot would catch the next widget added and an import's restore would never resume.
+        if (savedInstanceState == null && widgetFlow.pendingWidget != null) {
+            widgetFlow.pendingWidget?.let { host.deleteAppWidgetId(it.first) }
+            widgetFlow.pendingWidget = null; widgetFlow.pendingSlot = null
+        }
+        // A widget whose ID is gone (its app uninstalled while Vulcan wasn't running) has no view, but would hold its cells.
+        runCatching { host.appWidgetIds.toSet() }.getOrNull()?.let { ids ->
+            val kept = keepWidgets(items) { it in ids }
+            if (kept != items) { items.clear(); items += kept; save(); render() }
+        }
         // Widget IDs no item holds (the process died mid-flow, a pin failed, an undo bar was cut short) still get
         // updates from their providers: free them.
         val held = items.flatMap { it.widgetIds } + nowCards().flatMap { it.widgetIds } + listOfNotNull(widgetFlow.pendingWidget?.first)
@@ -169,8 +180,14 @@ class MainActivity : VulcanActivity() {
             addAction(Intent.ACTION_TIME_CHANGED); addAction(Intent.ACTION_TIMEZONE_CHANGED) }
         if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(dateReceiver, dateFilter, RECEIVER_NOT_EXPORTED)
         else registerReceiver(dateReceiver, dateFilter)
-        if (android.os.Build.VERSION.SDK_INT >= 34) registerReceiver(profileReceiver,
-            android.content.IntentFilter(Intent.ACTION_PROFILE_AVAILABLE).apply { addAction(Intent.ACTION_PROFILE_UNAVAILABLE) }, RECEIVER_NOT_EXPORTED)
+        // 34 and later report every kind of profile; before that only the work profile's own broadcasts exist.
+        val profileFilter = android.content.IntentFilter(Intent.ACTION_MANAGED_PROFILE_ADDED).apply {
+            addAction(Intent.ACTION_MANAGED_PROFILE_REMOVED)
+            if (android.os.Build.VERSION.SDK_INT >= 34) { addAction(Intent.ACTION_PROFILE_AVAILABLE); addAction(Intent.ACTION_PROFILE_UNAVAILABLE) }
+            else { addAction(Intent.ACTION_MANAGED_PROFILE_AVAILABLE); addAction(Intent.ACTION_MANAGED_PROFILE_UNAVAILABLE) }
+        }
+        if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(profileReceiver, profileFilter, RECEIVER_NOT_EXPORTED)
+        else registerReceiver(profileReceiver, profileFilter)
         BadgeService.onChange = { pkgs -> runOnUiThread { if (pkgs.isNotEmpty()) { updateBadges(pkgs); drawer.refreshBadges() }; updateGlance() } }
         // Rotation recreates the activity: stay on the page the user was on.
         savedInstanceState?.getInt("page", -1)?.takeIf { it in 0 until looks.pages }?.let { workspace.snapTo(it, animate = false) }
@@ -188,7 +205,7 @@ class MainActivity : VulcanActivity() {
         val page = workspace.current
         depthAnim?.cancel()
         // Everything below belongs to the old views; none of it is shown again.
-        overlay = null; overlayClosed = {}; overlayExit = null; refillFolder = null; homeMenus.menu = null
+        overlay = null; overlayClosed = {}; overlayExit = null; refillFolder = null; depth = 0f; homeMenus.menu = null
         drag.reset()
         badgeIcons.clear(); widgetFlow.keepViews(emptySet()) // build() reloads the apps, which drops the cached icons
         build()
@@ -230,9 +247,12 @@ class MainActivity : VulcanActivity() {
         // Likewise swipe right on the first page pulls the Now page in under the finger.
         if (looks.str("g_swipeRight") == "now") workspace.onEdgePull = ::pullNow
         drag.dropBar = dropBar()
+        // The window keeps a root's listener after the root is replaced: without this each rebuild added one more.
+        listening?.viewTreeObserver?.removeOnGlobalLayoutListener(coverDockListener)
         root = homeRoot()
+        listening = root
         setContentView(root)
-        root.viewTreeObserver.addOnGlobalLayoutListener(::coverDock)
+        root.viewTreeObserver.addOnGlobalLayoutListener(coverDockListener)
         render()
         showWelcome()
     }
@@ -435,8 +455,9 @@ class MainActivity : VulcanActivity() {
         if (!::launcherApps.isInitialized) return // handed off to home in onCreate
         launcherApps.unregisterCallback(appsCallback)
         unregisterReceiver(dateReceiver)
-        if (android.os.Build.VERSION.SDK_INT >= 34) unregisterReceiver(profileReceiver)
-        BadgeService.onChange = {}
+        unregisterReceiver(profileReceiver)
+        // A copy left over from before Vulcan became the home app must not take the live one's badge updates away.
+        if (running?.get() === this) BadgeService.onChange = {}
         homeMenus.torchWatch?.let { getSystemService(android.hardware.camera2.CameraManager::class.java).unregisterTorchCallback(it) }
     }
 
@@ -448,7 +469,8 @@ class MainActivity : VulcanActivity() {
 
     override fun onStop() {
         super.onStop()
-        host.stopListening()
+        // Stops the host id for the whole process: only the live copy may (see onDestroy).
+        if (running?.get() === this) host.stopListening()
         if (drawer.closeOnStop) { drawer.closeOnStop = false; drawer.hide(animate = false) }
         // Daily automatic backup, kept privately on the device and offered in Backup & restore.
         // Once a day (not on every stop) so a reset or bad change can't overwrite the last good copy straight away.
@@ -644,11 +666,15 @@ class MainActivity : VulcanActivity() {
     }
 
     /** Private Space (or a work profile) locked, unlocked, paused or resumed. */
+    private val coverDockListener = android.view.ViewTreeObserver.OnGlobalLayoutListener { coverDock() }
+    /** The root [coverDockListener] is on. */
+    private var listening: View? = null
+
     private val profileReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(c: android.content.Context, i: Intent) {
             repo.loadApps(); drawer.invalidate(); render()
             // ponytail: a resumed profile answers shortcut queries only a moment later, with no callback; listen for user unlock if 2 s proves short.
-            if (i.action == Intent.ACTION_PROFILE_AVAILABLE) window.decorView.postDelayed(::render, 2000)
+            if (i.action == Intent.ACTION_PROFILE_AVAILABLE || i.action == Intent.ACTION_MANAGED_PROFILE_AVAILABLE) window.decorView.postDelayed(::render, 2000)
         }
     }
 
@@ -689,7 +715,9 @@ class MainActivity : VulcanActivity() {
     // ponytail: runs when a shortcut is picked, placed or removed, not when a gesture is cleared, so that one stays pinned until the next sync
     fun syncPins(pkg: String, user: Long, also: String? = null) {
         val ids = pinsByApp(items, settingActions())[pkg to user].orEmpty() + listOfNotNull(also)
-        runCatching { launcherApps.pinShortcuts(pkg, ids.distinct(), repo.userOf(user)) }
+        // A profile that's gone: userOf would fall back to the personal one, and pinning there unpins that app's own shortcuts.
+        val u = um.getUserForSerialNumber(user) ?: return
+        runCatching { launcherApps.pinShortcuts(pkg, ids.distinct(), u) }
     }
 
     // ---- Home screen ----
@@ -754,7 +782,7 @@ class MainActivity : VulcanActivity() {
         if (item.isWidgetSlot) return widgetFlow.widgetSlotView(item)
         if (item.isClock) return clockView()
         val (label, icon) = resolve(item) ?: return null
-        val key = if (item.folder) item.children.joinToString("|") { it.pkg } else item.pkg
+        val key = if (item.folder) item.children.joinToString("|") { repo.badgeKey(it.pkg, it.user) } else repo.badgeKey(item.pkg, item.user)
         return IconView(this, label, icon, style, badgeStyle(), key).apply {
             contentDescription = label
             setOnClickListener { open(item, it) }
@@ -785,7 +813,9 @@ class MainActivity : VulcanActivity() {
         sheet().setTitle(R.string.move_to_page).setItems(Array(pages.size) { getString(R.string.page_n, it + 1) }) { _, p ->
             val spot = firstFreeSpot(items.filter { it != item && !isDock(it.page) }, looks.pages, looks.cols * sub, looks.rows * sub, item.w, item.h, p)
             if (spot == null) { toast(R.string.no_room); return@setItems }
-            items[items.indexOf(item)] = item.copy(page = spot.page, x = spot.x, y = spot.y)
+            val i = items.indexOf(item)
+            if (i < 0) return@setItems // gone while the list was open
+            items[i] = item.copy(page = spot.page, x = spot.x, y = spot.y)
             save()
             render()
             workspace.snapTo(spot.page)
@@ -822,7 +852,7 @@ class MainActivity : VulcanActivity() {
     })
 
     fun removeItem(item: Item) {
-        items.remove(item)
+        if (!items.remove(item)) return // a second tap on Remove while the menu fades
         save()
         showUndo(item) {
             item.widgetIds.forEach(host::deleteAppWidgetId)
@@ -880,7 +910,7 @@ class MainActivity : VulcanActivity() {
         }
         store.data.edit().remove(REPIN_SHORTCUTS).apply()
         pinsByApp(store.load(looks.sub), settingActions()).forEach { (key, ids) ->
-            runCatching { launcherApps.pinShortcuts(key.first, ids, repo.userOf(key.second)) }
+            um.getUserForSerialNumber(key.second)?.let { u -> runCatching { launcherApps.pinShortcuts(key.first, ids, u) } }
         }
     }
 

@@ -92,7 +92,7 @@ fun MainActivity.editItem(item: Item, swipes: Boolean = true, replace: (Item) ->
     editDialog(getString(if (item.folder) R.string.edit_folder else R.string.edit), item.label, default, item.icon, item.swipe.takeIf { swipes },
         { ic -> resolve(item.copy(icon = ic))?.second }, item.folder, own) { l, ic, sw ->
         if (own.isNotEmpty() && ic == own) repo.customs.optJSONObject(item.appKey)?.takeIf { it.optString("icon").isNotEmpty() }?.let {
-            it.put("icon", ""); store.putObj("custom", repo.customs); repo.loadApps(listOf(item.pkg))
+            it.put("icon", ""); store.putObj("custom", repo.customs); repo.loadApps(listOf(item.pkg)); drawer.refresh()
         }
         replace(item.copy(label = if (item.folder) l.ifEmpty { getString(R.string.folder) } else l, icon = if (ic == own) "" else ic, swipe = if (swipes) sw else item.swipe))
     }

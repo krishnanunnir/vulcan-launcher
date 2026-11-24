@@ -26,31 +26,33 @@ fun addPinned(activity: Activity, req: LauncherApps.PinItemRequest): Boolean {
     val sub = looks.sub
     val items = store.load(sub)
     val serial = { h: android.os.UserHandle -> activity.getSystemService(UserManager::class.java).getSerialNumberForUser(h) }
-    val item = when (req.requestType) {
-        LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT -> {
-            val s = req.shortcutInfo ?: return false
-            if (!req.accept()) return false
-            Item(0, 0, 0, sub, sub, pkg = s.`package`, shortcutId = s.id, user = serial(s.userHandle), label = s.shortLabel?.toString() ?: "")
-        }
+    val (w, h) = when (req.requestType) {
+        LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT -> sub to sub
         LauncherApps.PinItemRequest.REQUEST_TYPE_APPWIDGET -> {
             val info = req.getAppWidgetProviderInfo(activity) ?: return false
-            val id = AppWidgetHost(activity, MainActivity.HOST_ID).allocateAppWidgetId()
-            if (!req.accept(Bundle().apply { putInt(AppWidgetManager.EXTRA_APPWIDGET_ID, id) })) return false
             // ponytail: cell size estimated from the screen width, exact once the widget is resized
             val cell = activity.resources.displayMetrics.widthPixels / looks.cols.toFloat()
             val t = info.targetCells()
-            val w = (t?.first ?: ceil(info.minWidth / cell).toInt()).coerceIn(1, looks.cols) * sub
-            val h = (t?.second ?: ceil(info.minHeight / cell).toInt()).coerceIn(1, looks.rows) * sub
-            Item(0, 0, 0, w, h, widgetId = id)
+            (t?.first ?: ceil(info.minWidth / cell).toInt()).coerceIn(1, looks.cols) * sub to
+                (t?.second ?: ceil(info.minHeight / cell).toInt()).coerceIn(1, looks.rows) * sub
         }
         else -> return false
     }
-    val spot = firstFreeSpot(items, looks.pages, looks.cols * sub, looks.rows * sub, item.w, item.h)
+    // Room first: accepting tells the other app it was added, and Android pins it, whether or not it then fits.
+    val spot = firstFreeSpot(items, looks.pages, looks.cols * sub, looks.rows * sub, w, h)
     if (spot == null) {
         Toast.makeText(activity, R.string.no_room, Toast.LENGTH_SHORT).show()
         return false
     }
-    items += item.copy(page = spot.page, x = spot.x, y = spot.y)
+    items += if (req.requestType == LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT) {
+        val s = req.shortcutInfo ?: return false
+        if (!req.accept()) return false
+        Item(spot.page, spot.x, spot.y, w, h, pkg = s.`package`, shortcutId = s.id, user = serial(s.userHandle), label = s.shortLabel?.toString() ?: "")
+    } else {
+        val id = AppWidgetHost(activity, MainActivity.HOST_ID).allocateAppWidgetId()
+        if (!req.accept(Bundle().apply { putInt(AppWidgetManager.EXTRA_APPWIDGET_ID, id) })) return false
+        Item(spot.page, spot.x, spot.y, w, h, widgetId = id)
+    }
     store.save(items, sub)
     Toast.makeText(activity, R.string.added_to_home, Toast.LENGTH_SHORT).show()
     return true

@@ -515,7 +515,11 @@ class ResizeFrame(
 // Finalize is skipped if the activity is destroyed within the 2.5 s; the next start frees that widget ID (MainActivity.onCreate).
 fun MainActivity.showUndo(item: Item, finalize: () -> Unit) {
     if (!looks.on("undoBar")) { finalize(); return }
-    snackbar(getString(R.string.item_removed), onTimeout = finalize) { items += item; save(); render() }
+    snackbar(getString(R.string.item_removed), onTimeout = finalize) {
+        // Its cells may have been taken in the meantime: it then goes to the first free spot.
+        if (items.any { it.page == item.page && overlaps(item.x, item.y, item.w, item.h, it.x, it.y, it.w, it.h) }) addItem(item, quiet = true)
+        else { items += item; save(); render() }
+    }
 }
 
 /** An M3 snackbar with Undo, just above the navigation bar, for [millis]; [onTimeout] runs if it wasn't undone. */

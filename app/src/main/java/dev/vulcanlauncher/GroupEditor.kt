@@ -139,7 +139,10 @@ fun VulcanActivity.hideAppsMenu() = appSwitches(getString(R.string.hide_apps), s
 // ---- Drawer groups (tabs and folders) ----
 
 fun VulcanActivity.saveGroups(groups: List<Group>) {
-    store.data.edit().putString("groups", groupsToJson(groups)).apply()
+    fun tabs(l: List<Group>) = l.filter { it.type == "tab" }.map { it.name }
+    val at = store.data.workAt()
+    val newAt = workAtAfter(tabs(home.drawer.groups()), tabs(groups), at)
+    store.data.edit().putString("groups", groupsToJson(groups)).apply { if (newAt != at) putInt(WORK_AT, newAt) }.apply()
     home.drawer.refresh()
     (this as? SettingsActivity)?.takeIf { it.page == TABS_GROUP || it.page == DRAWER_FOLDERS }?.refresh()
 }
@@ -460,7 +463,7 @@ fun VulcanActivity.askName(title: String, current: String, onName: (String) -> U
 
 private fun SettingsActivity.newGroup(type: String) = askName(getString(if (type == "tab") R.string.new_tab else R.string.new_folder), "") { name ->
     val groups = home.drawer.groups()
-    if (groups.any { it.name == name }) { toast(getString(R.string.group_exists)); return@askName }
+    if (nameTaken(groups, name)) { toast(getString(R.string.group_exists)); return@askName }
     chooseApps(name, emptyList(), groups, name) { apps, rest -> saveGroups(rest + Group(name, type, apps)) }
 }
 
@@ -491,7 +494,23 @@ fun VulcanActivity.editGroup(g: Group) {
     var color = g.color
     var deleted = false
     lateinit var d: android.app.AlertDialog
-    fun current() = home.drawer.groups().firstOrNull { it.name == g.name }
+    /** The group's name now: the typed one once [keep] has saved it. */
+    var now = g.name
+    fun current() = home.drawer.groups().firstOrNull { it.name == now }
+    /** Saves the typed name and the colour. Run before anything else reads the groups, and when the sheet closes. */
+    fun keep() {
+        if (deleted) return
+        val groups = home.drawer.groups()
+        val cur = groups.firstOrNull { it.name == now } ?: return
+        val typed = name.text.toString().trim()
+        val newName = when {
+            typed.isEmpty() || typed == cur.name -> cur.name
+            nameTaken(groups, typed) -> { toast(getString(R.string.group_exists)); cur.name }
+            else -> typed
+        }
+        if (newName != cur.name || color != cur.color) saveGroups(groups.map { if (it.name == now) it.copy(name = newName, color = color) else it })
+        now = newName
+    }
     val box = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setPadding((16 * dp).toInt(), (20 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt())
@@ -504,10 +523,10 @@ fun VulcanActivity.editGroup(g: Group) {
     })
     val rows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = rounded(m3.surfaceHighest, 18 * dp); clipToOutline = true }
     rows.addView(listItem(symbol("apps"), getString(R.string.choose_apps), appNames(g.apps).ifEmpty { null }) {
-        d.dismiss()
-        chooseApps(g.name, g.apps, home.drawer.groups(), g.name) { apps, rest -> saveGroups(rest.map { if (it.name == g.name) it.copy(apps = apps) else it }) }
+        d.dismiss(); keep()
+        chooseApps(now, g.apps, home.drawer.groups(), now) { apps, rest -> saveGroups(rest.map { if (it.name == now) it.copy(apps = apps) else it }) }
     })
-    if (g.type == "tab") rows.addView(listItem(symbol("drag"), getString(R.string.arrange_apps)) { d.dismiss(); arrangeTab(g.name, g.apps) })
+    if (g.type == "tab") rows.addView(listItem(symbol("drag"), getString(R.string.arrange_apps)) { d.dismiss(); keep(); arrangeTab(now, g.apps) })
     // A tab's own colour, as Nova's: it marks the tab while it's selected (Drawer.buildTabs). No setting of its own (#49).
     // It opens the same colour sheet as every other colour, with the tab bar as its sample; saved when this sheet closes.
     if (g.type == "tab") {
@@ -548,18 +567,7 @@ fun VulcanActivity.editGroup(g: Group) {
     })
     d = sheet().setView(ScrollView(this).apply { addView(box) }).create()
     // Closing the sheet any way keeps the new name and colour.
-    d.setOnDismissListener {
-        if (deleted) return@setOnDismissListener
-        val groups = home.drawer.groups()
-        val cur = groups.firstOrNull { it.name == g.name } ?: return@setOnDismissListener
-        val typed = name.text.toString().trim()
-        val newName = when {
-            typed.isEmpty() || typed == cur.name -> cur.name
-            groups.any { it.name == typed } -> { toast(getString(R.string.group_exists)); cur.name }
-            else -> typed
-        }
-        if (newName != cur.name || color != cur.color) saveGroups(groups.map { if (it.name == g.name) it.copy(name = newName, color = color) else it })
-    }
+    d.setOnDismissListener { keep() }
     d.show()
 }
 
@@ -615,7 +623,7 @@ fun VulcanActivity.addToGroup(key: String) {
         .setNegativeButton(R.string.cancel, null)
         .setNeutralButton(R.string.new_folder) { _, _ -> askName(getString(R.string.new_folder), "") {
             // Groups are found by name: a second one of the same name would be edited and deleted along with the first.
-            if (groups.any { g -> g.name == it }) toast(R.string.group_exists) else save(listOf(Group(it, "folder", listOf(key))))
+            if (nameTaken(groups, it)) toast(R.string.group_exists) else save(listOf(Group(it, "folder", listOf(key))))
         } }
         .show()
 }
@@ -687,7 +695,9 @@ private fun SettingsActivity.smartCategories(): Map<String, List<String>> {
         role(ApplicationInfo.CATEGORY_IMAGE, main(Intent.CATEGORY_APP_GALLERY), Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE))
         ).reversed().toMap() // the first role listed wins
     val names = mapOf(CAT_FINANCE to R.string.cat_finance, CAT_SHOPPING to R.string.cat_shopping, CAT_HEALTH to R.string.cat_health, CAT_TOOLS to R.string.cat_tools)
-    @Suppress("DEPRECATION") val byName = home.repo.apps.values.mapNotNull { a ->
+    // Hidden and Private Space apps stay out of suggested folders, as they do out of All apps.
+    val hidden = store.strings("hidden")
+    @Suppress("DEPRECATION") val byName = home.repo.apps.values.filter { it.key !in hidden && !home.repo.isPrivate(it) }.mapNotNull { a ->
         val ai = a.info.applicationInfo
         val cat = smartCategory(ai.category, ai.flags and ApplicationInfo.FLAG_IS_GAME != 0, roles[a.pkg], a.pkg, a.title,
             ai.flags and ApplicationInfo.FLAG_SYSTEM != 0) ?: return@mapNotNull null

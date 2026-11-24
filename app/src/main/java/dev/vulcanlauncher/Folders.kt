@@ -432,7 +432,7 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         order = MutableList(list.size) { null }
         list.forEachIndexed { i, c ->
             val (label, icon) = resolve(c) ?: return@forEachIndexed
-            cell.addView(IconView(this, label, icon, style, badgeStyle(), c.pkg).also { order[i] = it }.apply {
+            cell.addView(IconView(this, label, icon, style, badgeStyle(), repo.badgeKey(c.pkg, c.user)).also { order[i] = it }.apply {
                 layoutParams = CellLayout.CellParams(i % cols, i / cols, 1, 1)
                 if (looks.str("badges") != "off") badge(image, c.pkg)
                 // The flashlight keeps the folder open, so the same tap turns it off again (#103).
@@ -497,7 +497,12 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
                 root.tick()
             }
             // Only the view that took the drop hears ENDED.
-            DragEvent.ACTION_DRAG_ENDED -> { root.removeCallbacks(shuffle); stay(); gap = -1; drag.dragEnded() }
+            DragEvent.ACTION_DRAG_ENDED -> {
+                root.removeCallbacks(shuffle); stay()
+                // Released off the grid (on the name, say): the icons shuffled on the way go back to the saved order.
+                if (!e.result && gap >= 0 && gap != from && cell.isAttachedToWindow) fill(reorder(from, from))
+                gap = -1; drag.dragEnded()
+            }
         }
         true
     }
