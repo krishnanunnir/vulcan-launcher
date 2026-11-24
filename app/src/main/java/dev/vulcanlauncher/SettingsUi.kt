@@ -761,7 +761,7 @@ private fun SettingsActivity.backupPage(list: LinearLayout) {
             dialog().setMessage(getString(R.string.restore_auto_confirm, saved))
                 .setPositiveButton(R.string.restore) { _, _ ->
                     runCatching { store.import(f.readText(), home.repo::mainActivity) }
-                        .onSuccess { if (it.replacedLayout) home.widgetFlow.dropForeignWidgets(); home.repinShortcuts(); restartHome() }
+                        .onSuccess { if (it.replacedLayout) { home.widgetFlow.dropForeignWidgets(); toastMissing() }; home.repinShortcuts(); restartHome() }
                         .onFailure { toast(getString(R.string.restore_failed, it.message)) }
                 }.setNegativeButton(R.string.cancel, null).show()
         }
@@ -783,13 +783,19 @@ private fun SettingsActivity.backupPage(list: LinearLayout) {
     }))
 }
 
+/** Says how many restored icons home is about to drop because their apps aren't installed; the backup file still has them. */
+fun VulcanActivity.toastMissing() {
+    val n = missingApps(store.load(looks.sub), home.repo::uninstalled)
+    if (n > 0) toast(resources.getQuantityString(R.plurals.restore_missing, n, n))
+}
+
 /** Restores a backup or applies an older style file, then [restart] rebuilds home. */
 fun VulcanActivity.restoreBackup(uri: android.net.Uri, restart: () -> Unit) {
     runCatching { store.import(contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() }, home.repo::mainActivity) }
         .onSuccess { result ->
             if (result.rejected.isNotEmpty()) toast(R.string.skipped_settings, result.rejected.joinToString())
             // Widget IDs belong to the install that made them; drop the ones this install doesn't own.
-            if (result.replacedLayout) home.widgetFlow.dropForeignWidgets()
+            if (result.replacedLayout) { home.widgetFlow.dropForeignWidgets(); toastMissing() }
             // Android opens a shortcut only for the launcher that pinned it: after a fresh install, none are.
             home.repinShortcuts()
             restart()

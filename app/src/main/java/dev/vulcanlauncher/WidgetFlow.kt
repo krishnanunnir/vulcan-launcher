@@ -259,10 +259,11 @@ class WidgetFlow(private val a: MainActivity) {
     private fun addWidget(info: AppWidgetProviderInfo) {
         val id = a.host.allocateAppWidgetId()
         pendingWidget = id to info
-        if (a.awm.bindAppWidgetIdIfAllowed(id, info.provider)) configureWidget()
+        if (a.awm.bindAppWidgetIdIfAllowed(id, info.profile, info.provider, null)) configureWidget()
         else a.startActivityForResult(Intent(AppWidgetManager.ACTION_APPWIDGET_BIND)
             .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
-            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, info.provider), MainActivity.REQ_BIND)
+            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, info.provider)
+            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER_PROFILE, info.profile), MainActivity.REQ_BIND)
     }
 
     fun configureWidget() {

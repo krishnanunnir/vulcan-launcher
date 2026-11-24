@@ -85,12 +85,17 @@ private fun itemList(a: JSONArray) = (0 until a.length()).mapNotNull { runCatchi
 /** [items] without the apps and shortcuts of an uninstalled package. A folder left with one item turns back into it. */
 fun removePackage(items: List<Item>, pkg: String, user: Long) = removeApps(items) { it.pkg == pkg && it.user == user }
 
+private fun goneApp(i: Item, gone: (Item) -> Boolean) = i.pkg.isNotEmpty() && !i.isWidget && !i.isWidgetSlot && !i.folder && gone(i)
+
+/** How many icons [removeApps] would take out, folder entries included: what a restore reports as left out. */
+fun missingApps(items: List<Item>, gone: (Item) -> Boolean) = items.sumOf { f -> (f.children + f).count { goneApp(it, gone) } }
+
 /**
  * [items] without the apps, shortcuts and activities [gone] picks. Widgets, widget spots and folders are never passed to
  * it: a widget's package may have no app Vulcan can see, so it would look uninstalled.
  */
 fun removeApps(items: List<Item>, gone: (Item) -> Boolean): List<Item> {
-    fun g(i: Item) = i.pkg.isNotEmpty() && !i.isWidget && !i.isWidgetSlot && !i.folder && gone(i)
+    fun g(i: Item) = goneApp(i, gone)
     return items.filterNot(::g).mapNotNull { f ->
         val rest = f.children.filterNot(::g)
         when {

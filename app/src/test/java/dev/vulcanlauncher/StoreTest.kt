@@ -74,6 +74,8 @@ class StoreTest {
             removeApps(listOf(gone, kept, action, widget, folder)) { asked += it; it.pkg == "x" })
         // Never asked about widgets, folders or items without a package.
         assertEquals(listOf(gone, kept, gone, kept), asked)
+        // A restore reports the same icons: the one on home and the one in the folder.
+        assertEquals(2, missingApps(listOf(gone, kept, action, widget, folder)) { it.pkg == "x" })
     }
 
     @Test

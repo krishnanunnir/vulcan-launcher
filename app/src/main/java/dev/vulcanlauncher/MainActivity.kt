@@ -629,7 +629,10 @@ class MainActivity : VulcanActivity() {
         override fun onPackageAdded(pkg: String, user: UserHandle) {
             reloadItems()
             reload(listOf(pkg))
-            if (looks.on("autoAdd")) repo.activities(pkg, user).forEach { addToHome(it, quiet = true) }
+            // Not twice: a second MainActivity, or an app that was removed and came back, already has its icon.
+            if (looks.on("autoAdd")) repo.activities(pkg, user)
+                .filter { app -> items.none { i -> (i.children + i).any { it.pkg == app.pkg && it.cls == app.cls && it.user == app.serial } } }
+                .forEach { addToHome(it, quiet = true) }
         }
         // Uninstalled (an update is onPackageChanged): its icons go too, or they'd hold their cells invisibly. The
         // system has already deleted its widgets.

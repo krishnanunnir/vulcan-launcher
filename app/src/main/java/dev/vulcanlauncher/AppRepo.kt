@@ -112,6 +112,8 @@ class AppRepo(private val context: Context, private val store: Store, private va
     fun uninstalled(item: Item): Boolean {
         if (apps.values.any { it.pkg == item.pkg && it.serial == item.user }) return false
         val user = um.getUserForSerialNumber(item.user) ?: return true
+        // A profile Vulcan can't ask about (Private Space while another launcher is the default home) answers "not found" for everything.
+        if (user !in launcherApps.profiles || um.isQuietModeEnabled(user) || !um.isUserUnlocked(user)) return false
         return try {
             val info = launcherApps.getApplicationInfo(item.pkg, PackageManager.MATCH_UNINSTALLED_PACKAGES, user)
             info != null && info.flags and android.content.pm.ApplicationInfo.FLAG_INSTALLED == 0

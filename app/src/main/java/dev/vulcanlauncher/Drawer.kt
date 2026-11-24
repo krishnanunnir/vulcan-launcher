@@ -923,7 +923,8 @@ class Drawer(private val a: MainActivity) {
         private var sections = arrayOf<String>()
 
         override fun notifyDataSetChanged() {
-            sections = entries.map(::letter).distinct().toTypedArray()
+            // Only the name orders have letters to scroll by: in any other they'd come out of order and repeat.
+            sections = if (a.looks.str("drawerSort") in setOf("az", "za")) entries.map(::letter).distinct().toTypedArray() else arrayOf()
             super.notifyDataSetChanged()
         }
         // Stacked from the bottom, GridView right-aligns the short row; padding to whole rows keeps results reading left to right.
