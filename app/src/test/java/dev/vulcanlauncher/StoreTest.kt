@@ -100,6 +100,22 @@ class StoreTest {
     }
 
     @Test
+    fun unreadableLayoutFallsBackToABackupOfEitherFormat() {
+        val items = listOf(Item(0, 2, 4, pkg = "a", cls = "A"), Item(-1, 0, 0, pkg = "b", cls = "B"))
+        // What export() writes to files/auto-backup.json today.
+        val now = readableBackup(emptyMap(), items, 2, emptyMap(), emptyList()) { "s$it" }
+        val l = backupLayout(org.json.JSONObject(now.toString()))
+        assertEquals(items, itemsFromJson(l.getValue("items")))
+        assertEquals("2", l["sub"])
+        // The format before it: the preference files as they were, the subgrid factor in the settings.
+        val old = org.json.JSONObject().put("format", "vulcan-backup-1")
+            .put("layout", org.json.JSONObject().put("items", itemsToJson(items))).put("looks", org.json.JSONObject().put("subgrid", "on"))
+        assertEquals(mapOf("items" to itemsToJson(items), "sub" to "2"), backupLayout(old))
+        // A settings-only style file holds no layout: the next backup is tried, home isn't taken as empty.
+        assertThrows(NoSuchElementException::class.java) { backupLayout(org.json.JSONObject("""{"format":"vulcan-backup-2","settings":{}}""")) }
+    }
+
+    @Test
     fun handWrittenBackupIsChecked() {
         val json = """{"format":"vulcan-backup-2","settings":{"cols":"100","labels":false,"labelColor":"#80FF8800","g_doubleTap":"lock",
             "g_swipeDown":"page:2","accent":"#12","iconPack":"x.pack"},"home":{"items":[{"page":0,"x":0,"y":0,"pkg":"chrome"},

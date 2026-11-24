@@ -144,11 +144,8 @@ class Store(private val context: Context) {
         runCatching { return layoutIn(itemsFromJson(raw), saved, sub).toMutableList() }
         runCatching { File(context.filesDir, "layout-unreadable.json").writeText(raw) }
         for (f in autoBackups) runCatching {
-            val b = JSONObject(f.readText())
-            val layout = b.getJSONObject("layout")
-            // A backup from before version 2 is in the subgrid factor of the settings saved with it.
-            val saved = layout.optString("sub").toIntOrNull() ?: if (b.optJSONObject("looks")?.optString("subgrid") == "on") 2 else 1
-            return layoutIn(itemsFromJson(layout.getString("items")), saved, sub).toMutableList()
+            val l = backupLayout(JSONObject(f.readText()))
+            return layoutIn(itemsFromJson(l.getValue("items")), l["sub"]?.toIntOrNull()?.takeIf { it == 1 || it == 2 }, sub).toMutableList()
         }
         return mutableListOf()
     }
@@ -269,6 +266,15 @@ fun readableBackup(looks: Map<String, String>, items: List<Item>, sub: Int, data
         .put("installedApps", JSONArray(apps.sortedWith(compareBy(labelOrder()) { it.first.first }).map { (a, user) ->
             JSONObject().put("label", a.first).put("pkg", a.second).put("cls", a.third).apply { if (user != 0L) put("user", user) }
         })))
+
+/** The `layout` preferences ("items", "sub") held in backup [root], whichever format it is in. Throws when it has no layout. */
+fun backupLayout(root: JSONObject): Map<String, String> {
+    if (root.optString("format") == "vulcan-backup-2") return readableBackupFiles(root) { _, _ -> null }.first.getValue("layout")
+    val layout = root.getJSONObject("layout")
+    // A backup from before version 2 is in the subgrid factor of the settings saved with it.
+    val sub = layout.optString("sub").toIntOrNull() ?: if (root.optJSONObject("looks")?.optString("subgrid") == "on") 2 else 1
+    return mapOf("items" to layout.getString("items"), "sub" to sub.toString())
+}
 
 /**
  * The preference files a readable backup restores to, and the "key=value" settings left out because the value isn't

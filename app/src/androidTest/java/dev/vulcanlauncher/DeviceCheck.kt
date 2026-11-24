@@ -158,7 +158,11 @@ class DeviceCheck : Instrumentation() {
             log.append("ERROR ${e.stackTraceToString()}\n")
         } finally {
             looks.edit().clear().apply { saved.forEach { (k, v) -> putString(k, v.toString()) } }.commit()
-            savedItems?.let { items -> runOnMainSync { a.items = items.toMutableList(); a.save() } }
+            // commit(), not a.save(): save() is apply(), and finish() kills the process before that write reaches the disk.
+            savedItems?.let { items ->
+                runOnMainSync { a.items = items.toMutableList() }
+                targetContext.getSharedPreferences("layout", Context.MODE_PRIVATE).edit().putString("items", itemsToJson(items)).commit()
+            }
             if (::a.isInitialized) runOnMainSync { a.recreate() }
         }
         finish(if (failures == 0) Activity.RESULT_OK else Activity.RESULT_CANCELED, Bundle().apply { putString("stream", log.toString()) })
