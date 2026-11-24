@@ -221,7 +221,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 check("#27",passes==10,"$passes/10 icon swipe actions reached page 3"); shot("27-swipe-result")
             }
             case("#18 #1/widgets") {
-                setup(); ui { a.pickWidget() }; settle(); shot("18-widget-picker")
+                setup(); ui { a.widgetFlow.pickWidget() }; settle(); shot("18-widget-picker")
                 // One row per app (title, "N widgets"), A to Z; opening one shows its widgets under it, A to Z.
                 val d=dialogs().last(); val list=all(d.window!!.decorView).filterIsInstance<android.widget.ScrollView>().mapNotNull { it.getChildAt(0) as? LinearLayout }.maxBy { it.childCount }
                 fun texts(v: View)=all(v).filterIsInstance<TextView>().map { it.text.toString() }

@@ -64,7 +64,7 @@ fun nowCardSteps(dp: Float, minDp: Int) = maxOf((dp / NOW_CARD_STEP).roundToInt(
 /** Adds a card of apps picked from a list, or of a widget (through the widget picker, see placeWidget). */
 fun MainActivity.addNowCard() {
     sheet().setTitle(R.string.now_add_card).setItems(arrayOf(getString(R.string.now_card_apps), getString(R.string.now_card_widget))) { _, which ->
-        if (which == 1) { pickWidget(toNow = true); return@setItems }
+        if (which == 1) { widgetFlow.pickWidget(toNow = true); return@setItems }
         // As Nova's new drawer tab: name it, then tick its apps in the same list (icons, search) drawer groups use.
         askName(getString(R.string.now_card_apps), "") { name ->
             appSwitches(name, emptyList()) { keys ->
@@ -245,7 +245,7 @@ fun MainActivity.showNow(slide: Boolean = true) {
         }
         if (c.isWidget) {
             val info = awm.getAppWidgetInfo(c.widgetId) ?: return null
-            val frame = widgetView(c) ?: return null
+            val frame = widgetFlow.widgetView(c) ?: return null
             frame.layoutParams = LinearLayout.LayoutParams(-1, if (c.h > 1) (c.h * NOW_CARD_STEP * dp).toInt() else maxOf(info.minHeight, (64 * dp).toInt()))
             return card(info.loadLabel(packageManager), frame, remove) { resizeNowCard(c, info, frame) }
         }
