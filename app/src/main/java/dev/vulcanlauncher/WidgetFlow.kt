@@ -73,14 +73,20 @@ class WidgetFlow(private val a: MainActivity) {
         }
     }
 
-    /** The view that draws a widget's card: the one marked as its background, else the first view down with a background. */
+    /**
+     * The view that draws a widget's card: the one marked as its background, else the first view down with a background.
+     * Only children that take up space count: Glance pads its views with hidden stubs and zero-width sizers (#109).
+     */
     private fun widgetBackground(hv: ViewGroup): View? {
         val marked = ArrayList<View>()
         fun walk(v: View) { if (v.id == android.R.id.background) marked += v; (v as? ViewGroup)?.let { g -> repeat(g.childCount) { walk(g.getChildAt(it)) } } }
         walk(hv)
         if (marked.size == 1) return marked[0]
         var v = hv.getChildAt(0) ?: return null
-        while (v.background == null && v is ViewGroup && v.childCount == 1) v = v.getChildAt(0)
+        while (v.background == null && v is ViewGroup) {
+            val g: ViewGroup = v
+            v = (0 until g.childCount).map(g::getChildAt).singleOrNull { it.visibility == View.VISIBLE && it.width > 0 && it.height > 0 } ?: break
+        }
         return v
     }
 
