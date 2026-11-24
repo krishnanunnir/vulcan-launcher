@@ -4,10 +4,10 @@
 
 # Vulcan
 
-**A home screen for Android that does what Nova Launcher does, without ads, trackers or analytics.**<br>
-It has no internet access at all, so nothing it does can leave your phone.
+**A full launcher in half a megabyte.**<br>
+Grids, gestures, icon packs, widgets and smart search, with no libraries and no internet access.
 
-### A fully customizable launcher under 350 KB.
+### 0.5 MB download · 0 third-party libraries · 0 network permissions
 
 [![Latest release](https://img.shields.io/github/v/release/krishnanunnir/vulcan-launcher?label=release&color=E8721C)](https://github.com/krishnanunnir/vulcan-launcher/releases/latest)
 [![Android 8+](https://img.shields.io/badge/Android-8%2B-4E8F3A?logo=android&logoColor=white)](docs/GUIDE.md#install)

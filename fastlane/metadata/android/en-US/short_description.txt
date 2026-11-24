@@ -1,1 +1,1 @@
-A full-featured home screen with no internet access, ads or trackers
+A full home screen in half a megabyte, with no internet access or trackers
