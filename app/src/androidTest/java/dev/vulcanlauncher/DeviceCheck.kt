@@ -44,7 +44,7 @@ class DeviceCheck : Instrumentation() {
      */
     private fun readableCheck() {
         a = launch()
-        val original = a.store.export(a.apps.values.toList())
+        val original = a.store.export(a.repo.apps.values.toList())
         try {
             val doc = org.json.JSONObject(original)
             expect("format 2", doc.getString("format") == "vulcan-backup-2")
@@ -54,7 +54,7 @@ class DeviceCheck : Instrumentation() {
                 "home":{"items":[{"page":0,"x":0,"y":0,"pkg":"com.android.chrome"},
                 {"page":0,"x":1,"y":0,"folder":true,"label":"Google","children":[{"page":0,"x":0,"y":0,"pkg":"com.google.android.gm"},{"page":0,"x":0,"y":0,"pkg":"com.google.android.apps.maps"}]},
                 {"page":-1,"x":0,"y":0,"pkg":"com.google.android.dialer"},{"page":0,"x":4,"y":5,"action":"lock","label":"Lock"}]}}"""
-            val rejected = a.store.import(ai, a::mainActivity)
+            val rejected = a.store.import(ai, a.repo::mainActivity)
             expect("rejected $rejected", rejected.rejected.toSet() == setOf("rows=100", "accent=blue"))
             runOnMainSync { a.recreate() }
             SystemClock.sleep(2500)
@@ -73,7 +73,7 @@ class DeviceCheck : Instrumentation() {
             failures++
             log.append("ERROR ${e.stackTraceToString()}\n")
         } finally {
-            runCatching { a.store.import(original, a::mainActivity); runOnMainSync { a.recreate() } }
+            runCatching { a.store.import(original, a.repo::mainActivity); runOnMainSync { a.recreate() } }
         }
         log.append(if (failures == 0) "READABLE BACKUP PASSED\n" else "$failures FAILED\n")
         finish(if (failures == 0) Activity.RESULT_OK else Activity.RESULT_CANCELED, Bundle().apply { putString("stream", log.toString()) })

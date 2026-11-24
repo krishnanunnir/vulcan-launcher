@@ -357,7 +357,7 @@ private fun MainActivity.selectFolderApps(f: Item) {
     val keys = f.children.mapNotNull { c -> appOf(c)?.key?.takeIf { c.isApp } }
     appSwitches(f.label, keys) { chosen ->
         val kept = f.children.filter { c -> !c.isApp || appOf(c)?.key in chosen }
-        val added = chosen.filter { it !in keys }.mapNotNull { apps[it]?.let(::asChild) }
+        val added = chosen.filter { it !in keys }.mapNotNull { repo.apps[it]?.let(::asChild) }
         setFolderChildren(f, kept + added)
     }
 }

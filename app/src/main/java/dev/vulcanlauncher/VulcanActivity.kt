@@ -139,8 +139,8 @@ abstract class VulcanActivity : Activity() {
         return isNight(looks.str("nightMode"), cal.get(Calendar.HOUR_OF_DAY), looks.int("nightStart"), looks.int("nightEnd"), sys)
     }
     fun pickApp(title: String, only: (App) -> Boolean = { true }, onPicked: (App) -> Unit) = home.run {
-        val list = apps.values.filter(only).sortedWith(compareBy(labelOrder()) { label(it) })
-        this@VulcanActivity.pickList(title, list.map { icon(it) to if (isWork(it)) getString(R.string.work_app, label(it)) else label(it) }, appIcon = true) { onPicked(list[it]) }
+        val list = repo.apps.values.filter(only).sortedWith(compareBy(labelOrder()) { repo.label(it) })
+        this@VulcanActivity.pickList(title, list.map { repo.icon(it) to if (repo.isWork(it)) getString(R.string.work_app, repo.label(it)) else repo.label(it) }, appIcon = true) { onPicked(list[it]) }
     }
 
     /** [folder]: a folder's swipe, which may also open the folder itself (listed last, "folder"). [shortcut]: offer app shortcuts. */
@@ -168,12 +168,12 @@ abstract class VulcanActivity : Activity() {
     fun pickShortcut(onPicked: (String) -> Unit) {
         if (!runCatching { home.launcherApps.hasShortcutHostPermission() }.getOrDefault(false)) { toast(R.string.shortcut_requires_home); return }
         pickApp(getString(R.string.app_shortcut)) { app ->
-            val listed = home.shortcutsFor(app)
+            val listed = home.repo.shortcutsFor(app)
             val makers = packageManager.queryIntentActivities(android.content.Intent(android.content.Intent.ACTION_CREATE_SHORTCUT).setPackage(app.pkg), 0)
                 .filter { it.activityInfo.exported }
-            if (listed.isEmpty() && makers.isEmpty()) { toast(R.string.no_app_shortcuts, home.label(app)); return@pickApp }
-            val rows = listed.map { home.shortcutIcon(it) to (it.shortLabel ?: "") } + makers.map { it.loadIcon(packageManager) to it.loadLabel(packageManager) }
-            pickList(home.label(app), rows, appIcon = true) { i ->
+            if (listed.isEmpty() && makers.isEmpty()) { toast(R.string.no_app_shortcuts, home.repo.label(app)); return@pickApp }
+            val rows = listed.map { home.repo.shortcutIcon(it) to (it.shortLabel ?: "") } + makers.map { it.loadIcon(packageManager) to it.loadLabel(packageManager) }
+            pickList(home.repo.label(app), rows, appIcon = true) { i ->
                 if (i < listed.size) listed[i].let { s ->
                     home.syncPins(s.`package`, app.serial, also = s.id)
                     onPicked(shortcutCode(s.`package`, s.id, app.serial))

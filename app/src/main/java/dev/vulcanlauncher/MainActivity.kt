@@ -51,15 +51,6 @@ import kotlin.math.ceil
 import kotlin.math.hypot
 import kotlin.math.roundToInt
 
-/** A launchable app from any profile (personal or work). [serial] is the profile's UserManager serial number. */
-class App(val info: LauncherActivityInfo, val serial: Long, labelOf: (App) -> String) {
-    val pkg: String = info.componentName.packageName
-    val cls: String = info.componentName.className
-    val key = appKey(pkg, cls, serial)
-    /** The app's own label. Cached: each LauncherActivityInfo.getLabel() loads the app's resources, and sorting asks often. */
-    val title: String by lazy(LazyThreadSafetyMode.NONE) { labelOf(this) }
-}
-
 /** Drag payload for an item dragged out of a home-screen folder. */
 class FolderChild(val folder: Item, val index: Int)
 
@@ -79,14 +70,6 @@ enum class HomeState { NORMAL, OVERVIEW, DRAG }
 /** A [w]-wide menu's left edge: on the anchor's left edge, or its right edge when that runs off a [width]-wide screen. */
 fun menuX(left: Int, right: Int, w: Int, width: Int, margin: Int) =
     (if (left + w <= width - margin) left else right - w).coerceIn(margin, maxOf(margin, width - w - margin))
-
-/**
- * How many finished icons (about 110 kB each) the in-memory cache holds: roughly a sixteenth of the heap, between
- * 64 and 256 icons (about 7 to 28 MB). Bounded, so entries are evicted one by one instead of the whole cache being
- * dropped whenever home is hidden.
- */
-fun iconCacheCapacity(maxMemoryBytes: Long): Int =
-    ((maxMemoryBytes / 16) / (110 * 1024)).coerceIn(64, 256).toInt()
 
 class MainActivity : VulcanActivity() {
     companion object {
@@ -121,6 +104,8 @@ class MainActivity : VulcanActivity() {
     lateinit var awm: AppWidgetManager
     lateinit var launcherApps: LauncherApps
     lateinit var um: UserManager
+    /** Apps, labels, icons and shortcuts. */
+    lateinit var repo: AppRepo
     /** Home pages, indicator and dock: blurred while a panel is open. */
     lateinit var content: LinearLayout
     lateinit var workspace: Workspace
@@ -143,8 +128,6 @@ class MainActivity : VulcanActivity() {
     val viewItems = HashMap<View, Item>()
     val folderFx = FolderFx(this)
     private val iconViews = ArrayList<IconView>()
-    var apps = mapOf<String, App>()
-    var customs = JSONObject()
     /** The widget being bound or configured. Saved, because the launcher can be killed while the other app's screen is open. */
     var pendingWidget: Pair<Int, AppWidgetProviderInfo>? = null
         set(v) { field = v; store.data.edit().putString("pendingWidget", v?.let { "${it.first} ${it.second.provider.flattenToString()}" } ?: "").apply() }
@@ -158,11 +141,6 @@ class MainActivity : VulcanActivity() {
     var dragMoved = false
         private set
     private var barHidden = false
-    /** Bounded and thread-safe (LruCache locks internally), so prefetch can fill it off the UI thread. */
-    private val iconCache = android.util.LruCache<String, Drawable>(iconCacheCapacity(Runtime.getRuntime().maxMemory()))
-    private val iconLoader = java.util.concurrent.Executors.newSingleThreadExecutor()
-    /** Icons and labels kept on disk across starts, so loading them doesn't open every app's APK. Set with [icons]. */
-    private lateinit var appCache: AppCache
 
     /** Subgrid factor of the grid, set when home is built (onCreate, [rebuild]). */
     var sub = 1
@@ -203,6 +181,7 @@ class MainActivity : VulcanActivity() {
         // alive after unregisterCallback, which leaked every recreated activity (~20 MB each).
         launcherApps = applicationContext.getSystemService(LauncherApps::class.java)
         um = getSystemService(UserManager::class.java)
+        repo = AppRepo(this, store, launcherApps, um)
         build()
         store.data.getString("pendingWidget", "")!!.split(" ").takeIf { it.size == 2 }?.let { (id, provider) ->
             val c = ComponentName.unflattenFromString(provider)
@@ -242,7 +221,7 @@ class MainActivity : VulcanActivity() {
         overlay = null; overlayClosed = {}; menu = null; dragSource = null
         // Home's state, its outline and a drag's extra page were the old views' too.
         springAnim?.cancel(); spring = 0f; homeState = HomeState.NORMAL; dragPage = null; plusPage = null
-        iconCache.evictAll(); badgeIcons.clear(); widgetFrames.clear()
+        badgeIcons.clear(); widgetFrames.clear() // build() reloads the apps, which drops the cached icons
         build()
         workspace.snapTo(page.coerceAtMost(looks.pages - 1), animate = false)
         if (dialogs.any { it.isShowing }) dialogScrim(true)
@@ -253,12 +232,12 @@ class MainActivity : VulcanActivity() {
     private fun build() {
         sub = looks.sub
         icons = Icons(this, looks)
-        appCache = AppCache(this, icons.signature)
+        repo.restyle(icons)
         recolor()
         applyOrientation()
-        loadApps()
+        repo.loadApps()
         // Items of apps uninstalled while the launcher wasn't running (no callback came) would hold their cells unseen.
-        items = fit(if (store.isNew) defaultLayout() else removeApps(store.load(sub), ::uninstalled))
+        items = fit(if (store.isNew) defaultLayout() else removeApps(store.load(sub), repo::uninstalled))
         // Before 0.24 the clock was a strip fixed above the first page ("glance"); now it's an item on the first free row.
         if (looks.raw("glance") == "on") {
             looks["glance"] = "item"
@@ -480,12 +459,12 @@ class MainActivity : VulcanActivity() {
     /**
      * Memory pressure: drop the oldest half of the icon cache when home hides, and all of it only under a complete
      * trim. Emptying it on every hide meant the next drawer open decoded every icon again on the UI thread, which
-     * is what made scrolling lag until the icons were cached once more. The disk [appCache] stays the fallback.
+     * is what made scrolling lag until the icons were cached once more. The disk cache stays the fallback.
      */
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (level >= TRIM_MEMORY_COMPLETE) iconCache.evictAll()
-        else if (level >= TRIM_MEMORY_UI_HIDDEN) iconCache.snapshot().keys.take(iconCache.size() / 2).forEach(iconCache::remove)
+        // Not set in an activity that handed off to home in onCreate.
+        if (::repo.isInitialized && level >= TRIM_MEMORY_UI_HIDDEN) repo.trim(all = level >= TRIM_MEMORY_COMPLETE)
     }
 
     override fun onResume() {
@@ -605,60 +584,15 @@ class MainActivity : VulcanActivity() {
 
     fun save() = store.save(items, sub)
 
-    // ---- Apps ----
-
-    fun serial(user: UserHandle) = um.getSerialNumberForUser(user)
-    fun userOf(serial: Long): UserHandle = um.getUserForSerialNumber(serial) ?: Process.myUserHandle()
-
-    /** The Private Space profile (Android 15+), or null. Android lists it only to the home app holding ACCESS_HIDDEN_PROFILES. */
-    var privateUser: UserHandle? = null
-        private set
-    val privateLocked get() = privateUser?.let { um.isQuietModeEnabled(it) } ?: false
-
-    /** [changed]: the only packages whose icons may have changed; null drops every cached icon. */
-    fun loadApps(changed: Collection<String>? = null) {
-        val profiles = launcherApps.profiles
-        privateUser = if (android.os.Build.VERSION.SDK_INT >= 35)
-            profiles.firstOrNull { launcherApps.getLauncherUserInfo(it)?.userType == UserManager.USER_TYPE_PROFILE_PRIVATE } else null
-        // A locked Private Space shows none of its apps, anywhere.
-        pausedUsers = profiles.filter { it != Process.myUserHandle() && it != privateUser && um.isQuietModeEnabled(it) }.toSet()
-        apps = profiles.filter { it != privateUser || !privateLocked }.flatMap { user -> launcherApps.getActivityList(null, user).map { App(it, serial(user), appCache::label) } }
-            .filter { it.pkg != packageName }.associateBy { it.key }
-        customs = store.obj("custom")
-        // ponytail: personal profile only (PackageManager sees one user); a work-profile calendar keeps its static icon.
-        dateIcons = packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), PackageManager.GET_META_DATA)
-            .mapNotNull { r -> r.activityInfo.let { ai ->
-                // Samsung's "LiveIconSupport" apps (Samsung Calendar) draw the date into their own icon: 0, no array.
-                (ai.metaData?.getInt("${ai.packageName}.dynamic_icons")?.takeIf { it != 0 }
-                    ?: 0.takeIf { ai.applicationInfo.metaData?.getBoolean("LiveIconSupport") == true })?.let { "${ai.packageName}/${ai.name}" to it } } }
-            .toMap()
-        if (changed == null) { iconCache.evictAll(); appCache.keepOnly(apps.keys) }
-        else { iconCache.snapshot().keys.filter { it.substringBefore('/') in changed }.forEach(iconCache::remove); appCache.forget(changed) }
-    }
-
-    /**
-     * Whether [item]'s package is gone for good: Android says it isn't installed for that profile, or the profile was
-     * removed. Anything uncertain (on an unmounted SD card, mid-update, disabled, a paused or locked profile) counts as
-     * there, so its icon comes back when the app does.
-     */
-    private fun uninstalled(item: Item): Boolean {
-        if (apps.values.any { it.pkg == item.pkg && it.serial == item.user }) return false
-        val user = um.getUserForSerialNumber(item.user) ?: return true
-        return try {
-            val info = launcherApps.getApplicationInfo(item.pkg, PackageManager.MATCH_UNINSTALLED_PACKAGES, user)
-            info != null && info.flags and android.content.pm.ApplicationInfo.FLAG_INSTALLED == 0
-        } catch (e: PackageManager.NameNotFoundException) { true } catch (e: Exception) { false }
-    }
-
     /** First run: the default phone, messages, browser, camera and gallery apps in the dock (as many as fit). */
     /** A fresh install's layout, as Nova sets it up: a five-app dock, mail and photos above it, settings top right. */
     fun defaultLayout(): MutableList<Item> {
-        val me = serial(Process.myUserHandle())
+        val me = repo.serial(Process.myUserHandle())
         fun role(category: String) = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, category)
         fun apps(vararg intents: Intent) = intents.mapNotNull { intent ->
             // The user's default first; with no default set, resolveActivity returns the chooser, so fall back to any handler.
             val handlers = listOfNotNull(packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)) + packageManager.queryIntentActivities(intent, 0)
-            handlers.firstNotNullOfOrNull { r -> apps.values.firstOrNull { it.pkg == r.activityInfo.packageName && it.serial == me } }
+            handlers.firstNotNullOfOrNull { r -> repo.apps.values.firstOrNull { it.pkg == r.activityInfo.packageName && it.serial == me } }
         }.distinctBy { it.key }
         val dock = apps(Intent(Intent.ACTION_DIAL), role(Intent.CATEGORY_APP_MESSAGING), role(Intent.CATEGORY_APP_MAPS),
             Intent(Intent.ACTION_VIEW, Uri.parse("https://")), Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)).take(looks.dockCols)
@@ -673,13 +607,13 @@ class MainActivity : VulcanActivity() {
         override fun onPackageAdded(pkg: String, user: UserHandle) {
             reloadItems()
             reload(listOf(pkg))
-            if (looks.on("autoAdd")) launcherApps.getActivityList(pkg, user).forEach { addToHome(App(it, serial(user), appCache::label), quiet = true) }
+            if (looks.on("autoAdd")) repo.activities(pkg, user).forEach { addToHome(it, quiet = true) }
         }
         // Uninstalled (an update is onPackageChanged): its icons go too, or they'd hold their cells invisibly. The
         // system has already deleted its widgets.
         override fun onPackageRemoved(pkg: String, user: UserHandle) {
             reloadItems()
-            items = keepWidgets(removePackage(items, pkg, serial(user))) { awm.getAppWidgetInfo(it) != null }.toMutableList()
+            items = keepWidgets(removePackage(items, pkg, repo.serial(user))) { awm.getAppWidgetInfo(it) != null }.toMutableList()
             save()
             reload(listOf(pkg))
         }
@@ -689,103 +623,30 @@ class MainActivity : VulcanActivity() {
         override fun onPackagesUnavailable(pkgs: Array<out String>, user: UserHandle, replacing: Boolean) = reload(pkgs.toList(), homeOnly = true)
         // Apps republish their shortcuts often (messaging apps on every message): redraw only for one pinned on home.
         override fun onShortcutsChanged(pkg: String, shortcuts: MutableList<ShortcutInfo>, user: UserHandle) {
-            val s = serial(user)
+            val s = repo.serial(user)
             if ((items + items.flatMap { it.children }).any { it.isShortcut && it.pkg == pkg && it.user == s }) render()
         }
         private fun reload(pkgs: List<String>, homeOnly: Boolean = false) {
-            loadApps(pkgs)
+            repo.loadApps(pkgs)
             drawer.invalidate()
             refillFolder?.invoke()
             if (!homeOnly || (items + items.flatMap { it.children }).any { it.pkg in pkgs }) render()
         }
     }
 
-    fun label(a: App): String = customs.optJSONObject(a.key)?.optString("label")?.takeIf { it.isNotEmpty() } ?: a.title
-    /** Work profiles that are paused: their apps show greyed out, as in Launcher3 (#73). */
-    private var pausedUsers = emptySet<UserHandle>()
-
-    fun icon(a: App): Drawable = baseIcon(a).let { d -> if (a.info.user !in pausedUsers) d else greyed(d.constantState!!.newDrawable(resources)) }
-
-    private fun greyed(d: Drawable) = d.mutate().apply {
-        colorFilter = android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply { setSaturation(0f) }); alpha = 140
-    }
-
-    /** Each pinned shortcut's last real icon: a paused profile can't be asked for it, and just after it resumes it still can't (#103). */
-    private val shortcutFaces = HashMap<String, Drawable.ConstantState>()
-
-    private fun shortcutFace(item: Item, s: ShortcutInfo?): Drawable? {
-        val key = "${item.user}/${item.pkg}/${item.shortcutId}"
-        s?.let { runCatching { launcherApps.getShortcutBadgedIconDrawable(it, resources.displayMetrics.densityDpi) }.getOrNull() }
-            ?.let { d -> d.constantState?.let { shortcutFaces[key] = it } ?: return d }
-        val d = shortcutFaces[key]?.newDrawable(resources) ?: return null
-        return if (userOf(item.user) in pausedUsers) greyed(d) else d
-    }
-
-    private fun baseIcon(a: App): Drawable = iconCache.get(a.key) ?: run {
-        val custom = synchronized(customs) { customs.optJSONObject(a.key)?.optString("icon") } ?: ""
-        // Icons.get always ends in a flat bitmap. Decoded outside any lock: prefetch runs this on a worker thread
-        // while the UI thread may decode the same icon, so a duplicate decode is merged by the put below.
-        val dated = dateIcons["${a.pkg}/${a.cls}"]?.takeIf { a.info.user == Process.myUserHandle() }
-        val day = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_MONTH)
-        // A date icon's disk entry also holds the day it shows, so tomorrow draws afresh.
-        val d = BitmapDrawable(resources, appCache.icon(a, if (dated == null) custom else "$custom|day$day") {
-            (icons.get(a.pkg, a.cls, custom) { dated?.takeIf { it != 0 }?.let { dateIcon(a, it, day) } ?: a.info.getBadgedIcon(0) } as BitmapDrawable).bitmap
-        })
-        iconCache.put(a.key, d); d
-    }
-
-    /** Launcher activities that draw today's date ("<pkg>.dynamic_icons" meta-data: 31 drawables), to their array; 0 for a Samsung live icon. */
-    private var dateIcons: Map<String, Int> = emptyMap()
-
-    /** Day [day]'s drawable from [a]'s dynamic-icon [array], as Launcher3 picks it for Google Calendar. */
-    private fun dateIcon(a: App, array: Int, day: Int): Drawable? = runCatching {
-        val res = packageManager.getResourcesForApplication(a.info.applicationInfo)
-        val ids = res.obtainTypedArray(array)
-        val id = try { ids.getResourceId(day - 1, 0) } finally { ids.recycle() }
-        res.getDrawableForDensity(id, resources.displayMetrics.densityDpi, null)
-    }.getOrNull()
-
     /** Midnight or a clock/time-zone change: date icons redraw with the new day. */
     private val dateReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(c: android.content.Context, i: Intent) {
-            if (dateIcons.isEmpty()) return
-            loadApps(dateIcons.keys.map { it.substringBefore('/') }.distinct()); drawer.invalidate(); render()
+            val dated = repo.datedPackages
+            if (dated.isEmpty()) return
+            repo.loadApps(dated); drawer.invalidate(); render()
         }
-    }
-
-    /** Warms the icons of [apps] on a worker thread, so scrolling the drawer does not decode them on the UI thread. */
-    /** [a]'s icon if it's in memory; else null, and [ready] gets it on the UI thread once loaded off it. */
-    fun iconLater(a: App, ready: (Drawable) -> Unit): Drawable? = if (iconCache.get(a.key) != null) icon(a) else null.also {
-        iconLoader.execute { val d = icon(a); runOnUiThread { ready(d) } }
-    }
-    fun prefetchIcons(apps: Collection<App>) {
-        val missing = apps.filter { iconCache.get(it.key) == null }
-        if (missing.isNotEmpty()) iconLoader.execute { missing.forEach(::icon) }
-    }
-    /** Main activity of [pkg] in profile [user], for apps a backup names by package only. */
-    fun mainActivity(pkg: String, user: Long): String? {
-        val mine = apps.values.filter { it.pkg == pkg && it.serial == user }
-        // A package can have several launcher activities (Google: search and voice search); take the one Android launches.
-        val launch = packageManager.getLaunchIntentForPackage(pkg)?.component?.className
-        return (mine.firstOrNull { it.cls == launch } ?: mine.firstOrNull())?.cls
-    }
-
-    /** An app's name by key, or a "shortcut:" action's shortcut name (see actionName). */
-    fun appLabel(key: String): String? = shortcutAction(key)?.let { (p, id, u) ->
-        pinnedShortcut(Item(0, 0, 0, pkg = p, shortcutId = id, user = u))?.shortLabel?.toString()
-    } ?: apps[key]?.let(::label)
-    fun isWork(a: App) = a.info.user != Process.myUserHandle() && !isPrivate(a)
-    fun isPrivate(a: App) = a.info.user == privateUser
-
-    /** Locks or unlocks Private Space; unlocking asks for the screen lock first. The profile broadcast then reloads the apps. */
-    fun setPrivateLocked(lock: Boolean) {
-        if (android.os.Build.VERSION.SDK_INT >= 35) privateUser?.let { runCatching { um.requestQuietModeEnabled(lock, it) } }
     }
 
     /** Private Space (or a work profile) locked, unlocked, paused or resumed. */
     private val profileReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(c: android.content.Context, i: Intent) {
-            loadApps(); drawer.invalidate(); render()
+            repo.loadApps(); drawer.invalidate(); render()
             // ponytail: a resumed profile answers shortcut queries only a moment later, with no callback; listen for user unlock if 2 s proves short.
             if (i.action == Intent.ACTION_PROFILE_AVAILABLE) window.decorView.postDelayed(::render, 2000)
         }
@@ -793,7 +654,7 @@ class MainActivity : VulcanActivity() {
 
     fun launch(a: App, v: View?) {
         runCatching { launcherApps.startMainActivity(a.info.componentName, a.info.user, bounds(v), launchOptions(v)) }
-            .onFailure { toast(R.string.cant_open, label(a)) }
+            .onFailure { toast(R.string.cant_open, repo.label(a)) }
         val counts = store.obj("launches")
         store.putObj("launches", counts.put(a.key, counts.optInt(a.key) + 1))
         if (drawer.visible && looks.on("closeAfterLaunch")) drawer.hide()
@@ -816,28 +677,6 @@ class MainActivity : VulcanActivity() {
         else -> null
     }
 
-    fun shortcutsFor(a: App): List<ShortcutInfo> = runCatching {
-        launcherApps.getShortcuts(LauncherApps.ShortcutQuery().setPackage(a.pkg).setActivity(a.info.componentName)
-            .setQueryFlags(LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST), a.info.user)
-            .orEmpty().sortedBy { it.rank }.take(4) // Launcher3's MAX_SHORTCUTS
-    }.getOrDefault(emptyList())
-
-    /** Every app's shortcuts in every profile, for drawer search; none unless Vulcan is the default home (an Android rule). */
-    fun allShortcuts(): List<ShortcutInfo> {
-        if (!runCatching { launcherApps.hasShortcutHostPermission() }.getOrDefault(false)) return emptyList()
-        val query = LauncherApps.ShortcutQuery().setQueryFlags(LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST)
-        // A locked profile throws; its shortcuts are left out.
-        return launcherApps.profiles.flatMap { u -> runCatching { launcherApps.getShortcuts(query, u).orEmpty() }.getOrDefault(emptyList()) }
-    }
-
-    private fun pinnedShortcut(item: Item): ShortcutInfo? = runCatching {
-        launcherApps.getShortcuts(LauncherApps.ShortcutQuery().setPackage(item.pkg).setShortcutIds(listOf(item.shortcutId))
-            .setQueryFlags(LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED), userOf(item.user))?.firstOrNull()
-    }.getOrNull()
-
-    fun shortcutIcon(s: ShortcutInfo): Drawable =
-        runCatching { launcherApps.getShortcutIconDrawable(s, resources.displayMetrics.densityDpi) }.getOrNull() ?: packageManager.defaultActivityIcon
-
     fun startShortcut(pkg: String, id: String, user: UserHandle, v: View?) {
         runCatching { launcherApps.startShortcut(pkg, id, bounds(v), launchOptions(v), user) }
             .onFailure { toast(R.string.shortcut_unavailable) }
@@ -850,7 +689,7 @@ class MainActivity : VulcanActivity() {
     // ponytail: runs when a shortcut is picked, placed or removed, not when a gesture is cleared, so that one stays pinned until the next sync
     fun syncPins(pkg: String, user: Long, also: String? = null) {
         val ids = pinsByApp(items, settingActions())[pkg to user].orEmpty() + listOfNotNull(also)
-        runCatching { launcherApps.pinShortcuts(pkg, ids.distinct(), userOf(user)) }
+        runCatching { launcherApps.pinShortcuts(pkg, ids.distinct(), repo.userOf(user)) }
     }
 
     // ---- Home screen ----
@@ -894,20 +733,20 @@ class MainActivity : VulcanActivity() {
     fun resolve(item: Item): Pair<CharSequence, Drawable>? = when {
         item.folder -> item.label to (icons.custom(item.icon) ?: folderIcon(item.children))
         // The settings shortcut wears the app icon, so it takes the app's short name; "Launcher settings" didn't fit.
-        item.isAction -> item.label.ifEmpty { if (item.action == "settings") getString(R.string.app_name) else actionName(item.action, ::appLabel) } to
+        item.isAction -> item.label.ifEmpty { if (item.action == "settings") getString(R.string.app_name) else actionName(item.action, repo::appLabel) } to
             (icons.custom(item.icon) ?: if (item.action == "settings") packageManager.getApplicationIcon(applicationInfo)
             else GlyphIcon(m3.primaryContainer, m3.onPrimaryContainer, symbol = when {
                 item.action.startsWith("page:") -> "carousel"
                 item.action.startsWith("app:") -> "apps"
                 else -> ACTION_SYMBOLS[item.action] ?: "bolt"
             }))
-        item.isShortcut -> pinnedShortcut(item).let { s ->
-            item.label.ifEmpty { s?.shortLabel?.toString() ?: "" } to (icons.custom(item.icon) ?: shortcutFace(item, s) ?: packageManager.defaultActivityIcon)
+        item.isShortcut -> repo.pinnedShortcut(item).let { s ->
+            item.label.ifEmpty { s?.shortLabel?.toString() ?: "" } to (icons.custom(item.icon) ?: repo.shortcutFace(item, s) ?: packageManager.defaultActivityIcon)
         }
         item.action == "activity" -> runCatching { packageManager.getActivityInfo(ComponentName(item.pkg, item.cls), 0) }.getOrNull()?.let {
             item.label.ifEmpty { it.loadLabel(packageManager).toString() } to (icons.custom(item.icon) ?: it.loadIcon(packageManager))
         }
-        else -> apps[item.appKey]?.let { a -> item.label.ifEmpty { label(a) } to (icons.custom(item.icon) ?: icon(a)) }
+        else -> repo.apps[item.appKey]?.let { a -> item.label.ifEmpty { repo.label(a) } to (icons.custom(item.icon) ?: repo.icon(a)) }
     }
 
     fun itemView(item: Item, style: IconStyle): View? {
@@ -933,11 +772,11 @@ class MainActivity : VulcanActivity() {
         when {
             item.folder -> if (folderSwipeOpens(item.swipe, looks.on("folderSwipe"))) item.children.firstOrNull()?.let { open(it, v) } else openFolder(item)
             item.isAction -> perform(item.action)
-            item.isShortcut -> startShortcut(item.pkg, item.shortcutId, userOf(item.user), v)
+            item.isShortcut -> startShortcut(item.pkg, item.shortcutId, repo.userOf(item.user), v)
             item.action == "activity" -> try {
                 startActivity(Intent().setComponent(ComponentName(item.pkg, item.cls)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), launchOptions(v))
             } catch (e: Exception) { toast(R.string.cant_open_activity) }
-            else -> apps[item.appKey]?.let { launch(it, v) } ?: toast(R.string.app_not_installed)
+            else -> repo.apps[item.appKey]?.let { launch(it, v) } ?: toast(R.string.app_not_installed)
         }
     }
 
@@ -1483,8 +1322,8 @@ class MainActivity : VulcanActivity() {
     fun appOf(p: Any?): App? = when (p) {
         is App -> p
         is GroupChild -> p.app
-        is Item -> if (p.isApp) apps[p.appKey] else null
-        is FolderChild -> p.folder.children.getOrNull(p.index)?.let { if (it.isApp) apps[it.appKey] else null }
+        is Item -> if (p.isApp) repo.apps[p.appKey] else null
+        is FolderChild -> p.folder.children.getOrNull(p.index)?.let { if (it.isApp) repo.apps[it.appKey] else null }
         else -> null
     }
 
@@ -1494,13 +1333,13 @@ class MainActivity : VulcanActivity() {
         is App -> Item(0, 0, 0, pkg = p.pkg, cls = p.cls, user = p.serial)
         is GroupChild -> asChild(p.app)
         is FolderChild -> p.folder.children.getOrNull(p.index)
-        is ShortcutInfo -> Item(0, 0, 0, pkg = p.`package`, shortcutId = p.id, user = serial(p.userHandle), label = p.shortLabel?.toString() ?: "")
+        is ShortcutInfo -> Item(0, 0, 0, pkg = p.`package`, shortcutId = p.id, user = repo.serial(p.userHandle), label = p.shortLabel?.toString() ?: "")
         else -> null
     }
 
     /** A drawer folder as a new home folder with the same apps (a copy: the drawer keeps its own). */
     private fun groupItem(g: Group) = Item(0, 0, 0, sub, sub, folder = true, label = g.name,
-        children = g.apps.mapNotNull { apps[it] }.map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) })
+        children = g.apps.mapNotNull { repo.apps[it] }.map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) })
 
     /** The payload as a home item, a drawer folder included. */
     private fun asItem(p: Any?) = if (p is Group) groupItem(p) else p as? Item
@@ -1608,9 +1447,9 @@ class MainActivity : VulcanActivity() {
         // row (not that app's shortcuts, widgets or uninstall). A shortcut inside a folder is the folder's child at its index.
         val shortcut = item?.takeIf { it.isShortcut }
             ?: (payload as? FolderChild)?.let { it.folder.children.getOrNull(it.index) }?.takeIf { it.isShortcut }
-        val owner = app ?: shortcut?.let { s -> apps.values.firstOrNull { it.pkg == s.pkg && it.serial == s.user } }
-        if (app != null && looks.on("popupShortcuts")) shortcutsFor(app).forEach { s ->
-            row(shortcutIcon(s), s.shortLabel?.toString() ?: "", long = { v -> if (!locked) startDrag(v, s) }) {
+        val owner = app ?: shortcut?.let { s -> repo.apps.values.firstOrNull { it.pkg == s.pkg && it.serial == s.user } }
+        if (app != null && looks.on("popupShortcuts")) repo.shortcutsFor(app).forEach { s ->
+            row(repo.shortcutIcon(s), s.shortLabel?.toString() ?: "", long = { v -> if (!locked) startDrag(v, s) }) {
                 startShortcut(s.`package`, s.id, s.userHandle, anchor)
             }
         }
@@ -1982,7 +1821,7 @@ class MainActivity : VulcanActivity() {
             if (flat) { widgets.forEach { (info, label) -> list.addView(widgetRow(info, label)) }; continue }
             val rows by lazy { widgets.map { (info, label) -> widgetRow(info, label) } }
             val chevron = ImageView(this).apply { setImageDrawable(symbol("right")); if (layoutDirection == View.LAYOUT_DIRECTION_RTL) scaleX = -1f }
-            val icon = apps.values.firstOrNull { it.pkg == p }?.let(::icon) ?: runCatching { packageManager.getApplicationIcon(p) }.getOrNull()
+            val icon = repo.apps.values.firstOrNull { it.pkg == p }?.let(repo::icon) ?: runCatching { packageManager.getApplicationIcon(p) }.getOrNull()
             lateinit var header: View
             var open = false
             header = listItem(icon, app, resources.getQuantityString(R.plurals.widget_count, widgets.size, widgets.size), chevron, appIcon = true) {
@@ -2003,7 +1842,7 @@ class MainActivity : VulcanActivity() {
 
     /** The provider an imported widget's spot asks for, if its app is installed. */
     fun slotProvider(slot: Item): AppWidgetProviderInfo? = ComponentName(slot.pkg, slot.cls).let { c ->
-        runCatching { awm.getInstalledProvidersForProfile(userOf(slot.user)) }.getOrNull()?.firstOrNull { it.provider == c }
+        runCatching { awm.getInstalledProvidersForProfile(repo.userOf(slot.user)) }.getOrNull()?.firstOrNull { it.provider == c }
     }
 
     /** An imported widget's spot: dashed outline, the widget's app icon and name, and a tap to add it. */
@@ -2205,8 +2044,8 @@ class MainActivity : VulcanActivity() {
                     // An empty slot keeps the names lined up; no slot at all when no row has an icon.
                     val anyIcon = icons.any { it != null }
                     val rows = named.mapIndexed { i, (_, name) -> (icons[i] ?: if (anyIcon) android.graphics.drawable.ColorDrawable(0) else null) to name }
-                    pickList(label(app), rows, appIcon = anyIcon, summaries = named.map { it.first.name.substringAfterLast('.').substringAfterLast('$') },
-                        search = true, keys = named.map { it.first.name }, headerIcon = icon(app), count = { n ->
+                    pickList(repo.label(app), rows, appIcon = anyIcon, summaries = named.map { it.first.name.substringAfterLast('.').substringAfterLast('$') },
+                        search = true, keys = named.map { it.first.name }, headerIcon = repo.icon(app), count = { n ->
                             if (n == rows.size) resources.getQuantityString(R.plurals.screens, n, n)
                             else resources.getQuantityString(R.plurals.screens_matching, rows.size, n, rows.size)
                         }) { i ->
@@ -2222,8 +2061,8 @@ class MainActivity : VulcanActivity() {
     fun perform(action: String) {
         when {
             action.startsWith("page:") -> workspace.snapTo(action.removePrefix("page:").toIntOrNull() ?: 0)
-            action.startsWith("app:") -> apps[action.removePrefix("app:")]?.let { launch(it, null) } ?: toast(R.string.app_not_installed)
-            action.startsWith("shortcut:") -> shortcutAction(action)?.let { (p, id, u) -> startShortcut(p, id, userOf(u), null) }
+            action.startsWith("app:") -> repo.apps[action.removePrefix("app:")]?.let { launch(it, null) } ?: toast(R.string.app_not_installed)
+            action.startsWith("shortcut:") -> shortcutAction(action)?.let { (p, id, u) -> startShortcut(p, id, repo.userOf(u), null) }
             else -> when (action) {
                 "drawer" -> drawer.show(false)
                 "now" -> if (looks.on("nowPage")) showNow()
@@ -2255,7 +2094,7 @@ class MainActivity : VulcanActivity() {
 
     /** Pauses or resumes the work profile; Android lets the default home app do this (API 28+). */
     private fun toggleWork() {
-        val work = launcherApps.profiles.firstOrNull { it != Process.myUserHandle() && it != privateUser }
+        val work = launcherApps.profiles.firstOrNull { it != Process.myUserHandle() && it != repo.privateUser }
         if (work == null || android.os.Build.VERSION.SDK_INT < 28) return toast(R.string.no_work_profile)
         val pause = !um.isQuietModeEnabled(work)
         // A word on what happened, as the switch has no other sign until an app is opened (#73).
@@ -2332,7 +2171,7 @@ class MainActivity : VulcanActivity() {
         }
         store.data.edit().remove(REPIN_SHORTCUTS).apply()
         pinsByApp(store.load(looks.sub), settingActions()).forEach { (key, ids) ->
-            runCatching { launcherApps.pinShortcuts(key.first, ids, userOf(key.second)) }
+            runCatching { launcherApps.pinShortcuts(key.first, ids, repo.userOf(key.second)) }
         }
     }
 

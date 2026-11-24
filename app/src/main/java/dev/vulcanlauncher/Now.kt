@@ -68,7 +68,7 @@ fun MainActivity.addNowCard() {
         // As Nova's new drawer tab: name it, then tick its apps in the same list (icons, search) drawer groups use.
         askName(getString(R.string.now_card_apps), "") { name ->
             appSwitches(name, emptyList()) { keys ->
-                val picked = keys.mapNotNull(apps::get).map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) }
+                val picked = keys.mapNotNull(repo.apps::get).map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) }
                 if (picked.isNotEmpty()) { saveNowCards(nowCards() + Item(0, 0, 0, children = picked, label = name)); reopenNow() }
             }
         }
@@ -225,11 +225,11 @@ fun MainActivity.showNow(slide: Boolean = true) {
     fun apps(): View? {
         if (!looks.on("nowApps")) return null
         val counts = launches()
-        val top = apps.values.filter { counts.optInt(it.key) > 0 }.sortedByDescending { counts.optInt(it.key) }.take(8)
+        val top = repo.apps.values.filter { counts.optInt(it.key) > 0 }.sortedByDescending { counts.optInt(it.key) }.take(8)
         if (top.isEmpty()) return null
         return card(getString(R.string.now_frequent), LinearLayout(this).apply {
             val st = style("").let { IconStyle(it.sizePx * 3 / 4, false, it.labelSize, panelText, false, false) }
-            top.forEach { app -> addView(IconView(context, label(app), icon(app), st, badgeStyle(), app.pkg).apply { setOnClickListener { v -> launch(app, v) } },
+            top.forEach { app -> addView(IconView(context, repo.label(app), repo.icon(app), st, badgeStyle(), app.pkg).apply { setOnClickListener { v -> launch(app, v) } },
                 LinearLayout.LayoutParams(0, (st.sizePx + 16 * dp).toInt(), 1f)) }
         })
     }

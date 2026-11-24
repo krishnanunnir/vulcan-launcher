@@ -421,7 +421,7 @@ class Drawer(private val a: MainActivity) {
         addView(android.widget.ImageView(a).apply { setImageDrawable(a.symbol("lock", a.m3.onSurfaceVariant, 48f)); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO })
         addView(a.text(a.getString(R.string.private_locked), 16f, a.m3.onSurface).apply { gravity = Gravity.CENTER },
             LinearLayout.LayoutParams(-2, -2).apply { topMargin = (16 * a.dp).toInt(); bottomMargin = (20 * a.dp).toInt() })
-        addView(a.tonalButton(a.getString(R.string.unlock)) { a.setPrivateLocked(false) }, LinearLayout.LayoutParams(-2, -2))
+        addView(a.tonalButton(a.getString(R.string.unlock)) { a.repo.setPrivateLocked(false) }, LinearLayout.LayoutParams(-2, -2))
     }
     /** As Nova: the most-launched apps in their own row above the list, in every style; they stay in the list too. */
     private val frequentRow = object : LinearLayout(a) {
@@ -433,19 +433,19 @@ class Drawer(private val a: MainActivity) {
 
     private fun buildPrivateBar() {
         privateBar.removeAllViews()
-        val locked = a.privateLocked
+        val locked = a.repo.privateLocked
         privateBar.addView(a.text(a.getString(if (locked) R.string.private_locked else R.string.private_space), 14f, a.m3.onSurfaceVariant, medium = true),
             LinearLayout.LayoutParams(0, -2, 1f))
         // Install apps into the space: Android opens the app store inside it. Hidden with no store installed.
         // ponytail: checks for a store in the main profile, not the space; a store only in the space hides the button.
         val hasStore = a.packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_MARKET), 0) != null
-        val market = if (!locked && hasStore && android.os.Build.VERSION.SDK_INT >= 35) a.privateUser?.let { u ->
+        val market = if (!locked && hasStore && android.os.Build.VERSION.SDK_INT >= 35) a.repo.privateUser?.let { u ->
             runCatching { a.launcherApps.getAppMarketActivityIntent(null, u) }.getOrNull() } else null
         if (market != null) privateBar.addView(a.iconButton("download", a.getString(R.string.private_install)) {
             runCatching { a.startIntentSender(market, null, 0, 0, 0) }
         })
         privateBar.addView(a.iconButton(if (locked) "unlock" else "lock", a.getString(if (locked) R.string.private_unlock else R.string.private_lock)) {
-            a.setPrivateLocked(!locked)
+            a.repo.setPrivateLocked(!locked)
         })
     }
 
@@ -889,7 +889,7 @@ class Drawer(private val a: MainActivity) {
     fun groups() = groupsFromJson(a.store.data.getString("groups", "[]")!!)
 
     /** What [refresh] reads; when it's unchanged, opening the drawer reuses what's already built. */
-    private fun inputs() = listOf(a.apps, a.store.data.all, a.looks.all(), a.privateUser, tab, showHidden, search.text.toString())
+    private fun inputs() = listOf(a.repo.apps, a.store.data.all, a.looks.all(), a.repo.privateUser, tab, showHidden, search.text.toString())
     private var shown: List<Any?>? = null
 
     fun refresh() {
@@ -900,14 +900,14 @@ class Drawer(private val a: MainActivity) {
         // Each key once: a comparator's selector runs on every comparison.
         val sort = a.looks.str("drawerSort")
         val rank = a.store.strings("drawerOrder").withIndex().associate { it.value to it.index }
-        val ordered = a.apps.values.map { it to SortKey(a.label(it), it.info.firstInstallTime, launches.optInt(it.key), rank[it.key] ?: Int.MAX_VALUE) }
+        val ordered = a.repo.apps.values.map { it to SortKey(a.repo.label(it), it.info.firstInstallTime, launches.optInt(it.key), rank[it.key] ?: Int.MAX_VALUE) }
             .sortedWith(compareBy(drawerComparator(sort)) { it.second }).map { it.first }
         // Hidden tabs aren't in the drawer at all; their apps are back in All apps.
         val groups = groups().filterNot { it.type == "tab" && it.hidden }
-        val work = a.apps.values.filter { a.isWork(it) }.map { it.key }.toSet()
+        val work = a.repo.apps.values.filter { a.repo.isWork(it) }.map { it.key }.toSet()
         val workTab = a.workTabShown() && work.isNotEmpty()
-        val private = a.apps.values.filter { a.isPrivate(it) }.map { it.key }.toSet()
-        val privateTab = a.privateUser != null
+        val private = a.repo.apps.values.filter { a.repo.isPrivate(it) }.map { it.key }.toSet()
+        val privateTab = a.repo.privateUser != null
         // All apps can be hidden while there's a tab to show instead; its folders then show on that tab.
         homeTab = groups.firstOrNull { it.type == "tab" }?.takeIf { a.store.data.getBoolean(ALL_HIDDEN, false) }?.name ?: ""
         if (tab == "work" && !workTab || tab == "private" && !privateTab || tab == "" && homeTab != "" ||
@@ -916,21 +916,21 @@ class Drawer(private val a: MainActivity) {
         val foldersFirst = a.looks.on("foldersFirst")
         val keys = ordered.map { it.key }
         entriesOf = { t ->
-            val list = tabApps(keys, groups, t, hidden, showHidden, keepInAll, work, workTab, private, sort == "manual").mapNotNull { a.apps[it] }.map { Entry.AppE(it) }
+            val list = tabApps(keys, groups, t, hidden, showHidden, keepInAll, work, workTab, private, sort == "manual").mapNotNull { a.repo.apps[it] }.map { Entry.AppE(it) }
             val folders = if (t == homeTab) groups.filter { it.type == "folder" }.map { Entry.FolderE(it) } else emptyList()
             if (foldersFirst) folders + list else list + folders
         }
         entries = if (q.isNotEmpty()) {
             // Best match first; sortedByDescending is stable, so equal matches keep the drawer's order.
-            quick(q) + ordered.filter { showHidden || it.key !in hidden }.map { it to matchScore(a.label(it), q) }
+            quick(q) + ordered.filter { showHidden || it.key !in hidden }.map { it to matchScore(a.repo.label(it), q) }
                 .filter { it.second > 0 }.sortedByDescending { it.second }.map { Entry.AppE(it.first) } +
                 shortcutHits(q, hidden) + settingsHits(q) +
                 contacts(q) + if (a.looks.on("webSearch")) listOf(Entry.WebE(q)) else emptyList()
         } else entriesOf(tab)
         // As Nova: the row sits above the tabs and stays whichever tab is open.
         buildFrequent(if (q.isEmpty() && a.looks.on("frequent"))
-            frequentApps(a.store.strings("favourites").toList(), a.apps.keys.associateWith { launches.optInt(it) },
-                { it in a.apps && it !in hidden && it !in private }, gridCols).mapNotNull { a.apps[it] } else emptyList())
+            frequentApps(a.store.strings("favourites").toList(), a.repo.apps.keys.associateWith { launches.optInt(it) },
+                { it in a.repo.apps && it !in hidden && it !in private }, gridCols).mapNotNull { a.repo.apps[it] } else emptyList())
         // Glass and housing: search results sit just above the bottom search bar, under the thumb.
         grid.isStackFromBottom = fromBottom || bottomBar && q.isNotEmpty()
         // No index for a list that fits on one screen: there's nothing to jump to.
@@ -944,12 +944,12 @@ class Drawer(private val a: MainActivity) {
         rebuildTabs = { buildTabs(groups, order, privateTab, q.isEmpty()) }
         rebuildTabs()
         // Locked, the centred lock takes over; the bar (state, install, lock) is for the open space.
-        val locked = a.privateLocked
+        val locked = a.repo.privateLocked
         privateLockedView.visibility = if (q.isEmpty() && tab == "private" && locked) View.VISIBLE else View.GONE
         privateBar.visibility = if (q.isEmpty() && tab == "private" && !locked) View.VISIBLE else View.GONE
         if (privateBar.visibility == View.VISIBLE) buildPrivateBar()
         // Warm the first two screens off the UI thread; the rest is prefetched as the list scrolls (see Adapter).
-        a.prefetchIcons(entries.filterIsInstance<Entry.AppE>().map { it.app }.take(cols * rows * 2))
+        a.repo.prefetchIcons(entries.filterIsInstance<Entry.AppE>().map { it.app }.take(cols * rows * 2))
         if (styleName == "pages") buildPages() else adapter.notifyDataSetChanged()
         index.invalidate() // its letters are the new list's
     }
@@ -1000,12 +1000,12 @@ class Drawer(private val a: MainActivity) {
     /** Up to four app shortcuts ("New tab", "Compose") whose names match, from apps the drawer shows. */
     private fun shortcutHits(q: String, hidden: Set<String>): List<Entry> {
         if (q.length < 3) return emptyList()
-        val shown = a.apps.values.filter { showHidden || it.key !in hidden }.map { it.pkg to it.info.user }.toSet()
-        val all = shortcuts ?: a.allShortcuts().also { shortcuts = it }
+        val shown = a.repo.apps.values.filter { showHidden || it.key !in hidden }.map { it.pkg to it.info.user }.toSet()
+        val all = shortcuts ?: a.repo.allShortcuts().also { shortcuts = it }
         return all.filter { (it.`package` to it.userHandle) in shown }.map { it to matchScore(it.shortLabel?.toString() ?: "", q) }
             .filter { it.second >= 2 }.sortedByDescending { it.second }.take(4).map { (s, _) ->
                 // Drawn once at cell size: a shortcut's own icon can be a 108 dp adaptive one.
-                Entry.ActionE(s.shortLabel.toString(), flatIcon(a, a.shortcutIcon(s), iconStyle.sizePx)) { v -> a.startShortcut(s.`package`, s.id, s.userHandle, v) }
+                Entry.ActionE(s.shortLabel.toString(), flatIcon(a, a.repo.shortcutIcon(s), iconStyle.sizePx)) { v -> a.startShortcut(s.`package`, s.id, s.userHandle, v) }
             }
     }
 
@@ -1181,10 +1181,10 @@ class Drawer(private val a: MainActivity) {
     private fun entryView(e: Entry, recycled: View? = null, style: IconStyle = iconStyle): IconView = when (e) {
         is Entry.AppE -> {
             var view: IconView? = null
-            val icon = if (!scrolling) a.icon(e.app)
-                else a.iconLater(e.app) { d -> view?.takeIf { bound[it] == e.app.key }?.image?.icon = d } ?: blank
-            ((recycled as? IconView)?.takeIf { it.tag == APP_VIEW }?.apply { bind(a.label(e.app), icon, e.app.pkg) }
-                ?: IconView(a, a.label(e.app), icon, style, a.badgeStyle(), e.app.pkg).apply { tag = APP_VIEW }).also {
+            val icon = if (!scrolling) a.repo.icon(e.app)
+                else a.repo.iconLater(e.app) { d -> view?.takeIf { bound[it] == e.app.key }?.image?.icon = d } ?: blank
+            ((recycled as? IconView)?.takeIf { it.tag == APP_VIEW }?.apply { bind(a.repo.label(e.app), icon, e.app.pkg) }
+                ?: IconView(a, a.repo.label(e.app), icon, style, a.badgeStyle(), e.app.pkg).apply { tag = APP_VIEW }).also {
                 view = it
                 bound[it] = e.app.key
                 if (a.looks.str("badges") != "off") a.badge(it.image, e.app.pkg)
@@ -1205,7 +1205,7 @@ class Drawer(private val a: MainActivity) {
         is Entry.ActionE -> IconView(a, e.label, e.icon, iconStyle, a.badgeStyle(), "")
     }
 
-    private fun folderItems(g: Group) = g.apps.mapNotNull { a.apps[it] }.map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) }
+    private fun folderItems(g: Group) = g.apps.mapNotNull { a.repo.apps[it] }.map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) }
 
     /**
      * Fully open, at rest, no finger moving it. As Launcher3's item handlers: a tap or hold that lands any other way
@@ -1219,17 +1219,17 @@ class Drawer(private val a: MainActivity) {
             is Entry.AppE -> a.launch(e.app, v)
             is Entry.FolderE -> {
                 var group = e.group
-                var apps = group.apps.mapNotNull { a.apps[it] }
+                var apps = group.apps.mapNotNull { a.repo.apps[it] }
                 a.openFolderWindow(group.name, folderItems(group), null, reorder = { from, to ->
                     // Uninstalled apps' keys aren't shown: they keep their place at the end.
                     val keys = apps.map { it.key }.toMutableList().apply { add(to, removeAt(from)) }
                     group = group.copy(apps = keys + (group.apps - keys.toSet()))
-                    apps = group.apps.mapNotNull { a.apps[it] }
+                    apps = group.apps.mapNotNull { a.repo.apps[it] }
                     a.saveGroups(groups().map { if (it.name == group.name) group else it })
                     folderItems(group)
                 }, icon = (v as? IconView)?.image, reload = {
                     groups().firstOrNull { it.name == group.name && it.type == "folder" }?.let {
-                        group = it; apps = it.apps.mapNotNull { k -> a.apps[k] }; folderItems(it)
+                        group = it; apps = it.apps.mapNotNull { k -> a.repo.apps[k] }; folderItems(it)
                     }
                 }) { i -> GroupChild(group.name, apps[i]) }
             }
@@ -1332,7 +1332,7 @@ class Drawer(private val a: MainActivity) {
         private val entries get() = source()
         private val grid get() = host()
         private fun letter(e: Entry) = when (e) {
-            is Entry.AppE -> indexLetter(a.label(e.app))
+            is Entry.AppE -> indexLetter(a.repo.label(e.app))
             is Entry.FolderE -> "▤"
             is Entry.WebE -> "⌕"
             is Entry.ContactE -> "☺"
@@ -1353,7 +1353,7 @@ class Drawer(private val a: MainActivity) {
         override fun isEnabled(pos: Int) = getItem(pos) != null
         override fun getView(pos: Int, convert: View?, parent: ViewGroup): View {
             // Once per row, warm the next screen off the UI thread while this one is on show.
-            if (pos % cols == 0 && pos < entries.size) a.prefetchIcons(entries.drop(pos).take(cols * rows).filterIsInstance<Entry.AppE>().map { it.app })
+            if (pos % cols == 0 && pos < entries.size) a.repo.prefetchIcons(entries.drop(pos).take(cols * rows).filterIsInstance<Entry.AppE>().map { it.app })
             return (getItem(pos)?.let { entryView(it, convert) }?.apply {
             if (styleName == "list") setPadding((8 * a.dp).toInt(), 0, 0, 0)
         } ?: entryView(entries[0]).apply { visibility = View.INVISIBLE }).apply { // a filler as tall as a real cell, or GridView misplaces the row

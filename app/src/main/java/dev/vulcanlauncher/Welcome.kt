@@ -502,7 +502,7 @@ class LayoutPreview(private val a: MainActivity, layout: ImportedLayout, private
 
     init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
 
-    private fun iconOf(item: Item) = if (item.isWidgetSlot) a.apps.values.firstOrNull { it.pkg == item.pkg }?.let(a::icon)
+    private fun iconOf(item: Item) = if (item.isWidgetSlot) a.repo.apps.values.firstOrNull { it.pkg == item.pkg }?.let(a.repo::icon)
         else a.resolve(item)?.second
 
     private val cellW get() = (width - 2 * pad) / cols

@@ -128,7 +128,7 @@ class SettingsActivity : VulcanActivity() {
         if (shortcutMade(requestCode, resultCode, data)) return
         val uri = data?.data?.takeIf { resultCode == RESULT_OK } ?: return
         when (requestCode) {
-            MainActivity.REQ_BACKUP -> runCatching { contentResolver.openOutputStream(uri, "wt")!!.use { it.write(store.export(home.apps.values.toList()).toByteArray()) } }
+            MainActivity.REQ_BACKUP -> runCatching { contentResolver.openOutputStream(uri, "wt")!!.use { it.write(store.export(home.repo.apps.values.toList()).toByteArray()) } }
                 .onSuccess { toast(R.string.backup_saved) }.onFailure { toast(R.string.backup_failed, it.message) }
             MainActivity.REQ_RESTORE -> restoreBackup(uri, ::restartHome)
             // The same review (and widget) steps as the first run, over home: settings closes onto them.
@@ -721,7 +721,7 @@ private fun SettingsActivity.iconPackChoice(): Choice {
 }
 
 private fun SettingsActivity.valueName(c: Choice) = when {
-    c.action -> actionName(looks[c], home::appLabel)
+    c.action -> actionName(looks[c], home.repo::appLabel)
     // Under the Appliance look, "system" on a housing-coloured part draws in the housing colour.
     m3.housing && looks[c] == "system" && c.key in listOf("dockColor", "searchColor", "folderColor") -> getString(R.string.housing_follows_theme)
     else -> c.values.indexOf(looks[c]).let { i -> if (i >= 0) choiceName(c, i) else looks[c].ifEmpty { getString(R.string.none) } }
@@ -792,7 +792,7 @@ fun MainActivity.editDialog(title: String, label: String, defaultLabel: String, 
             holder.removeAllViews()
             // A folder keeps "none", so it can opt out of the global Swipe to open; "" follows that setting.
             val shown = swipeV.ifEmpty { if (folder && looks.on("folderSwipe")) "folder" else "none" }
-            holder.addView(listItem(symbol("gesture"), getString(R.string.swipe_up_action), actionName(shown, ::appLabel)) {
+            holder.addView(listItem(symbol("gesture"), getString(R.string.swipe_up_action), actionName(shown, repo::appLabel)) {
                 pickAction(getString(R.string.swipe_up_action), folder) { swipeV = if (it == "none" && !folder) "" else it; row() }
             })
         }
@@ -814,7 +814,7 @@ fun MainActivity.editItem(item: Item, swipes: Boolean = true, replace: (Item) ->
 }) {
     val default = when {
         item.folder -> getString(R.string.folder)
-        item.isApp -> appLabel(item.appKey) ?: ""
+        item.isApp -> repo.appLabel(item.appKey) ?: ""
         else -> resolve(item.copy(label = ""))?.first?.toString() ?: ""
     }
     // An app's Default is its own icon: without it, Default here fell back to an icon set from the drawer's Edit, so
@@ -822,8 +822,8 @@ fun MainActivity.editItem(item: Item, swipes: Boolean = true, replace: (Item) ->
     val own = if (item.isApp) "app:${item.pkg}/${item.cls}" else ""
     editDialog(getString(if (item.folder) R.string.edit_folder else R.string.edit), item.label, default, item.icon, item.swipe.takeIf { swipes },
         { ic -> resolve(item.copy(icon = ic))?.second }, item.folder, own) { l, ic, sw ->
-        if (own.isNotEmpty() && ic == own) customs.optJSONObject(item.appKey)?.takeIf { it.optString("icon").isNotEmpty() }?.let {
-            it.put("icon", ""); store.putObj("custom", customs); loadApps(listOf(item.pkg))
+        if (own.isNotEmpty() && ic == own) repo.customs.optJSONObject(item.appKey)?.takeIf { it.optString("icon").isNotEmpty() }?.let {
+            it.put("icon", ""); store.putObj("custom", repo.customs); repo.loadApps(listOf(item.pkg))
         }
         replace(item.copy(label = if (item.folder) l.ifEmpty { getString(R.string.folder) } else l, icon = if (ic == own) "" else ic, swipe = if (swipes) sw else item.swipe))
     }
@@ -831,12 +831,12 @@ fun MainActivity.editItem(item: Item, swipes: Boolean = true, replace: (Item) ->
 
 /** Drawer edits apply to the app everywhere it has no home-screen override. */
 fun MainActivity.editApp(app: App) {
-    val c = customs.optJSONObject(app.key)
+    val c = repo.customs.optJSONObject(app.key)
     editDialog(getString(R.string.edit_app), c?.optString("label") ?: "", app.info.label.toString(), c?.optString("icon") ?: "", null,
         { ic -> icons.get(app.pkg, app.cls, ic) { app.info.getBadgedIcon(0) } }) { l, ic, _ ->
-        customs.put(app.key, JSONObject().put("label", l).put("icon", ic))
-        store.putObj("custom", customs)
-        loadApps(listOf(app.pkg))
+        repo.customs.put(app.key, JSONObject().put("label", l).put("icon", ic))
+        store.putObj("custom", repo.customs)
+        repo.loadApps(listOf(app.pkg))
         drawer.refresh()
         render()
         refillFolder?.invoke()
@@ -944,7 +944,7 @@ private fun MainActivity.pickPackIcon(pkg: String, onPicked: (String) -> Unit) {
 /** [others]: each app's other groups, shown under its name so a tab's apps can be picked from those not yet sorted (#55). */
 fun VulcanActivity.appSwitches(title: String, on: Collection<String>, others: Map<String, List<String>> = emptyMap(), onSave: (List<String>) -> Unit) {
     // Ticked apps first, as Supernova's app checklist: what's chosen is in view without searching.
-    val all = home.apps.values.sortedWith(compareBy<App> { it.key !in on }.thenBy(labelOrder()) { home.label(it) })
+    val all = home.repo.apps.values.sortedWith(compareBy<App> { it.key !in on }.thenBy(labelOrder()) { home.repo.label(it) })
     var list = all
     val chosen = on.toMutableSet()
     val adapter = object : BaseAdapter() {
@@ -959,7 +959,7 @@ fun VulcanActivity.appSwitches(title: String, on: Collection<String>, others: Ma
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 buttonTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(m3.on, m3.onSurfaceVariant))
             }
-            return listItem(home.icon(app), if (home.isWork(app)) getString(R.string.work_app, home.label(app)) else home.label(app),
+            return listItem(home.repo.icon(app), if (home.repo.isWork(app)) getString(R.string.work_app, home.repo.label(app)) else home.repo.label(app),
                 others[app.key]?.let { getString(R.string.in_groups, it.joinToString()) }, trailing = box, appIcon = true) {
                 box.isChecked = !box.isChecked
                 if (box.isChecked) chosen += app.key else chosen -= app.key
@@ -979,7 +979,7 @@ fun VulcanActivity.appSwitches(title: String, on: Collection<String>, others: Ma
         addTextChangedListener(object : android.text.TextWatcher {
             override fun afterTextChanged(e: android.text.Editable?) {
                 val q = e.toString().trim()
-                list = if (q.isEmpty()) all else all.filter { matchScore(home.label(it), q) > 0 }
+                list = if (q.isEmpty()) all else all.filter { matchScore(home.repo.label(it), q) > 0 }
                 adapter.notifyDataSetChanged()
             }
             override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, af: Int) {}
@@ -1003,13 +1003,13 @@ fun VulcanActivity.appSwitches(title: String, on: Collection<String>, others: Ma
  * auto-scroll to Reorder if that gets tedious.
  */
 fun VulcanActivity.arrangeApps(title: String, keys: List<String>, onSave: (List<String>) -> Unit) {
-    var order = keys.filter { it in home.apps }
+    var order = keys.filter { it in home.repo.apps }
     val rows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, (8 * dp).toInt(), 0, 0) }
     fun build() {
         rows.removeAllViews()
         val views = order.map { k ->
-            val app = home.apps.getValue(k)
-            listItem(home.icon(app), home.label(app), appIcon = true, onClick = null)
+            val app = home.repo.apps.getValue(k)
+            listItem(home.repo.icon(app), home.repo.label(app), appIcon = true, onClick = null)
                 .apply { setPaddingRelative((24 * dp).toInt(), paddingTop, (12 * dp).toInt(), paddingBottom) }
         }
         lateinit var rebuild: () -> Unit
@@ -1063,13 +1063,13 @@ fun VulcanActivity.saveGroups(groups: List<Group>) {
 
 /** "Gmail, Drive, Calendar and 5 more": [keys]' names, as many as read well on one line. */
 private fun VulcanActivity.appNames(keys: List<String>, shown: Int = 3): String {
-    val names = keys.mapNotNull { home.apps[it] }.map { home.label(it) }
+    val names = keys.mapNotNull { home.repo.apps[it] }.map { home.repo.label(it) }
     return if (names.size <= shown) names.joinToString() else getString(R.string.names_and_more, names.take(shown).joinToString(), names.size - shown)
 }
 
 /** A group's icon: its first four apps on a rounded tile, 40 dp. Copies of the icons, so the drawer's keep their bounds. */
 fun VulcanActivity.groupIcon(keys: List<String>): Drawable {
-    val icons = keys.mapNotNull { home.apps[it] }.take(4).map { home.icon(it).let { d -> d.constantState?.newDrawable(resources)?.mutate() ?: d } }
+    val icons = keys.mapNotNull { home.repo.apps[it] }.take(4).map { home.repo.icon(it).let { d -> d.constantState?.newDrawable(resources)?.mutate() ?: d } }
     val size = (40 * dp).toInt(); val cell = (15 * dp).toInt(); val pad = (4 * dp).toInt(); val gap = size - 2 * pad - 2 * cell
     return android.graphics.drawable.LayerDrawable((listOf(rounded(m3.surfaceHighest, 12 * dp)) + icons).toTypedArray()).apply {
         setLayerSize(0, size, size)
@@ -1193,8 +1193,8 @@ private fun VulcanActivity.swipeToDelete(row: View, onDelete: () -> Unit) {
 /** App drawer › Apps: Tabs and Folders, each saying what's in it. */
 private fun SettingsActivity.tabsLink(): View {
     val tabs = home.drawer.groups().filter { it.type == "tab" }
-    val hasWork = home.apps.values.any { home.isWork(it) }
-    val names = listOfNotNull(getString(R.string.tab_all), getString(R.string.tab_private).takeIf { home.privateUser != null }) + withWorkSlot(tabs.map { it.name }, store.data.getInt(WORK_AT, 0))
+    val hasWork = home.repo.apps.values.any { home.repo.isWork(it) }
+    val names = listOfNotNull(getString(R.string.tab_all), getString(R.string.tab_private).takeIf { home.repo.privateUser != null }) + withWorkSlot(tabs.map { it.name }, store.data.getInt(WORK_AT, 0))
         .filter { it != WORK_SLOT || hasWork }.map { if (it == WORK_SLOT) getString(R.string.tab_work) else it }
     val summary = if (names.size <= 3) names.joinToString() else getString(R.string.names_and_more, names.take(3).joinToString(), names.size - 3)
     return listItem(symbol("tabs", m3.onPrimaryContainer), getString(R.string.group_tabs), summary, tonalIcon = true) { showPage(TABS_GROUP) }
@@ -1216,14 +1216,14 @@ private fun SettingsActivity.tabsPage(list: LinearLayout) {
     val tabs = groups.filter { it.type == "tab" }
     val hasVisibleTab = tabs.any { !it.hidden }
     val allShown = !store.data.getBoolean(ALL_HIDDEN, false) || !hasVisibleTab
-    val hasWork = home.apps.values.any { home.isWork(it) }
+    val hasWork = home.repo.apps.values.any { home.repo.isWork(it) }
     val workShown = workTabShown()
     val wrap = looks.str("tabBar") == "wrap"
     fun choice(key: String) = LOOKS.first { it.key == key }
 
     // The bar as the drawer will show it, selected tab first.
     val workAt = store.data.getInt(WORK_AT, 0)
-    val shownNames = listOfNotNull(getString(R.string.tab_all).takeIf { allShown }, getString(R.string.tab_private).takeIf { home.privateUser != null }) +
+    val shownNames = listOfNotNull(getString(R.string.tab_all).takeIf { allShown }, getString(R.string.tab_private).takeIf { home.repo.privateUser != null }) +
         withWorkSlot(tabs.map { it.name }, workAt).filter { if (it == WORK_SLOT) hasWork && workShown else tabs.none { t -> t.name == it && t.hidden } }
             .map { if (it == WORK_SLOT) getString(R.string.tab_work) else it }
     val bar = DrawerTabs(this, (6 * dp).toInt(), (32 * dp).toInt(), wrap).apply {
@@ -1289,7 +1289,7 @@ private fun SettingsActivity.tabsPage(list: LinearLayout) {
     val newTab = listItem(symbol("add", m3.primary), getString(R.string.new_tab)) { newGroup("tab") }
     // Keep in all only means something while All apps shows.
     // Private Space is the system's: always right after All apps, as the preview shows, and not hidden from here.
-    val privateRow = if (home.privateUser != null) listItem(null, getString(R.string.tab_private), getString(R.string.tab_private_fixed), onClick = null) else null
+    val privateRow = if (home.repo.privateUser != null) listItem(null, getString(R.string.tab_private), getString(R.string.tab_private_fixed), onClick = null) else null
     panel(list, getString(R.string.tabs_in_bar), listOfNotNull(allRow, keep.takeIf { allShown }, privateRow) + movable + newTab)
     if (tabs.isNotEmpty()) list.addView(text(getString(R.string.tabs_hint), 13f, m3.onSurfaceVariant).apply {
         setPadding((32 * dp).toInt(), (12 * dp).toInt(), (32 * dp).toInt(), 0)
@@ -1304,10 +1304,10 @@ private fun SettingsActivity.foldersPage(list: LinearLayout) {
     val folders = home.drawer.groups().filter { it.type == "folder" }
     val first = looks.on("foldersFirst")
     // A row of the drawer: a few apps and folders, in the chosen order.
-    val apps = home.apps.values.filterNot { home.isWork(it) }.sortedWith(compareBy(labelOrder()) { home.label(it) }).take(if (folders.isEmpty()) 4 else 6)
+    val apps = home.repo.apps.values.filterNot { home.repo.isWork(it) }.sortedWith(compareBy(labelOrder()) { home.repo.label(it) }).take(if (folders.isEmpty()) 4 else 6)
     data class Cell(val name: String, val icon: Drawable)
     val folderCells = folders.take(2).map { Cell(it.name, groupIcon(it.apps)) }
-    val appCells = apps.map { Cell(home.label(it), home.icon(it)) }
+    val appCells = apps.map { Cell(home.repo.label(it), home.repo.icon(it)) }
     val cells = if (first) folderCells + appCells else (folderCells + appCells).sortedWith(compareBy(labelOrder()) { it.name })
     val grid = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
@@ -1487,8 +1487,8 @@ fun VulcanActivity.deleteGroup(g: Group) {
         gravity = Gravity.CENTER_VERTICAL
         setPadding(0, (16 * dp).toInt(), 0, 0)
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-        g.apps.mapNotNull { home.apps[it] }.take(6).forEach { app ->
-            addView(ImageView(context).apply { setImageDrawable(home.icon(app)) }, LinearLayout.LayoutParams((28 * dp).toInt(), (28 * dp).toInt()).apply { marginEnd = (6 * dp).toInt() })
+        g.apps.mapNotNull { home.repo.apps[it] }.take(6).forEach { app ->
+            addView(ImageView(context).apply { setImageDrawable(home.repo.icon(app)) }, LinearLayout.LayoutParams((28 * dp).toInt(), (28 * dp).toInt()).apply { marginEnd = (6 * dp).toInt() })
         }
         if (g.apps.size > 6) addView(text("+${g.apps.size - 6}", 12f, m3.onSurfaceVariant).apply {
             gravity = Gravity.CENTER; setPadding((10 * dp).toInt(), 0, (10 * dp).toInt(), 0); background = rounded(m3.surfaceHigh, 14 * dp)
@@ -1601,7 +1601,7 @@ private fun SettingsActivity.smartCategories(): Map<String, List<String>> {
         role(ApplicationInfo.CATEGORY_IMAGE, main(Intent.CATEGORY_APP_GALLERY), Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE))
         ).reversed().toMap() // the first role listed wins
     val names = mapOf(CAT_FINANCE to R.string.cat_finance, CAT_SHOPPING to R.string.cat_shopping, CAT_HEALTH to R.string.cat_health, CAT_TOOLS to R.string.cat_tools)
-    @Suppress("DEPRECATION") val byName = home.apps.values.mapNotNull { a ->
+    @Suppress("DEPRECATION") val byName = home.repo.apps.values.mapNotNull { a ->
         val ai = a.info.applicationInfo
         val cat = smartCategory(ai.category, ai.flags and ApplicationInfo.FLAG_IS_GAME != 0, roles[a.pkg], a.pkg, a.title,
             ai.flags and ApplicationInfo.FLAG_SYSTEM != 0) ?: return@mapNotNull null
@@ -1628,7 +1628,7 @@ private fun SettingsActivity.backupPage(list: LinearLayout) {
         row("clock", R.string.restore_auto, getString(R.string.restore_auto_info, saved)) {
             dialog().setMessage(getString(R.string.restore_auto_confirm, saved))
                 .setPositiveButton(R.string.restore) { _, _ ->
-                    runCatching { store.import(f.readText(), home::mainActivity) }
+                    runCatching { store.import(f.readText(), home.repo::mainActivity) }
                         .onSuccess { if (it.replacedLayout) home.dropForeignWidgets(); home.repinShortcuts(); restartHome() }
                         .onFailure { toast(getString(R.string.restore_failed, it.message)) }
                 }.setNegativeButton(R.string.cancel, null).show()
@@ -1653,7 +1653,7 @@ private fun SettingsActivity.backupPage(list: LinearLayout) {
 
 /** Restores a backup or applies an older style file, then [restart] rebuilds home. */
 fun VulcanActivity.restoreBackup(uri: android.net.Uri, restart: () -> Unit) {
-    runCatching { store.import(contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() }, home::mainActivity) }
+    runCatching { store.import(contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() }, home.repo::mainActivity) }
         .onSuccess { result ->
             if (result.rejected.isNotEmpty()) toast(R.string.skipped_settings, result.rejected.joinToString())
             // Widget IDs belong to the install that made them; drop the ones this install doesn't own.
