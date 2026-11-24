@@ -1,0 +1,4 @@
+- Utilise beaucoup moins de mémoire. Sur un Galaxy S23 : accueil 54 → 38 Mo, tiroir ouvert 237 → 106 Mo, en arrière-plan 135 → 60 Mo.
+- Les icônes et étiquettes sont conservées sur le disque : Vulcan ne charge plus toutes les applis pour dessiner leur icône.
+- Ajouter au groupe est une liste à cocher : cochez ou décochez chaque groupe.
+- Pivoter l’écran ou changer de mode sombre dans les paramètres ne fuit plus de boîtes de dialogue.

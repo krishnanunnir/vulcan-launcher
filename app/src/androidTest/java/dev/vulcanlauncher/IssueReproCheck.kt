@@ -89,7 +89,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
     }
     private fun clean() {
         settings?.let { s -> ui { dialogs(s).forEach { it.dismiss() }; s.finish() }; settle() }; settings = null
-        ui { dialogs().forEach { it.dismiss() }; a.closeMenu(); a.closeOverlay(); a.drawer.hide(false) }; settle(100)
+        ui { dialogs().forEach { it.dismiss() }; a.homeMenus.closeMenu(); a.closeOverlay(); a.drawer.hide(false) }; settle(100)
     }
     private fun setup(vararg prefs: Pair<String, String>) {
         clean()
@@ -103,7 +103,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
             a.save(); a.rebuild(); a.workspace.snapTo(0, false)
         }; settle()
     }
-    private fun children() = a.apps.values.filter { !a.isPrivate(it) }.take(6).map { Item(0,0,0,pkg=it.pkg,cls=it.cls,user=it.serial) }
+    private fun children() = a.repo.apps.values.filter { !a.repo.isPrivate(it) }.take(6).map { Item(0,0,0,pkg=it.pkg,cls=it.cls,user=it.serial) }
     private fun drawer() { ui { a.drawer.show(false) }; settle() }
     private fun grid() = field(a.drawer, "grid") as GridView
     private fun settings(page: String): SettingsActivity {
@@ -123,13 +123,13 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
         repeat(100) { if (MainActivity.running?.get()?.hasWindowFocus() != true) SystemClock.sleep(100) }
         a = MainActivity.running?.get() ?: error("Launcher did not start")
         out = File(a.filesDir,"issue-repro").apply { mkdirs() }
-        val original = a.store.export(a.apps.values.toList())
+        val original = a.store.export(a.repo.apps.values.toList())
         try {
-            note("ENV","INFO","API ${android.os.Build.VERSION.SDK_INT}; apps=${a.apps.size}; privateUser=${a.privateUser}; privateLocked=${a.privateLocked}")
+            note("ENV","INFO","API ${android.os.Build.VERSION.SDK_INT}; apps=${a.repo.apps.size}; privateUser=${a.repo.privateUser}; privateLocked=${a.repo.privateLocked}")
             case("#33") {
                 setup("fillFromBottom" to "on", "frequent" to "off", "drawerCols" to "4", "drawerRows" to "6")
-                val selected = a.apps.values.filter { !a.isPrivate(it) }.take(18).let { if (it.size % 4 == 0) it.dropLast(2) else it }
-                ui { a.store.putStrings("hidden", a.apps.keys - selected.map { it.key }.toSet()) }; drawer()
+                val selected = a.repo.apps.values.filter { !a.repo.isPrivate(it) }.take(18).let { if (it.size % 4 == 0) it.dropLast(2) else it }
+                ui { a.store.putStrings("hidden", a.repo.apps.keys - selected.map { it.key }.toSet()) }; drawer()
                 shot("33-bottom-grid")
                 val g = grid(); val real = all(g).filterIsInstance<IconView>().filter { it.isShown }
                 require(real.size == selected.size) { "Expected ${selected.size} real apps, found ${real.size}" }
@@ -139,14 +139,14 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 note("#26","INFO","fillFromBottom setting available; grid.stackFromBottom=${g.isStackFromBottom}; tab placement captured with #21")
                 for (style in listOf("housing","glass","list","pages")) {
                     setup("fillFromBottom" to "on","frequent" to "off","drawerStyle" to style)
-                    ui { a.store.putStrings("hidden", a.apps.keys - selected.map { it.key }.toSet()) }; drawer(); shot("33-bottom-$style")
+                    ui { a.store.putStrings("hidden", a.repo.apps.keys - selected.map { it.key }.toSet()) }; drawer(); shot("33-bottom-$style")
                     note("#33/$style","OBSERVED","stackFromBottom=${grid().isStackFromBottom}; visible icons=${all(grid()).filterIsInstance<IconView>().count { it.isShown }}; pages intentionally excludes this option")
                 }
             }
             case("#9 #12 #13") {
                 for (style in listOf("housing","glass","grid","list","pages")) {
                     setup("drawerStyle" to style,"drawerSearch" to "off","frequent" to "on")
-                    ui { a.store.putObj("launches", JSONObject().apply { a.apps.values.filter { !a.isPrivate(it) }.take(4).forEachIndexed { i,app -> put(app.key,20-i) } }) }; drawer()
+                    ui { a.store.putObj("launches", JSONObject().apply { a.repo.apps.values.filter { !a.repo.isPrivate(it) }.take(4).forEachIndexed { i,app -> put(app.key,20-i) } }) }; drawer()
                     val row = field(a.drawer,"frequentRow") as LinearLayout
                     check("#9/$style",row.isShown && all(row).filterIsInstance<IconView>().size == 4,"dedicated frequent row icons=${all(row).filterIsInstance<IconView>().size}")
                     check("#12/$style", !(field(a.drawer,"searchBar") as View).isShown,"drawer search off visibility=${(field(a.drawer,"searchBar") as View).visibility}")
@@ -163,7 +163,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
             }
             case("#21 #22 #23 #25") {
                 setup("frequent" to "off")
-                val keys = a.apps.values.filter { !a.isPrivate(it) }.take(6).map { it.key }
+                val keys = a.repo.apps.values.filter { !a.repo.isPrivate(it) }.take(6).map { it.key }
                 ui { a.store.data.edit().putString("groups",groupsToJson(listOf(Group("Repro group","folder",keys),Group("Tab one","tab",keys.take(2)),Group("Tab two","tab",keys.takeLast(2))))).commit() }; drawer()
                 tap(all(grid()).filterIsInstance<IconView>().first { it.contentDescription == "Repro group" }); shot("22-folder-open")
                 check("#22/open",a.overlay != null && a.drawer.visible,"folder and drawer both open")
@@ -191,7 +191,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 check("#1/reorder",before!=after && after[2]==before[0],"folder reorder before=$before after=$after"); shot("01-folder-reordered")
                 setup(); val controlFolder=a.items.first { it.folder }; tap(a.views[controlFolder]!!)
                 val controlIcons=all(a.overlay!!).filterIsInstance<IconView>()
-                drag(rect(controlIcons[0]),rect(controlIcons[2]),500,ViewConfiguration.getLongPressTimeout()+200L) { ui { a.closeMenu() } }
+                drag(rect(controlIcons[0]),rect(controlIcons[2]),500,ViewConfiguration.getLongPressTimeout()+200L) { ui { a.homeMenus.closeMenu() } }
                 val controlled=a.items.first { it.folder }.children.map { it.appKey }
                 note("#1/reorder-control","DIAGNOSTIC","same drag with long-press menu suppressed: children=$controlled; expected target=${before[0]} at index2")
                 clean(); ui { a.workspace.snapTo(0,false) }; settle()
@@ -206,7 +206,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 setup(); val icon=a.views[a.items.first { it.label=="Repro swipe" }]!!; val r=rect(icon)
                 val time=SystemClock.uptimeMillis(); event(time,MotionEvent.ACTION_DOWN,r.exactCenterX(),r.exactCenterY())
                 SystemClock.sleep(ViewConfiguration.getLongPressTimeout()+250L)
-                check("#20",a.menu!=null,"context menu visible while finger still down=${a.menu!=null}"); shot("20-menu-during-hold")
+                check("#20",a.homeMenus.menu!=null,"context menu visible while finger still down=${a.homeMenus.menu!=null}"); shot("20-menu-during-hold")
                 event(time,MotionEvent.ACTION_UP,r.exactCenterX(),r.exactCenterY()); clean()
                 setup()
                 val swipeIcon=a.views[a.items.first { it.label=="Repro swipe" }]!!
@@ -221,7 +221,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 check("#27",passes==10,"$passes/10 icon swipe actions reached page 3"); shot("27-swipe-result")
             }
             case("#18 #1/widgets") {
-                setup(); ui { a.pickWidget() }; settle(); shot("18-widget-picker")
+                setup(); ui { a.widgetFlow.pickWidget() }; settle(); shot("18-widget-picker")
                 // One row per app (title, "N widgets"), A to Z; opening one shows its widgets under it, A to Z.
                 val d=dialogs().last(); val list=all(d.window!!.decorView).filterIsInstance<android.widget.ScrollView>().mapNotNull { it.getChildAt(0) as? LinearLayout }.maxBy { it.childCount }
                 fun texts(v: View)=all(v).filterIsInstance<TextView>().map { it.text.toString() }
@@ -297,15 +297,15 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 clean()
                 val cm=a.getSystemService(android.hardware.camera2.CameraManager::class.java)
                 val flash=cm.cameraIdList.filter { cm.getCameraCharacteristics(it).get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE)==true }
-                ui { a.perform("torch") }; settle()
+                ui { a.homeMenus.perform("torch") }; settle()
                 val first=field(a,"torchOn")
-                ui { a.perform("torch") }; settle()
+                ui { a.homeMenus.perform("torch") }; settle()
                 note("#15/hardware",if(flash.isEmpty()) "LIMITED" else "OBSERVED","flash cameras=$flash; two toggles=$first -> ${field(a,"torchOn")}; no physical light verification")
                 note("#24","LIMITED","Settings navigated. GrapheneOS Android 17 unavailable")
             }
             case("#24") {
                 setup()
-                val group=Group("Animation group","folder",a.apps.keys.take(4))
+                val group=Group("Animation group","folder",a.repo.apps.keys.take(4))
                 ui { a.editGroup(group) }; settle(); shot("24-group-menu")
                 val menu=dialogs().last(); val samples=mutableListOf<Float>()
                 ui { menu.listView.performItemClick(menu.listView.getChildAt(1),1,1) }
@@ -333,7 +333,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                     val ordered=names.sortedWith(labelOrder(ru))
                     check("#5",ordered==listOf("Банк","Контакт","Электричка","Catima","Organic","Yahoo"),"Android ICU Russian order=$ordered; German Ä/A=${labelOrder(Locale.GERMAN).compare("Ä","A")}")
                     clean()
-                    val apps=a.apps.values.filter { !a.isPrivate(it) }.take(names.size)
+                    val apps=a.repo.apps.values.filter { !a.repo.isPrivate(it) }.take(names.size)
                     ui {
                         // Starting SettingsActivity can reapply the device locale to Locale.getDefault().
                         // Reapply the case's app locale after closing it, before exercising the real drawer.
@@ -341,7 +341,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                         @Suppress("DEPRECATION")
                         a.resources.updateConfiguration(c,a.resources.displayMetrics)
                         a.store.putObj("custom",JSONObject().apply { apps.zip(names).forEach { (app,name) -> put(app.key,JSONObject().put("label",name)) } })
-                        a.store.putStrings("hidden",a.apps.keys-apps.map { it.key }.toSet()); a.loadApps(); a.drawer.invalidate()
+                        a.store.putStrings("hidden",a.repo.apps.keys-apps.map { it.key }.toSet()); a.repo.loadApps(); a.drawer.invalidate()
                     }; drawer(); shot("05-russian-drawer")
                     val labels=all(grid()).filterIsInstance<IconView>().filter { it.isShown }.map { it.contentDescription.toString() }
                     check("#5/drawer",labels==ordered,"actual renamed app order=$labels; locale=${Locale.getDefault()}")
@@ -353,10 +353,10 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
             }
             case("#3 #31") {
                 setup(); drawer(); shot("03-private-tab")
-                note("#3",if(android.os.Build.VERSION.SDK_INT<35) "NOT_APPLICABLE" else "OBSERVED","privateUser=${a.privateUser}; locked=${a.privateLocked}; private apps=${a.apps.values.count { a.isPrivate(it) }}; tabKeys=${field(a.drawer,"tabKeys")}")
-                if(a.privateUser!=null) {
+                note("#3",if(android.os.Build.VERSION.SDK_INT<35) "NOT_APPLICABLE" else "OBSERVED","privateUser=${a.repo.privateUser}; locked=${a.repo.privateLocked}; private apps=${a.repo.apps.values.count { a.repo.isPrivate(it) }}; tabKeys=${field(a.drawer,"tabKeys")}")
+                if(a.repo.privateUser!=null) {
                     tap(text(field(a.drawer,"tabs") as View,a.getString(R.string.tab_private))); shot("03-private-locked")
-                    check("#3/locked",a.privateLocked && grid().adapter.count==0,"Private tab selected; locked profile has ${grid().adapter.count} exposed app entries")
+                    check("#3/locked",a.repo.privateLocked && grid().adapter.count==0,"Private tab selected; locked profile has ${grid().adapter.count} exposed app entries")
                 }
                 val lawn=iconPacks(a).firstOrNull { it.first.contains("lawnicons") }
                 if(lawn==null) note("#31","PREREQUISITE_MISSING","Lawnicons is not installed")
@@ -369,7 +369,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 note("#19","NOT_A_BUG","Thank-you message; no reproduction steps")
             }
         } finally {
-            runCatching { clean(); ui { a.store.import(original,a::mainActivity); a.items=a.store.load(a.sub); a.rebuild() } }
+            runCatching { clean(); ui { a.store.import(original,a.repo::mainActivity); a.items=a.store.load(a.sub); a.rebuild() } }
                 .onFailure { note("RESTORE","ERROR",it.stackTraceToString()) }
             for(name in listOf("layout","looks","data")) t.targetContext.getSharedPreferences(name,0).edit().commit()
             File(out,"results.txt").writeText(log.toString())

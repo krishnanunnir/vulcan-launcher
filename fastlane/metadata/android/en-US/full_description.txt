@@ -1,4 +1,4 @@
-<p>Make your Android home screen your own with Vulcan: a customizable launcher with no ads, trackers, analytics or internet permission.</p>
+<p>Vulcan is a full, customizable Android launcher in about half a megabyte. It has no third-party libraries and no ads, trackers, analytics or internet permission.</p>
 
 <p>Arrange apps and widgets, organize your drawer, and choose a look that fits your wallpaper. Vulcan works entirely on your device and needs no account.</p>
 

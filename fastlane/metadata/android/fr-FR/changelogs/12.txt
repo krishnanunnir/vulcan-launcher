@@ -1,0 +1,6 @@
+- Correction d’un plantage lors d’un appui long sur une appli dans le tiroir.
+- Changer un réglage ne fait plus clignoter l’écran.
+- Une barre d’état masquée cède son espace à l’écran d’accueil, sans bande noire sur les téléphones à encoche.
+- La navigation à trois boutons est entièrement transparente sur l’écran d’accueil.
+- Les titres longs des paramètres passent à la ligne au lieu d’être coupés.
+- Animations plus rapides et redessins plus fluides.

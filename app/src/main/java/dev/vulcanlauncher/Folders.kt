@@ -144,8 +144,8 @@ class GlyphIcon(private val bg: Int, private val fg: Int, private val text: Stri
 // ---- Folder behaviour: making one by dragging, emptying it, and its window (as in Launcher3) ----
 
 /** Fill of folder icons, also used by the hover disc that previews a new folder. */
-fun MainActivity.folderTint() = if (looks.str("folderColor") == "system") m3.surfaceHigh and 0xFFFFFF or 0xE6000000.toInt()
-    else looks.color("folderColor") and 0xFFFFFF or 0x99000000.toInt()
+// A chosen colour is as solid as the theme's: at 60% a dark wallpaper showed through, and the icon was darker than its open window.
+fun MainActivity.folderTint() = (if (looks.str("folderColor") == "system") m3.surfaceHigh else looks.color("folderColor")) and 0xFFFFFF or 0xE6000000.toInt()
 
 fun MainActivity.folderIcon(children: List<Item>) = FolderIcon(children.take(6).mapNotNull { resolve(it)?.second },
     looks.str("folderPreview"), looks.str("folderBg").let { if (it == "icon") "icon:" + looks.str("shape") else it }, folderTint(), looks.on("folderClip"), looks.on("folderFirstBig"))
@@ -209,38 +209,45 @@ class FolderFx(private val a: MainActivity) {
 
 /** The icon or folder under ([px], [py]) that dropping [payload] there would merge into, or null. */
 fun MainActivity.mergeTarget(cell: CellLayout, px: Float, py: Float, payload: Any?): Item? {
-    if (!dragMoved || asChild(payload) == null) return null
+    if (!drag.dragMoved || drag.asChild(payload) == null) return null
     val (fx, fy) = cell.cellAt(px, py)
     val target = cell.viewAt(fx, fy)?.let { viewItems[it] } ?: return null
-    return target.takeIf { it != payload && !(payload is FolderChild && payload.folder == it) &&
+    return target.takeIf { it != payload && !(payload is FolderChild && it.folder && it.page == payload.page && it.x == payload.x && it.y == payload.y) &&
         (it.isApp || it.folder || it.isShortcut || it.isAction) }
 }
 
 /** Drops [child] (the dragged [payload] as a folder item) onto [target]: into it if it's a folder, else a new folder of both. */
-fun MainActivity.mergeIntoFolder(target: Item, child: Item, payload: Any?) {
+fun MainActivity.mergeIntoFolder(target: Item, child: Item, payload: Any?): Boolean {
     val merged = if (target.folder) target.copy(children = target.children + child)
-        else Item(target.page, target.x, target.y, target.w, target.h, folder = true, label = getString(R.string.folder), children = listOf(asChild(target)!!, child))
-    detach(payload)
-    items[items.indexOf(target)] = merged
+        else Item(target.page, target.x, target.y, target.w, target.h, folder = true, label = getString(R.string.folder), children = listOf(drag.asChild(target)!!, child))
+    // Both still there, or nothing changes: the dragged icon then reappears where it was.
+    if (target !in items || !detach(payload)) return false
+    items[items.indexOf(target)] = merged // still there: detach only touches the dragged icon or its own folder, never the target
     root.confirm()
     save()
     folderFx.settleNext(merged, 1.3f)
     render()
+    return true
 }
 
+/**
+ * Where [f] is in items. A folder window, menu or drag holds the folder as it was when it opened, and a rename or sort
+ * since has replaced that item: it's then found by its cell.
+ */
+fun MainActivity.folderIndex(f: Item) = items.indexOf(f).takeIf { it >= 0 }
+    ?: items.indexOfFirst { it.folder && it.page == f.page && it.x == f.x && it.y == f.y }
+
 /** Takes one item out of a folder; a folder left with one item turns back into that item. The rest settles in place. */
-fun MainActivity.removeFromFolder(fc: FolderChild) {
-    val f = fc.folder
-    val i = items.indexOf(f)
-    if (i < 0) return
-    val rest = f.children.filterIndexed { j, _ -> j != fc.index }
-    when (rest.size) {
-        0 -> items.removeAt(i)
-        1 -> items[i] = rest[0].copy(page = f.page, x = f.x, y = f.y, w = f.w, h = f.h)
-        else -> items[i] = f.copy(children = rest)
-    }
-    items.getOrNull(i)?.takeIf { rest.isNotEmpty() }?.let { folderFx.settleNext(it, 0.82f) }
+fun MainActivity.removeFromFolder(fc: FolderChild): Boolean {
+    val now = takeFromFolder(items, fc.page, fc.x, fc.y, fc.child) ?: return false
+    // What's left on that cell (the folder, or its last icon) settles into place.
+    if (now.size == items.size) now.firstOrNull { it.page == fc.page && it.x == fc.x && it.y == fc.y }?.let { folderFx.settleNext(it, 0.82f) }
+    items = now.toMutableList()
+    return true
 }
+
+/** The folder [fc] came from, as it is now. */
+fun MainActivity.folderOf(fc: FolderChild) = items.firstOrNull { it.folder && it.page == fc.page && it.x == fc.x && it.y == fc.y }
 
 /**
  * Launcher3's folder reveal. [card]'s background grows out of the folder icon's shape at [from] (root coordinates) into
@@ -288,7 +295,7 @@ private fun MainActivity.reveal(card: View, grid: ViewGroup, name: View, from: R
         flies = (0 until grid.childCount).mapNotNull { i ->
             val v = grid.getChildAt(i) as? IconView ?: return@mapNotNull null
             val img = v.image
-            val r = screenRect(img)
+            val r = homeMenus.screenRect(img)
             val size = minOf(img.width, img.height).toFloat().coerceAtLeast(1f)
             v.pivotX = img.left + img.width / 2f
             v.pivotY = img.top + img.height / 2f
@@ -325,8 +332,8 @@ fun MainActivity.openFolder(item: Item) {
     drawer.hide()
     var folder = item
     openFolderWindow(item.label, item.children, { name ->
-        val i = items.indexOf(folder)
-        if (i >= 0 && name != folder.label) { items[i] = folder.copy(label = name.ifEmpty { getString(R.string.folder) }); save(); render() }
+        val i = folderIndex(folder)
+        if (i >= 0 && name != items[i].label) { folder = items[i].copy(label = name.ifEmpty { getString(R.string.folder) }); items[i] = folder; save(); render() }
     }, reorder = { from, to ->
         val i = items.indexOf(folder)
         if (i >= 0) {
@@ -336,10 +343,10 @@ fun MainActivity.openFolder(item: Item) {
         }
         folder.children
     }, icon = (views[item] as? IconView)?.image, more = { v ->
-        showMenu(screenRect(v), narrow = true) { addActions(folderActions(folder, reopen = true), 4, lead = setOf("check", "sort")) }
+        homeMenus.showMenu(homeMenus.screenRect(v), narrow = true) { with(homeMenus) { addActions(folderActions(folder, reopen = true), 4, lead = setOf("check", "sort")) } }
     }, reload = {
         items.firstOrNull { it.folder && it.page == folder.page && it.x == folder.x && it.y == folder.y }?.also { folder = it }?.children
-    }) { FolderChild(folder, it) }
+    }) { _, child -> FolderChild(folder.page, folder.x, folder.y, child) }
 }
 
 /** Nova's folder actions: pick its apps, or sort them A to Z. [reopen] shows the folder again after a sort. */
@@ -354,18 +361,19 @@ fun MainActivity.folderActions(f: Item, reopen: Boolean = false) = listOf(
 
 /** Ticks the folder's apps on or off: kept ones stay in place, new ones go at the end; its shortcuts and actions stay. */
 private fun MainActivity.selectFolderApps(f: Item) {
-    val keys = f.children.mapNotNull { c -> appOf(c)?.key?.takeIf { c.isApp } }
+    val keys = f.children.mapNotNull { c -> drag.appOf(c)?.key?.takeIf { c.isApp } }
     appSwitches(f.label, keys) { chosen ->
-        val kept = f.children.filter { c -> !c.isApp || appOf(c)?.key in chosen }
-        val added = chosen.filter { it !in keys }.mapNotNull { apps[it]?.let(::asChild) }
+        val kept = f.children.filter { c -> !c.isApp || drag.appOf(c)?.key in chosen }
+        val added = chosen.filter { it !in keys }.mapNotNull { repo.apps[it]?.let(drag::asChild) }
         setFolderChildren(f, kept + added)
     }
 }
 
 /** Replaces [f]'s children; with one left it turns back into that item, with none it goes. */
-fun MainActivity.setFolderChildren(f: Item, children: List<Item>) {
-    val i = items.indexOf(f)
+fun MainActivity.setFolderChildren(old: Item, children: List<Item>) {
+    val i = folderIndex(old)
     if (i < 0) return
+    val f = items[i]
     when (children.size) {
         0 -> items.removeAt(i)
         1 -> items[i] = children[0].copy(page = f.page, x = f.x, y = f.y, w = f.w, h = f.h)
@@ -399,8 +407,8 @@ fun folderGrid(n: Int, cellW: Int, minW: Int, avail: Int, want: Int? = null): Pa
  */
 fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename: ((String) -> Unit)?,
                                   reorder: ((from: Int, to: Int) -> List<Item>)? = null, icon: View? = null,
-                                  more: ((View) -> Unit)? = null, reload: (() -> List<Item>?)? = null, payload: (Int) -> Any) {
-    val anchor = icon?.takeIf { it.isLaidOut }?.let(::screenRect)
+                                  more: ((View) -> Unit)? = null, reload: (() -> List<Item>?)? = null, payload: (Int, Item) -> Any) {
+    val anchor = icon?.takeIf { it.isLaidOut }?.let(homeMenus::screenRect)
     val full = looks.str("folderWindow") == "fullscreen"
     val base = style("")
     // Folder background color paints the window as well as the icon (#87); its text turns dark on a light colour.
@@ -424,12 +432,12 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         order = MutableList(list.size) { null }
         list.forEachIndexed { i, c ->
             val (label, icon) = resolve(c) ?: return@forEachIndexed
-            cell.addView(IconView(this, label, icon, style, badgeStyle(), c.pkg).also { order[i] = it }.apply {
+            cell.addView(IconView(this, label, icon, style, badgeStyle(), repo.badgeKey(c.pkg, c.user)).also { order[i] = it }.apply {
                 layoutParams = CellLayout.CellParams(i % cols, i / cols, 1, 1)
                 if (looks.str("badges") != "off") badge(image, c.pkg)
                 // The flashlight keeps the folder open, so the same tap turns it off again (#103).
                 setOnClickListener { v -> if (c.isAction && c.action == "torch") open(c, v) else { closeOverlay(); open(c, v) } }
-                setOnLongClickListener { v -> startDrag(v, payload(i)); true }
+                setOnLongClickListener { v -> drag.startDrag(v, payload(i, c)); true }
             })
         }
     }
@@ -463,23 +471,23 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
     }
     val shuffle = Runnable { moveGap(target) }
     var leaving = false
-    val leave = Runnable { leaving = false; closeOverlay(); drawer.hide(animate = false); liftDrag() }
+    val leave = Runnable { leaving = false; closeOverlay(); drawer.hide(animate = false); drag.liftDrag() }
     fun stay() { leaving = false; root.removeCallbacks(leave) }
     if (reorder != null) cell.setOnDragListener { v, e ->
-        trackDrag(v, e, keepOverlay = true)
+        drag.trackDrag(v, e, keepOverlay = true)
         when (e.action) {
-            DragEvent.ACTION_DRAG_STARTED -> order.indexOf(dragSource).takeIf { it >= 0 }?.let {
+            DragEvent.ACTION_DRAG_STARTED -> order.indexOf(drag.dragSource).takeIf { it >= 0 }?.let {
                 from = it; gap = it; target = it
                 order[it]?.alpha = 0f
             }
-            DragEvent.ACTION_DRAG_LOCATION -> if (dragMoved && gap >= 0) {
+            DragEvent.ACTION_DRAG_LOCATION -> if (drag.dragMoved && gap >= 0) {
                 stay()
                 val (x, y) = cell.cellAt(e.x, e.y)
                 val t = minOf(y * cols + x, order.size - 1)
                 if (t != target) { target = t; root.removeCallbacks(shuffle); root.postDelayed(shuffle, 250) }
             }
             DragEvent.ACTION_DROP -> {
-                if (!dragMoved || gap < 0) return@setOnDragListener false
+                if (!drag.dragMoved || gap < 0) return@setOnDragListener false
                 root.removeCallbacks(shuffle)
                 moveGap(target)
                 order[gap]?.alpha = 1f
@@ -489,7 +497,12 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
                 root.tick()
             }
             // Only the view that took the drop hears ENDED.
-            DragEvent.ACTION_DRAG_ENDED -> { root.removeCallbacks(shuffle); stay(); gap = -1; dragEnded() }
+            DragEvent.ACTION_DRAG_ENDED -> {
+                root.removeCallbacks(shuffle); stay()
+                // Released off the grid (on the name, say): the icons shuffled on the way go back to the saved order.
+                if (!e.result && gap >= 0 && gap != from && cell.isAttachedToWindow) fill(reorder(from, from))
+                gap = -1; drag.dragEnded()
+            }
         }
         true
     }
@@ -500,6 +513,8 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         setTextColor(ink)
         background = null
         setSingleLine()
+        // A folder name: the keyboard starts capitalised.
+        if (this is EditText) inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
         ellipsize = android.text.TextUtils.TruncateAt.END
         // Inset by the ⋮ button's width on both sides, so the name stays centred.
         val side = if (more != null) (48 * dp).toInt() else 0
@@ -535,7 +550,7 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
     val w = cols * cellW + (32 * dp).toInt()
     val margin = (16 * dp).toInt()
     // The pop-up stays clear of the dock: above it, or left of it in landscape where it's a column on the right.
-    val dockR = if (dockBox.visibility == View.VISIBLE && dockBox.isLaidOut) screenRect(dockBox) else null
+    val dockR = if (dockBox.visibility == View.VISIBLE && dockBox.isLaidOut) homeMenus.screenRect(dockBox) else null
     val bottom = if (dockR != null && dockR.width() > dockR.height()) dockR.top else root.height - insets.bottom
     val right = if (dockR != null && dockR.width() <= dockR.height()) dockR.left else root.width
     val spot = if (full || anchor == null) null else {
@@ -548,13 +563,13 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         setOnClickListener { closeOverlay() }
         // Off the folder (off the grid when full screen) for a moment, a reorderable icon leaves it for the home screen.
         setOnDragListener { v, e ->
-            if (reorder != null && dragMoved && e.action == DragEvent.ACTION_DRAG_LOCATION) {
-                val at = screenRect(v)
+            if (reorder != null && drag.dragMoved && e.action == DragEvent.ACTION_DRAG_LOCATION) {
+                val at = homeMenus.screenRect(v)
                 root.removeCallbacks(shuffle)
-                if (screenRect(if (full) grid else card).contains(at.left + e.x.toInt(), at.top + e.y.toInt())) stay()
+                if (homeMenus.screenRect(if (full) grid else card).contains(at.left + e.x.toInt(), at.top + e.y.toInt())) stay()
                 else if (!leaving) { leaving = true; root.postDelayed(leave, 400) }
             }
-            trackDrag(v, e, keepOverlay = reorder != null)
+            drag.trackDrag(v, e, keepOverlay = reorder != null)
             e.action != DragEvent.ACTION_DROP
         }
         addView(card, when {
@@ -576,7 +591,8 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
     }
     showOverlay(dim, depth = false) { onRename?.invoke(name.text.toString().trim()) }
     // A folder that's gone (or became a single app) closes; the grid keeps its size, so the last slots stay empty.
-    if (reload != null) refillFolder = { reload()?.let(::fill) ?: closeOverlay() }
+    // ponytail: not while an icon is being dragged in here (the rebuild would lose the gap); the drop refills it.
+    if (reload != null) refillFolder = { if (gap < 0) reload()?.let(::fill) ?: closeOverlay() }
     if (spot != null && anchor != null) {
         val corner = looks.int("folderRadius") * dp
         val iconCorner = minOf(anchor.width(), anchor.height()) * if (looks.str("folderBg") == "square") 0.2f else 0.5f

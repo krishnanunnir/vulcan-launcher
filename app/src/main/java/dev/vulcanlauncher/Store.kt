@@ -86,11 +86,34 @@ private fun itemList(a: JSONArray) = (0 until a.length()).mapNotNull { runCatchi
 fun removePackage(items: List<Item>, pkg: String, user: Long) = removeApps(items) { it.pkg == pkg && it.user == user }
 
 /**
+ * [items] with [child] taken out of the folder on cell ([page], [x], [y]); a folder left with one item turns back into
+ * it, an empty one goes. Null, and nothing to do, when that folder or that child is no longer there.
+ */
+fun takeFromFolder(items: List<Item>, page: Int, x: Int, y: Int, child: Item): List<Item>? {
+    val i = items.indexOfFirst { it.folder && it.page == page && it.x == x && it.y == y }
+    val f = items.getOrNull(i) ?: return null
+    val j = f.children.indexOf(child).takeIf { it >= 0 } ?: return null
+    val rest = f.children.filterIndexed { k, _ -> k != j }
+    return items.toMutableList().apply {
+        when (rest.size) {
+            0 -> removeAt(i)
+            1 -> set(i, rest[0].copy(page = f.page, x = f.x, y = f.y, w = f.w, h = f.h))
+            else -> set(i, f.copy(children = rest))
+        }
+    }
+}
+
+private fun goneApp(i: Item, gone: (Item) -> Boolean) = i.pkg.isNotEmpty() && !i.isWidget && !i.isWidgetSlot && !i.folder && gone(i)
+
+/** How many icons [removeApps] would take out, folder entries included: what a restore reports as left out. */
+fun missingApps(items: List<Item>, gone: (Item) -> Boolean) = items.sumOf { f -> (f.children + f).count { goneApp(it, gone) } }
+
+/**
  * [items] without the apps, shortcuts and activities [gone] picks. Widgets, widget spots and folders are never passed to
  * it: a widget's package may have no app Vulcan can see, so it would look uninstalled.
  */
 fun removeApps(items: List<Item>, gone: (Item) -> Boolean): List<Item> {
-    fun g(i: Item) = i.pkg.isNotEmpty() && !i.isWidget && !i.isWidgetSlot && !i.folder && gone(i)
+    fun g(i: Item) = goneApp(i, gone)
     return items.filterNot(::g).mapNotNull { f ->
         val rest = f.children.filterNot(::g)
         when {
@@ -143,14 +166,12 @@ class Store(private val context: Context) {
         val saved = prefs.getString("sub", null)?.toIntOrNull()?.takeIf { it == 1 || it == 2 }
         runCatching { return layoutIn(itemsFromJson(raw), saved, sub).toMutableList() }
         runCatching { File(context.filesDir, "layout-unreadable.json").writeText(raw) }
+        // What's recovered is saved at once: export reads the stored layout, so a restore (which backs up first) would fail too.
         for (f in autoBackups) runCatching {
-            val b = JSONObject(f.readText())
-            val layout = b.getJSONObject("layout")
-            // A backup from before version 2 is in the subgrid factor of the settings saved with it.
-            val saved = layout.optString("sub").toIntOrNull() ?: if (b.optJSONObject("looks")?.optString("subgrid") == "on") 2 else 1
-            return layoutIn(itemsFromJson(layout.getString("items")), saved, sub).toMutableList()
+            val l = backupLayout(JSONObject(f.readText()))
+            return layoutIn(itemsFromJson(l.getValue("items")), l["sub"]?.toIntOrNull()?.takeIf { it == 1 || it == 2 }, sub).toMutableList().also { save(it, sub) }
         }
-        return mutableListOf()
+        return mutableListOf<Item>().also { save(it, sub) }
     }
 
     /** Saves [items], whose home positions are in subgrid factor [sub]. Strings only, so backups round-trip them. */
@@ -160,9 +181,11 @@ class Store(private val context: Context) {
     /** Writes today's automatic backup, keeping the two before it. */
     fun rotateAutoBackup() {
         val (a, b, c) = autoBackups
+        // Written whole before the older ones move: a write cut short must not stand as today's backup.
+        val tmp = java.io.File(a.path + ".tmp").apply { writeText(export()) }
         if (b.exists()) b.renameTo(c)
         if (a.exists()) a.renameTo(b)
-        a.writeText(export())
+        tmp.renameTo(a)
     }
 
     // Lenient: a restored or hand-edited value of the wrong type reads as empty instead of crashing home on every start.
@@ -180,7 +203,7 @@ class Store(private val context: Context) {
         val looks = context.getSharedPreferences("looks", Context.MODE_PRIVATE).all.mapValues { it.value.toString() }
         val sub = prefs.getString("sub", null)?.toIntOrNull() ?: if (looks["subgrid"] == "on") 2 else 1
         val items = itemsFromJson(prefs.getString("items", "[]")!!)
-        val data = data.all.mapValues { it.value.toString() }
+        val data = data.all.filterKeys { it !in PASSING_STATE }.mapValues { it.value.toString() }
         return readableBackup(looks, items, sub, data, apps.map { Triple(it.title, it.pkg, it.cls) to it.serial }, context::getString).toString(2)
     }
 
@@ -204,15 +227,18 @@ class Store(private val context: Context) {
         // ponytail: three commits, not one transaction; an I/O failure between them can mix old and new files. The layout
         // carries its own subgrid factor, so its positions still read right; only grid sizes could be the old ones (fitItems copes)
         val replacedLayout = "layout" in files
+        // What's about to be replaced stays restorable from Settings. It throws, and nothing is replaced, if it can't be saved.
+        if (replacedLayout) rotateAutoBackup()
         for ((name, values) in files) context.getSharedPreferences(name, Context.MODE_PRIVATE).edit().apply {
             if (replacedLayout) clear()
             // data keeps its flags as booleans; the backup has them as "true"/"false"
-            values.forEach { (k, v) -> if (name == "data" && (v == "true" || v == "false")) putBoolean(k, v == "true") else putString(k, v) }
+            values.forEach { (k, v) -> if (restoredAsFlag(name, k, v)) putBoolean(k, v == "true") else putString(k, v) }
         }.commit()
         return RestoreResult(replacedLayout, rejected)
     }
 
-    fun reset() = FILES.forEach { context.getSharedPreferences(it, Context.MODE_PRIVATE).edit().clear().commit() }
+    /** Clears everything, after saving what was there as an automatic backup (best effort: the reset was asked for). */
+    fun reset() = runCatching { rotateAutoBackup() }.let { _ -> FILES.forEach { context.getSharedPreferences(it, Context.MODE_PRIVATE).edit().clear().commit() } }
 
     companion object { val FILES = listOf("layout", "looks", "data") }
 }
@@ -240,7 +266,7 @@ val BACKUP_HOW_TO = listOf(
     "An app: {\"page\":0,\"x\":1,\"y\":3,\"pkg\":\"<package>\"} with pkg from reference.installedApps. cls picks one of its activities: leave it out for the main one, but give it when installedApps lists the package more than once (Google has search and voice search). Optional: label (replaces the name), swipe (an action code run when the icon is swiped up), user (a work profile number from installedApps).",
     "A folder: {\"page\":0,\"x\":0,\"y\":0,\"folder\":true,\"label\":\"Social\",\"children\":[apps, each with page, x and y set to 0]}. An action icon: {\"page\":0,\"x\":2,\"y\":0,\"action\":\"<action code>\",\"label\":\"Lock\"}.",
     "Action codes (gestures, swipe, action icons): see reference.actions, plus page:N (jump to page N, 0-based) and app:<pkg>/<cls>/<user> (open an app).",
-    "icon (on apps, folders, action icons and in data.custom): empty for the app's own icon, or \"pack:<icon pack package>:<drawable name>\" for an installed icon pack.",
+    "icon (on apps, folders, action icons and in data.custom): empty for the app's own icon, \"pack:<icon pack package>:<drawable name>\" for an installed icon pack, or \"uri:<uri>\" for a photo (\"uriraw:<uri>\" draws it without the icon shape).",
     "data.hidden: app keys (<pkg>/<cls>/<user>) left out of the drawer. data.groups: drawer tabs and folders, [{\"name\":\"Social\",\"type\":\"tab\" or \"folder\",\"apps\":[app keys],\"color\":\"#RRGGBB\" (optional, a tab's own colour)}]. data.custom: an app's name and icon everywhere it has no home-screen override, {\"<app key>\":{\"label\":\"Mail\",\"icon\":\"\"}}. data.launches: launch counts, for sorting by most used. data.drawerOrder: app keys in the order arranged by hand (the manual sort; a tab keeps its own in its apps list). data.favourites: app keys pinned above the drawer's tabs, in order.",
     "Widgets can't be made from this file; add them on the phone.",
 )
@@ -249,6 +275,15 @@ val BACKUP_HOW_TO = listOf(
  * The readable backup document. [apps]: (label, package, activity) to profile serial of each installed app. [text] reads a
  * string resource: setting titles and value names are in the phone's language.
  */
+/** data keys that say where a welcome or a widget's setup stands: true of the moment, so they stay out of backups. */
+val PASSING_STATE = setOf("welcome", "welcomeStep", "welcomeImport", "pendingWidget", "pendingSlot", RESTORING_WIDGETS)
+
+/** data keys read with getBoolean, which throws on text: on every start, for a hand-edited "hideWorkTab": "on". */
+val DATA_FLAGS = setOf(WELCOME, WELCOME_IMPORT, RESTORING_WIDGETS, REPIN_SHORTCUTS, ALL_HIDDEN, WORK_HIDDEN)
+
+/** Whether a restore stores [key] = [v] of preference file [file] as a boolean: a flag always, whatever the backup says. */
+fun restoredAsFlag(file: String, key: String, v: String) = file == "data" && (key in DATA_FLAGS || v == "true" || v == "false")
+
 fun readableBackup(looks: Map<String, String>, items: List<Item>, sub: Int, data: Map<String, String>,
                    apps: List<Pair<Triple<String, String, String>, Long>>, text: (Int) -> String): JSONObject = JSONObject()
     .put("format", "vulcan-backup-2")
@@ -260,12 +295,24 @@ fun readableBackup(looks: Map<String, String>, items: List<Item>, sub: Int, data
     .put("reference", JSONObject()
         .put("settings", JSONObject().apply {
             for (c in LOOKS) put(c.key, JSONObject().put("group", c.group).put("title", text(c.title)).put("default", c.default)
-                .put("values", if (c.action) "an action code" else JSONObject().apply { c.values.forEachIndexed { i, v -> put(v, c.name(i, text)) } }))
+                .put("values", if (c.action) "an action code"
+                    // Three numbers, 343 combinations: said in words rather than listed.
+                    else if (c.key == "pageMargin") "left and right x top x bottom in dp, each 0 to 48 in steps of 8, such as 16x8x24"
+                    else JSONObject().apply { c.values.forEachIndexed { i, v -> put(v, c.name(i, text)) } }))
         })
         .put("actions", JSONObject().apply { ACTIONS.zip(ACTION_NAMES).forEach { (v, n) -> put(v, text(n)) } })
         .put("installedApps", JSONArray(apps.sortedWith(compareBy(labelOrder()) { it.first.first }).map { (a, user) ->
             JSONObject().put("label", a.first).put("pkg", a.second).put("cls", a.third).apply { if (user != 0L) put("user", user) }
         })))
+
+/** The `layout` preferences ("items", "sub") held in backup [root], whichever format it is in. Throws when it has no layout. */
+fun backupLayout(root: JSONObject): Map<String, String> {
+    if (root.optString("format") == "vulcan-backup-2") return readableBackupFiles(root) { _, _ -> null }.first.getValue("layout")
+    val layout = root.getJSONObject("layout")
+    // A backup from before version 2 is in the subgrid factor of the settings saved with it.
+    val sub = layout.optString("sub").toIntOrNull() ?: if (root.optJSONObject("looks")?.optString("subgrid") == "on") 2 else 1
+    return mapOf("items" to layout.getString("items"), "sub" to sub.toString())
+}
 
 /**
  * The preference files a readable backup restores to, and the "key=value" settings left out because the value isn't
@@ -285,11 +332,14 @@ fun readableBackupFiles(root: JSONObject, cls: (pkg: String, user: Long) -> Stri
         require(root.optJSONObject("settings") != null) { "Missing settings" }
         return mapOf("looks" to looks) to rejected
     }
-    val home = root.optJSONObject("home") ?: JSONObject()
+    // Restoring replaces the layout: a home section that's missing, misspelt or the wrong shape must not read as an empty one.
+    val home = requireNotNull(root.optJSONObject("home")?.takeIf { it.optJSONArray("items") != null }) { "Missing home items" }
     fun fill(i: Item): Item = i.copy(cls = if (i.isApp && i.cls.isEmpty()) cls(i.pkg, i.user).orEmpty() else i.cls, children = i.children.map(::fill))
-    val items = itemList(home.optJSONArray("items") ?: JSONArray()).map(::fill)
+    val items = itemList(home.getJSONArray("items")).map(::fill)
     val sub = home.optInt("sub", if (looks["subgrid"] == "on") 2 else 1)
     val data = root.optJSONObject("data")?.let { d -> d.keys().asSequence().associateWith { d.get(it).toString() } } ?: emptyMap()
     return mapOf("layout" to mapOf("items" to itemsToJson(items), "version" to LAYOUT_VERSION.toString(), "sub" to sub.toString()),
-        "looks" to looks, "data" to data) to rejected
+        // A phone's own file carries these markers; one written by hand doesn't, and without them the settings it left
+        // out would be filled with the defaults of an install from before 0.16 (Looks.adoptDefaults).
+        "looks" to (mapOf("defaults" to "nova", "defaults032" to "on") + looks), "data" to data) to rejected
 }

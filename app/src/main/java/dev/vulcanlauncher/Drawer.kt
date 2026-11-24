@@ -15,9 +15,6 @@ import android.widget.FrameLayout
 import android.widget.GridView
 import android.widget.LinearLayout
 import android.widget.SectionIndexer
-import android.widget.TextView
-import org.json.JSONArray
-import org.json.JSONObject
 import kotlin.math.abs
 
 /**
@@ -88,79 +85,6 @@ internal class DrawerTabs(context: android.content.Context, private val gap: Int
 }
 
 /**
- * A drawer tab or drawer folder: [type] is "tab" or "folder"; [apps] are app keys; [color] a tab's own "#RRGGBB", null for
- * the theme's. A [hidden] tab is left out of the drawer as if it weren't there, its apps back in All apps; it keeps its apps.
- */
-data class Group(val name: String, val type: String, val apps: List<String>, val color: String? = null, val hidden: Boolean = false)
-
-/** The groups in [s]. A restored or hand-edited file can hold anything: what isn't a group is skipped, never thrown. */
-fun groupsFromJson(s: String): List<Group> = (runCatching { JSONArray(s) }.getOrNull() ?: JSONArray()).let { a ->
-    (0 until a.length()).mapNotNull {
-        val o = a.optJSONObject(it) ?: return@mapNotNull null
-        val name = o.opt("name") as? String ?: return@mapNotNull null
-        val type = o.opt("type") as? String ?: return@mapNotNull null
-        val apps = o.optJSONArray("apps") ?: JSONArray()
-        val color = (o.opt("color") as? String)?.takeIf { Regex("#[0-9a-fA-F]{6}").matches(it) }
-        Group(name, type, (0 until apps.length()).mapNotNull { i -> apps.opt(i) as? String }, color, o.optBoolean("hidden"))
-    }
-}
-
-fun groupsToJson(groups: List<Group>) = JSONArray().apply {
-    groups.forEach { put(JSONObject().put("name", it.name).put("type", it.type).put("apps", JSONArray(it.apps)).apply { it.color?.let { c -> put("color", c) }; if (it.hidden) put("hidden", true) }) }
-}.toString()
-
-/**
- * App keys shown in a drawer tab, in [ordered] order, or a tab group's own order when [manual]. [tab] is "" (all apps),
- * "work", "private", or a tab group's name.
- * The main tab leaves out hidden apps, work apps when they have their own tab, Private Space apps (always in their
- * own tab), and grouped apps unless [keepInAll].
- */
-fun tabApps(ordered: List<String>, groups: List<Group>, tab: String, hidden: Set<String>, showHidden: Boolean,
-            keepInAll: Boolean, work: Set<String>, workTab: Boolean, private: Set<String> = emptySet(), manual: Boolean = false): List<String> {
-    val shown = ordered.filter { showHidden || it !in hidden }
-    return when (tab) {
-        "" -> {
-            val grouped = if (keepInAll) emptySet() else groups.flatMap { it.apps }.toSet()
-            shown.filter { it !in grouped && !(workTab && it in work) && it !in private }
-        }
-        "work" -> shown.filter { it in work }
-        "private" -> shown.filter { it in private }
-        else -> groups.firstOrNull { it.name == tab && it.type == "tab" }?.apps?.let { g ->
-            if (manual) shown.toSet().let { s -> g.distinct().filter { it in s } } else g.toSet().let { s -> shown.filter { it in s } }
-        } ?: emptyList()
-    }
-}
-
-/** [order] after arranging the apps [shown] as [arranged]: they take the front, the rest keep their order after them. */
-fun arranged(order: List<String>, arranged: List<String>) = arranged + (order - arranged.toSet())
-
-/** The row above the tabs: the [pinned] favourites when there are any, else the most [launches] apps; [shown] filters. */
-fun frequentApps(pinned: List<String>, launches: Map<String, Int>, shown: (String) -> Boolean, cols: Int): List<String> =
-    pinned.filter(shown).ifEmpty { launches.filter { it.value > 0 && shown(it.key) }.entries.sortedByDescending { it.value }.map { it.key } }.take(cols)
-
-/** For each app key, the groups it's in, leaving out [except] (the group being edited). */
-fun groupsOfApps(groups: List<Group>, except: String?): Map<String, List<String>> =
-    groups.filter { it.name != except }.flatMap { g -> g.apps.map { it to g.name } }.groupBy({ it.first }, { it.second })
-
-/**
- * Whether a released drawer pull ends open: flung up faster than [fling] (px/s, upward positive), or past [threshold]
- * unless flung down. A pull up commits at 30% (Launcher3: 40%), a pull down closes below 70%.
- */
-fun drawerOpens(progress: Float, vy: Float, fling: Float, threshold: Float = 0.5f) = vy > fling || vy > -fling && progress > threshold
-
-/**
- * Launcher3's swipe-release duration (BaseSwipeDetector.calculateDuration), on an 800 ms base instead of its 1200 for a
- * quicker finish: [v] release speed in px/ms, [remaining] progress left.
- */
-fun swipeDuration(v: Float, remaining: Float) = maxOf(80L, (800f / maxOf(2f, abs(0.5f * v)) * maxOf(0.2f, remaining)).toLong())
-
-/** Launcher3's release curve (scrollInterpolatorForVelocity): quintic ease-out after a fast fling, else cubic. */
-private val SCROLL_CUBIC = android.view.animation.Interpolator { t -> val u = t - 1; u * u * u + 1 }
-
-/** [from]..[to] of [p] as 0..1, clamped (Launcher3's clampToProgress over a linear curve). */
-private fun span(p: Float, from: Float, to: Float) = ((p - from) / (to - from)).coerceIn(0f, 1f)
-
-/**
  * The tab a sideways swipe lands on: the one after [current] in [keys] if [forward], else before, wrapping round at
  * either end when [wrap]; null with fewer than two, or at an end without [wrap].
  */
@@ -170,125 +94,15 @@ fun swipedTab(keys: List<String>, current: String, forward: Boolean, wrap: Boole
     return if (wrap) keys[i.mod(keys.size)] else keys.getOrNull(i)
 }
 
-/** [groups] with [name] swapped with the nearest group of its type [by] -1 (earlier) or 1 (later); null at that end. */
-fun moveGroup(groups: List<Group>, name: String, by: Int): List<Group>? {
-    val i = groups.indexOfFirst { it.name == name }
-    if (i < 0) return null
-    val range = if (by < 0) (i - 1 downTo 0) else (i + 1 until groups.size)
-    val j = range.firstOrNull { groups[it].type == groups[i].type } ?: return null
-    return groups.toMutableList().apply { this[i] = groups[j]; this[j] = groups[i] }
-}
-
-// ---- Smart folders ----
-
-/** Smart-folder categories Android's own list (ApplicationInfo.CATEGORY_*, 0..8) lacks. */
-const val CAT_FINANCE = 100
-const val CAT_SHOPPING = 101
-const val CAT_HEALTH = 102
-const val CAT_TOOLS = 103
-
-/**
- * Words in an app's package name or label that place it when its developer declared no category, as most don't.
- * First match wins, so the more specific come first: "Amazon Music" is music, "Prime Video" video, not shopping.
- */
-private val CATEGORY_WORDS: List<Pair<Int, Set<String>>> = listOf(
-    android.content.pm.ApplicationInfo.CATEGORY_GAME to setOf("game", "games", "puzzle", "chess", "solitaire", "sudoku",
-        "crossword", "casino", "poker", "arcade", "racing", "supercell", "rovio", "miniclip", "gameloft", "zynga", "ludo"),
-    android.content.pm.ApplicationInfo.CATEGORY_AUDIO to setOf("music", "audio", "radio", "podcast", "podcasts", "spotify",
-        "soundcloud", "audible", "saavn", "jiosaavn", "gaana", "deezer", "tidal", "shazam", "pandora", "audiobooks"),
-    android.content.pm.ApplicationInfo.CATEGORY_VIDEO to setOf("video", "videos", "tv", "movies", "youtube", "netflix",
-        "primevideo", "hotstar", "disney", "hulu", "twitch", "vlc", "mxplayer", "plex", "jellyfin", "kodi", "stremio", "crunchyroll"),
-    android.content.pm.ApplicationInfo.CATEGORY_IMAGE to setOf("camera", "photo", "photos", "gallery", "image", "images",
-        "pictures", "snapseed", "lightroom", "picsart", "pinterest", "vsco", "scanner", "lens"),
-    CAT_FINANCE to setOf("bank", "banking", "pay", "wallet", "finance", "money", "upi", "paytm", "phonepe", "paypal",
-        "venmo", "revolut", "wise", "crypto", "coinbase", "binance", "invest", "trading", "stocks", "zerodha", "groww",
-        "kite", "gpay", "credit", "loan", "insurance", "splitwise", "budget", "expense", "expenses"),
-    CAT_SHOPPING to setOf("shopping", "amazon", "flipkart", "ebay", "myntra", "meesho", "etsy", "aliexpress", "temu",
-        "shein", "ikea", "nykaa", "ajio", "swiggy", "zomato", "food", "grocery", "groceries", "instamart", "zepto",
-        "blinkit", "bigbasket", "doordash", "ubereats", "deliveroo", "dunzo", "walmart", "target"),
-    CAT_HEALTH to setOf("health", "fit", "fitness", "workout", "gym", "running", "strava", "steps", "sleep",
-        "meditation", "headspace", "yoga", "period", "medical", "doctor", "pharmacy", "practo", "cult", "wearable", "shealth"),
-    android.content.pm.ApplicationInfo.CATEGORY_MAPS to setOf("maps", "map", "navigation", "gps", "transit", "metro",
-        "rail", "train", "trains", "bus", "uber", "ola", "lyft", "rapido", "waze", "citymapper", "flight", "flights",
-        "airline", "airlines", "booking", "airbnb", "travel", "trip", "irctc", "makemytrip", "goibibo", "redbus", "skyscanner"),
-    android.content.pm.ApplicationInfo.CATEGORY_SOCIAL to setOf("phone", "dialer", "chat", "messenger", "messages", "messaging", "sms",
-        "whatsapp", "telegram", "signal", "discord", "facebook", "instagram", "twitter", "threads", "snapchat", "reddit",
-        "linkedin", "tiktok", "mastodon", "bluesky", "wechat", "viber", "social", "dating", "tinder", "bumble", "hinge", "contacts"),
-    android.content.pm.ApplicationInfo.CATEGORY_PRODUCTIVITY to setOf("mail", "email", "gmail", "outlook", "calendar",
-        "notes", "note", "docs", "drive", "office", "word", "excel", "sheets", "slides", "powerpoint", "notion", "todo",
-        "todoist", "tasks", "keep", "onenote", "evernote", "dropbox", "onedrive", "pdf", "translate", "authenticator",
-        "password", "passwords", "bitwarden", "keepass", "slack", "teams", "zoom", "meet", "skype", "obsidian", "trello"),
-    android.content.pm.ApplicationInfo.CATEGORY_NEWS to setOf("news", "weather", "magazine", "magazines", "rss", "feedly",
-        "inshorts", "kindle", "books", "comics"),
-    CAT_TOOLS to setOf("calculator", "clock", "alarm", "files", "file", "settings", "flashlight", "torch", "recorder",
-        "compass", "keyboard", "launcher", "backup", "cleaner", "battery", "browser", "chrome", "firefox", "brave",
-        "opera", "duckduckgo", "vpn", "termux", "tools", "utilities", "store", "vending", "finder", "remote"),
-)
-
-/**
- * The smart-folder category for one app, or null to leave it out: what its developer declared, else a game flag, else
- * what its intent filters say it is ([role], e.g. a camera), else words in its [pkg] or [label], else Tools for a
- * system app nothing else placed.
- */
-fun smartCategory(declared: Int, game: Boolean, role: Int?, pkg: String, label: String, system: Boolean): Int? {
-    if (declared != android.content.pm.ApplicationInfo.CATEGORY_UNDEFINED) return declared
-    if (game) return android.content.pm.ApplicationInfo.CATEGORY_GAME
-    if (role != null) return role
-    val words = "$pkg $label".lowercase().split(Regex("[^\\p{L}\\p{N}]+")).toSet()
-    CATEGORY_WORDS.firstOrNull { (_, w) -> w.any { it in words } }?.let { return it.first }
-    return if (system) CAT_TOOLS else null
-}
-
-/**
- * [groups] with smart folders added: [byName] maps each category's folder name to its apps' keys. An app already in
- * a drawer folder stays where it is. An existing folder of that name takes the new apps; a new one needs two.
- * Returns the groups, the folders made and the apps added to existing ones.
- */
-fun smartGroups(groups: List<Group>, byName: Map<String, List<String>>): Triple<List<Group>, Int, Int> {
-    val foldered = groups.filter { it.type == "folder" }.flatMap { it.apps }.toSet()
-    var made = 0
-    var added = 0
-    val out = groups.toMutableList()
-    for ((name, keys) in byName) {
-        val fresh = keys.filter { it !in foldered }.distinct()
-        val i = out.indexOfFirst { it.name == name && it.type == "folder" }
-        when {
-            i >= 0 && fresh.isNotEmpty() -> { out[i] = out[i].copy(apps = out[i].apps + fresh); added += fresh.size }
-            i < 0 && out.none { it.name == name } && fresh.size >= 2 -> { out += Group(name, "folder", fresh); made++ }
-        }
-    }
-    return Triple(out, made, added)
-}
-
-/** data key: All apps is left out of the drawer's tabs. */
-const val ALL_HIDDEN = "hideAllTab"
-
-/** Work apps have their own tab unless it's hidden. Before 0.32 that was the "workTab" setting; its value still counts until the eye is used. */
-fun VulcanActivity.workTabShown() = !store.data.getBoolean(WORK_HIDDEN, looks.raw("workTab") == "off")
-const val WORK_HIDDEN = "hideWorkTab"
-/** data key: how many of the user's tabs (hidden ones too) come before the Work profile tab; 0 puts it right after All apps. */
-const val WORK_AT = "workTabAt"
-
 /** Tag on a drawer view that shows an app, so GridView can hand it back for another app. */
 private const val APP_VIEW = "app"
 
 /** Material "emphasized" easing: quick start, long soft landing. */
 val EASE = android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f)
 
-/** Android's settings pages that drawer search can open, by title. */
-private val SETTINGS_PAGES = listOf(R.string.page_wifi to Settings.ACTION_WIFI_SETTINGS, R.string.page_bluetooth to Settings.ACTION_BLUETOOTH_SETTINGS,
-    R.string.page_network to Settings.ACTION_WIRELESS_SETTINGS, R.string.page_airplane to Settings.ACTION_AIRPLANE_MODE_SETTINGS,
-    R.string.page_display to Settings.ACTION_DISPLAY_SETTINGS, R.string.page_sound to Settings.ACTION_SOUND_SETTINGS,
-    R.string.page_battery to Intent.ACTION_POWER_USAGE_SUMMARY, R.string.page_apps to Settings.ACTION_APPLICATION_SETTINGS,
-    R.string.page_default_apps to Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS, R.string.page_storage to Settings.ACTION_INTERNAL_STORAGE_SETTINGS,
-    R.string.page_location to Settings.ACTION_LOCATION_SOURCE_SETTINGS, R.string.page_security to Settings.ACTION_SECURITY_SETTINGS,
-    R.string.page_accessibility to Settings.ACTION_ACCESSIBILITY_SETTINGS, R.string.page_language to Settings.ACTION_LOCALE_SETTINGS,
-    R.string.page_date to Settings.ACTION_DATE_SETTINGS, R.string.page_developer to Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS,
-    R.string.page_about to Settings.ACTION_DEVICE_INFO_SETTINGS)
-
 /** The app drawer overlay. Built once per activity; [refresh] rebuilds its contents. */
 class Drawer(private val a: MainActivity) {
-    private sealed class Entry {
+    internal sealed class Entry {
         class AppE(val app: App) : Entry()
         class FolderE(val group: Group) : Entry()
         class WebE(val query: String) : Entry()
@@ -316,6 +130,7 @@ class Drawer(private val a: MainActivity) {
     private var entries = listOf<Entry>()
     private var tab = ""
     private var showHidden = false
+    private val found = DrawerSearch(a)
     private val adapter = Adapter({ entries }, { grid })
     /** The neighbouring tab's apps, shown beside the list while a sideways swipe moves it. */
     private var peekEntries = listOf<Entry>()
@@ -353,9 +168,9 @@ class Drawer(private val a: MainActivity) {
     /** Shown when a search matches no app or contact. */
     private val empty = a.text("", 15f, a.m3.onSurfaceVariant).apply { gravity = Gravity.CENTER; visibility = View.GONE }
     /** Glass style: a tint over the blurred home screen and a frosted search bar with a hairline edge. */
-    private val glass = styleName == "glass"
+    internal val glass = styleName == "glass"
     /** Appliance housing: an opaque warm-grey body, a recessed search slot at the bottom and a letter index. */
-    private val housing = styleName == "housing"
+    internal val housing = styleName == "housing"
     /**
      * Our own letter index in a strip the grid leaves free. Android's fast scroller took taps on a 48 dp strip over the
      * last column, visible or not, so the right edge of those icons did nothing (#47). Horizontal pages have none.
@@ -389,7 +204,8 @@ class Drawer(private val a: MainActivity) {
             override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, af: Int) {}
             override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
         })
-        setOnEditorActionListener { _, _, _ -> entries.firstOrNull()?.let { open(it, null) }; true }
+        // With nothing typed the list is the open tab, and Go must not launch its first app.
+        setOnEditorActionListener { _, _, _ -> if (search.text.isNotBlank()) entries.firstOrNull()?.let { open(it, null) }; true }
         // Housing: a caret in the legend ink, so the search glyph stays the only signal.
         if (housing && android.os.Build.VERSION.SDK_INT >= 29) textCursorDrawable = android.graphics.drawable.GradientDrawable().apply {
             setColor(a.m3.onSurface); setSize((2 * a.dp).toInt(), (20 * a.dp).toInt())
@@ -421,27 +237,43 @@ class Drawer(private val a: MainActivity) {
         addView(android.widget.ImageView(a).apply { setImageDrawable(a.symbol("lock", a.m3.onSurfaceVariant, 48f)); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO })
         addView(a.text(a.getString(R.string.private_locked), 16f, a.m3.onSurface).apply { gravity = Gravity.CENTER },
             LinearLayout.LayoutParams(-2, -2).apply { topMargin = (16 * a.dp).toInt(); bottomMargin = (20 * a.dp).toInt() })
-        addView(a.tonalButton(a.getString(R.string.unlock)) { a.setPrivateLocked(false) }, LinearLayout.LayoutParams(-2, -2))
+        addView(a.tonalButton(a.getString(R.string.unlock)) { a.repo.setPrivateLocked(false) }, LinearLayout.LayoutParams(-2, -2))
     }
     /** As Nova: the most-launched apps in their own row above the list, in every style; they stay in the list too. */
-    private val frequentRow = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
+    private val frequentRow = object : LinearLayout(a) {
+        // A pull down from the row's apps: their own touch would keep the drag, so take it over once it's a pull.
+        override fun onInterceptTouchEvent(ev: MotionEvent) = pullDown.handle(ev) || super.onInterceptTouchEvent(ev)
+        // The row is the touch's target on the gaps between its apps; claim those too, so a pull can start anywhere on it.
+        override fun onTouchEvent(ev: MotionEvent): Boolean { pullDown.handle(ev); return true }
+    }.apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
 
     private fun buildPrivateBar() {
         privateBar.removeAllViews()
-        val locked = a.privateLocked
+        val locked = a.repo.privateLocked
         privateBar.addView(a.text(a.getString(if (locked) R.string.private_locked else R.string.private_space), 14f, a.m3.onSurfaceVariant, medium = true),
             LinearLayout.LayoutParams(0, -2, 1f))
         // Install apps into the space: Android opens the app store inside it. Hidden with no store installed.
         // ponytail: checks for a store in the main profile, not the space; a store only in the space hides the button.
         val hasStore = a.packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_MARKET), 0) != null
-        val market = if (!locked && hasStore && android.os.Build.VERSION.SDK_INT >= 35) a.privateUser?.let { u ->
+        val market = if (!locked && hasStore && android.os.Build.VERSION.SDK_INT >= 35) a.repo.privateUser?.let { u ->
             runCatching { a.launcherApps.getAppMarketActivityIntent(null, u) }.getOrNull() } else null
         if (market != null) privateBar.addView(a.iconButton("download", a.getString(R.string.private_install)) {
             runCatching { a.startIntentSender(market, null, 0, 0, 0) }
         })
         privateBar.addView(a.iconButton(if (locked) "unlock" else "lock", a.getString(if (locked) R.string.private_unlock else R.string.private_lock)) {
-            a.setPrivateLocked(!locked)
+            a.repo.setPrivateLocked(!locked)
         })
+    }
+
+    private val motion = DrawerMotion(a, this)
+
+    /** The bar, the field and the frequent row: one pull, all of it closing. */
+    private val pullDown = motion.PullDown()
+    /** Also cancels the view's own touch (a tap, a cursor) once the pull owns the gesture. */
+    private val pullTouch = View.OnTouchListener { v, ev ->
+        val handled = pullDown.handle(ev)
+        if (pullDown.started) MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; v.onTouchEvent(it); it.recycle() }
+        handled
     }
 
     val root = object : LinearLayout(a) {
@@ -450,8 +282,8 @@ class Drawer(private val a: MainActivity) {
         // closes the touch goes to home underneath; while it opens or follows a finger (even pulled all the way), it's dropped.
         override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
             if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
-                ignoring = progress < 1f || held
-                if (ignoring && anim != null && !settlingOpen) return false
+                ignoring = motion.progress < 1f || motion.held
+                if (ignoring && motion.anim != null && !motion.settlingOpen) return false
                 // Land the previous swipe before hit testing a touch on the moving grids. Not elsewhere: landing rebuilds the
                 // chips and frequent row, and the new views aren't laid out yet, so a tap on them would hit nothing.
                 if (!ignoring) (grid.parent as? View)?.takeIf { ev.y >= it.top && ev.y < it.bottom }?.let { tabAnim?.end() }
@@ -465,7 +297,7 @@ class Drawer(private val a: MainActivity) {
             else if (glass) android.graphics.drawable.ColorDrawable(a.glassTint(a.glassBlur))
             else a.panelBg(a.looks.int("drawerAlpha"), 0f, a.m3.surface)
         visibility = View.GONE
-        setOnDragListener(a.passDrag)
+        setOnDragListener(a.drag.passDrag)
         isClickable = true
         val pad = (16 * a.dp).toInt()
         // M3 search bar: a pill with a leading search icon and a trailing menu button. Glass puts it at the bottom,
@@ -485,22 +317,8 @@ class Drawer(private val a: MainActivity) {
         }
         searchBar = bar
         // A pull down on the search bar closes the drawer, wherever the list is scrolled (#56). Taps still reach the field.
-        var barDownY = 0f
-        val pullClose = View.OnTouchListener { v, ev ->
-            when (ev.actionMasked) {
-                MotionEvent.ACTION_DOWN -> { barDownY = ev.rawY; false }
-                MotionEvent.ACTION_MOVE -> (ev.rawY - barDownY > 48 * a.dp).also { pulled ->
-                    if (pulled) {
-                        barDownY = Float.MAX_VALUE
-                        MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; v.onTouchEvent(it); it.recycle() }
-                        hide()
-                    }
-                }
-                else -> false
-            }
-        }
-        bar.setOnTouchListener(pullClose)
-        search.setOnTouchListener(pullClose)
+        bar.setOnTouchListener(pullTouch)
+        search.setOnTouchListener(pullTouch)
         val barParams = LinearLayout.LayoutParams(-1, ((if (bottomBar) 48 else 56) * a.dp).toInt()).apply { setMargins(pad, pad / 2, pad, pad / 2) }
         if (!bottomBar) addView(bar, barParams)
         tabs.setPaddingRelative(pad + (4 * a.dp).toInt(), if (bottomBar || fromBottom) pad / 2 else 0, pad, (8 * a.dp).toInt())
@@ -524,6 +342,9 @@ class Drawer(private val a: MainActivity) {
     }
 
     val visible get() = root.visibility == View.VISIBLE
+
+    /** The list's pull down (see [PullDown]), only from its top, and pull-to-search when that's on. */
+    private val listPull = motion.PullDown(start = { !grid.canScrollVertically(-1) }, search = ::focusSearch)
 
     /** Where the housing sheet's top edge sits below the status bar, and the grip area under it. */
     private val sheetGap = 12 * a.dp
@@ -596,32 +417,28 @@ class Drawer(private val a: MainActivity) {
                     index.current = this@Drawer.adapter.getSectionForPosition(first)
                 }
             })
+            // The reset from [forgetPosition], once the rows are laid out (and posted: a selection during layout warns).
+            addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                if (forgetScroll) {
+                    forgetScroll = false
+                    post { setSelection(if (fromBottom) this@Drawer.adapter.count - 1 else 0) }
+                }
+            }
             setOnItemClickListener { _, v, pos, _ -> this@Drawer.adapter.getItem(pos)?.let { open(it, v) } }
             setOnItemLongClickListener { _, v, pos, _ -> this@Drawer.adapter.getItem(pos)?.let { longPress(it, v) }; true }
-            var downY = 0f
-            var closing = false
-            var velocity: android.view.VelocityTracker? = null
             val touchSlop = android.view.ViewConfiguration.get(a).scaledTouchSlop
             var startX = 0f
             var startY = 0f
             var sideways = false
             var sideStart = 0f
             var sideVelocity: android.view.VelocityTracker? = null
-            fun track(tracker: android.view.VelocityTracker?, ev: MotionEvent) {
-                tracker?.let {
-                    val sample = MotionEvent.obtain(ev)
-                    sample.setLocation(ev.rawX, ev.rawY)
-                    it.addMovement(sample)
-                    sample.recycle()
-                }
-            }
             setOnTouchListener { _, ev ->
                 // GridView keeps a tap alive until the finger leaves the whole list, so a sideways swipe that started on
                 // an icon would open it on release. Sideways is no tap: cancel it, and the rest of that touch moves the tabs:
                 // the list follows the finger with the next or previous tab beside it, as pages do.
-                if (ev.actionMasked == MotionEvent.ACTION_DOWN) sideways = false
+                if (ev.actionMasked == MotionEvent.ACTION_DOWN) { sideways = false; startX = ev.x; startY = ev.y }
                 else if (sideways) {
-                    track(sideVelocity, ev)
+                    motion.track(sideVelocity, ev)
                     val dx = ev.rawX - sideStart
                     when (ev.actionMasked) {
                         MotionEvent.ACTION_MOVE -> dragTabs(dx)
@@ -637,215 +454,93 @@ class Drawer(private val a: MainActivity) {
                     }
                     return@setOnTouchListener true
                 }
-                if (ev.actionMasked == MotionEvent.ACTION_MOVE && !closing && abs(ev.x - startX) > touchSlop && abs(ev.x - startX) > abs(ev.y - startY)) {
+                if (ev.actionMasked == MotionEvent.ACTION_MOVE && !listPull.closing && abs(ev.x - startX) > touchSlop && abs(ev.x - startX) > abs(ev.y - startY)) {
                     sideways = true
                     val dx = ev.x - startX
                     sideStart = ev.rawX - dx + if (dx > 0) touchSlop else -touchSlop
                     sideVelocity?.recycle()
-                    sideVelocity = android.view.VelocityTracker.obtain().also { track(it, ev) }
-                    velocity?.recycle(); velocity = null
+                    sideVelocity = android.view.VelocityTracker.obtain().also { motion.track(it, ev) }
                     MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; onTouchEvent(it); it.recycle() }
                     dragTabs(ev.rawX - sideStart)
                     return@setOnTouchListener true
                 }
                 // Pull down from the top of the list: the drawer follows the finger and closes on release (or searches).
-                // In screen coordinates too, so a flick's speed isn't halved by the moving list.
-                track(velocity, ev)
-                when (ev.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> {
-                        // Screen coordinates: the list moves with the sheet, so its own would halve the pull.
-                        downY = ev.rawY; closing = false
-                        startX = ev.x; startY = ev.y
-                        velocity?.recycle(); velocity = android.view.VelocityTracker.obtain().also { track(it, ev) }
-                    }
-                    MotionEvent.ACTION_MOVE -> if (!closing && ev.rawY - downY > 24 * a.dp && !canScrollVertically(-1)) {
-                        if (a.looks.on("pullToSearch")) {
-                            if (ev.rawY - downY > 96 * a.dp) {
-                                downY = Float.MAX_VALUE
-                                focusSearch()
-                            }
-                        } else {
-                            closing = true; held = true; downY = ev.rawY; stop()
-                            // As Launcher3, the keyboard goes as the drag down starts, not once the drawer is gone (#73).
-                            hideKeyboard()
-                            // The list sees no more of this touch: cancel it, or its pending long press lifts an app.
-                            MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; onTouchEvent(it); it.recycle() }
-                        }
-                    }
-                }
-                if (!closing) {
-                    if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
-                        velocity?.recycle(); velocity = null
-                    }
-                    return@setOnTouchListener false
-                }
-                if (ev.actionMasked == MotionEvent.ACTION_MOVE) setProgress(1 - (ev.rawY - downY) / travel())
-                if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
-                    velocity?.computeCurrentVelocity(1000)
-                    release(-(velocity?.yVelocity ?: 0f), 0.7f)
-                    velocity?.recycle(); velocity = null
-                    closing = false; held = false
-                }
-                true
+                val handled = listPull.handle(ev)
+                // The list sees no more of this touch: cancel it, or its pending long press lifts an app.
+                if (listPull.started) MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; onTouchEvent(it); it.recycle() }
+                handled
             }
         }
         pager.onGesture = { if (it == "swipeDown") hide() }
     }
 
-    /** How open the drawer is: 0 closed, 1 open. Follows the finger while it's pulled, then animates the rest. */
-    private var progress = 0f
-    private var anim: android.animation.ValueAnimator? = null
-    /** Where a running [anim] is heading: true for open. */
-    private var settlingOpen = false
-    /** A finger is moving the drawer (home's swipe up, or its own pull down). */
-    private var held = false
+    /** [forgetPosition] waits for the list's next layout to send it to the top. */
+    private var forgetScroll = false
     private var keyboardOnOpen = false
 
-    /** Finger travel that fully opens or closes the drawer (Launcher3's phones: 300 dp; shorter here, so it's quicker). */
-    private fun travel() = 220 * a.dp
-
     /**
-     * Opaque panels hand home over, as One UI does: home lifts and fades out as the drawer covers it, so it isn't
-     * blurred every frame. Glass and housing keep home showing (blurred or dimmed) behind them.
+     * 'Remember tab and scroll position' off: back to the home tab, and the list to the top (or the bottom, one-handed).
+     * The scroll waits for a layout: a rebuild's data change lays the list out at its old place first and a selection set
+     * before that is dropped, which is how a launch (the launch count changed) kept the old position (#111).
      */
-    private val handover = !housing && !glass
-
-    /**
-     * The drawer at [p], staged as Launcher3's swipe to all apps on phones but earlier: the sheet rises [travel] with the
-     * finger, its background fading in over 5–30% and the apps over 25–60%, while home sinks back and is gone by 30%.
-     */
-    private fun setProgress(p: Float) {
-        progress = p.coerceIn(0f, 1f)
-        root.visibility = View.VISIBLE
-        root.alpha = span(progress, 0.05f, 0.3f)
-        val apps = span(progress, 0.25f, 0.6f)
-        for (i in 0 until root.childCount) root.getChildAt(i).alpha = apps
-        root.translationY = (1 - progress) * travel()
-        val home = span(progress, 0f, 0.3f)
-        if (glass && a.glassBlur) root.semBlur((40 * a.dp * home).toInt(), a.glassTint(true), 0f)
-        if (a.overlay == null) a.setDepth(home, blur = !handover)
-        if (handover) { a.content.alpha = 1 - home; a.content.translationY = -home * 48 * a.dp }
+    private fun forgetPosition() {
+        tab = homeTab
+        if (styleName == "pages") pager.snapTo(0, animate = false)
+        forgetScroll = true
+        grid.requestLayout()
     }
-
-    /**
-     * Animates to open or closed from wherever the drawer is. [speed]: the release speed (px/s, upward positive) after a
-     * finger pull, timed as Launcher3 does; null for a button or Back.
-     */
-    private fun settle(open: Boolean, speed: Float? = null) {
-        stop()
-        val to = if (open) 1f else 0f
-        val left = kotlin.math.abs(to - progress)
-        // Already there: finish now, so the keyboard isn't held back by an animation that moves nothing.
-        if (left == 0f) { setProgress(to); if (!open) gone() else opened(); return }
-        val pxMs = (speed ?: 0f) / 1000
-        settlingOpen = open
-        anim =android.animation.ValueAnimator.ofFloat(progress, to).apply {
-            duration = if (speed != null) swipeDuration(pxMs, left) else ((if (open) 260 else 200) * maxOf(0.4f, left)).toLong()
-            interpolator = if (speed == null) android.view.animation.DecelerateInterpolator(1.6f) else if (abs(pxMs) > 10) SCROLL else SCROLL_CUBIC
-            addUpdateListener { setProgress(it.animatedValue as Float) }
-            addListener(object : android.animation.AnimatorListenerAdapter() {
-                override fun onAnimationEnd(x: android.animation.Animator) { if (anim === x) { anim = null; if (!open) gone() else opened() } }
-            })
-            start()
-        }
-    }
-
-    /** Stops a running open/close animation where it is (without its end action). */
-    private fun stop() { val old = anim; anim = null; old?.cancel() }
 
     /** Clears search and resets position, ready to open. */
-    private fun prepare() {
-        if (visible) return
+    internal fun prepare() {
+        // Not while it's open and at rest; a close still animating is fair game, so the next open lands at the top.
+        if (visible && motion.progress >= 1f) return
         if (search.text.isNotEmpty()) search.text.clear()
-        val reset = !a.looks.on("rememberPosition")
-        if (reset) { tab = homeTab; if (styleName == "pages") pager.snapTo(0, animate = false) }
+        // A close cut short by this open never reached gone(): what it resets is reset here.
+        closed()
+        if (!a.looks.on("rememberPosition")) forgetPosition()
         if (inputs() != shown) refresh()
-        if (reset) grid.setSelection(if (fromBottom) adapter.count - 1 else 0)
     }
 
-    private fun opened() {
+    internal fun opened() {
         if (keyboardOnOpen || a.looks.on("showKeyboard")) focusSearch()
         keyboardOnOpen = false
     }
 
-    private fun gone() {
-        tabAnim?.end()
-        root.alpha = 1f
-        for (i in 0 until root.childCount) root.getChildAt(i).alpha = 1f
-        // Every close ends here, whatever started it: the keyboard mustn't stay up over home (#73).
-        // Before GONE, which takes the focus and leaves the keyboard behind.
-        hideKeyboard()
-        root.visibility = View.GONE
-        root.semBlur(0, 0, 0f)
-        a.content.alpha = 1f
-        a.content.translationY = 0f
-        // A drag in progress still routes events to a GONE view by its bounds, so move it off-screen too.
-        root.translationY = root.height.toFloat()
-        progress = 0f
-        held = false
-    }
+    fun pull(up: Float, vy: Float, end: Boolean) = motion.pull(up, vy, end)
 
     fun show(keyboard: Boolean) {
         prepare()
         keyboardOnOpen = keyboard
-        settle(open = true)
-    }
-
-    /**
-     * Home's swipe up, while the finger is still down: [up] px pulled so far. On release ([end]) the drawer opens
-     * if flung up ([vy] px/s, upward positive) or pulled past 30% of [travel]. Returns false for a pull that starts downward.
-     */
-    fun pull(up: Float, vy: Float, end: Boolean): Boolean {
-        // A menu or overlay held open by this same finger: the swipe is swallowed, not opening the drawer over it.
-        if (!visible && (a.menu != null || a.overlay != null)) return true
-        if (!end && !visible && up <= 0f) return false
-        if (!visible) prepare()
-        stop()
-        held = !end
-        if (end) {
-            val open = release(vy, 0.3f)
-            if (open && !armed) root.tick() // a fling that never crossed the line still gets its tick
-            armed = false
-        } else {
-            setProgress(up / travel())
-            // The tick comes as the pull crosses the line where letting go opens the drawer, not on release (#97).
-            if (!armed && progress >= 0.3f) { armed = true; root.tick() } else if (armed && progress < 0.3f) armed = false
-        }
-        return true
-    }
-
-    /** Whether this pull has passed the open line and ticked for it. */
-    private var armed = false
-
-    /** Ends a finger-driven pull: opens if flung up or past [threshold], unless flung down. Returns whether it opens. */
-    private fun release(vy: Float, threshold: Float): Boolean {
-        // Launcher3 counts anything over 1 dp/ms as a fling.
-        val open = drawerOpens(progress, vy, 1000 * a.dp, threshold)
-        settle(open, vy)
-        return open
+        motion.settle(open = true)
     }
 
     /** Puts the keyboard away and takes the focus off search, as Launcher3's ExtendedEditText.hideKeyboard. */
-    private fun hideKeyboard() {
+    internal fun hideKeyboard() {
         a.getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(search.windowToken, 0)
         search.clearFocus()
+    }
+
+    /** What every close resets, a pull down included: called from [DrawerMotion.gone]. */
+    internal fun closed() {
+        found.forget(); showHidden = false
+        // The focus goes before the text does on the way out, so the focus listener leaves the bar showing.
+        if (barOff) searchBar.visibility = View.GONE
     }
 
     /** [animate] false for a drag leaving the drawer: it must be out of the way at once. */
     fun hide(animate: Boolean = true) {
         if (!visible) return
+        keyboardOnOpen = false // an open with the keyboard that's cancelled mid-way never reaches opened()
         hideKeyboard()
         search.text.clear()
-        shortcuts = null
-        showHidden = false
-        if (animate) settle(open = false)
-        else { stop(); if (a.overlay == null) a.setDepth(0f); gone() }
+        if (animate) motion.settle(open = false)
+        else { motion.stop(); if (a.overlay == null) a.setDepth(0f); motion.gone() }
     }
 
     fun groups() = groupsFromJson(a.store.data.getString("groups", "[]")!!)
 
     /** What [refresh] reads; when it's unchanged, opening the drawer reuses what's already built. */
-    private fun inputs() = listOf(a.apps, a.store.data.all, a.looks.all(), a.privateUser, tab, showHidden, search.text.toString())
+    private fun inputs() = listOf(a.repo.apps, a.store.data.all, a.looks.all(), a.repo.privateUser, tab, showHidden, search.text.toString())
     private var shown: List<Any?>? = null
 
     fun refresh() {
@@ -856,14 +551,14 @@ class Drawer(private val a: MainActivity) {
         // Each key once: a comparator's selector runs on every comparison.
         val sort = a.looks.str("drawerSort")
         val rank = a.store.strings("drawerOrder").withIndex().associate { it.value to it.index }
-        val ordered = a.apps.values.map { it to SortKey(a.label(it), it.info.firstInstallTime, launches.optInt(it.key), rank[it.key] ?: Int.MAX_VALUE) }
+        val ordered = a.repo.apps.values.map { it to SortKey(a.repo.label(it), it.info.firstInstallTime, launches.optInt(it.key), rank[it.key] ?: Int.MAX_VALUE) }
             .sortedWith(compareBy(drawerComparator(sort)) { it.second }).map { it.first }
         // Hidden tabs aren't in the drawer at all; their apps are back in All apps.
         val groups = groups().filterNot { it.type == "tab" && it.hidden }
-        val work = a.apps.values.filter { a.isWork(it) }.map { it.key }.toSet()
+        val work = a.repo.apps.values.filter { a.repo.isWork(it) }.map { it.key }.toSet()
         val workTab = a.workTabShown() && work.isNotEmpty()
-        val private = a.apps.values.filter { a.isPrivate(it) }.map { it.key }.toSet()
-        val privateTab = a.privateUser != null
+        val private = a.repo.apps.values.filter { a.repo.isPrivate(it) }.map { it.key }.toSet()
+        val privateTab = a.repo.privateUser != null
         // All apps can be hidden while there's a tab to show instead; its folders then show on that tab.
         homeTab = groups.firstOrNull { it.type == "tab" }?.takeIf { a.store.data.getBoolean(ALL_HIDDEN, false) }?.name ?: ""
         if (tab == "work" && !workTab || tab == "private" && !privateTab || tab == "" && homeTab != "" ||
@@ -872,21 +567,21 @@ class Drawer(private val a: MainActivity) {
         val foldersFirst = a.looks.on("foldersFirst")
         val keys = ordered.map { it.key }
         entriesOf = { t ->
-            val list = tabApps(keys, groups, t, hidden, showHidden, keepInAll, work, workTab, private, sort == "manual").mapNotNull { a.apps[it] }.map { Entry.AppE(it) }
+            val list = tabApps(keys, groups, t, hidden, showHidden, keepInAll, work, workTab, private, sort == "manual").mapNotNull { a.repo.apps[it] }.map { Entry.AppE(it) }
             val folders = if (t == homeTab) groups.filter { it.type == "folder" }.map { Entry.FolderE(it) } else emptyList()
             if (foldersFirst) folders + list else list + folders
         }
         entries = if (q.isNotEmpty()) {
             // Best match first; sortedByDescending is stable, so equal matches keep the drawer's order.
-            quick(q) + ordered.filter { showHidden || it.key !in hidden }.map { it to matchScore(a.label(it), q) }
+            found.quick(q) + ordered.filter { showHidden || it.key !in hidden }.map { it to matchScore(a.repo.label(it), q) }
                 .filter { it.second > 0 }.sortedByDescending { it.second }.map { Entry.AppE(it.first) } +
-                shortcutHits(q, hidden) + settingsHits(q) +
-                contacts(q) + if (a.looks.on("webSearch")) listOf(Entry.WebE(q)) else emptyList()
+                found.shortcutHits(q, hidden, showHidden, iconStyle.sizePx) + found.settingsHits(q) +
+                found.contacts(q) + if (a.looks.on("webSearch")) listOf(Entry.WebE(q)) else emptyList()
         } else entriesOf(tab)
         // As Nova: the row sits above the tabs and stays whichever tab is open.
         buildFrequent(if (q.isEmpty() && a.looks.on("frequent"))
-            frequentApps(a.store.strings("favourites").toList(), a.apps.keys.associateWith { launches.optInt(it) },
-                { it in a.apps && it !in hidden && it !in private }, gridCols).mapNotNull { a.apps[it] } else emptyList())
+            frequentApps(a.store.strings("favourites").toList(), a.repo.apps.keys.associateWith { launches.optInt(it) },
+                { it in a.repo.apps && it !in hidden && it !in private }, gridCols).mapNotNull { a.repo.apps[it] } else emptyList())
         // Glass and housing: search results sit just above the bottom search bar, under the thumb.
         grid.isStackFromBottom = fromBottom || bottomBar && q.isNotEmpty()
         // No index for a list that fits on one screen: there's nothing to jump to.
@@ -895,89 +590,24 @@ class Drawer(private val a: MainActivity) {
         empty.visibility = if (q.isNotEmpty() && entries.none { it !is Entry.WebE }) View.VISIBLE else View.GONE
         // The user's tabs with Work at its place among them, hidden tabs counted so hiding one doesn't move Work.
         val shownTabs = groups.filter { it.type == "tab" }.map { it.name }.toSet()
-        val order = withWorkSlot(this.groups().filter { it.type == "tab" }.map { it.name }, a.store.data.getInt(WORK_AT, 0))
+        val order = withWorkSlot(this.groups().filter { it.type == "tab" }.map { it.name }, a.store.data.workAt())
             .filter { if (it == WORK_SLOT) workTab else it in shownTabs }.map { if (it == WORK_SLOT) "work" else it }
         rebuildTabs = { buildTabs(groups, order, privateTab, q.isEmpty()) }
         rebuildTabs()
         // Locked, the centred lock takes over; the bar (state, install, lock) is for the open space.
-        val locked = a.privateLocked
+        val locked = a.repo.privateLocked
         privateLockedView.visibility = if (q.isEmpty() && tab == "private" && locked) View.VISIBLE else View.GONE
         privateBar.visibility = if (q.isEmpty() && tab == "private" && !locked) View.VISIBLE else View.GONE
         if (privateBar.visibility == View.VISIBLE) buildPrivateBar()
         // Warm the first two screens off the UI thread; the rest is prefetched as the list scrolls (see Adapter).
-        a.prefetchIcons(entries.filterIsInstance<Entry.AppE>().map { it.app }.take(cols * rows * 2))
+        a.repo.prefetchIcons(entries.filterIsInstance<Entry.AppE>().map { it.app }.take(cols * rows * 2))
         if (styleName == "pages") buildPages() else adapter.notifyDataSetChanged()
         index.invalidate() // its letters are the new list's
-    }
-
-    /** Up to four matching contacts, when contact search is on and the user granted access. */
-    private fun contacts(q: String): List<Entry> {
-        if (!a.looks.on("contactSearch") || !a.granted(android.Manifest.permission.READ_CONTACTS)) return emptyList()
-        val out = ArrayList<Entry>()
-        runCatching {
-            a.contentResolver.query(android.net.Uri.withAppendedPath(android.provider.ContactsContract.Contacts.CONTENT_FILTER_URI, android.net.Uri.encode(q)),
-                arrayOf("_id", "lookup", "display_name", "photo_thumb_uri"), null, null, null)?.use { c ->
-                while (c.moveToNext() && out.size < 4) out += Entry.ContactE(c.getString(2) ?: "", c.getString(3),
-                    android.provider.ContactsContract.Contacts.getLookupUri(c.getLong(0), c.getString(1)))
-            }
-        }
-        return out
-    }
-
-    private fun glyph(symbol: String? = null, text: String? = null) = GlyphIcon(a.m3.primaryContainer, a.m3.onPrimaryContainer, text, symbol)
-
-    /** A sum's answer (tap to copy it), or a timer or alarm to set, as the first result. */
-    private fun quick(q: String): List<Entry> {
-        calc(q)?.let { v ->
-            val t = calcText(v)
-            return listOf(Entry.ActionE("= $t", glyph(text = "=")) {
-                a.getSystemService(android.content.ClipboardManager::class.java).setPrimaryClip(android.content.ClipData.newPlainText(t, t))
-                // Android 13+ confirms a copy itself.
-                if (android.os.Build.VERSION.SDK_INT < 33) a.toast(R.string.copied)
-            })
-        }
-        fun clock(label: String, intent: Intent) = listOf(Entry.ActionE(label, glyph("clock")) {
-            runCatching { a.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { a.toast(R.string.no_clock_app) }
-        })
-        return when (val c = command(q)) {
-            is Command.Timer -> clock(a.getString(R.string.search_timer, android.text.format.DateUtils.formatElapsedTime(c.seconds.toLong())),
-                Intent(android.provider.AlarmClock.ACTION_SET_TIMER).putExtra(android.provider.AlarmClock.EXTRA_LENGTH, c.seconds))
-            is Command.Alarm -> clock(a.getString(R.string.search_alarm, android.text.format.DateFormat.getTimeFormat(a).format(
-                    java.util.Calendar.getInstance().apply { set(java.util.Calendar.HOUR_OF_DAY, c.hour); set(java.util.Calendar.MINUTE, c.minute) }.time)),
-                Intent(android.provider.AlarmClock.ACTION_SET_ALARM).putExtra(android.provider.AlarmClock.EXTRA_HOUR, c.hour)
-                    .putExtra(android.provider.AlarmClock.EXTRA_MINUTES, c.minute))
-            null -> emptyList()
-        }
-    }
-
-    /** Every app's shortcuts, read on the first search after the drawer opens and dropped when it closes. */
-    private var shortcuts: List<android.content.pm.ShortcutInfo>? = null
-
-    /** Up to four app shortcuts ("New tab", "Compose") whose names match, from apps the drawer shows. */
-    private fun shortcutHits(q: String, hidden: Set<String>): List<Entry> {
-        if (q.length < 3) return emptyList()
-        val shown = a.apps.values.filter { showHidden || it.key !in hidden }.map { it.pkg to it.info.user }.toSet()
-        val all = shortcuts ?: a.allShortcuts().also { shortcuts = it }
-        return all.filter { (it.`package` to it.userHandle) in shown }.map { it to matchScore(it.shortLabel?.toString() ?: "", q) }
-            .filter { it.second >= 2 }.sortedByDescending { it.second }.take(4).map { (s, _) ->
-                // Drawn once at cell size: a shortcut's own icon can be a 108 dp adaptive one.
-                Entry.ActionE(s.shortLabel.toString(), flatIcon(a, a.shortcutIcon(s), iconStyle.sizePx)) { v -> a.startShortcut(s.`package`, s.id, s.userHandle, v) }
-            }
-    }
-
-    /** Up to three of Android's settings pages ("Wi-Fi settings", "Battery settings") whose names match. */
-    private fun settingsHits(q: String): List<Entry> {
-        if (q.length < 3) return emptyList()
-        return SETTINGS_PAGES.map { a.getString(it.first) to it.second }.filter { matchScore(it.first, q) >= 2 }
-            .sortedByDescending { matchScore(it.first, q) }.take(3).map { (title, action) ->
-                Entry.ActionE(title, glyph("settings")) {
-                    runCatching { a.startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { a.toast(R.string.cant_open, title) }
-                }
-            }
+        a.refillFolder?.invoke() // an open drawer folder shows what the drawer now has
     }
 
     /** Something it shows changed: rebuilt now if open, else on the next open. */
-    fun invalidate() { if (visible) refresh() else shown = null }
+    fun invalidate() { if (visible) refresh() else { shown = null; a.refillFolder?.invoke() } }
 
     fun refreshBadges() { if (visible) grid.invalidateViews() }
 
@@ -985,6 +615,7 @@ class Drawer(private val a: MainActivity) {
     private var tabKeys = listOf<String>()
 
     private var tabAnim: android.animation.ValueAnimator? = null
+    internal fun endTabSwipe() { tabAnim?.end() }
     /** [buildTabs] as [refresh] last called it, to mark a newly landed tab before its apps are swapped in. */
     private var rebuildTabs: () -> Unit = {}
 
@@ -1112,6 +743,7 @@ class Drawer(private val a: MainActivity) {
     }
 
     private fun buildPages() {
+        val page = pager.current // kept through a rebuild; forgetPosition() does the reset when positions aren't remembered
         pager.removeAllViews()
         entries.chunked(cols * rows).ifEmpty { listOf(emptyList()) }.forEach { chunk ->
             pager.addView(CellLayout(a, cols, rows, 0).apply {
@@ -1124,7 +756,7 @@ class Drawer(private val a: MainActivity) {
                 }
             })
         }
-        pager.snapTo(0, animate = false)
+        pager.snapTo(page.coerceIn(0, pager.childCount - 1), animate = false)
     }
 
     /** [recycled]: a view GridView no longer shows; an app's view is rebound instead of built again. */
@@ -1137,17 +769,22 @@ class Drawer(private val a: MainActivity) {
     private fun entryView(e: Entry, recycled: View? = null, style: IconStyle = iconStyle): IconView = when (e) {
         is Entry.AppE -> {
             var view: IconView? = null
-            val icon = if (!scrolling) a.icon(e.app)
-                else a.iconLater(e.app) { d -> view?.takeIf { bound[it] == e.app.key }?.image?.icon = d } ?: blank
-            ((recycled as? IconView)?.takeIf { it.tag == APP_VIEW }?.apply { bind(a.label(e.app), icon, e.app.pkg) }
-                ?: IconView(a, a.label(e.app), icon, style, a.badgeStyle(), e.app.pkg).apply { tag = APP_VIEW }).also {
+            val icon = if (!scrolling) a.repo.icon(e.app)
+                else a.repo.iconLater(e.app) { d -> view?.takeIf { bound[it] == e.app.key }?.image?.icon = d } ?: blank
+            ((recycled as? IconView)?.takeIf { it.tag == APP_VIEW }?.apply { bind(a.repo.label(e.app), icon, e.app.pkg) }
+                ?: IconView(a, a.repo.label(e.app), icon, style, a.badgeStyle(), a.repo.badgeKey(e.app.pkg, e.app.serial)).apply { tag = APP_VIEW }).also {
                 view = it
                 bound[it] = e.app.key
                 if (a.looks.str("badges") != "off") a.badge(it.image, e.app.pkg)
-                accessibleActions(it, { a.showPopup(it, e.app) })
+                accessibleActions(it, { a.homeMenus.showPopup(it, e.app) })
             }
         }
-        is Entry.FolderE -> IconView(a, e.group.name, a.folderIcon(folderItems(e.group)), iconStyle, a.badgeStyle(), "")
+        // As a folder on home: badged by the apps inside it (#118).
+        is Entry.FolderE -> folderItems(e.group).let { items ->
+            val keys = items.map { a.repo.badgeKey(it.pkg, it.user) }.distinct().joinToString("|")
+            IconView(a, e.group.name, a.folderIcon(items), iconStyle, a.badgeStyle(), keys)
+                .also { if (a.looks.str("badges") != "off") a.badge(it.image, keys) }
+        }
         // Short label so the query survives the one-line ellipsis; the globe says "web".
         is Entry.WebE -> IconView(a, a.getString(R.string.search_web_for, e.query),GlyphIcon(a.m3.primaryContainer, a.m3.onPrimaryContainer, symbol = "globe"), iconStyle, a.badgeStyle(), "")
         is Entry.ContactE -> IconView(a, e.name, e.photo?.let { p ->
@@ -1156,13 +793,15 @@ class Drawer(private val a: MainActivity) {
         is Entry.ActionE -> IconView(a, e.label, e.icon, iconStyle, a.badgeStyle(), "")
     }
 
-    private fun folderItems(g: Group) = g.apps.mapNotNull { a.apps[it] }.map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) }
+    /** Hidden apps stay out of a folder as they do out of a tab. */
+    private fun folderApps(g: Group) = a.store.strings("hidden").let { hidden -> g.apps.filter { showHidden || it !in hidden } }.mapNotNull { a.repo.apps[it] }
+    private fun folderItems(g: Group) = folderApps(g).map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) }
 
     /**
      * Fully open, at rest, no finger moving it. As Launcher3's item handlers: a tap or hold that lands any other way
      * (a long press that fires after the drawer started closing, say) is dropped rather than opening or lifting an app.
      */
-    private val settled get() = progress >= 1f && anim == null && !held
+    private val settled get() = motion.progress >= 1f && motion.anim == null && !motion.held
 
     private fun open(e: Entry, v: View?) {
         if (!settled) return
@@ -1170,19 +809,20 @@ class Drawer(private val a: MainActivity) {
             is Entry.AppE -> a.launch(e.app, v)
             is Entry.FolderE -> {
                 var group = e.group
-                var apps = group.apps.mapNotNull { a.apps[it] }
+                // The apps the window shows, in its order: its positions index this list, so it must leave out what the window does.
+                var apps = folderApps(group)
                 a.openFolderWindow(group.name, folderItems(group), null, reorder = { from, to ->
-                    // Uninstalled apps' keys aren't shown: they keep their place at the end.
+                    // Uninstalled and hidden apps' keys aren't shown: they keep their place at the end.
                     val keys = apps.map { it.key }.toMutableList().apply { add(to, removeAt(from)) }
                     group = group.copy(apps = keys + (group.apps - keys.toSet()))
-                    apps = group.apps.mapNotNull { a.apps[it] }
+                    apps = folderApps(group)
                     a.saveGroups(groups().map { if (it.name == group.name) group else it })
                     folderItems(group)
-                }, icon = (v as? IconView)?.image, reload = {
+                }, icon = (v as? IconView)?.image, more = { a.closeOverlay(); a.editGroup(group) }, reload = {
                     groups().firstOrNull { it.name == group.name && it.type == "folder" }?.let {
-                        group = it; apps = it.apps.mapNotNull { k -> a.apps[k] }; folderItems(it)
+                        group = it; apps = folderApps(it); folderItems(it)
                     }
-                }) { i -> GroupChild(group.name, apps[i]) }
+                }) { i, _ -> GroupChild(group.name, apps[i]) }
             }
             is Entry.WebE -> a.webSearch(e.query)
             is Entry.ContactE -> runCatching { a.startActivity(Intent(Intent.ACTION_VIEW, e.uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
@@ -1193,9 +833,9 @@ class Drawer(private val a: MainActivity) {
     private fun longPress(e: Entry, v: View) {
         if (!settled) return
         when (e) {
-            is Entry.AppE -> a.startDrag(v, e.app)
+            is Entry.AppE -> a.drag.startDrag(v, e.app)
             // As an app: drag to copy it to home; its menu (Add, Edit) shows if the finger stays.
-            is Entry.FolderE -> a.startDrag(v, e.group)
+            is Entry.FolderE -> a.drag.startDrag(v, e.group)
             is Entry.WebE, is Entry.ContactE, is Entry.ActionE -> {}
         }
     }
@@ -1207,8 +847,8 @@ class Drawer(private val a: MainActivity) {
     }
 
     private fun menu() {
-        a.showMenu(a.screenRect(menuButton), narrow = true) {
-            fun row(sym: String, title: String, act: () -> Unit) = addView(a.listItem(a.symbol(sym), title, dense = true) { a.closeMenu(); act() })
+        a.homeMenus.showMenu(a.homeMenus.screenRect(menuButton), narrow = true) {
+            fun row(sym: String, title: String, act: () -> Unit) = addView(a.listItem(a.symbol(sym), title, dense = true) { a.homeMenus.closeMenu(); act() })
             row(if (showHidden) "hide" else "show", a.getString(if (showHidden) R.string.hidden_hide else R.string.hidden_show)) { showHidden = !showHidden; refresh() }
             row("sort", a.getString(R.string.set_drawerSort)) {
                 a.sheet().setTitle(R.string.set_drawerSort).setSingleChoiceItems(SORT_NAMES.map(a::getString).toTypedArray(), SORTS.indexOf(a.looks.str("drawerSort"))) { d, i ->
@@ -1283,7 +923,7 @@ class Drawer(private val a: MainActivity) {
         private val entries get() = source()
         private val grid get() = host()
         private fun letter(e: Entry) = when (e) {
-            is Entry.AppE -> indexLetter(a.label(e.app))
+            is Entry.AppE -> indexLetter(a.repo.label(e.app))
             is Entry.FolderE -> "▤"
             is Entry.WebE -> "⌕"
             is Entry.ContactE -> "☺"
@@ -1292,7 +932,8 @@ class Drawer(private val a: MainActivity) {
         private var sections = arrayOf<String>()
 
         override fun notifyDataSetChanged() {
-            sections = entries.map(::letter).distinct().toTypedArray()
+            // Only the name orders have letters to scroll by: in any other they'd come out of order and repeat.
+            sections = if (a.looks.str("drawerSort") in setOf("az", "za")) entries.map(::letter).distinct().toTypedArray() else arrayOf()
             super.notifyDataSetChanged()
         }
         // Stacked from the bottom, GridView right-aligns the short row; padding to whole rows keeps results reading left to right.
@@ -1304,7 +945,7 @@ class Drawer(private val a: MainActivity) {
         override fun isEnabled(pos: Int) = getItem(pos) != null
         override fun getView(pos: Int, convert: View?, parent: ViewGroup): View {
             // Once per row, warm the next screen off the UI thread while this one is on show.
-            if (pos % cols == 0 && pos < entries.size) a.prefetchIcons(entries.drop(pos).take(cols * rows).filterIsInstance<Entry.AppE>().map { it.app })
+            if (pos % cols == 0 && pos < entries.size) a.repo.prefetchIcons(entries.drop(pos).take(cols * rows).filterIsInstance<Entry.AppE>().map { it.app })
             return (getItem(pos)?.let { entryView(it, convert) }?.apply {
             if (styleName == "list") setPadding((8 * a.dp).toInt(), 0, 0, 0)
         } ?: entryView(entries[0]).apply { visibility = View.INVISIBLE }).apply { // a filler as tall as a real cell, or GridView misplaces the row

@@ -1,0 +1,6 @@
+- L’aperçu par appui maintenu sur Accueil ne chevauche plus ses boutons quand le dock est masqué.
+- Onglets du tiroir : Déplacer à gauche / Déplacer à droite dans le menu d’un onglet.
+- Balayer les onglets du tiroir boucle du dernier au premier.
+- Plus de flash carré derrière une icône maintenue du tiroir.
+- Plus d’espace au-dessus de Supprimer la page dans l’éditeur de pages.
+- Traductions allemande et russe de l’éditeur de couleurs (merci PierBez).

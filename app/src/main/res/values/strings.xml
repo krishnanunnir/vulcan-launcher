@@ -52,9 +52,12 @@
     <string name="set_widgetOverlap">Widget overlap when placing</string>
     <string name="set_pageMargin">Page padding</string>
     <string name="padding_sides">Left &amp; right</string>
-    <string name="padding_ends">Top &amp; bottom</string>
-    <string name="padding_value">%1$d × %2$d dp</string>
+    <string name="padding_top">Top</string>
+    <string name="padding_bottom">Bottom</string>
+    <string name="padding_value" translatable="false">%1$d × %2$d dp</string>
+    <string name="padding_value_ends" translatable="false">%1$d × %2$d / %3$d dp</string>
     <string name="set_widgetRadius">Widget corner radius</string>
+    <string name="set_widgetPadding">Widget padding</string>
     <string name="set_autoAdd">Add icons of new apps to home screen</string>
     <string name="set_hideClock">Hide the status bar clock</string>
     <string name="set_hideClock_info">On the home screen. Needs a one-time permission given from a computer</string>
@@ -137,6 +140,7 @@
     <string name="reshape_off">Off</string>
     <string name="reshape_unthemed">Unthemed only</string>
     <string name="reshape_always">Always</string>
+    <string name="reshape_icon">Reshape icon</string>
     <string name="set_autogen">Theme icons the icon pack doesn\'t cover</string>
     <string name="set_normalize">Normalize icon size</string>
     <string name="set_themedIcons">Themed icons</string>
@@ -515,7 +519,7 @@
     <string name="now_add_card">Add a card</string>
     <string name="now_card_apps">Apps</string>
     <string name="now_card_widget">Widget</string>
-    <string name="now_card_height">%1$d dp</string>
+    <string name="now_card_height" translatable="false">%1$d dp</string>
     <string name="now_frequent">Frequently used</string>
     <string name="now_now">Now</string>
     <string name="charging">Charging · %1$d%%</string>
@@ -608,6 +612,10 @@
     <plurals name="import_skipped">
         <item quantity="one">%1$d item can\'t come over: it\'s Nova\'s own, or its app isn\'t on this phone.</item>
         <item quantity="other">%1$d items can\'t come over: they\'re Nova\'s own, or their app isn\'t on this phone.</item>
+    </plurals>
+    <plurals name="restore_missing">
+        <item quantity="one">%1$d icon was left out: its app isn\'t installed. Restore again once it is.</item>
+        <item quantity="other">%1$d icons were left out: their apps aren\'t installed. Restore again once they are.</item>
     </plurals>
     <plurals name="import_items">
         <item quantity="one">%1$d item will replace your home screen.</item>

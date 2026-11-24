@@ -286,6 +286,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="reset_confirm">Alle Einstellungen und das gesamte Startbildschirm-Layout entfernen?</string>
     <string name="reset_defaults">Auf Standard zurücksetzen</string>
     <string name="reshape_always">Immer</string>
+    <string name="reshape_icon">Symbol umformen</string>
     <string name="reshape_off">Aus</string>
     <string name="reshape_unthemed">Nur ungethemt</string>
     <string name="resize">Größe ändern</string>
@@ -421,7 +422,8 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="set_widgetOverlap">Widget-Überlappung beim Platzieren</string>
     <string name="set_pageMargin">Seitenabstand</string>
     <string name="padding_sides">Links &amp; rechts</string>
-    <string name="padding_ends">Oben &amp; unten</string>
+    <string name="padding_top">Oben</string>
+    <string name="padding_bottom">Unten</string>
     <string name="set_widgetRadius">Widget-Eckenradius</string>
     <string name="set_wiggle">Symbole beim Ziehen und Ablegen wackeln</string>
     <string name="settings">Einstellungen</string>
@@ -802,4 +804,8 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="work_paused">Arbeitsprofil pausiert</string>
     <string name="work_resumed">Arbeitsprofil aktiviert</string>
     <string name="glanceStyle_theme">Groß im Appliance-Theme, bei anderen Themes nur das Datum</string>
+    <plurals name="restore_missing">
+        <item quantity="one">%1$d Symbol wurde ausgelassen: Die zugehörige App ist nicht installiert. Stelle die Sicherung erneut wieder her, sobald sie installiert ist.</item>
+        <item quantity="other">%1$d Symbole wurden ausgelassen: Die zugehörigen Apps sind nicht installiert. Stelle die Sicherung erneut wieder her, sobald sie installiert sind.</item>
+    </plurals>
 </resources>

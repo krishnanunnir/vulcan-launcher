@@ -26,13 +26,14 @@ fun scaleSpan(n: Int, portrait: Int, now: Int) = maxOf(1, Math.round(n * now / p
  */
 // ponytail: items with no room anywhere keep their old spot and stay hidden until the grid grows back
 fun fitItems(items: List<Item>, pages: Int, cols: Int, rows: Int, dockCols: Int, dockPages: Int = 1): List<Item> {
-    fun fits(i: Item) = if (isDock(i.page)) dockIndex(i.page) < dockPages && i.x + i.w <= dockCols && i.y == 0
+    // A backup edited by hand can hold a negative cell or a size of 0: off the grid too, not a fit left out of sight.
+    fun fits(i: Item) = i.x >= 0 && i.y >= 0 && i.w >= 1 && i.h >= 1 && if (isDock(i.page)) dockIndex(i.page) < dockPages && i.x + i.w <= dockCols && i.y == 0
         else i.page in 0 until pages && i.x + i.w <= cols && i.y + i.h <= rows
     val placed = items.filter(::fits).toMutableList()
     fun free(i: Item) = fits(i) && placed.none { it.page == i.page && overlaps(i.x, i.y, i.w, i.h, it.x, it.y, it.w, it.h) }
     for (item in items.filterNot(::fits)) {
-        val w = item.w.coerceAtMost(cols)
-        val h = item.h.coerceAtMost(rows)
+        val w = item.w.coerceIn(1, cols)
+        val h = item.h.coerceIn(1, rows)
         val dockSpots = if (isDock(item.page) && item.w == 1) (0 until dockPages).flatMap { p -> (0 until dockCols).map { item.copy(page = -1 - p, x = it, y = 0) } } else emptyList()
         val pageOrder = (listOf(item.page) + (0 until pages)).filter { it in 0 until pages }.distinct()
         val homeSpots = pageOrder.asSequence().flatMap { p ->

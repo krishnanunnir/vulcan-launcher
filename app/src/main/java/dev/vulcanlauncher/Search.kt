@@ -63,7 +63,6 @@ fun calc(q: String): Double? {
     fun peek() = s.getOrNull(i)
     lateinit var sum: () -> Double
     fun atom(): Double {
-        if (peek() == '-') { i++; return -atom() }
         if (peek() == '(') { i++; val v = sum(); if (peek() == ')') i++; return v }
         val start = i
         while (peek()?.let { it.isDigit() || it == '.' } == true) i++
@@ -71,7 +70,8 @@ fun calc(q: String): Double? {
         // A trailing % is a percentage: 50% is 0.5.
         return if (peek() == '%' && s.getOrNull(i + 1)?.let { it.isDigit() || it == '(' } != true) { i++; v / 100 } else v
     }
-    fun power(): Double { val b = atom(); return if (peek() == '^') { i++; b.pow(power()) } else b }
+    // A leading minus binds looser than ^, as on a calculator: -2^2 is -4.
+    fun power(): Double { if (peek() == '-') { i++; return -power() }; val b = atom(); return if (peek() == '^') { i++; b.pow(power()) } else b }
     fun product(): Double {
         var v = power()
         while (true) when (peek()) {
@@ -109,10 +109,11 @@ fun command(q: String): Command? {
         val parts = Regex("(\\d+)\\s*(hours?|hrs|hr|h|minutes?|mins|min|m|seconds?|secs|sec|s)?\\s*").findAll(m.groupValues[1]).toList()
         if (parts.isEmpty() || parts.joinToString("") { it.value } != m.groupValues[1]) return null
         val secs = parts.sumOf { p ->
-            val n = p.groupValues[1].toInt()
+            // No part can pass a day, which also keeps a pasted phone number from overflowing.
+            val n = p.groupValues[1].toLongOrNull()?.takeIf { it <= 86_399 } ?: return null
             when (p.groupValues[2].firstOrNull()) { 'h' -> n * 3600; 's' -> n; else -> n * 60 } // a bare number is minutes
         }
-        return if (secs in 1..86_399) Command.Timer(secs) else null
+        return if (secs in 1..86_399) Command.Timer(secs.toInt()) else null
     }
     Regex("^alarm\\s+(\\d{1,2})(?:[:.](\\d{2}))?\\s*(am|pm|a\\.m\\.|p\\.m\\.)?$").find(s)?.let { m ->
         var h = m.groupValues[1].toInt(); val min = m.groupValues[2].ifEmpty { "0" }.toInt()

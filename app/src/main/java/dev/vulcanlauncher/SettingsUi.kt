@@ -2,10 +2,8 @@ package dev.vulcanlauncher
 
 import android.content.ComponentName
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.provider.Settings
 import android.graphics.drawable.Drawable
-import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.text.Editable
 import android.text.TextWatcher
@@ -14,11 +12,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
 import android.widget.EditText
-import android.widget.GridView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -128,7 +124,7 @@ class SettingsActivity : VulcanActivity() {
         if (shortcutMade(requestCode, resultCode, data)) return
         val uri = data?.data?.takeIf { resultCode == RESULT_OK } ?: return
         when (requestCode) {
-            MainActivity.REQ_BACKUP -> runCatching { contentResolver.openOutputStream(uri, "wt")!!.use { it.write(store.export(home.apps.values.toList()).toByteArray()) } }
+            MainActivity.REQ_BACKUP -> runCatching { contentResolver.openOutputStream(uri, "wt")!!.use { it.write(store.export(home.repo.apps.values.toList()).toByteArray()) } }
                 .onSuccess { toast(R.string.backup_saved) }.onFailure { toast(R.string.backup_failed, it.message) }
             MainActivity.REQ_RESTORE -> restoreBackup(uri, ::restartHome)
             // The same review (and widget) steps as the first run, over home: settings closes onto them.
@@ -249,7 +245,7 @@ private fun SettingsActivity.settingsHome(page: LinearLayout): (String) -> Unit 
         list.visibility = if (q.isBlank()) View.VISIBLE else View.GONE
         if (q.isNotBlank()) {
             val hits = LOOKS.filter { c ->
-                c.group in GROUP_TITLES && listOf(c.title, c.info, GROUP_TITLES.getValue(c.group)).any { it != 0 && getString(it).contains(q.trim(), true) }
+                c.group in GROUP_TITLES && shows(c) && listOf(c.title, c.info, GROUP_TITLES.getValue(c.group)).any { it != 0 && getString(it).contains(q.trim(), true) }
             }
             if (hits.isEmpty()) results.addView(text(getString(R.string.settings_no_match), 15f, m3.onSurfaceVariant).apply {
                 gravity = Gravity.CENTER; setPadding(0, (32 * dp).toInt(), 0, 0)
@@ -328,11 +324,12 @@ private fun SettingsActivity.nameplate() = LinearLayout(this).apply {
     layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), (4 * dp).toInt()) }
 }
 
+/** Whether a setting has a row now. Schedule hours only where they're used: the schedule, and sunset to sunrise until a location is known. */
+private fun SettingsActivity.shows(c: Choice) =
+    c.key != "nightStart" && c.key != "nightEnd" || looks.str("nightMode") in listOf("schedule", "sun")
+
 private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout) {
-    // Schedule hours only where they're used: the schedule, and sunset to sunrise until a location is known.
-    val hours = looks.str("nightMode") in listOf("schedule", "sun")
-    val choices = (if (group == LOOK) listOf(iconPackChoice()) else emptyList()) +
-        LOOKS.filter { it.group == group && (hours || it.key != "nightStart" && it.key != "nightEnd") }
+    val choices = (if (group == LOOK) listOf(iconPackChoice()) else emptyList()) + LOOKS.filter { it.group == group && shows(it) }
     fun pickNamed(c: Choice) {
         val names = c.values.indices.map { choiceName(c, it) }
         val checked = c.values.indexOf(looks[c])
@@ -454,7 +451,7 @@ private fun SettingsActivity.slider(c: Choice): View {
         max = if (c.key == "defaultPage") (looks.int("pages") - 1).coerceIn(1, c.values.size - 1) else c.values.size - 1
         progress = c.values.indexOf(looks[c]).coerceAtLeast(0)
         contentDescription = getString(c.title)
-        val tint = android.content.res.ColorStateList.valueOf(m3.on)
+        val tint = android.content.res.ColorStateList.valueOf(m3.slider)
         progressTintList = tint; thumbTintList = tint; tickMarkTintList = tint
         if (c.values.size <= 12) tickMark = GradientDrawable().apply { shape = GradientDrawable.OVAL; setSize((4 * dp).toInt(), (4 * dp).toInt()) }
         setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
@@ -466,7 +463,12 @@ private fun SettingsActivity.slider(c: Choice): View {
                 if (user && !dragging) applyChoice(c, c.values[i])
             }
             override fun onStartTrackingTouch(b: android.widget.SeekBar) { dragging = true }
-            override fun onStopTrackingTouch(b: android.widget.SeekBar) { dragging = false; applyChoice(c, c.values[b.progress]) }
+            override fun onStopTrackingTouch(b: android.widget.SeekBar) {
+                dragging = false; applyChoice(c, c.values[b.progress])
+                // Default page's range and its "one page" row follow Pages.
+                // ponytail: not after a key or TalkBack move, where rebuilding the page would drop the focus; that row is right again when the page reopens.
+                if (c.key == "pages") refresh()
+            }
         })
         if (android.os.Build.VERSION.SDK_INT >= 30) stateDescription = value.text
     }
@@ -479,23 +481,26 @@ private fun SettingsActivity.slider(c: Choice): View {
 }
 
 /**
- * Page padding (#96), as Nova's Padding: a row saying "24 × 16 dp" that opens a dialog with a phone beside two
- * sliders, Left & right and Top & bottom. The phone draws the home grid as it is set (columns, rows, dock) and moves
+ * Page padding (#96), as Nova's Padding: a row saying "24 × 16 dp" that opens a dialog with a phone over three
+ * sliders, Left & right, Top and Bottom. The phone draws the home grid as it is set (columns, rows, dock) and moves
  * it in as a slider moves, the space it gives up tinted in the signal colour, so the change is seen before OK saves it.
  */
 private fun SettingsActivity.paddingRow(c: Choice): View {
-    fun name(v: String) = paddingOf(v).let { (x, y) -> if (x == 0 && y == 0) getString(R.string.none) else getString(R.string.padding_value, x, y) }
+    fun name(v: String) = paddingOf(v).let { (x, t, b) ->
+        if (x == 0 && t == 0 && b == 0) getString(R.string.none)
+        else if (t == b) getString(R.string.padding_value, x, t) else getString(R.string.padding_value_ends, x, t, b)
+    }
     return listItem(null, getString(c.title), name(looks[c])) {
-        var (px, py) = paddingOf(looks[c])
+        var (px, pt, pb) = paddingOf(looks[c])
         val steps = PADDING_STEPS
-        val preview = PaddingPreview(this, looks.cols, looks.rows, looks.dockCols, looks.dockOn, looks.str("shape"), looks.on("labels")).apply { set(px, py, animate = false) }
+        val preview = PaddingPreview(this, looks.cols, looks.rows, looks.dockCols, looks.dockOn, looks.str("shape"), looks.on("labels"), looks.str("searchBar")).apply { set(px, pt, pb, animate = false) }
         fun bar(title: Int, start: Int, onMove: (Int) -> Unit): View {
             val value = text("$start dp", 14f, m3.onSurfaceVariant)
             val seek = android.widget.SeekBar(this).apply {
                 max = steps.size - 1
                 progress = steps.indexOf(start).coerceAtLeast(0)
                 contentDescription = getString(title)
-                val tint = android.content.res.ColorStateList.valueOf(m3.on)
+                val tint = android.content.res.ColorStateList.valueOf(m3.slider)
                 progressTintList = tint; thumbTintList = tint; tickMarkTintList = tint
                 tickMark = GradientDrawable().apply { shape = GradientDrawable.OVAL; setSize((4 * dp).toInt(), (4 * dp).toInt()) }
                 if (android.os.Build.VERSION.SDK_INT >= 30) stateDescription = value.text
@@ -528,13 +533,14 @@ private fun SettingsActivity.paddingRow(c: Choice): View {
                 setPadding(0, (12 * dp).toInt(), 0, (16 * dp).toInt())
                 addView(preview, android.widget.FrameLayout.LayoutParams(preview.width(), preview.height(), Gravity.CENTER_HORIZONTAL))
             }, LinearLayout.LayoutParams(-1, -2).apply { setMargins((8 * dp).toInt(), 0, (8 * dp).toInt(), (20 * dp).toInt()) })
-            addView(bar(R.string.padding_sides, px) { px = it; preview.set(px, py) })
-            addView(bar(R.string.padding_ends, py) { py = it; preview.set(px, py) }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = (8 * dp).toInt() })
+            addView(bar(R.string.padding_sides, px) { px = it; preview.set(px, pt, pb) })
+            addView(bar(R.string.padding_top, pt) { pt = it; preview.set(px, pt, pb) }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = (8 * dp).toInt() })
+            addView(bar(R.string.padding_bottom, pb) { pb = it; preview.set(px, pt, pb) }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = (8 * dp).toInt() })
         }
         dialog().setTitle(c.title).setView(box)
             .setNegativeButton(R.string.cancel, null)
             .setPositiveButton(R.string.ok) { _, _ ->
-                applyChoice(c, "${px}x$py")
+                applyChoice(c, "${px}x${pt}x$pb")
                 changed()
             }.show()
     }
@@ -548,7 +554,7 @@ private fun SettingsActivity.paddingRow(c: Choice): View {
  */
 private class PaddingPreview(private val a: SettingsActivity, private val cols: Int, private val rows: Int,
                              private val dockCols: Int, private val dock: Boolean, shape: String,
-                             private val labels: Boolean) : View(a) {
+                             private val labels: Boolean, private val search: String) : View(a) {
     private val dp = a.resources.displayMetrics.density
     private val screenW = a.resources.displayMetrics.widthPixels / dp
     private val screenH = a.resources.displayMetrics.heightPixels / dp
@@ -565,7 +571,7 @@ private class PaddingPreview(private val a: SettingsActivity, private val cols: 
     private val r = android.graphics.RectF()
     // The icon shape once, 100 px square; each icon scales it.
     private val icon = shapePath(shape, android.graphics.Rect(0, 0, 100, 100))
-    private var x = 0f; private var y = 0f
+    private var x = 0f; private var yt = 0f; private var yb = 0f
     private var anim: android.animation.ValueAnimator? = null
 
     init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
@@ -573,14 +579,14 @@ private class PaddingPreview(private val a: SettingsActivity, private val cols: 
     fun width() = (phoneW + 2 * side).toInt()
     fun height() = (phoneH + above + 2 * dp).toInt()
 
-    fun set(px: Int, py: Int, animate: Boolean = true) {
+    fun set(px: Int, pt: Int, pb: Int, animate: Boolean = true) {
         anim?.cancel()
-        if (!animate) { x = px.toFloat(); y = py.toFloat(); invalidate(); return }
-        val x0 = x; val y0 = y
+        if (!animate) { x = px.toFloat(); yt = pt.toFloat(); yb = pb.toFloat(); invalidate(); return }
+        val x0 = x; val t0 = yt; val b0 = yb
         anim = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 220
             interpolator = android.view.animation.DecelerateInterpolator(1.5f)
-            addUpdateListener { val f = it.animatedValue as Float; x = x0 + (px - x0) * f; y = y0 + (py - y0) * f; invalidate() }
+            addUpdateListener { val f = it.animatedValue as Float; x = x0 + (px - x0) * f; yt = t0 + (pt - t0) * f; yb = b0 + (pb - b0) * f; invalidate() }
             start()
         }
     }
@@ -619,12 +625,16 @@ private class PaddingPreview(private val a: SettingsActivity, private val cols: 
         canvas.drawCircle((pl + pr) / 2, sy, 2.4f * dp, paint)
 
         // Where the pages sit: under the status bar, over the dock (or the navigation bar without one).
-        val top = pt + 28 * s
-        val bottom = pb - (if (dock) 112 else 28) * s
-        val il = pl + x * s; val ir = pr - x * s; val it = top + y * s; val ib = bottom - y * s
+        // The search bar takes a 56 dp row: over or under the pages, or over or under the dock's icons.
+        val bar = 56 * s
+        val dockSearch = dock && search in listOf("dockAbove", "dockBelow")
+        val top = pt + 28 * s + (if (search == "top") bar else 0f)
+        val dockTop = pb - (if (dock) 112 else 28) * s - (if (dockSearch) bar else 0f)
+        val bottom = dockTop - (if (search == "bottom") bar else 0f)
+        val il = pl + x * s; val ir = pr - x * s; val it = top + yt * s; val ib = bottom - yb * s
 
         // The space the padding gives up: a light wash, hatched at 45 degrees, in the signal colour.
-        if (x > 0.5f || y > 0.5f) {
+        if (x > 0.5f || yt > 0.5f || yb > 0.5f) {
             canvas.save()
             canvas.clipRect(pl, top, pr, bottom)
             canvas.clipOutRect(il, it, ir, ib)
@@ -656,8 +666,21 @@ private class PaddingPreview(private val a: SettingsActivity, private val cols: 
 
         // The dock, untouched by the padding: a row of icons across the full width, then the gesture bar.
         if (dock) {
-            val dw = (phoneW - 2 * edge) / dockCols; val dc = minOf(dw, 64 * s) * 0.66f; val dy = pb - 64 * s
+            val dw = (phoneW - 2 * edge) / dockCols; val dc = minOf(dw, 64 * s) * 0.66f
+            val dy = pb - 64 * s - (if (search == "dockBelow") bar else 0f)
             for (i in 0 until dockCols) drawIcon(canvas, pl + edge + dw * (i + 0.5f), dy, dc, alpha(m3.onSurfaceVariant, 0xB3))
+        }
+        // The search bar, a pill in its row; like the dock, the padding leaves it alone.
+        val sy2 = when (search) {
+            "top" -> top - bar / 2
+            "bottom" -> bottom + bar / 2
+            "dockAbove" -> if (dock) dockTop + bar / 2 else null
+            "dockBelow" -> if (dock) pb - 28 * s - bar / 2 else null
+            else -> null
+        }
+        if (sy2 != null) {
+            paint.color = alpha(m3.onSurfaceVariant, 0x52)
+            r.set(pl + 16 * s, sy2 - 18 * s, pr - 16 * s, sy2 + 18 * s); canvas.drawRoundRect(r, 18 * s, 18 * s, paint)
         }
         paint.color = alpha(m3.onSurface, 0x66)
         r.set((pl + pr) / 2 - 14 * dp, pb - 6 * dp, (pl + pr) / 2 + 14 * dp, pb - 4.5f * dp); canvas.drawRoundRect(r, dp, dp, paint)
@@ -667,8 +690,8 @@ private class PaddingPreview(private val a: SettingsActivity, private val cols: 
         r.set(pl + edge / 2, pt + edge / 2, pr - edge / 2, pb - edge / 2)
         canvas.drawRoundRect(r, corner, corner, paint)
 
-        // Callouts, as on a drawing: Left & right beside the left edge at mid height, Top & bottom beside the right
-        // edge at the top band. A leader runs from the number to the band it names; each fades in from 0.
+        // Callouts, as on a drawing: Left & right beside the left edge at mid height, Top and Bottom beside the right
+        // edge, each at its own band. A leader runs from the number to the band it names; each fades in from 0.
         fun callout(value: Float, left: Boolean, ly: Float) {
             val shown = (value / 8f).coerceIn(0f, 1f)
             if (shown == 0f) return
@@ -685,7 +708,8 @@ private class PaddingPreview(private val a: SettingsActivity, private val cols: 
             canvas.drawCircle(to, ly, 1.6f * dp, paint)
         }
         callout(x, true, (top + bottom) / 2)
-        callout(y, false, top + y * s / 2)
+        callout(yt, false, top + yt * s / 2)
+        callout(yb, false, bottom - yb * s / 2)
     }
 }
 
@@ -716,7 +740,7 @@ private fun SettingsActivity.iconPackChoice(): Choice {
 }
 
 private fun SettingsActivity.valueName(c: Choice) = when {
-    c.action -> actionName(looks[c], home::appLabel)
+    c.action -> actionName(looks[c], home.repo::appLabel)
     // Under the Appliance look, "system" on a housing-coloured part draws in the housing colour.
     m3.housing && looks[c] == "system" && c.key in listOf("dockColor", "searchColor", "folderColor") -> getString(R.string.housing_follows_theme)
     else -> c.values.indexOf(looks[c]).let { i -> if (i >= 0) choiceName(c, i) else looks[c].ifEmpty { getString(R.string.none) } }
@@ -742,850 +766,6 @@ private fun SettingsActivity.applyChoice(c: Choice, value: String) {
         perm != null && !granted(perm) -> requestPermissions(arrayOf(perm), MainActivity.REQ_PERMISSION)
     }
 }
-
-/**
- * Label, icon and (for home items) swipe-up action. Empty label or icon means "use the default".
- * [preview] draws an icon value ("" is the default icon).
- */
-fun MainActivity.editDialog(title: String, label: String, defaultLabel: String, icon: String?, swipe: String?,
-                            preview: (String) -> Drawable?, folder: Boolean = false, onSave: (String, String, String) -> Unit) {
-    var iconV = icon ?: ""
-    var swipeV = swipe ?: ""
-    val pad = (24 * dp).toInt()
-    val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, (8 * dp).toInt(), pad, 0) }
-    val name = field(label, defaultLabel.ifEmpty { getString(R.string.label) })
-    // As Nova: the icon sits beside the name; tap it to change it.
-    box.addView(LinearLayout(this).apply {
-        gravity = Gravity.CENTER_VERTICAL
-        if (icon != null) addView(ImageView(context).apply {
-            fun show() = setImageDrawable(preview(iconV))
-            show()
-            contentDescription = getString(R.string.icon)
-            val p = (8 * dp).toInt()
-            setPadding(p, p, p, p)
-            background = pressable(rounded(m3.surfaceHighest, 16 * dp), 16 * dp)
-            setOnClickListener { pickIcon { iconV = it; show() } }
-        }, LinearLayout.LayoutParams((56 * dp).toInt(), (56 * dp).toInt()).apply { marginEnd = (16 * dp).toInt() })
-        addView(name, LinearLayout.LayoutParams(0, -2, 1f))
-    })
-    if (swipe != null) {
-        val holder = android.widget.FrameLayout(this)
-        fun row() {
-            holder.removeAllViews()
-            // A folder keeps "none", so it can opt out of the global Swipe to open; "" follows that setting.
-            val shown = swipeV.ifEmpty { if (folder && looks.on("folderSwipe")) "folder" else "none" }
-            holder.addView(listItem(symbol("gesture"), getString(R.string.swipe_up_action), actionName(shown, ::appLabel)) {
-                pickAction(getString(R.string.swipe_up_action), folder) { swipeV = if (it == "none" && !folder) "" else it; row() }
-            })
-        }
-        row()
-        // The row's own 16 dp inset lines its icon up with the dialog's 24 dp edge.
-        box.addView(holder, LinearLayout.LayoutParams(-1, -2).apply { setMargins((-16 * dp).toInt(), (8 * dp).toInt(), -pad, 0) })
-    }
-    sheet().setTitle(title).setView(box)
-        .setPositiveButton(R.string.save) { _, _ -> onSave(name.text.toString().trim(), iconV, swipeV) }
-        .setNegativeButton(R.string.cancel, null).show()
-}
-
-/**
- * [replace] puts the edited item back: on the home screen by default, or into its folder. [swipes] false hides the
- * swipe action, for an app in a folder, whose icons take no swipes; its own setting is kept.
- */
-fun MainActivity.editItem(item: Item, swipes: Boolean = true, replace: (Item) -> Unit = { new ->
-    items.indexOf(item).takeIf { it >= 0 }?.let { items[it] = new; save(); render() }
-}) {
-    val default = when {
-        item.folder -> getString(R.string.folder)
-        item.isApp -> appLabel(item.appKey) ?: ""
-        else -> resolve(item.copy(label = ""))?.first?.toString() ?: ""
-    }
-    editDialog(getString(if (item.folder) R.string.edit_folder else R.string.edit), item.label, default, item.icon, item.swipe.takeIf { swipes },
-        { ic -> resolve(item.copy(icon = ic))?.second }, item.folder) { l, ic, sw ->
-        replace(item.copy(label = if (item.folder) l.ifEmpty { getString(R.string.folder) } else l, icon = ic, swipe = if (swipes) sw else item.swipe))
-    }
-}
-
-/** Drawer edits apply to the app everywhere it has no home-screen override. */
-fun MainActivity.editApp(app: App) {
-    val c = customs.optJSONObject(app.key)
-    editDialog(getString(R.string.edit_app), c?.optString("label") ?: "", app.info.label.toString(), c?.optString("icon") ?: "", null,
-        { ic -> icons.get(app.pkg, app.cls, ic) { app.info.getBadgedIcon(0) } }) { l, ic, _ ->
-        customs.put(app.key, JSONObject().put("label", l).put("icon", ic))
-        store.putObj("custom", customs)
-        loadApps(listOf(app.pkg))
-        drawer.refresh()
-        render()
-    }
-}
-
-fun MainActivity.pickIcon(onPicked: (String) -> Unit) {
-    val packs = iconPacks(this)
-    val rows = listOf(symbol("refresh") to getString(R.string.icon_default_option)) +
-        packs.map { (pkg, name) -> runCatching { packageManager.getApplicationIcon(pkg) }.getOrNull() to getString(R.string.icon_from_pack, name) } +
-        (symbol("apps") to getString(R.string.icon_from_app)) + (symbol("image") to getString(R.string.icon_from_gallery))
-    pickList(getString(R.string.icon), rows) { i ->
-        when {
-            i == 0 -> onPicked("")
-            i <= packs.size -> pickPackIcon(packs[i - 1].first, onPicked)
-            i == packs.size + 1 -> pickApp(getString(R.string.icon_from_app)) { onPicked("app:${it.pkg}/${it.cls}") }
-            else -> {
-                onPickedImage = { onPicked("uri:$it") }
-                @Suppress("DEPRECATION")
-                startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*"), MainActivity.REQ_ICON)
-            }
-        }
-    }
-}
-
-/** A full-screen grid of a pack's icons under a search bar. Icons load off the main thread, so scrolling stays smooth. */
-private fun MainActivity.pickPackIcon(pkg: String, onPicked: (String) -> Unit) {
-    val pack = loadIconPack(this, pkg) ?: run { toast(getString(R.string.icon_pack_unreadable)); return }
-    val all = pack.names
-    var shown = all
-    val cell = (72 * dp).toInt()
-    val pad = (10 * dp).toInt()
-    // ponytail: ~150 icons kept (a few screens' worth, ~10 MB drawn at cell size); a pack's thousands are redrawn as they scroll back in.
-    val cache = android.util.LruCache<String, Drawable>(150)
-    val loader = java.util.concurrent.Executors.newSingleThreadExecutor()
-    val adapter = object : BaseAdapter() {
-        override fun getCount() = shown.size
-        override fun getItem(p: Int) = shown[p]
-        override fun getItemId(p: Int) = p.toLong()
-        override fun getView(p: Int, convert: View?, parent: ViewGroup) = ((convert as? ImageView) ?: ImageView(this@pickPackIcon).apply {
-            layoutParams = android.widget.AbsListView.LayoutParams(-1, cell)
-            setPadding(pad, pad, pad, pad)
-            background = pressable(null, 16 * dp)
-        }).apply {
-            val n = shown[p]
-            tag = n
-            contentDescription = n
-            setImageDrawable(cache.get(n))
-            if (cache.get(n) == null) loader.execute {
-                if (tag != n) return@execute // scrolled past before its turn
-                val d = pack.drawable(n)?.let { flatIcon(this@pickPackIcon, it, cell - 2 * pad) } ?: return@execute
-                cache.put(n, d)
-                post { if (tag == n) setImageDrawable(d) }
-            }
-        }
-    }
-    lateinit var d: android.app.Dialog
-    val grid = GridView(this).apply {
-        numColumns = GridView.AUTO_FIT
-        columnWidth = cell
-        this.adapter = adapter
-        val pad = (12 * dp).toInt()
-        setPadding(pad, 0, pad, pad)
-        clipToPadding = false
-        setOnItemClickListener { _, _, p, _ -> d.dismiss(); onPicked("pack:$pkg:${shown[p]}") }
-    }
-    val filter = EditText(this).apply {
-        hint = resources.getQuantityString(R.plurals.filter_icons, all.size, all.size)
-        setSingleLine()
-        textSize = 16f
-        setTextColor(m3.onSurface)
-        setHintTextColor(m3.onSurfaceVariant)
-        background = null
-        addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) { shown = all.filter { it.contains(s.toString(), true) }; adapter.notifyDataSetChanged() }
-            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-        })
-    }
-    val panel = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        setBackgroundColor(m3.surface)
-        // M3 search bar: back, then the filter.
-        addView(LinearLayout(context).apply {
-            gravity = Gravity.CENTER_VERTICAL
-            background = rounded(m3.surfaceHighest, 28 * dp)
-            setPadding((4 * dp).toInt(), 0, (16 * dp).toInt(), 0)
-            addView(iconButton("back", getString(R.string.back), m3.onSurface) { d.dismiss() })
-            addView(filter, LinearLayout.LayoutParams(0, -1, 1f))
-        }, LinearLayout.LayoutParams(-1, (56 * dp).toInt()).apply { setMargins((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt()) })
-        addView(grid, LinearLayout.LayoutParams(-1, 0, 1f))
-        @Suppress("DEPRECATION")
-        setOnApplyWindowInsetsListener { v, i -> v.setPadding(i.systemWindowInsetLeft, i.systemWindowInsetTop, i.systemWindowInsetRight, i.systemWindowInsetBottom); i }
-    }
-    d = android.app.Dialog(this, android.R.style.Theme_DeviceDefault_NoActionBar).apply {
-        setContentView(panel)
-        window?.apply { setLayout(-1, -1); setBackgroundDrawable(android.graphics.drawable.ColorDrawable(m3.surface)) }
-        setOnDismissListener { loader.shutdownNow(); dialogs -= d }
-        dialogs += this // not d: it's assigned only after apply returns
-        show()
-    }
-}
-
-/** Every app with a checkbox, for hiding apps or filling a drawer group; [onSave] gets the apps checked. */
-/** [others]: each app's other groups, shown under its name so a tab's apps can be picked from those not yet sorted (#55). */
-fun VulcanActivity.appSwitches(title: String, on: Collection<String>, others: Map<String, List<String>> = emptyMap(), onSave: (List<String>) -> Unit) {
-    // Ticked apps first, as Supernova's app checklist: what's chosen is in view without searching.
-    val all = home.apps.values.sortedWith(compareBy<App> { it.key !in on }.thenBy(labelOrder()) { home.label(it) })
-    var list = all
-    val chosen = on.toMutableSet()
-    val adapter = object : BaseAdapter() {
-        override fun getCount() = list.size
-        override fun getItem(p: Int) = list[p]
-        override fun getItemId(p: Int) = p.toLong()
-        override fun getView(p: Int, convert: View?, parent: ViewGroup): View {
-            val app = list[p]
-            // M3: checkboxes, not switches, for picking several from a list. The row takes the tap.
-            val box = android.widget.CheckBox(this@appSwitches).apply {
-                isChecked = app.key in chosen; isClickable = false; isFocusable = false
-                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-                buttonTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(m3.on, m3.onSurfaceVariant))
-            }
-            return listItem(home.icon(app), if (home.isWork(app)) getString(R.string.work_app, home.label(app)) else home.label(app),
-                others[app.key]?.let { getString(R.string.in_groups, it.joinToString()) }, trailing = box, appIcon = true) {
-                box.isChecked = !box.isChecked
-                if (box.isChecked) chosen += app.key else chosen -= app.key
-            }.apply {
-                accessibilityDelegate = object : View.AccessibilityDelegate() {
-                    override fun onInitializeAccessibilityNodeInfo(v: View, info: android.view.accessibility.AccessibilityNodeInfo) {
-                        super.onInitializeAccessibilityNodeInfo(v, info)
-                        info.className = android.widget.CheckBox::class.java.name; info.isCheckable = true; info.isChecked = box.isChecked
-                    }
-                }
-            }.apply { setPaddingRelative((24 * dp).toInt(), paddingTop, (24 * dp).toInt(), paddingBottom) } // in line with the title
-        }
-    }
-    val lv = android.widget.ListView(this).apply { this.adapter = adapter; divider = null }
-    // A long app list is quicker to search than to scroll. Ticks survive the filter: they're kept by app, not by row.
-    val search = searchField(getString(R.string.search_apps)).apply {
-        addTextChangedListener(object : android.text.TextWatcher {
-            override fun afterTextChanged(e: android.text.Editable?) {
-                val q = e.toString().trim()
-                list = if (q.isEmpty()) all else all.filter { matchScore(home.label(it), q) > 0 }
-                adapter.notifyDataSetChanged()
-            }
-            override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, af: Int) {}
-            override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
-        })
-    }
-    val box = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        addView(search, LinearLayout.LayoutParams(-1, -2).apply { setMargins((24 * dp).toInt(), (4 * dp).toInt(), (24 * dp).toInt(), (8 * dp).toInt()) })
-        // A fixed height: inside a dialog a weighted list can measure to nothing. Most of the screen, as the list was.
-        addView(lv, LinearLayout.LayoutParams(-1, (resources.displayMetrics.heightPixels * 0.62f).toInt()))
-    }
-    sheet().setTitle(title).setView(box)
-        .setPositiveButton(R.string.save) { _, _ -> onSave(all.map { it.key }.filter { it in chosen }) }
-        .setNegativeButton(R.string.cancel, null).show()
-}
-
-/**
- * Puts [keys] in order by dragging the rows' handles (Move up/down for accessibility); Save hands back the new order.
- * shortcut: the list doesn't scroll itself during a drag, so a long move takes a drag per screenful; add edge
- * auto-scroll to Reorder if that gets tedious.
- */
-fun VulcanActivity.arrangeApps(title: String, keys: List<String>, onSave: (List<String>) -> Unit) {
-    var order = keys.filter { it in home.apps }
-    val rows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, (8 * dp).toInt(), 0, 0) }
-    fun build() {
-        rows.removeAllViews()
-        val views = order.map { k ->
-            val app = home.apps.getValue(k)
-            listItem(home.icon(app), home.label(app), appIcon = true, onClick = null)
-                .apply { setPaddingRelative((24 * dp).toInt(), paddingTop, (12 * dp).toInt(), paddingBottom) }
-        }
-        lateinit var rebuild: () -> Unit
-        val reorder = Reorder(this, views) { from, to -> order = moveItem(order, from, to); rebuild() }
-        rebuild = ::build
-        views.forEach { v -> if (views.size > 1) (v as LinearLayout).addView(reorder.handle(v)); rows.addView(v) }
-    }
-    build()
-    val scroll = ScrollView(this).apply { addView(rows) }
-    sheet().setTitle(title).setView(scroll)
-        .setPositiveButton(R.string.save) { _, _ -> onSave(order) }
-        .setNegativeButton(R.string.cancel, null).show()
-}
-
-/**
- * Arranges [shown], the apps of drawer tab [tab] ("" for all apps): a tab group keeps the order in its apps list, the
- * other tabs share data.drawerOrder. Saving switches the drawer to the manual sort, where that order shows.
- */
-fun VulcanActivity.arrangeTab(tab: String, shown: List<String>) {
-    val groups = home.drawer.groups()
-    val group = groups.firstOrNull { it.name == tab && it.type == "tab" }
-    arrangeApps(getString(R.string.arrange_apps), shown) { order ->
-        looks["drawerSort"] = "manual"
-        if (group != null) saveGroups(groups.map { if (it === group) it.copy(apps = arranged(it.apps, order)) else it })
-        else { store.putStrings("drawerOrder", arranged(store.strings("drawerOrder").toList(), order)); home.drawer.refresh() }
-    }
-}
-
-/** Picks the apps pinned above the drawer's tabs, then their order; none pinned, the row shows the most used apps. */
-fun VulcanActivity.chooseFavourites() {
-    val pinned = store.strings("favourites").toList()
-    appSwitches(getString(R.string.favourites), pinned) { chosen ->
-        val keep = pinned.filter { it in chosen } + chosen.filter { it !in pinned }
-        fun save(keys: List<String>) { store.putStrings("favourites", keys); home.drawer.refresh() }
-        if (keep.size > 1) arrangeApps(getString(R.string.favourites), keep, ::save) else save(keep)
-    }
-}
-
-fun VulcanActivity.hideAppsMenu() = appSwitches(getString(R.string.hide_apps), store.strings("hidden")) {
-    store.putStrings("hidden", it)
-    home.drawer.refresh()
-}
-
-// ---- Drawer groups (tabs and folders) ----
-
-fun VulcanActivity.saveGroups(groups: List<Group>) {
-    store.data.edit().putString("groups", groupsToJson(groups)).apply()
-    home.drawer.refresh()
-    (this as? SettingsActivity)?.takeIf { it.page == TABS_GROUP || it.page == DRAWER_FOLDERS }?.refresh()
-}
-
-/** "Gmail, Drive, Calendar and 5 more": [keys]' names, as many as read well on one line. */
-private fun VulcanActivity.appNames(keys: List<String>, shown: Int = 3): String {
-    val names = keys.mapNotNull { home.apps[it] }.map { home.label(it) }
-    return if (names.size <= shown) names.joinToString() else getString(R.string.names_and_more, names.take(shown).joinToString(), names.size - shown)
-}
-
-/** A group's icon: its first four apps on a rounded tile, 40 dp. Copies of the icons, so the drawer's keep their bounds. */
-fun VulcanActivity.groupIcon(keys: List<String>): Drawable {
-    val icons = keys.mapNotNull { home.apps[it] }.take(4).map { home.icon(it).let { d -> d.constantState?.newDrawable(resources)?.mutate() ?: d } }
-    val size = (40 * dp).toInt(); val cell = (15 * dp).toInt(); val pad = (4 * dp).toInt(); val gap = size - 2 * pad - 2 * cell
-    return android.graphics.drawable.LayerDrawable((listOf(rounded(m3.surfaceHighest, 12 * dp)) + icons).toTypedArray()).apply {
-        setLayerSize(0, size, size)
-        icons.indices.forEach { i ->
-            setLayerSize(i + 1, cell, cell)
-            setLayerInsetLeft(i + 1, pad + (i % 2) * (cell + gap)); setLayerInsetTop(i + 1, pad + (i / 2) * (cell + gap))
-            setLayerGravity(i + 1, Gravity.START or Gravity.TOP)
-        }
-    }
-}
-
-/** M3 segmented buttons: one choice of a few, the chosen one filled. */
-private fun SettingsActivity.segmented(options: List<String>, chosen: Int, onPick: (Int) -> Unit) = LinearLayout(this).apply {
-    background = rounded(0, 20 * dp, m3.outline)
-    setPadding(dp.toInt(), dp.toInt(), dp.toInt(), dp.toInt())
-    // A label that wraps grows its segment instead of being clipped, and no baseline shift pushes the others off (#85).
-    isBaselineAligned = false
-    gravity = Gravity.CENTER_VERTICAL
-    options.forEachIndexed { i, label ->
-        // Filled as the drawer's selected tab chip: secondaryContainer barely stood out on the Appliance panels.
-        addView(text(label, 14f, if (i == chosen) onColor(tabFill()) else m3.onSurface, medium = true).apply {
-            gravity = Gravity.CENTER
-            minimumHeight = (40 * dp).toInt()
-            setPaddingRelative((4 * dp).toInt(), (2 * dp).toInt(), (4 * dp).toInt(), (2 * dp).toInt())
-            background = pressable(if (i == chosen) rounded(tabFill(), 20 * dp) else null, 20 * dp)
-            accessibilityDelegate = object : View.AccessibilityDelegate() {
-                override fun onInitializeAccessibilityNodeInfo(v: View, info: android.view.accessibility.AccessibilityNodeInfo) {
-                    super.onInitializeAccessibilityNodeInfo(v, info)
-                    info.className = android.widget.RadioButton::class.java.name; info.isCheckable = true; info.isChecked = i == chosen
-                }
-            }
-            setOnClickListener { if (i != chosen) onPick(i) }
-        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-    }
-}
-
-/** A checkbox row inside a panel, indented under the row it belongs to. */
-private fun SettingsActivity.checkRow(title: String, on: Boolean, onChange: (Boolean) -> Unit): View {
-    val box = android.widget.CheckBox(this).apply {
-        isChecked = on; isClickable = false; isFocusable = false
-        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-        buttonTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(m3.on, m3.onSurfaceVariant))
-    }
-    return LinearLayout(this).apply {
-        gravity = Gravity.CENTER_VERTICAL
-        minimumHeight = (48 * dp).toInt()
-        setPaddingRelative((8 * dp).toInt(), 0, (24 * dp).toInt(), 0)
-        background = pressable(null)
-        addView(box)
-        addView(text(title, 14f, m3.onSurfaceVariant), LinearLayout.LayoutParams(0, -2, 1f))
-        accessibilityDelegate = object : View.AccessibilityDelegate() {
-            override fun onInitializeAccessibilityNodeInfo(v: View, info: android.view.accessibility.AccessibilityNodeInfo) {
-                super.onInitializeAccessibilityNodeInfo(v, info)
-                info.className = android.widget.CheckBox::class.java.name; info.isCheckable = true; info.isChecked = box.isChecked
-            }
-        }
-        setOnClickListener { box.isChecked = !box.isChecked; onChange(box.isChecked) }
-    }
-}
-
-/** An eye button: shows or hides [name] in the drawer's tab bar. */
-private fun SettingsActivity.eye(name: String, shown: Boolean, onToggle: () -> Unit) =
-    iconButton(if (shown) "show" else "hide", getString(if (shown) R.string.tab_hide else R.string.tab_show, name), if (shown) m3.onSurfaceVariant else m3.outline) { onToggle() }
-
-/** Slide a row toward the start edge to delete it; a short slide springs back. A tap still taps. */
-@android.annotation.SuppressLint("ClickableViewAccessibility")
-private fun VulcanActivity.swipeToDelete(row: View, onDelete: () -> Unit) {
-    val slop = android.view.ViewConfiguration.get(this).scaledTouchSlop
-    val toward = if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) 1 else -1
-    var x0 = 0f; var y0 = 0f; var swiping = false
-    // The row stays put: its content slides and a red Delete area fills the gap it leaves.
-    val icon = symbol("delete", m3.onErrorContainer)
-    val red = object : android.graphics.drawable.Drawable() {
-        val paint = android.graphics.Paint().apply { color = m3.errorContainer }
-        var shown = 0f
-        override fun draw(c: android.graphics.Canvas) {
-            if (shown <= 0f) return
-            val w = row.width.toFloat(); val h = row.height.toFloat()
-            val l = if (toward < 0) w - shown else 0f
-            c.drawRect(l, 0f, l + shown, h, paint)
-            val s = icon.intrinsicWidth; val pad = (24 * dp).toInt()
-            if (shown < s + 2 * pad) return
-            val x = if (toward < 0) (w - pad - s).toInt() else pad
-            icon.setBounds(x, ((h - s) / 2).toInt(), x + s, ((h + s) / 2).toInt()); icon.draw(c)
-        }
-        override fun setAlpha(a: Int) {}
-        override fun setColorFilter(f: android.graphics.ColorFilter?) {}
-        @Deprecated("Deprecated in Java") override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
-    }
-    fun slide(v: View, by: Float) {
-        red.shown = by; red.setBounds(0, 0, v.width, v.height); red.invalidateSelf(); v.invalidate()
-        (v as ViewGroup).let { g -> for (i in 0 until g.childCount) g.getChildAt(i).translationX = by * toward }
-    }
-    row.overlay.add(red)
-    row.setOnTouchListener { v, ev ->
-        val dx = (ev.rawX - x0) * toward // how far toward the start, positive
-        when (ev.actionMasked) {
-            android.view.MotionEvent.ACTION_DOWN -> { x0 = ev.rawX; y0 = ev.rawY; swiping = false; false }
-            android.view.MotionEvent.ACTION_MOVE -> {
-                if (!swiping && dx > slop && dx > 2 * kotlin.math.abs(ev.rawY - y0)) {
-                    swiping = true; v.parent.requestDisallowInterceptTouchEvent(true); v.isPressed = false; v.cancelLongPress()
-                }
-                if (swiping) slide(v, maxOf(0f, dx))
-                swiping
-            }
-            android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> swiping.also {
-                if (!swiping) return@also
-                swiping = false
-                val del = ev.actionMasked == android.view.MotionEvent.ACTION_UP && dx > v.width * 0.35f
-                android.animation.ValueAnimator.ofFloat(maxOf(0f, dx), if (del) v.width.toFloat() else 0f).apply {
-                    duration = 150
-                    addUpdateListener { slide(v, it.animatedValue as Float) }
-                    if (del) addListener(object : android.animation.AnimatorListenerAdapter() { override fun onAnimationEnd(a: android.animation.Animator) = onDelete() })
-                }.start()
-            }
-            else -> swiping
-        }
-    }
-}
-
-/** App drawer › Apps: Tabs and Folders, each saying what's in it. */
-private fun SettingsActivity.tabsLink(): View {
-    val tabs = home.drawer.groups().filter { it.type == "tab" }
-    val hasWork = home.apps.values.any { home.isWork(it) }
-    val names = listOfNotNull(getString(R.string.tab_all), getString(R.string.tab_private).takeIf { home.privateUser != null }) + withWorkSlot(tabs.map { it.name }, store.data.getInt(WORK_AT, 0))
-        .filter { it != WORK_SLOT || hasWork }.map { if (it == WORK_SLOT) getString(R.string.tab_work) else it }
-    val summary = if (names.size <= 3) names.joinToString() else getString(R.string.names_and_more, names.take(3).joinToString(), names.size - 3)
-    return listItem(symbol("tabs", m3.onPrimaryContainer), getString(R.string.group_tabs), summary, tonalIcon = true) { showPage(TABS_GROUP) }
-}
-
-private fun SettingsActivity.foldersLink(): View {
-    val folders = home.drawer.groups().filter { it.type == "folder" }
-    return listItem(folders.firstOrNull()?.let { groupIcon(it.apps) } ?: symbol("folder", m3.onPrimaryContainer), getString(R.string.group_drawer_folders),
-        if (folders.isEmpty()) getString(R.string.folders_none) else resources.getQuantityString(R.plurals.folders_count, folders.size, folders.size),
-        tonalIcon = folders.isEmpty(), appIcon = folders.isNotEmpty()) { showPage(DRAWER_FOLDERS) }
-}
-
-/**
- * The drawer's tabs: a preview of the tab bar with its Scroll or Wrap choice, then every tab in bar order. Each can be
- * shown or hidden; user tabs open their editor, drag to reorder and slide away to delete. All apps carries Keep in all.
- */
-private fun SettingsActivity.tabsPage(list: LinearLayout) {
-    val groups = home.drawer.groups()
-    val tabs = groups.filter { it.type == "tab" }
-    val hasVisibleTab = tabs.any { !it.hidden }
-    val allShown = !store.data.getBoolean(ALL_HIDDEN, false) || !hasVisibleTab
-    val hasWork = home.apps.values.any { home.isWork(it) }
-    val workShown = workTabShown()
-    val wrap = looks.str("tabBar") == "wrap"
-    fun choice(key: String) = LOOKS.first { it.key == key }
-
-    // The bar as the drawer will show it, selected tab first.
-    val workAt = store.data.getInt(WORK_AT, 0)
-    val shownNames = listOfNotNull(getString(R.string.tab_all).takeIf { allShown }, getString(R.string.tab_private).takeIf { home.privateUser != null }) +
-        withWorkSlot(tabs.map { it.name }, workAt).filter { if (it == WORK_SLOT) hasWork && workShown else tabs.none { t -> t.name == it && t.hidden } }
-            .map { if (it == WORK_SLOT) getString(R.string.tab_work) else it }
-    val bar = DrawerTabs(this, (6 * dp).toInt(), (32 * dp).toInt(), wrap).apply {
-        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-        // On the drawer's own surface: the card's tone can match the selected chip's fill.
-        background = rounded(m3.surface, 12 * dp)
-        val p = (8 * dp).toInt(); setPadding(p, p, p, p)
-        shownNames.forEachIndexed { i, n ->
-            val on = i == 0
-            addView(text(n, 13f, if (on) onColor(tabFill()) else m3.onSurfaceVariant, medium = true).apply {
-                gravity = Gravity.CENTER; setSingleLine()
-                val p = (12 * dp).toInt(); setPadding(p, 0, p, 0)
-                background = if (on) rounded(tabFill(), 8 * dp) else null
-            })
-        }
-    }
-    val preview = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        tag = "tabBar"
-        setPadding((16 * dp).toInt(), (16 * dp).toInt(), (16 * dp).toInt(), (16 * dp).toInt())
-        // Scroll: one row, cut at the edge as the drawer's scrolls; wrap: every tab.
-        addView(if (wrap) bar else android.widget.HorizontalScrollView(context).apply { isHorizontalScrollBarEnabled = false; addView(bar) },
-            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = (16 * dp).toInt() })
-        addView(segmented(listOf(getString(R.string.tab_bar_scroll), getString(R.string.tab_bar_wrap)), if (wrap) 1 else 0) {
-            looks[choice("tabBar")] = if (it == 1) "wrap" else "scroll"; changed()
-        }.apply { contentDescription = getString(R.string.set_tabBar) })
-    }
-    panel(list, null, listOf(preview))
-
-    fun row(title: CharSequence, summary: String?, shown: Boolean, onEye: () -> Unit, onClick: ((View) -> Unit)?) =
-        listItem(null, title, if (shown) summary else getString(R.string.tab_hidden), trailing = eye(title.toString(), shown, onEye), onClick = onClick)
-            .apply { if (!shown) (getChildAt(0) as? LinearLayout)?.alpha = 0.6f }
-    val allRow = row(getString(R.string.tab_all), null, allShown, {
-        if (allShown && !hasVisibleTab) toast(getString(R.string.tab_all_needs_tab))
-        else { store.data.edit().putBoolean(ALL_HIDDEN, allShown).apply(); home.drawer.refresh(); refresh() }
-    }, null)
-    val keep = checkRow(getString(R.string.set_keepInAll), looks.on("keepInAll")) { looks[choice("keepInAll")] = if (it) "on" else "off"; changed() }.apply { tag = "keepInAll" }
-    // Work profile: a briefcase after its name marks it as the system's, not a tab of your own.
-    val workTitle = android.text.SpannableString(getString(R.string.tab_work) + "  \u200b").apply {
-        val s = (16 * dp).roundToInt()
-        setSpan(android.text.style.ImageSpan(symbol("briefcase", m3.onSurfaceVariant, 16f).apply { setBounds(0, 0, s, s) }, android.text.style.DynamicDrawableSpan.ALIGN_CENTER),
-            length - 1, length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-    }
-    val workRow = if (hasWork) row(workTitle, null, workShown, {
-        store.data.edit().putBoolean(WORK_HIDDEN, workShown).apply(); home.drawer.refresh(); refresh()
-    }, null) else null
-    val tabRows = tabs.map { g ->
-        row(g.name, resources.getQuantityString(R.plurals.group_apps, g.apps.size, g.apps.size), !g.hidden, {
-            saveGroups(home.drawer.groups().map { if (it.name == g.name) it.copy(hidden = !g.hidden) else it })
-        }) { editGroup(g) }.also { swipeToDelete(it) { deleteGroup(g) } }
-    }
-    // Work moves among your tabs like one of them: its place is how many of them come before it (WORK_AT).
-    val movable = if (workRow == null) tabRows else tabRows.toMutableList().apply { add(workAt.coerceIn(0, size), workRow) }
-    val reorder = Reorder(this, movable) { from, to ->
-        val now = home.drawer.groups()
-        if (workRow == null) saveGroups(reorderGroups(now, "tab", from, to))
-        else moveWithWork(now.filter { it.type == "tab" }.map { it.name }, workAt, from, to).let { (order, at) ->
-            store.data.edit().putInt(WORK_AT, at).apply()
-            saveGroups(withTabOrder(now, order))
-        }
-    }
-    if (movable.size > 1) movable.forEach { (it as LinearLayout).addView(reorder.handle(it)) }
-    val newTab = listItem(symbol("add", m3.primary), getString(R.string.new_tab)) { newGroup("tab") }
-    // Keep in all only means something while All apps shows.
-    // Private Space is the system's: always right after All apps, as the preview shows, and not hidden from here.
-    val privateRow = if (home.privateUser != null) listItem(null, getString(R.string.tab_private), getString(R.string.tab_private_fixed), onClick = null) else null
-    panel(list, getString(R.string.tabs_in_bar), listOfNotNull(allRow, keep.takeIf { allShown }, privateRow) + movable + newTab)
-    if (tabs.isNotEmpty()) list.addView(text(getString(R.string.tabs_hint), 13f, m3.onSurfaceVariant).apply {
-        setPadding((32 * dp).toInt(), (12 * dp).toInt(), (32 * dp).toInt(), 0)
-    })
-}
-
-/**
- * The drawer's folders: a preview of where they sit in the grid with its First or Sorted with apps choice, then each
- * folder (tap to edit, drag to reorder, slide away to delete), and New folder or Suggest folders.
- */
-private fun SettingsActivity.foldersPage(list: LinearLayout) {
-    val folders = home.drawer.groups().filter { it.type == "folder" }
-    val first = looks.on("foldersFirst")
-    // A row of the drawer: a few apps and folders, in the chosen order.
-    val apps = home.apps.values.filterNot { home.isWork(it) }.sortedWith(compareBy(labelOrder()) { home.label(it) }).take(if (folders.isEmpty()) 4 else 6)
-    data class Cell(val name: String, val icon: Drawable)
-    val folderCells = folders.take(2).map { Cell(it.name, groupIcon(it.apps)) }
-    val appCells = apps.map { Cell(home.label(it), home.icon(it)) }
-    val cells = if (first) folderCells + appCells else (folderCells + appCells).sortedWith(compareBy(labelOrder()) { it.name })
-    val grid = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-        cells.chunked(4).forEach { rowCells ->
-            addView(LinearLayout(context).apply {
-                (0 until 4).forEach { i ->
-                    addView(LinearLayout(context).apply {
-                        orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
-                        rowCells.getOrNull(i)?.let { c ->
-                            addView(ImageView(context).apply { setImageDrawable(c.icon) }, LinearLayout.LayoutParams((40 * dp).toInt(), (40 * dp).toInt()))
-                            addView(text(c.name, 11f, m3.onSurfaceVariant).apply { setSingleLine(); ellipsize = android.text.TextUtils.TruncateAt.END; gravity = Gravity.CENTER })
-                        }
-                    }, LinearLayout.LayoutParams(0, -2, 1f).apply { bottomMargin = (8 * dp).toInt() })
-                }
-            })
-        }
-    }
-    panel(list, null, listOf(LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        tag = "foldersFirst"
-        setPadding((16 * dp).toInt(), (16 * dp).toInt(), (16 * dp).toInt(), (16 * dp).toInt())
-        addView(grid)
-        addView(text(getString(R.string.folders_in_grid), 14f, m3.onSurfaceVariant).apply { setPadding(0, (8 * dp).toInt(), 0, (8 * dp).toInt()) })
-        addView(segmented(listOf(getString(R.string.folders_first), getString(R.string.folders_sorted)), if (first) 0 else 1) {
-            looks[LOOKS.first { c -> c.key == "foldersFirst" }] = if (it == 0) "on" else "off"; changed()
-        }.apply { contentDescription = getString(R.string.folders_in_grid) })
-    }))
-
-    val rows = folders.map { g ->
-        listItem(groupIcon(g.apps), g.name, resources.getQuantityString(R.plurals.group_apps, g.apps.size, g.apps.size), appIcon = true) { editGroup(g) }
-            .also { swipeToDelete(it) { deleteGroup(g) } }
-    }
-    val reorder = Reorder(this, rows) { from, to -> saveGroups(reorderGroups(home.drawer.groups(), "folder", from, to)) }
-    if (rows.size > 1) rows.forEach { (it as LinearLayout).addView(reorder.handle(it)) }
-    // Two ways to add, side by side.
-    fun add(icon: String, label: Int, onClick: () -> Unit) = text(getString(label), 14f, m3.primary, medium = true).apply {
-        gravity = Gravity.CENTER_VERTICAL
-        minHeight = (56 * dp).toInt()
-        setPaddingRelative((16 * dp).toInt(), 0, (8 * dp).toInt(), 0)
-        compoundDrawablePadding = (12 * dp).toInt()
-        setCompoundDrawablesRelative(symbol(icon, m3.primary, 20f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
-        background = pressable(null)
-        setOnClickListener { onClick() }
-    }
-    val adds = LinearLayout(this).apply {
-        addView(add("add", R.string.new_folder) { newGroup("folder") }, LinearLayout.LayoutParams(0, -2, 1f))
-        addView(View(context).apply { setBackgroundColor(m3.outlineVariant) }, LinearLayout.LayoutParams(maxOf(1, (dp / 2).roundToInt()), (32 * dp).toInt()).apply { gravity = Gravity.CENTER_VERTICAL })
-        addView(add("sparkle", R.string.suggest_folders) { suggestFolders() }, LinearLayout.LayoutParams(0, -2, 1f))
-    }
-    panel(list, getString(R.string.your_folders), rows + adds)
-    list.addView(text(getString(if (folders.isEmpty()) R.string.folders_empty else R.string.folders_hint), 13f, m3.onSurfaceVariant).apply {
-        setPadding((32 * dp).toInt(), (12 * dp).toInt(), (32 * dp).toInt(), 0)
-    })
-}
-
-fun VulcanActivity.askName(title: String, current: String, onName: (String) -> Unit) {
-    val input = field(current, getString(R.string.name))
-    val box = android.widget.FrameLayout(this).apply { setPadding((24 * dp).toInt(), (8 * dp).toInt(), (24 * dp).toInt(), 0); addView(input) }
-    sheet().setTitle(title).setView(box)
-        .setPositiveButton(R.string.ok) { _, _ -> input.text.toString().trim().takeIf { it.isNotEmpty() }?.let(onName) }
-        .setNegativeButton(R.string.cancel, null).show()
-    // Ready to type, as Nova's name dialogs: the field focused and the keyboard up.
-    input.requestFocus()
-    input.postDelayed({ getSystemService(android.view.inputmethod.InputMethodManager::class.java).showSoftInput(input, 0) }, 150)
-}
-
-private fun SettingsActivity.newGroup(type: String) = askName(getString(if (type == "tab") R.string.new_tab else R.string.new_folder), "") { name ->
-    val groups = home.drawer.groups()
-    if (groups.any { it.name == name }) { toast(getString(R.string.group_exists)); return@askName }
-    chooseApps(name, emptyList(), groups, name) { apps, rest -> saveGroups(rest + Group(name, type, apps)) }
-}
-
-/**
- * Group [name]'s apps: those still ticked keep their place (a tab's arranged order), new ones go at the end. New ones that
- * are in other groups too can be moved here in one go, leaving those groups ([onDone] gets [groups] with them taken out).
- */
-private fun VulcanActivity.chooseApps(title: String, current: List<String>, groups: List<Group>, name: String, onDone: (List<String>, List<Group>) -> Unit) {
-    val others = groupsOfApps(groups, name)
-    appSwitches(title, current, others) { chosen ->
-        val apps = current.filter { it in chosen } + chosen.filter { it !in current }
-        val shared = chosen.filter { it !in current && it in others }.toSet()
-        if (shared.isEmpty()) return@appSwitches onDone(apps, groups)
-        sheet().setTitle(R.string.move_apps_title)
-            .setMessage(resources.getQuantityString(R.plurals.move_apps_message, shared.size, shared.size))
-            .setPositiveButton(R.string.move_apps_move) { _, _ -> onDone(apps, withoutApps(groups, shared, name)) }
-            .setNegativeButton(R.string.move_apps_keep) { _, _ -> onDone(apps, groups) }
-            .show()
-    }
-}
-
-/**
- * A tab's or folder's sheet: its name (saved when the sheet closes), its apps, a tab's order and colour, turning it into
- * the other kind, and Delete beside Done.
- */
-fun VulcanActivity.editGroup(g: Group) {
-    val name = field(g.name, getString(R.string.name))
-    var color = g.color
-    var deleted = false
-    lateinit var d: android.app.AlertDialog
-    fun current() = home.drawer.groups().firstOrNull { it.name == g.name }
-    val box = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding((16 * dp).toInt(), (20 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt())
-    }
-    box.addView(LinearLayout(this).apply {
-        gravity = Gravity.CENTER_VERTICAL
-        setPadding((8 * dp).toInt(), 0, (8 * dp).toInt(), (12 * dp).toInt())
-        addView(ImageView(context).apply { setImageDrawable(groupIcon(g.apps)) }, LinearLayout.LayoutParams((52 * dp).toInt(), (52 * dp).toInt()).apply { marginEnd = (16 * dp).toInt() })
-        addView(name, LinearLayout.LayoutParams(0, -2, 1f))
-    })
-    val rows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = rounded(m3.surfaceHighest, 18 * dp); clipToOutline = true }
-    rows.addView(listItem(symbol("apps"), getString(R.string.choose_apps), appNames(g.apps).ifEmpty { null }) {
-        d.dismiss()
-        chooseApps(g.name, g.apps, home.drawer.groups(), g.name) { apps, rest -> saveGroups(rest.map { if (it.name == g.name) it.copy(apps = apps) else it }) }
-    })
-    if (g.type == "tab") rows.addView(listItem(symbol("drag"), getString(R.string.arrange_apps)) { d.dismiss(); arrangeTab(g.name, g.apps) })
-    // A tab's own colour, as Nova's: it marks the tab while it's selected (Drawer.buildTabs). No setting of its own (#49).
-    // It opens the same colour sheet as every other colour, with the tab bar as its sample; saved when this sheet closes.
-    if (g.type == "tab") {
-        val dot = View(this).apply { layoutParams = LinearLayout.LayoutParams((24 * dp).toInt(), (24 * dp).toInt()) }
-        fun show() { dot.background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color?.let(Color::parseColor) ?: tabFill()); setStroke(dp.toInt(), m3.outlineVariant) } }
-        show()
-        rows.addView(listItem(symbol("palette"), getString(R.string.tab_color), trailing = dot) {
-            pickTabColor(g.name, color) { color = it; show() }
-        })
-    }
-    val other = if (g.type == "tab") "folder" else "tab"
-    rows.addView(listItem(symbol(if (other == "tab") "tabs" else "folder"), getString(if (other == "tab") R.string.convert_to_tab else R.string.convert_to_folder)) {
-        current()?.let { cur -> saveGroups(home.drawer.groups().map { if (it === cur || it.name == cur.name) it.copy(type = other) else it }) }
-        d.dismiss()
-    })
-    box.addView(rows)
-    // Delete is quiet text on the left, away from Done.
-    box.addView(LinearLayout(this).apply {
-        gravity = Gravity.CENTER_VERTICAL
-        setPadding(0, (16 * dp).toInt(), 0, 0)
-        addView(text(getString(R.string.delete), 14f, m3.error, medium = true).apply {
-            gravity = Gravity.CENTER_VERTICAL
-            minHeight = (44 * dp).toInt()
-            setPadding((12 * dp).toInt(), 0, (16 * dp).toInt(), 0)
-            compoundDrawablePadding = (8 * dp).toInt()
-            setCompoundDrawablesRelative(symbol("delete", m3.error, 20f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
-            background = pressable(null, 22 * dp, m3.error)
-            setOnClickListener { deleted = true; d.dismiss(); current()?.let { deleteGroup(it) } }
-        })
-        addView(View(context), LinearLayout.LayoutParams(0, 0, 1f))
-        addView(text(getString(R.string.done), 14f, m3.onPrimary, medium = true).apply {
-            gravity = Gravity.CENTER
-            minHeight = (44 * dp).toInt()
-            setPadding((24 * dp).toInt(), 0, (24 * dp).toInt(), 0)
-            background = pressable(rounded(m3.primary, 22 * dp), 22 * dp, m3.onPrimary)
-            setOnClickListener { d.dismiss() }
-        })
-    })
-    d = sheet().setView(ScrollView(this).apply { addView(box) }).create()
-    // Closing the sheet any way keeps the new name and colour.
-    d.setOnDismissListener {
-        if (deleted) return@setOnDismissListener
-        val groups = home.drawer.groups()
-        val cur = groups.firstOrNull { it.name == g.name } ?: return@setOnDismissListener
-        val typed = name.text.toString().trim()
-        val newName = when {
-            typed.isEmpty() || typed == cur.name -> cur.name
-            groups.any { it.name == typed } -> { toast(getString(R.string.group_exists)); cur.name }
-            else -> typed
-        }
-        if (newName != cur.name || color != cur.color) saveGroups(groups.map { if (it.name == g.name) it.copy(name = newName, color = color) else it })
-    }
-    d.show()
-}
-
-/** Asks, showing what's in [g], then deletes it and puts its apps back in the drawer. */
-fun VulcanActivity.deleteGroup(g: Group) {
-    fun go() = saveGroups(home.drawer.groups().filterNot { it.name == g.name })
-    val icons = LinearLayout(this).apply {
-        gravity = Gravity.CENTER_VERTICAL
-        setPadding(0, (16 * dp).toInt(), 0, 0)
-        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-        g.apps.mapNotNull { home.apps[it] }.take(6).forEach { app ->
-            addView(ImageView(context).apply { setImageDrawable(home.icon(app)) }, LinearLayout.LayoutParams((28 * dp).toInt(), (28 * dp).toInt()).apply { marginEnd = (6 * dp).toInt() })
-        }
-        if (g.apps.size > 6) addView(text("+${g.apps.size - 6}", 12f, m3.onSurfaceVariant).apply {
-            gravity = Gravity.CENTER; setPadding((10 * dp).toInt(), 0, (10 * dp).toInt(), 0); background = rounded(m3.surfaceHigh, 14 * dp)
-        }, LinearLayout.LayoutParams(-2, (28 * dp).toInt()))
-    }
-    val body = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding((24 * dp).toInt(), (8 * dp).toInt(), (24 * dp).toInt(), 0)
-        addView(text(resources.getQuantityString(if (g.type == "tab") R.plurals.delete_tab_message else R.plurals.delete_folder_message, g.apps.size, g.apps.size), 14f, m3.onSurfaceVariant))
-        addView(icons)
-    }
-    // Cancelled from a slide, the row springs back with the page.
-    val back = { (this as? SettingsActivity)?.refresh(); Unit }
-    val d = dialog().setIcon(symbol("delete", m3.error)).setTitle(getString(R.string.delete_group_title, g.name)).setView(body)
-        .setPositiveButton(R.string.delete) { _, _ -> go() }
-        .setNegativeButton(R.string.cancel) { _, _ -> back() }
-        .setOnCancelListener { back() }
-        .show()
-    d.getButton(android.app.AlertDialog.BUTTON_POSITIVE)?.setTextColor(m3.error)
-}
-
-/** The selected tab's fill when the tab has no colour of its own: solid ink, so it stands out from the plain ones (0.32). */
-fun VulcanActivity.tabFill() = m3.onSurface
-
-private fun VulcanActivity.colorDot(c: Int) = GradientDrawable().apply {
-    shape = GradientDrawable.OVAL; setColor(c); setStroke(dp.toInt(), m3.outlineVariant); setSize((24 * dp).toInt(), (24 * dp).toInt())
-}
-
-fun VulcanActivity.addToGroup(key: String) {
-    val groups = home.drawer.groups()
-    // A checklist: the app's groups start ticked, so unticking one takes it out.
-    val checked = BooleanArray(groups.size) { key in groups[it].apps }
-    fun save(extra: List<Group> = emptyList()) = saveGroups(groups.mapIndexed { i, g -> when {
-        checked[i] && key !in g.apps -> g.copy(apps = g.apps + key)
-        !checked[i] -> g.copy(apps = g.apps - key)
-        else -> g
-    } } + extra)
-    sheet().setTitle(R.string.add_to_group)
-        .setMultiChoiceItems(groups.map { it.name }.toTypedArray(), checked) { _, i, on -> checked[i] = on }
-        .setPositiveButton(R.string.ok) { _, _ -> save() }
-        .setNegativeButton(R.string.cancel, null)
-        .setNeutralButton(R.string.new_folder) { _, _ -> askName(getString(R.string.new_folder), "") { save(listOf(Group(it, "folder", listOf(key)))) } }
-        .show()
-}
-
-/** Suggested folders, one per app category: each ticked to start, with the apps it would take. Create makes the ticked ones. */
-private fun SettingsActivity.suggestFolders() {
-    val byName = smartCategories()
-    val groups = home.drawer.groups()
-    val foldered = groups.filter { it.type == "folder" }.flatMap { it.apps }.toSet()
-    // Only what Create would change: a new folder of two or more, or apps for a folder of that name.
-    val ideas = byName.filter { (n, keys) -> smartGroups(groups, mapOf(n to keys)).let { it.second + it.third > 0 } }
-        .entries.sortedByDescending { (_, keys) -> keys.count { it !in foldered } }
-    if (ideas.isEmpty()) { toast(getString(R.string.no_new_categories)); return }
-    val on = ideas.map { it.key }.toMutableSet()
-    lateinit var d: android.app.AlertDialog
-    fun cta() = d.getButton(android.app.AlertDialog.BUTTON_POSITIVE)?.apply {
-        text = if (on.isEmpty()) getString(R.string.create) else getString(R.string.create_n, on.size); isEnabled = on.isNotEmpty()
-    }
-    val box = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding((8 * dp).toInt(), 0, (8 * dp).toInt(), 0)
-        addView(text(getString(R.string.suggest_info), 14f, m3.onSurfaceVariant).apply { setPadding((16 * dp).toInt(), 0, (16 * dp).toInt(), (8 * dp).toInt()) })
-        for ((n, keys) in ideas) {
-            val fresh = keys.filter { it !in foldered }
-            val check = android.widget.CheckBox(context).apply {
-                isChecked = true; isClickable = false; isFocusable = false
-                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-                buttonTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(m3.on, m3.onSurfaceVariant))
-            }
-            addView(listItem(groupIcon(fresh), n, appNames(fresh, 4), trailing = check, appIcon = true, summaryLines = 1) {
-                check.isChecked = !check.isChecked
-                if (check.isChecked) on += n else on -= n
-                cta()
-            }.apply {
-                accessibilityDelegate = object : View.AccessibilityDelegate() {
-                    override fun onInitializeAccessibilityNodeInfo(v: View, info: android.view.accessibility.AccessibilityNodeInfo) {
-                        super.onInitializeAccessibilityNodeInfo(v, info)
-                        info.className = android.widget.CheckBox::class.java.name; info.isCheckable = true; info.isChecked = check.isChecked
-                    }
-                }
-            })
-        }
-    }
-    d = sheet().setTitle(R.string.suggest_title).setView(ScrollView(this).apply { addView(box) })
-        .setPositiveButton(R.string.create) { _, _ ->
-            val (out, count, added) = smartGroups(home.drawer.groups(), byName.filterKeys { it in on })
-            if (count > 0) toast(resources.getQuantityString(R.plurals.created_folders, count, count))
-            else if (added > 0) toast(resources.getQuantityString(R.plurals.added_to_folders, added, added))
-            saveGroups(out)
-        }
-        .setNegativeButton(R.string.cancel, null).show()
-    cta()
-}
-
-/** Each app category's folder name and its apps' keys (see [smartCategory]), A to Z. */
-private fun SettingsActivity.smartCategories(): Map<String, List<String>> {
-    // Apps whose intent filters say what they are, for those that declare no category.
-    fun role(cat: Int, vararg intents: Intent) = intents.flatMap { packageManager.queryIntentActivities(it, 0) }.map { it.activityInfo.packageName to cat }
-    fun main(c: String) = Intent(Intent.ACTION_MAIN).addCategory(c)
-    val roles = (role(CAT_TOOLS, main(Intent.CATEGORY_APP_CALCULATOR), main(Intent.CATEGORY_APP_FILES)) +
-        role(ApplicationInfo.CATEGORY_NEWS, main(Intent.CATEGORY_APP_WEATHER)) +
-        role(ApplicationInfo.CATEGORY_PRODUCTIVITY, main(Intent.CATEGORY_APP_CALENDAR), main(Intent.CATEGORY_APP_EMAIL),
-            Intent(Intent.ACTION_SENDTO, android.net.Uri.parse("mailto:"))) +
-        role(ApplicationInfo.CATEGORY_SOCIAL, main(Intent.CATEGORY_APP_MESSAGING), main(Intent.CATEGORY_APP_CONTACTS),
-            Intent(Intent.ACTION_SENDTO, android.net.Uri.parse("smsto:")), Intent(Intent.ACTION_DIAL)) +
-        role(ApplicationInfo.CATEGORY_MAPS, main(Intent.CATEGORY_APP_MAPS)) +
-        role(ApplicationInfo.CATEGORY_AUDIO, main(Intent.CATEGORY_APP_MUSIC)) +
-        role(CAT_HEALTH, main(Intent.CATEGORY_APP_FITNESS)) +
-        role(ApplicationInfo.CATEGORY_IMAGE, main(Intent.CATEGORY_APP_GALLERY), Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE))
-        ).reversed().toMap() // the first role listed wins
-    val names = mapOf(CAT_FINANCE to R.string.cat_finance, CAT_SHOPPING to R.string.cat_shopping, CAT_HEALTH to R.string.cat_health, CAT_TOOLS to R.string.cat_tools)
-    @Suppress("DEPRECATION") val byName = home.apps.values.mapNotNull { a ->
-        val ai = a.info.applicationInfo
-        val cat = smartCategory(ai.category, ai.flags and ApplicationInfo.FLAG_IS_GAME != 0, roles[a.pkg], a.pkg, a.title,
-            ai.flags and ApplicationInfo.FLAG_SYSTEM != 0) ?: return@mapNotNull null
-        val name = names[cat]?.let(::getString) ?: ApplicationInfo.getCategoryTitle(this, cat)?.toString() ?: return@mapNotNull null
-        name to a
-    }.groupBy({ it.first }, { it.second }).mapValues { (_, l) -> l.sortedBy { it.title.lowercase() }.map { it.key } }
-    return byName.toSortedMap()
-}
-
 // ---- Backup, permissions ----
 
 @Suppress("DEPRECATION")
@@ -1603,8 +783,8 @@ private fun SettingsActivity.backupPage(list: LinearLayout) {
         row("clock", R.string.restore_auto, getString(R.string.restore_auto_info, saved)) {
             dialog().setMessage(getString(R.string.restore_auto_confirm, saved))
                 .setPositiveButton(R.string.restore) { _, _ ->
-                    runCatching { store.import(f.readText(), home::mainActivity) }
-                        .onSuccess { if (it.replacedLayout) home.dropForeignWidgets(); restartHome() }
+                    runCatching { store.import(f.readText(), home.repo::mainActivity) }
+                        .onSuccess { if (it.replacedLayout) { home.widgetFlow.dropForeignWidgets(); toastMissing() }; home.repinShortcuts(); restartHome() }
                         .onFailure { toast(getString(R.string.restore_failed, it.message)) }
                 }.setNegativeButton(R.string.cancel, null).show()
         }
@@ -1626,13 +806,19 @@ private fun SettingsActivity.backupPage(list: LinearLayout) {
     }))
 }
 
+/** Says how many restored icons home is about to drop because their apps aren't installed; the backup file still has them. */
+fun VulcanActivity.toastMissing() {
+    val n = missingApps(store.load(looks.sub), home.repo::uninstalled)
+    if (n > 0) toast(resources.getQuantityString(R.plurals.restore_missing, n, n))
+}
+
 /** Restores a backup or applies an older style file, then [restart] rebuilds home. */
 fun VulcanActivity.restoreBackup(uri: android.net.Uri, restart: () -> Unit) {
-    runCatching { store.import(contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() }, home::mainActivity) }
+    runCatching { store.import(contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() }, home.repo::mainActivity) }
         .onSuccess { result ->
             if (result.rejected.isNotEmpty()) toast(R.string.skipped_settings, result.rejected.joinToString())
             // Widget IDs belong to the install that made them; drop the ones this install doesn't own.
-            if (result.replacedLayout) home.dropForeignWidgets()
+            if (result.replacedLayout) { home.widgetFlow.dropForeignWidgets(); toastMissing() }
             // Android opens a shortcut only for the launcher that pinned it: after a fresh install, none are.
             home.repinShortcuts()
             restart()
@@ -1648,6 +834,7 @@ fun VulcanActivity.importNote(layout: ImportedLayout, lead: Boolean = true, sepa
 
 /** Stores an imported layout and its grid settings in place of the current ones; home is rebuilt after (restart). */
 fun VulcanActivity.applyImport(layout: ImportedLayout, settings: Map<String, String>) {
+    runCatching { store.rotateAutoBackup() } // the home this replaces stays restorable from Settings
     home.items.flatMap { it.widgetIds }.forEach(home.host::deleteAppWidgetId)
     settings.forEach { (k, v) -> looks[k] = v }
     looks["subgrid"] = if (layout.subgrid) "on" else "off"
@@ -1656,9 +843,8 @@ fun VulcanActivity.applyImport(layout: ImportedLayout, settings: Map<String, Str
     looks["pages"] = maxOf(pages, settings["pages"]?.toIntOrNull() ?: 1).coerceAtMost(9).toString()
     store.save(layout.items, if (layout.subgrid) 2 else 1)
     if (layout.widgets > 0) store.data.edit().putBoolean(RESTORING_WIDGETS, true).commit()
-    pinsByApp(layout.items, settings.values).forEach { (key, ids) ->
-        runCatching { home.launcherApps.pinShortcuts(key.first, ids, home.userOf(key.second)) }
-    }
+    // The same pins as these, from what was just stored; it waits for onResume when Vulcan isn't the default home app yet.
+    home.repinShortcuts()
 }
 
 /** What Vulcan may reach outside itself, each with its state; a row opens the Android page that changes it. */

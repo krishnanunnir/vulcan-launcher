@@ -50,7 +50,7 @@ fun MainActivity.isDefaultHome() = packageManager.resolveActivity(Intent(Intent.
     PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName == packageName
 
 /** In Store.data: the welcome is only the import's review and widget steps (an import started from Settings). */
-private const val WELCOME_IMPORT = "welcomeImport"
+const val WELCOME_IMPORT = "welcomeImport"
 
 /** Over home, at the end of build(): home is already laid out under it, so finishing just lifts this away. */
 fun MainActivity.showWelcome() {
@@ -81,7 +81,7 @@ fun MainActivity.readForReview(uri: android.net.Uri): Pair<ImportedLayout, Map<S
     runCatching { readLauncherBackup(this, uri) }
         .onFailure { toast(getString(R.string.import_failed, it.message)) }
         .getOrNull()?.let { (layout, settings) ->
-            val kept = layout.items.filter { if (it.isWidgetSlot) slotProvider(it) != null else it.folder || resolve(it) != null }
+            val kept = layout.items.filter { if (it.isWidgetSlot) widgetFlow.slotProvider(it) != null else it.folder || resolve(it) != null }
             ImportedLayout(kept, layout.subgrid, layout.skipped + layout.items.size - kept.size) to settings
         }
 
@@ -203,7 +203,7 @@ class WelcomeView(private val a: MainActivity, import: Pair<ImportedLayout, Map<
         addView(alwaysAllow(), LinearLayout.LayoutParams(-2, px(40f)).apply { topMargin = px(14f) })
         addView(View(a), LinearLayout.LayoutParams(1, 0, 1f))
         addView(primary(R.string.widgets_continue) {
-            if (!a.store.data.getBoolean(RESTORING_WIDGETS, false)) finish() else a.restoreNextWidget()
+            if (!a.store.data.getBoolean(RESTORING_WIDGETS, false)) finish() else a.widgetFlow.restoreNextWidget()
         }, keyParams())
         addView(quiet(R.string.widgets_skip) { skipWidgets() }, keyParams(gap = 8f, h = 48f))
     }
@@ -502,7 +502,7 @@ class LayoutPreview(private val a: MainActivity, layout: ImportedLayout, private
 
     init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
 
-    private fun iconOf(item: Item) = if (item.isWidgetSlot) a.apps.values.firstOrNull { it.pkg == item.pkg }?.let(a::icon)
+    private fun iconOf(item: Item) = if (item.isWidgetSlot) a.repo.apps.values.firstOrNull { it.pkg == item.pkg }?.let(a.repo::icon)
         else a.resolve(item)?.second
 
     private val cellW get() = (width - 2 * pad) / cols

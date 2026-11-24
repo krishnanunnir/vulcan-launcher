@@ -15,6 +15,8 @@ class BadgeService : NotificationListenerService() {
         var onChange: (Set<String>) -> Unit = {}
     }
 
+    private val um by lazy { getSystemService(android.os.UserManager::class.java) }
+
     override fun onListenerConnected() { instance = this; refresh() }
     override fun onListenerDisconnected() { instance = null; val old = byPackage.keys; byPackage = emptyMap(); onChange(old) }
     override fun onNotificationPosted(sbn: StatusBarNotification) = refresh()
@@ -43,7 +45,8 @@ class BadgeService : NotificationListenerService() {
         val old = byPackage
         byPackage = runCatching { activeNotifications.orEmpty() }.getOrDefault(emptyArray())
             .filter(::badges)
-            .groupBy { it.packageName }
+            // A profile's notifications under "pkg#serial" (AppRepo.badgeKey), the personal ones under the package alone.
+            .groupBy { if (it.user == android.os.Process.myUserHandle()) it.packageName else "${it.packageName}#${um.getSerialNumberForUser(it.user)}" }
         // As Launcher3's notification dots: only the packages that changed get redrawn.
         fun ids(m: Map<String, List<StatusBarNotification>>, p: String) = m[p]?.map { it.key to it.postTime }
         onChange((old.keys + byPackage.keys).filterTo(HashSet()) { ids(old, it) != ids(byPackage, it) })

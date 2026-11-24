@@ -1,0 +1,6 @@
+- Réorganisez les icônes d’un dossier en les faisant glisser.
+- La page Maintenant peut être désactivée.
+- La liste des widgets affiche un aperçu de chaque widget.
+- Balayage des pages plus fluide.
+- Prêt pour la traduction : chaque mot tient dans un seul fichier de ressources.
+- Les sauvegardes s’expliquent d’elles-mêmes, pour qu’un assistant IA puisse concevoir une disposition.

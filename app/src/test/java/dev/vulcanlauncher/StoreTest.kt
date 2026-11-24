@@ -28,6 +28,16 @@ class StoreTest {
     }
 
     @Test
+    fun restoredFlagsAreBooleansWhateverTheFileSays() {
+        // getBoolean throws on text, and these are read on every start.
+        for (k in listOf("welcome", "welcomeImport", "restoringWidgets", "repinShortcuts", "hideAllTab", "hideWorkTab"))
+            assertEquals(k, true, restoredAsFlag("data", k, "on"))
+        assertEquals(true, restoredAsFlag("data", "anything", "false"))
+        assertEquals(false, restoredAsFlag("data", "groups", "[]"))
+        assertEquals(false, restoredAsFlag("looks", "hideWorkTab", "true"))
+    }
+
+    @Test
     fun badItemIsDroppedNotTheLayout() {
         val json = """[{"page":0,"x":0,"y":0,"pkg":"a","cls":"b"}, {"page":"oops"}, 7,
             {"page":1,"x":0,"y":0,"folder":true,"children":[{"x":1}, {"page":0,"x":0,"y":0,"pkg":"c"}]}]"""
@@ -63,6 +73,23 @@ class StoreTest {
     }
 
     @Test
+    fun aDraggedFolderChildIsTakenFromTheFolderAsItIsNow() {
+        val a = Item(0, 0, 0, pkg = "a")
+        val b = Item(0, 0, 0, pkg = "b")
+        val c = Item(0, 0, 0, pkg = "c")
+        val other = Item(0, 3, 3, pkg = "z")
+        // Renamed and re-sorted since the drag began: found by its cell, and the child by itself, not by its old place.
+        val folder = Item(1, 2, 2, folder = true, label = "New name", children = listOf(c, b, a))
+        assertEquals(listOf(other, folder.copy(children = listOf(c, b))), takeFromFolder(listOf(other, folder), 1, 2, 2, a))
+        // Two left: the folder turns back into the one that stays, on the folder's cell.
+        val pair = folder.copy(children = listOf(a, b))
+        assertEquals(listOf(b.copy(page = 1, x = 2, y = 2)), takeFromFolder(listOf(pair), 1, 2, 2, a))
+        // The child or the folder is gone: nothing to do, so the drop places nothing.
+        assertEquals(null, takeFromFolder(listOf(other, folder), 1, 2, 2, Item(0, 0, 0, pkg = "gone")))
+        assertEquals(null, takeFromFolder(listOf(other), 1, 2, 2, a))
+    }
+
+    @Test
     fun appsGoneWhileTheLauncherWasDeadLeaveHome() {
         val gone = Item(0, 0, 0, pkg = "x")
         val kept = Item(0, 1, 0, pkg = "y")
@@ -74,6 +101,8 @@ class StoreTest {
             removeApps(listOf(gone, kept, action, widget, folder)) { asked += it; it.pkg == "x" })
         // Never asked about widgets, folders or items without a package.
         assertEquals(listOf(gone, kept, gone, kept), asked)
+        // A restore reports the same icons: the one on home and the one in the folder.
+        assertEquals(2, missingApps(listOf(gone, kept, action, widget, folder)) { it.pkg == "x" })
     }
 
     @Test
@@ -100,13 +129,30 @@ class StoreTest {
     }
 
     @Test
+    fun unreadableLayoutFallsBackToABackupOfEitherFormat() {
+        val items = listOf(Item(0, 2, 4, pkg = "a", cls = "A"), Item(-1, 0, 0, pkg = "b", cls = "B"))
+        // What export() writes to files/auto-backup.json today.
+        val now = readableBackup(emptyMap(), items, 2, emptyMap(), emptyList()) { "s$it" }
+        val l = backupLayout(org.json.JSONObject(now.toString()))
+        assertEquals(items, itemsFromJson(l.getValue("items")))
+        assertEquals("2", l["sub"])
+        // The format before it: the preference files as they were, the subgrid factor in the settings.
+        val old = org.json.JSONObject().put("format", "vulcan-backup-1")
+            .put("layout", org.json.JSONObject().put("items", itemsToJson(items))).put("looks", org.json.JSONObject().put("subgrid", "on"))
+        assertEquals(mapOf("items" to itemsToJson(items), "sub" to "2"), backupLayout(old))
+        // A settings-only style file holds no layout: the next backup is tried, home isn't taken as empty.
+        assertThrows(NoSuchElementException::class.java) { backupLayout(org.json.JSONObject("""{"format":"vulcan-backup-2","settings":{}}""")) }
+    }
+
+    @Test
     fun handWrittenBackupIsChecked() {
         val json = """{"format":"vulcan-backup-2","settings":{"cols":"100","labels":false,"labelColor":"#80FF8800","g_doubleTap":"lock",
             "g_swipeDown":"page:2","accent":"#12","iconPack":"x.pack"},"home":{"items":[{"page":0,"x":0,"y":0,"pkg":"chrome"},
             {"page":0,"x":1,"y":0,"pkg":"maps","shortcutId":"s"}]}}"""
         val (files, rejected) = readableBackupFiles(org.json.JSONObject(json)) { pkg, _ -> if (pkg == "chrome") "Main" else null }
         assertEquals(setOf("cols=100", "accent=#12"), rejected.toSet())
-        assertEquals(mapOf("labels" to "off", "labelColor" to "#80FF8800", "g_doubleTap" to "lock", "g_swipeDown" to "page:2", "iconPack" to "x.pack"),
+        assertEquals(mapOf("labels" to "off", "labelColor" to "#80FF8800", "g_doubleTap" to "lock", "g_swipeDown" to "page:2", "iconPack" to "x.pack",
+            "defaults" to "nova", "defaults032" to "on"),
             files["looks"])
         assertEquals(listOf(Item(0, 0, 0, pkg = "chrome", cls = "Main"), Item(0, 1, 0, pkg = "maps", shortcutId = "s")),
             itemsFromJson(files["layout"]!!["items"]!!))
@@ -159,5 +205,32 @@ class StoreTest {
         // A tab's colour survives a save; one that isn't #RRGGBB falls back to the theme's.
         assertEquals(listOf(Group("T", "tab", listOf("k"), "#E53935")), groupsFromJson(groupsToJson(listOf(Group("T", "tab", listOf("k"), "#E53935")))))
         assertEquals(listOf(Group("T", "tab", emptyList())), groupsFromJson("""[{"name":"T","type":"tab","apps":[],"color":"red"}]"""))
+    }
+
+    @Test fun aBackupWithoutHomeItemsIsRefusedNotReadAsEmpty() {
+        for (home in listOf("", ""","home":{}""", ""","home":{"Items":[]}""", ""","home":[]"""))
+            assertThrows(IllegalArgumentException::class.java) { readableBackupFiles(org.json.JSONObject("""{"format":"vulcan-backup-2","data":{}$home}""")) { _, _ -> null } }
+        assertEquals(emptyList<Item>(), itemsFromJson(readableBackupFiles(org.json.JSONObject("""{"format":"vulcan-backup-2","home":{"items":[]}}""")) { _, _ -> null }.first.getValue("layout").getValue("items")))
+    }
+
+    @Test fun appPickerKeepsTickedAppsItCouldNotShow() {
+        assertEquals(listOf("a", "c", "locked"), pickerResult(listOf("a", "b", "c"), setOf("c", "locked", "a")))
+        assertEquals(emptyList<String>(), pickerResult(listOf("a"), emptySet()))
+    }
+
+    @Test fun groupNamesAndTheWorkTabsPlace() {
+        val groups = listOf(Group("Games", "tab", emptyList()))
+        assertEquals(listOf(true, true, true, false), listOf("Games", "work", "private", "Work").map { nameTaken(groups, it) })
+        // A, Work, B, C with A deleted: Work stays between what's left of its neighbours.
+        assertEquals(0, workAtAfter(listOf("A", "B", "C"), listOf("B", "C"), 1))
+        assertEquals(1, workAtAfter(listOf("A", "B", "C"), listOf("A", "B"), 1))
+        // A rename, an added tab or a reorder leaves it alone.
+        assertEquals(2, workAtAfter(listOf("A", "B"), listOf("A", "X"), 2))
+        assertEquals(1, workAtAfter(listOf("A"), listOf("A", "B"), 1))
+    }
+
+    @Test fun aHandWrittenBackupIsNotTakenForAnOldInstall() {
+        val looks = readableBackupFiles(org.json.JSONObject("""{"format":"vulcan-backup-2","settings":{"cols":"6"},"home":{"items":[]}}""")) { _, _ -> null }.first.getValue("looks")
+        assertEquals(mapOf("cols" to "6", "defaults" to "nova", "defaults032" to "on"), looks)
     }
 }

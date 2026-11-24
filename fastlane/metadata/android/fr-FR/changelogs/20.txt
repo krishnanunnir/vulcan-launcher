@@ -1,0 +1,4 @@
+- Recherche du tiroir plus intelligente : fautes de frappe et initiales, raccourcis d’applis, paramètres Android, calculs, minuteurs et alarmes.
+- Icônes thématiques facultatives sur Android 13 et versions ultérieures.
+- Copiez les dossiers du tiroir vers l’accueil. Les dossiers intelligents classent plus d’applis et peuvent être complétés.
+- Correction des plantages dus à des sauvegardes malformées et actualisation des dossiers ouverts après suppression d’une appli.

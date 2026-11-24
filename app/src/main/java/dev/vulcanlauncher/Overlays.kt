@@ -109,10 +109,10 @@ fun MainActivity.searchBar(): View {
             scaleType = ImageView.ScaleType.CENTER
             val wellColor = if (system) m3.well else blend(color, Color.BLACK, if (light) 0.07f else 0.3f)
             background = pressable(well(minOf(radius, key / 2), wellColor), minOf(radius, key / 2), ink)
-            setOnClickListener { perform("voice") }
+            setOnClickListener { homeMenus.perform("voice") }
         }, LinearLayout.LayoutParams(key.toInt(), key.toInt()))
-        setOnClickListener { perform("search") }
-        setOnLongClickListener { homeMenu(); true }
+        setOnClickListener { homeMenus.perform("search") }
+        setOnLongClickListener { homeMenus.homeMenu(); true }
     }
     val slop = android.view.ViewConfiguration.get(this).scaledTouchSlop
     // Swipe up from the bar does what it does from the rest of home (pulls the drawer up); a tap or hold stays the pill's.
@@ -123,7 +123,7 @@ fun MainActivity.searchBar(): View {
         override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
             if (ev.actionMasked == MotionEvent.ACTION_DOWN) { downY = ev.y; velocity?.recycle(); velocity = android.view.VelocityTracker.obtain() }
             velocity?.addMovement(ev)
-            return ev.actionMasked == MotionEvent.ACTION_MOVE && menu == null && downY - ev.y > slop
+            return ev.actionMasked == MotionEvent.ACTION_MOVE && homeMenus.menu == null && downY - ev.y > slop
         }
 
         override fun onTouchEvent(ev: MotionEvent): Boolean {
@@ -135,7 +135,7 @@ fun MainActivity.searchBar(): View {
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     v.computeCurrentVelocity(1000)
                     val pull = workspace.onPull
-                    if (pull != null) pull(up, -v.yVelocity, true) else if (up > slop * 2) perform(looks.str("g_swipeUp"))
+                    if (pull != null) pull(up, -v.yVelocity, true) else if (up > slop * 2) homeMenus.perform(looks.str("g_swipeUp"))
                     v.recycle(); velocity = null
                 }
             }
@@ -194,7 +194,7 @@ fun MainActivity.closeOverlay() {
 
 /** A stable snapshot of the held page; hovering Remove tints the drag shadow without fading it with its source. */
 private class PageDrag(val index: Int, private val source: View, color: Int) : View.DragShadowBuilder(source) {
-    private val preview = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888).apply { source.draw(Canvas(this)) }
+    private val preview = rendered(source.width, source.height) { source.draw(it) }
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val tint = PorterDuffColorFilter(color and 0xFFFFFF or 0x99000000.toInt(), PorterDuff.Mode.SRC_ATOP)
     private var removing = false
@@ -266,13 +266,13 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
         remove.visibility = if (on) View.VISIBLE else View.INVISIBLE
     }
     pages.forEachIndexed { i, page ->
-        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-        // Some widgets hold hardware bitmaps, which a software canvas can't draw; the thumbnail is then left blank.
         // Without its overview card: opened from the hold-home buttons, the page still wears it while growing back,
         // and its outline drew a second border inside the thumbnail's.
         val card = page.background
         page.background = null
-        runCatching { Canvas(bmp).apply { scale(w / maxOf(1f, page.width.toFloat()), h / maxOf(1f, page.height.toFloat())); page.draw(this) } }
+        // Before Android 15 some widgets hold hardware bitmaps a software canvas can't draw; the thumbnail is then left blank.
+        val bmp = runCatching { rendered(w, h) { it.scale(w / maxOf(1f, page.width.toFloat()), h / maxOf(1f, page.height.toFloat())); page.draw(it) } }
+            .getOrElse { Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888) }
         page.background = card
         val current = i == workspace.current
         val thumb = ImageView(this).apply {
@@ -392,10 +392,10 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
  * After a page is added or removed, the rebuilt home must be measured before its thumbnails can be drawn: the previews
  * reopen then, before its first frame, so the change stays in the previews rather than returning to home.
  */
-private fun MainActivity.reopenOverview(pop: Int = -1) = afterRebuild { showOverview(enter = false, pop = pop) }
+private fun MainActivity.reopenOverview(pop: Int = -1) = drag.afterRebuild { showOverview(enter = false, pop = pop) }
 
 /** [then]: after the move; the previews reopen by default. */
-fun MainActivity.movePageTo(from: Int, to: Int, then: () -> Unit = { showOverview(enter = false) }) {
+fun MainActivity.movePageTo(from: Int, to: Int, then: () -> Unit = { reopenOverview() }) {
     if (locked) { toast(R.string.layout_locked); return }
     val default = looks.int("defaultPage")
     items = movePage(items, from, to).toMutableList()
@@ -426,19 +426,20 @@ fun MainActivity.removePageAt(i: Int, then: () -> Unit = { reopenOverview() }) {
         .setPositiveButton(R.string.remove) { _, _ -> doRemove() }.setNegativeButton(R.string.cancel, null).show()
 }
 
-/** Drag handles on a widget's edges; tapping outside applies the new size. */
+/** Drag handles on a widget's edges: the widget follows them, and tapping outside keeps the new size. Home stays as it is behind (#121). */
 fun MainActivity.showResize(cell: CellLayout, item: Item, v: View, minW: Int, minH: Int, canW: Boolean, canH: Boolean) {
     val frame = ResizeFrame(this, cell, item, v, minW, minH, canW, canH)
-    showOverlay(frame) {
+    showOverlay(frame, depth = false) {
         val n = frame.result()
         val i = items.indexOf(item)
         if (n != item && i >= 0) { items[i] = n; save(); render() }
+        else v.layoutParams = CellLayout.CellParams(item.x, item.y, item.w, item.h) // the live preview, undone
     }
 }
 
 @SuppressLint("ViewConstructor")
 class ResizeFrame(
-    private val a: MainActivity, private val cell: CellLayout, private val item: Item, private val ignore: View,
+    private val a: MainActivity, private val cell: CellLayout, private val item: Item, private val widget: View,
     private val minW: Int, private val minH: Int, private val canW: Boolean, private val canH: Boolean,
 ) : View(a) {
     private var l = item.x
@@ -458,13 +459,10 @@ class ResizeFrame(
         return (c[0] - origin[0]).toFloat() to (c[1] - origin[1]).toFloat()
     }
 
-    /** Home sinks back under an overlay (setDepth): the grid's on-screen scale. */
-    private val s get() = a.content.scaleX
-
     private fun rect(): RectF {
         val (ox, oy) = cellOrigin()
-        val left = ox + s * cell.spanLeft(l, r - l)
-        return RectF(left, oy + s * t * cell.cellH, left + s * (r - l) * cell.cellW, oy + s * b * cell.cellH)
+        val left = ox + cell.spanLeft(l, r - l)
+        return RectF(left, oy + t * cell.cellH.toFloat(), left + (r - l) * cell.cellW.toFloat(), oy + b * cell.cellH.toFloat())
     }
 
     /** Right to left, the handle drawn on the left moves the grid's end column, and the one on the right its start. */
@@ -494,8 +492,8 @@ class ResizeFrame(
             }
             MotionEvent.ACTION_MOVE -> if (edge >= 0) {
                 val (ox, oy) = cellOrigin()
-                val cx = cell.column((ev.x - ox) / s).roundToInt()
-                val cy = ((ev.y - oy) / s / cell.cellH).roundToInt()
+                val cx = cell.column(ev.x - ox).roundToInt()
+                val cy = ((ev.y - oy) / cell.cellH).roundToInt()
                 var nl = l; var nt = t; var nr = r; var nb = b
                 when (if (rtl && edge % 2 == 0) 2 - edge else edge) {
                     0 -> nl = cx.coerceIn(0, r - minW)
@@ -503,7 +501,12 @@ class ResizeFrame(
                     2 -> nr = cx.coerceIn(l + minW, cell.cols)
                     3 -> nb = cy.coerceIn(t + minH, cell.rows)
                 }
-                if (cell.isFree(nl, nt, nr - nl, nb - nt, ignore) || a.looks.on("widgetOverlap")) { l = nl; t = nt; r = nr; b = nb; invalidate() }
+                val moved = nl != l || nt != t || nr != r || nb != b
+                if (moved && (cell.isFree(nl, nt, nr - nl, nb - nt, widget) || a.looks.on("widgetOverlap"))) {
+                    l = nl; t = nt; r = nr; b = nb; invalidate()
+                    // Laid out at each new size, the widget tells its app, which redraws it for that size (#121).
+                    widget.layoutParams = CellLayout.CellParams(l, t, r - l, b - t)
+                }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> edge = -1
         }
@@ -515,7 +518,11 @@ class ResizeFrame(
 // Finalize is skipped if the activity is destroyed within the 2.5 s; the next start frees that widget ID (MainActivity.onCreate).
 fun MainActivity.showUndo(item: Item, finalize: () -> Unit) {
     if (!looks.on("undoBar")) { finalize(); return }
-    snackbar(getString(R.string.item_removed), onTimeout = finalize) { items += item; save(); render() }
+    snackbar(getString(R.string.item_removed), onTimeout = finalize) {
+        // Its cells may have been taken in the meantime: it then goes to the first free spot.
+        if (items.any { it.page == item.page && overlaps(item.x, item.y, item.w, item.h, it.x, it.y, it.w, it.h) }) addItem(item, quiet = true)
+        else { items += item; save(); render() }
+    }
 }
 
 /** An M3 snackbar with Undo, just above the navigation bar, for [millis]; [onTimeout] runs if it wasn't undone. */

@@ -286,6 +286,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="reset_confirm">Удалить все настройки и весь макет главного экрана?</string>
     <string name="reset_defaults">Сбросить к значениям по умолчанию</string>
     <string name="reshape_always">Всегда</string>
+    <string name="reshape_icon">Изменять форму значка</string>
     <string name="reshape_off">Выкл.</string>
     <string name="reshape_unthemed">Только значки без темы</string>
     <string name="resize">Изменить размер</string>
@@ -421,7 +422,8 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="set_widgetOverlap">Перекрытие виджетов при размещении</string>
     <string name="set_pageMargin">Отступы страницы</string>
     <string name="padding_sides">Слева и справа</string>
-    <string name="padding_ends">Сверху и снизу</string>
+    <string name="padding_top">Сверху</string>
+    <string name="padding_bottom">Снизу</string>
     <string name="set_widgetRadius">Радиус углов виджетов</string>
     <string name="set_wiggle">Покачивать значки при перетаскивании</string>
     <string name="settings">Настройки</string>
@@ -845,4 +847,10 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="work_paused">Рабочий профиль приостановлен</string>
     <string name="work_resumed">Рабочий профиль включён</string>
     <string name="glanceStyle_theme">Крупный формат в теме Appliance, в остальных — только дата</string>
+    <plurals name="restore_missing">
+        <item quantity="one">Пропущен %1$d значок: его приложение не установлено. Восстановите копию ещё раз, когда оно будет установлено.</item>
+        <item quantity="few">Пропущено %1$d значка: их приложения не установлены. Восстановите копию ещё раз, когда они будут установлены.</item>
+        <item quantity="many">Пропущено %1$d значков: их приложения не установлены. Восстановите копию ещё раз, когда они будут установлены.</item>
+        <item quantity="other">Пропущено %1$d значка: их приложения не установлены. Восстановите копию ещё раз, когда они будут установлены.</item>
+    </plurals>
 </resources>

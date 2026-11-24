@@ -24,6 +24,13 @@ class LooksTest {
     }
 
     @Test
+    fun fitItemsMovesNegativeCellsAndEmptySizes() {
+        val keep = Item(0, 0, 0, pkg = "a")
+        val out = fitItems(listOf(keep, Item(0, -1, 0, pkg = "b"), Item(0, 2, 2, w = 0, h = -3, pkg = "c")), pages = 1, cols = 4, rows = 4, dockCols = 4)
+        assertEquals(listOf(keep, Item(0, 1, 0, pkg = "b"), Item(0, 2, 0, pkg = "c")), out)
+    }
+
+    @Test
     fun fitItemsKeepsItemWhenNoRoom() {
         val a = Item(0, 0, 0, pkg = "a")
         val b = Item(1, 0, 0, pkg = "b")
@@ -94,17 +101,20 @@ class LooksTest {
     }
 
     @Test
-    fun pagePaddingReadsBothSides() {
-        assertEquals(16 to 8, paddingOf("16x8"))
-        assertEquals(0 to 0, paddingOf("0x0"))
+    fun pagePaddingReadsSidesTopAndBottom() {
+        assertEquals(Triple(16, 8, 24), paddingOf("16x8x24"))
+        // Two numbers, from before top and bottom were split (#96): the second is both.
+        assertEquals(Triple(16, 8, 8), paddingOf("16x8"))
+        assertEquals(Triple(0, 0, 0), paddingOf("0x0"))
         // Out of range is held to the last step; anything else, such as the old one-number value, is none.
-        assertEquals(48 to 0, paddingOf("99x0"))
-        assertEquals(0 to 0, paddingOf("32"))
-        assertEquals(0 to 0, paddingOf(""))
+        assertEquals(Triple(48, 0, 0), paddingOf("99x0"))
+        assertEquals(Triple(0, 0, 0), paddingOf("32"))
+        assertEquals(Triple(0, 0, 0), paddingOf("16xax8"))
+        assertEquals(Triple(0, 0, 0), paddingOf(""))
     }
 
     private companion object {
-        const val SETTINGS_BUDGET = 119 // 119 for Page padding (#96), the owner's yes 2026-11-21
+        const val SETTINGS_BUDGET = 120 // 120 for Widget padding (#121), the owner's yes 2026-11-24
         const val MAX_SECTION_ROWS = 8
     }
 }

@@ -1,0 +1,1 @@
+- Espace privé (Android 15 et versions ultérieures) : ses applis ont leur propre onglet Privé dans le tiroir, avec un bouton pour le verrouiller et le déverrouiller.

@@ -77,6 +77,9 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
     /** Blank pixels above and below this image inside its IconView; a badge never draws past them onto a neighbour's label. */
     var roomUp = 0
     var roomDown = 0
+    /** Pixels from this image to its page's left and right edges; a badge never draws past them, off the screen. */
+    var roomLeft = Int.MAX_VALUE / 2
+    var roomRight = Int.MAX_VALUE / 2
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { shadowBmp = null }
 
@@ -85,9 +88,12 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
         val l = (width - s) / 2
         val t = (height - s) / 2
         if (shadow) {
-            val bmp = shadowBmp ?: Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888).also { b ->
-                icon.setBounds(0, 0, s, s); icon.draw(Canvas(b))
-                shadowBmp = b.extractAlpha(Paint().apply { maskFilter = BlurMaskFilter(s / 24f, BlurMaskFilter.Blur.NORMAL) }, null)
+            // A software copy: the alpha of a hardware bitmap can't be read.
+            val bmp = shadowBmp ?: rendered(s, s) { icon.setBounds(0, 0, s, s); icon.draw(it) }.let { r ->
+                if (r.config == Bitmap.Config.HARDWARE) r.copy(Bitmap.Config.ARGB_8888, false).also { r.recycle() } else r
+            }.let { b ->
+                // Only the blurred alpha is kept: free the full-colour copy now instead of at some later GC.
+                b.extractAlpha(Paint().apply { maskFilter = BlurMaskFilter(s / 24f, BlurMaskFilter.Blur.NORMAL) }, null).also { shadowBmp = it; b.recycle() }
             }
             paint.color = 0x66000000
             canvas.drawBitmap(bmp, l.toFloat(), t + s / 30f, paint)
@@ -97,7 +103,9 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
         if (badgeCount <= 0 || badgeStyle.style == "off") return
         val r = s * 0.16f * badgeStyle.scale * (if (badgeStyle.style == "dots") 0.8f else 1.25f)
         // Sits half off the icon's corner; IconView lets it draw past the image (#82).
-        val cx = if (badgeStyle.pos.endsWith("Right")) l + s - r * 0.45f else l + r * 0.45f
+        // In the first or last column a 64 dp icon is 4 dp from the screen edge, which cut the badge off: it moves in to fit.
+        val over = r * 0.55f
+        val cx = if (badgeStyle.pos.endsWith("Right")) l + s - r + minOf(over, width - l - s + roomRight.toFloat()) else l + r - minOf(over, l + roomLeft.toFloat())
         // Vertically only as far as its own view's blank space, or it covers the label of the row above (or its own).
         val cy = if (badgeStyle.pos.startsWith("top")) t + r - minOf(r * 0.55f, roomUp.toFloat()) else t + s - r + minOf(r * 0.55f, roomDown.toFloat())
         val l2 = (cx - r).toInt(); val t2 = (cy - r).toInt(); val r2 = (cx + r).toInt(); val b2 = (cy + r).toInt()
@@ -173,6 +181,11 @@ class IconView(context: Context, label: CharSequence, icon: Drawable, style: Ico
         val label = text?.takeIf { it.visibility == VISIBLE && orientation == VERTICAL }
         image.roomUp = image.top
         image.roomDown = label?.paddingTop ?: (height - image.bottom)
+        // ponytail: only on home pages and the dock, and to the page's edge, not the screen's: a padded page moves an
+        // edge badge in though there is room. Use the position on screen if drawer or folder icons ever reach the edge.
+        val page = parent as? CellLayout // null while dragged or in a list: no edge to keep to
+        image.roomLeft = if (page != null) l + image.left else Int.MAX_VALUE / 2
+        image.roomRight = if (page != null) page.width - r + (width - image.right) else Int.MAX_VALUE / 2
     }
 
     /** Shows another app in this view, for lists that recycle their views. */
