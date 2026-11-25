@@ -102,7 +102,8 @@ class DragController(private val a: MainActivity) {
      * keeps it and the drawer behind it until the drag leaves the folder.
      */
     fun trackDrag(v: View, e: DragEvent, keepOverlay: Boolean = false) {
-        if (e.action != DragEvent.ACTION_DRAG_LOCATION) return
+        // Only our own drags: one from another window (desktop windowing) has no localState here, and no dragEnded to undo this.
+        if (e.action != DragEvent.ACTION_DRAG_LOCATION || e.localState == null || dragSource == null) return
         val loc = IntArray(2).also { v.getLocationOnScreen(it) }
         val x = loc[0] + e.x
         val y = loc[1] + e.y
@@ -135,6 +136,7 @@ class DragController(private val a: MainActivity) {
     val passDrag = View.OnDragListener { v, e -> trackDrag(v, e); e.action != DragEvent.ACTION_DROP }
 
     fun dropListener(cell: CellLayout) = View.OnDragListener { v, e ->
+        if (e.localState == null) return@OnDragListener false // another window's drag: not for home
         (e.localState as? PageMove)?.let { return@OnDragListener pageDrag(cell, e, it) }
         trackDrag(v, e)
         when (e.action) {
