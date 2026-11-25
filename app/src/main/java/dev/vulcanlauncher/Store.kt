@@ -202,7 +202,10 @@ class Store(private val context: Context) {
         runCatching {
             // A layout from a newer build (read after a downgrade) may mean something else: set aside like an unreadable one.
             require((prefs.getString("version", null)?.toIntOrNull() ?: 1) <= LAYOUT_VERSION)
-            return layoutIn(itemsFromJson(raw), saved, sub).toMutableList()
+            val items = itemsFromJson(raw)
+            // An item this build can't read is dropped, and home saves at once: the text as it was is kept first.
+            if (items.size < JSONArray(raw).length()) runCatching { unreadable.writeText(raw) }
+            return layoutIn(items, saved, sub).toMutableList()
         }
         runCatching { unreadable.writeText(raw) }
         // What's recovered is saved at once: export reads the stored layout, so a restore (which backs up first) would fail too.
