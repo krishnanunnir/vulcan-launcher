@@ -213,7 +213,11 @@ class Store(private val context: Context) {
      */
     fun rotateAutoBackup() {
         val old = autoBackups.mapNotNull { f -> runCatching { f.readText() to f.lastModified() }.getOrNull() }.toMap()
-        val texts = rotatedBackups(export(), old.keys.toList(), autoBackups.size)
+        val now = export()
+        // Unchanged since the newest: it is dated now instead, or the daily check (MainActivity.onStop) would rerun on
+        // every stop while a kept backup that moved to the front shows its old date.
+        if (runCatching { autoBackups[0].readText() }.getOrNull() == now) { autoBackups[0].setLastModified(System.currentTimeMillis()); return }
+        val texts = rotatedBackups(now, old.keys.toList(), autoBackups.size)
         // All written whole before any replaces a file: a write cut short (a full disk) must not stand as a backup or lose one.
         // A kept backup keeps its date: the list in Settings tells them apart by it.
         texts.zip(autoBackups).map { (text, f) -> File(f.path + ".tmp").apply { writeText(text); old[text]?.let(::setLastModified) } to f }
