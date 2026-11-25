@@ -34,7 +34,8 @@ class WidgetFlow(private val a: MainActivity) {
         // A frame that was in a stack still sits in it, moved aside or hidden.
         widgetFrames[item.widgetId]?.let { (it.parent as? ViewGroup)?.removeView(it); it.translationX = 0f; it.visibility = View.VISIBLE; return it }
         // A widget whose view can't be made leaves its cells empty this time; it must not take home down.
-        val hv: AppWidgetHostView = runCatching { a.host.createView(a.applicationContext, item.widgetId, info) }.getOrNull() ?: return null
+        val hv: AppWidgetHostView = runCatching { a.host.createView(a.applicationContext, item.widgetId, info) }
+            .onFailure { android.util.Log.w("Vulcan", "widget ${info.provider.flattenToShortString()}: no view", it) }.getOrNull() ?: return null
         // Android's own widget padding, scaled by Widget padding (0–200%, as Lawnchair; #121). Changing it rebuilds home.
         val d = AppWidgetHostView.getDefaultPaddingForWidget(a, info.provider, null)
         val f = a.looks.int("widgetPadding") / 100f
