@@ -1,0 +1,7 @@
+Widgets: resize redraws live, new Widget padding setting (0% for edge to edge), corner radius now rounds Glance widgets.
+The dock stays put when another app hides the nav bar.
+Smoother Now page swipe, icon long-press and leaving the icon picker with Home.
+Safer backups: hand-edited files restore, location stays out.
+Home items no longer stack or shrink after grid and dock changes.
+Now in Portuguese; better German and Russian.
+Fixed: many small bugs found in a full code review.
