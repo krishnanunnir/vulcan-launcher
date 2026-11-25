@@ -420,7 +420,8 @@ class MainActivity : VulcanActivity() {
                     else if (android.os.Build.VERSION.SDK_INT >= 28) ins.displayCutout?.safeInsetTop ?: 0 else 0
                 val behind = looks.on("dockBehindNav") && looks.dockOn && !floatingDock && !landscape
                 // The keyboard (renaming a folder) mustn't squash home: only the drawer and the folder card move for it.
-                val bars = if (android.os.Build.VERSION.SDK_INT >= 30) ins.getInsets(android.view.WindowInsets.Type.systemBars()).bottom
+                // Ignoring visibility: another app's popup that hides the nav bar must not drop the dock (#124).
+                val bars = if (android.os.Build.VERSION.SDK_INT >= 30) ins.getInsetsIgnoringVisibility(android.view.WindowInsets.Type.systemBars()).bottom
                     else ins.stableInsetBottom
                 content.setPadding(ins.systemWindowInsetLeft, top, ins.systemWindowInsetRight, if (behind) 0 else bars)
                 dockBox.setPadding(0, 0, 0, if (behind) bars else 0)
