@@ -305,7 +305,7 @@ fun VulcanActivity.searchField(hintText: String) = android.widget.EditText(this)
     compoundDrawablePadding = (12 * dp).toInt()
     setCompoundDrawablesRelative(symbol("search", m3.onSurfaceVariant).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
     // The drawer style, not the Appliance theme, decides the well: the grid drawer's pill is flat in every theme.
-    val housing = getSharedPreferences("looks", android.content.Context.MODE_PRIVATE).getString("drawerStyle", "grid") == "housing"
+    val housing = looks.str("drawerStyle") == "housing"
     background = if (housing) well(28 * dp) else rounded(m3.surfaceHighest, 28 * dp)
 }
 
