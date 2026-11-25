@@ -56,6 +56,7 @@
     <string name="padding_value">%1$d × %2$d dp</string>
     <string name="padding_value_ends">%1$d × %2$d / %3$d dp</string>
     <string name="set_widgetRadius">Raio dos cantos do widget</string>
+    <string name="set_widgetPadding">Preenchimento do widget</string>
     <string name="set_autoAdd">Adicionar ícones de novos apps à tela inicial</string>
     <string name="set_hideClock">Ocultar o relógio da barra de status</string>
     <string name="set_hideClock_info">Na tela inicial. Exige uma permissão concedida uma única vez por um computador</string>
