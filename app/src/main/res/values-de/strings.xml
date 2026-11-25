@@ -2,7 +2,7 @@
 <resources>
     <string name="a11y_menu">Menü</string>
     <string name="about">Über</string>
-    <string name="about_text">Ein Startbildschirm ohne Netzwerkzugriff: keine Werbung, keine Analyse, kein Tracking. Alles bleibt auf diesem Gerät.</string>
+    <string name="about_text">Ein Startbildschirm ohne Netzwerkzugriff: keine Werbung, keine Analyse, kein Tracking. Alles bleibt auf deinem Gerät.</string>
     <string name="accent_amoled">AMOLED-Schwarz (Hintergrundbildfarben auf Schwarz)</string>
     <string name="accent_appliance">Appliance (warmes Grau, Signalorange)</string>
     <string name="accessibility_title">Bedienungshilfen-Dienst aktivieren</string>
@@ -495,7 +495,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="import_launcher_backup">Aus anderem Launcher importieren</string>
     <string name="import_launcher_backup_info">Übernimmt einen Startbildschirm aus einer .novabackup-Datei</string>
     <string name="reset_defaults_info">Entfernt alle Einstellungen und das gesamte Startbildschirm-Layout</string>
-    <string name="perm_intro">Vulcan geht nie online. Mit diesen Berechtigungen kann Vulcan mehr. Jede wird erst wirksam, wenn du sie in den Android-Einstellungen erlaubst.</string>
+    <string name="perm_intro">Vulcan geht nie online. Mit diesen Berechtigungen kann Vulcan mehr. Jede davon wird erst wirksam, wenn du sie in den Android-Einstellungen erteilst.</string>
     <string name="perm_count">%1$d von %2$d erlaubt</string>
     <string name="perm_notifications">Benachrichtigungszugriff</string>
     <string name="perm_notifications_info">Badges sowie Benachrichtigungen im Menü bei langem Drücken</string>
@@ -795,5 +795,13 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <plurals name="restore_missing">
         <item quantity="one">%1$d Symbol wurde ausgelassen: Die zugehörige App ist nicht installiert. Stelle die Sicherung erneut wieder her, sobald sie installiert ist.</item>
         <item quantity="other">%1$d Symbole wurden ausgelassen: Die zugehörigen Apps sind nicht installiert. Stelle die Sicherung erneut wieder her, sobald sie installiert sind.</item>
+    </plurals>
+    <string name="auto_backup_not_saved">Das automatische Backup konnte nicht gespeichert werden</string>
+    <string name="backup_too_large">Die Datei ist zu groß für ein Backup</string>
+    <string name="permission_blocked">Android fragt nicht mehr nach dieser Berechtigung. Erteile sie manuell in den App-Infos unter „Berechtigungen“.</string>
+    <string name="restore_not_saved">Die wiederhergestellte Konfiguration konnte nicht gespeichert werden</string>
+    <plurals name="a11y_notifications">
+        <item quantity="one">%d Benachrichtigung</item>
+        <item quantity="other">%d Benachrichtigungen</item>
     </plurals>
 </resources>

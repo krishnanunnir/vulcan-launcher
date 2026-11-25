@@ -2,7 +2,7 @@
 <resources>
     <string name="a11y_menu">Меню</string>
     <string name="about">О программе</string>
-    <string name="about_text">Лаунчер не имеет доступа к сети: нет рекламы, аналитики и отслеживания. Всё остаётся на этом устройстве.</string>
+    <string name="about_text">Лаунчер не имеет доступа к сети: нет рекламы, аналитики и отслеживания. Всё остаётся на вашем устройстве.</string>
     <string name="accent_amoled">Чёрный AMOLED (цвета обоев на чёрном)</string>
     <string name="accent_appliance">Appliance (тёплый серый, сигнальный оранжевый)</string>
     <string name="accessibility_title">Включите службу специальных возможностей</string>
@@ -512,7 +512,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="import_launcher_backup">Импорт из другого лаунчера</string>
     <string name="import_launcher_backup_info">Переносит макет главного экрана из файла .novabackup</string>
     <string name="reset_defaults_info">Удаляет все настройки и весь макет главного экрана</string>
-    <string name="perm_intro">Vulcan никогда не подключается к интернету. Эти разрешения расширяют его возможности, но каждое начинает действовать только после того, как вы разрешите его в настройках Android.</string>
+    <string name="perm_intro">Vulcan никогда не подключается к интернету. Эти разрешения расширяют его возможности, но каждое начинает действовать только после того, как вы предоставите его в настройках Android./string>
     <string name="perm_count">Разрешено: %1$d из %2$d</string>
     <string name="perm_notifications">Доступ к уведомлениям</string>
     <string name="perm_notifications_info">Значки и уведомления в меню долгого нажатия</string>
@@ -840,5 +840,15 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
         <item quantity="few">Пропущено %1$d значка: их приложения не установлены. Восстановите копию ещё раз, когда они будут установлены.</item>
         <item quantity="many">Пропущено %1$d значков: их приложения не установлены. Восстановите копию ещё раз, когда они будут установлены.</item>
         <item quantity="other">Пропущено %1$d значка: их приложения не установлены. Восстановите копию ещё раз, когда они будут установлены.</item>
+    </plurals>
+    <string name="auto_backup_not_saved">Не удалось сохранить автоматическую резервную копию</string>
+    <string name="backup_too_large">Файл слишком большой для резервной копии</string>
+    <string name="permission_blocked">Android больше не запрашивает это разрешение. Предоставьте его вручную в настройках приложения → «Разрешения».</string>
+    <string name="restore_not_saved">Не удалось сохранить восстановленную конфигурацию</string>
+    <plurals name="a11y_notifications">
+        <item quantity="one">%d уведомление</item>
+        <item quantity="few">%d уведомления</item>
+        <item quantity="many">%d уведомлений</item>
+        <item quantity="other">%d уведомления</item>
     </plurals>
 </resources>
