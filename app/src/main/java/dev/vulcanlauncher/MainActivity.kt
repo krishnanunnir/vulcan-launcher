@@ -223,6 +223,8 @@ class MainActivity : VulcanActivity() {
         // setDepth, not the field alone: the window's blur outlives the old views.
         overlay = null; overlayClosed = {}; overlayExit = null; refillFolder = null; setDepth(0f); homeMenus.menu = null
         drag.reset()
+        // Its open or close animator would go on writing the new home's alpha until it ended.
+        drawer.hide(animate = false)
         badgeIcons.clear(); widgetFlow.keepViews(emptySet()) // build() reloads the apps, which drops the cached icons
         build()
         workspace.snapTo(page.coerceAtMost(looks.pages - 1), animate = false)
