@@ -523,6 +523,9 @@ class Drawer(private val a: MainActivity) {
     /** What every close resets, a pull down included: called from [DrawerMotion.gone]. */
     internal fun closed() {
         found.forget(); showHidden = false
+        // Here, once it's gone, not as the close starts: that rebuilt the list on the close's first frame, and the
+        // results swapped to the tab's apps while the sheet faded.
+        if (search.text.isNotEmpty()) search.text.clear()
         // The focus goes before the text does on the way out, so the focus listener leaves the bar showing.
         if (barOff) searchBar.visibility = View.GONE
     }
@@ -532,7 +535,6 @@ class Drawer(private val a: MainActivity) {
         if (!visible) return
         keyboardOnOpen = false // an open with the keyboard that's cancelled mid-way never reaches opened()
         hideKeyboard()
-        search.text.clear()
         if (animate) motion.settle(open = false)
         else { motion.stop(); if (a.overlay == null) a.setDepth(0f); motion.gone() }
     }
