@@ -27,7 +27,7 @@ class DragController(private val a: MainActivity) {
     fun reset() {
         wiggles.forEach { it.cancel() }
         wiggles = emptyList()
-        dragSource = null
+        dragSource = null; pending = null
         springAnim?.cancel(); spring = 0f; homeState = HomeState.NORMAL; dragPage = null; plusPage = null
     }
 
@@ -55,15 +55,36 @@ class DragController(private val a: MainActivity) {
         // its cell is left empty.
         val at = IntArray(2).also { v.getLocationInWindow(it) }
         val touch = Point((a.lastDown.x - at[0]).toInt().coerceIn(0, v.width), (a.lastDown.y - at[1]).toInt().coerceIn(0, v.height))
-        val started = v.startDragAndDrop(ClipData.newPlainText("", ""), object : View.DragShadowBuilder(v) {
-            override fun onProvideShadowMetrics(size: Point, touchPoint: Point) { super.onProvideShadowMetrics(size, touchPoint); touchPoint.set(touch.x, touch.y) }
-        }, payload, View.DRAG_FLAG_OPAQUE)
-        // No drag means no ENDED to undo what follows: show the menu instead.
-        if (!started) { dragSource = null; a.homeMenus.showPopup(v, payload); return }
-        if (payload is Item) v.alpha = 0f
+        // The system drag waits for the finger to move (onTouch): started at the long-press itself, it held the main
+        // thread 25–30 ms (performDrag) and sent a stream of pointer-icon calls, on every press that only wanted the menu.
+        pending = { lift(v, payload, touch) }
         // The menu shows the moment the long-press registers, as on the wallpaper; moving the drag closes it (trackDrag).
         // Not for a drag out of a menu row (a shortcut): that menu stays until the drag moves.
         if (a.homeMenus.menu == null) a.root.post { if (dragSource === v && !dragMoved) a.homeMenus.showPopup(v, payload) }
+    }
+
+    /** A long-press whose drag starts once the finger moves ([startDrag]); null otherwise. */
+    private var pending: (() -> Unit)? = null
+    private val slop by lazy { android.view.ViewConfiguration.get(a).scaledTouchSlop } // lazy: made before the activity has a context
+
+    /** The activity's touch stream: a pending drag starts when the finger moves past the slop, and goes on release. */
+    fun onTouch(ev: MotionEvent) {
+        val p = pending ?: return
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_MOVE -> if (hypot(ev.x - a.lastDown.x, ev.y - a.lastDown.y) > slop) { pending = null; p() }
+            // Released in place: the menu stays, as a drag that never moved. A new DOWN: an accessibility long-press,
+            // which has no touch stream of its own.
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_DOWN -> { pending = null; dragSource = null }
+        }
+    }
+
+    private fun lift(v: View, payload: Any, touch: Point) {
+        val started = v.isAttachedToWindow && v.startDragAndDrop(ClipData.newPlainText("", ""), object : View.DragShadowBuilder(v) {
+            override fun onProvideShadowMetrics(size: Point, touchPoint: Point) { super.onProvideShadowMetrics(size, touchPoint); touchPoint.set(touch.x, touch.y) }
+        }, payload, View.DRAG_FLAG_OPAQUE)
+        // No drag means no ENDED to undo what follows; the menu already shows.
+        if (!started) { dragSource = null; return }
+        if (payload is Item) v.alpha = 0f
         if (a.looks.on("wiggle")) wiggles = a.iconViews.map { iv ->
             android.animation.ObjectAnimator.ofFloat(iv.image, "rotation", -4f, 4f).apply {
                 duration = 140

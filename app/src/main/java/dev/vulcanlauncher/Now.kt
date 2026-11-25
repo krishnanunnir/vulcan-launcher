@@ -87,9 +87,41 @@ fun <T> reorderWithin(all: List<T>, shown: List<T>, from: Int, to: Int): List<T>
 /** data key: the Now page's card order. */
 const val NOW_ORDER = "nowOrder"
 
-@SuppressLint("SetTextI18n", "ClickableViewAccessibility")
+/** How long a Now page built ahead stays good to show: its calendar and media drift after that. */
+private const val NOW_FRESH_MS = 5 * 60_000L
+
+/**
+ * Builds the Now page ahead, once home has been quiet for a moment, so the swipe that opens it only slides it in. Built
+ * inside that swipe's first touch event, its widget, calendar, contacts and media calls took 12–21 ms: dropped frames.
+ * Called when home resumes, after the page closes and when notifications (media) change; each call starts over.
+ */
+fun MainActivity.prepareNow() {
+    nowReady = null
+    root.removeCallbacks(nowBuilder)
+    if (looks.on("nowPage")) root.postDelayed(nowBuilder, 800)
+}
+
+/** [prepareNow]'s delayed build; not while the page is open (a widget's frame can only be in one page). */
+fun MainActivity.prebuildNow() {
+    if (overlay is NowPanel || isFinishing || isDestroyed || !looks.on("nowPage")) return
+    nowReady = android.os.SystemClock.uptimeMillis() to buildNow()
+}
+
 fun MainActivity.showNow(slide: Boolean = true) {
     drawer.hide()
+    val panel = nowReady?.takeIf { android.os.SystemClock.uptimeMillis() - it.first < NOW_FRESH_MS }?.second ?: buildNow()
+    nowReady = null
+    // No depth blur: home fades out behind the nearly opaque page anyway (NowPanel.progress).
+    showOverlay(panel, depth = false) { content.translationX = 0f; content.alpha = 1f; prepareNow() }
+    // Back slides it out the way it came.
+    overlayExit = { done -> panel.settle(false, done) }
+    // Slides in from the left, the way the swipe right that opened it points; a live pull (pullNow) moves it itself.
+    panel.progress = 0f
+    if (slide) panel.settle(true)
+}
+
+@SuppressLint("SetTextI18n", "ClickableViewAccessibility")
+private fun MainActivity.buildNow(): NowPanel {
     val pad = (16 * dp).toInt()
     val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, pad, pad, insets.bottom + pad) }
     // M3 filled cards on a translucent surface.
@@ -317,19 +349,13 @@ fun MainActivity.showNow(slide: Boolean = true) {
         }
     }
 
-    val panel = NowPanel(this).apply {
+    return NowPanel(this).apply {
         // Nearly opaque: home's icons showing through made the cards hard to read.
         setBackgroundColor(m3.surface and 0xFFFFFF or 0xF5000000.toInt())
         isClickable = true
         // Clipped below the status bar, so the big clock doesn't scroll up under its icons.
         addView(ScrollView(context).apply { setPadding(0, insets.top, 0, 0); addView(list) })
     }
-    showOverlay(panel) { content.translationX = 0f; content.alpha = 1f }
-    // Back slides it out the way it came.
-    overlayExit = { done -> panel.settle(false, done) }
-    // Slides in from the left, the way the swipe right that opened it points; a live pull (pullNow) moves it itself.
-    panel.progress = 0f
-    if (slide) panel.settle(true)
 }
 
 /** Builds the open Now page again in place (after play/pause or a card moved), keeping it open. */
@@ -417,7 +443,8 @@ class NowPanel(private val a: MainActivity) : FrameLayout(a) {
             field = p
             val w = a.root.width
             translationX = (p - 1) * w
-            a.setDepth(p)
+            // Home fades out below, so a blur recreated each frame would cost the render thread for nothing (~25 ms).
+            a.setDepth(p, blur = false)
             a.content.translationX = p * w * 0.2f
             // Home fades with the slide, so no shifted ghost of it shows through the panel.
             a.content.alpha = 1 - p

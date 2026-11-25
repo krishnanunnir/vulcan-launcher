@@ -131,6 +131,9 @@ class MainActivity : VulcanActivity() {
     /** How far home sits behind a panel (0–1), and its running animation (see setDepth, blurHome). */
     var depth = 0f
     var depthAnim: android.animation.ValueAnimator? = null
+    /** The Now page built ahead and when, and the delayed build that makes it (see prepareNow). */
+    var nowReady: Pair<Long, NowPanel>? = null
+    val nowBuilder = Runnable { prebuildNow() }
     /** Where the last touch went down, in window coordinates; menus opened by a long-press appear there. */
     val lastDown = PointF()
 
@@ -192,7 +195,7 @@ class MainActivity : VulcanActivity() {
         }
         if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(profileReceiver, profileFilter, RECEIVER_NOT_EXPORTED)
         else registerReceiver(profileReceiver, profileFilter)
-        BadgeService.onChange = { pkgs -> runOnUiThread { if (pkgs.isNotEmpty()) { updateBadges(pkgs); drawer.refreshBadges() }; updateGlance() } }
+        BadgeService.onChange = { pkgs -> runOnUiThread { if (pkgs.isNotEmpty()) { updateBadges(pkgs); drawer.refreshBadges() }; updateGlance(); prepareNow() } }
         // Rotation recreates the activity: stay on the page the user was on.
         savedInstanceState?.getInt("page", -1)?.takeIf { it in 0 until looks.pages }?.let { workspace.snapTo(it, animate = false) }
         // Just imported: put the widgets back (not when a restore was already under way and this is its restart).
@@ -442,6 +445,8 @@ class MainActivity : VulcanActivity() {
     }
 
     override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        // Before lastDown moves: a new DOWN must drop a pending drag measured from the old one.
+        drag.onTouch(ev)
         if (ev.actionMasked == android.view.MotionEvent.ACTION_DOWN) lastDown.set(ev.x, ev.y)
         return super.dispatchTouchEvent(ev)
     }
@@ -508,6 +513,8 @@ class MainActivity : VulcanActivity() {
         reloadItems()
         // Shortcuts restored before Vulcan was the default home app: pinned now that it is, and drawn with their icons.
         if (store.data.getBoolean(REPIN_SHORTCUTS, false)) { repinShortcuts(); if (!store.data.getBoolean(REPIN_SHORTCUTS, false)) render() }
+        // Calendar, media and the apps' launch counts may have changed while away; not while the page is open.
+        if (overlay !is NowPanel) prepareNow()
     }
 
     /** Takes [items] from the store, where PinActivity may have added something meanwhile. */
