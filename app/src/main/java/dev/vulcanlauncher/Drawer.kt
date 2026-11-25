@@ -540,7 +540,9 @@ class Drawer(private val a: MainActivity) {
     fun groups() = groupsFromJson(a.store.data.getString("groups", "[]")!!)
 
     /** What [refresh] reads; when it's unchanged, opening the drawer reuses what's already built. */
-    private fun inputs() = listOf(a.repo.apps, a.store.data.all, a.store.usageState, a.looks.all(), a.repo.privateUser, tab, showHidden, search.text.toString())
+    private fun inputs() = listOf(a.repo.apps, a.store.data.all, usage(), a.looks.all(), a.repo.privateUser, tab, showHidden, search.text.toString())
+    /** Launch counts matter only to the most-used order and the frequent row; otherwise every launch rebuilt the drawer on its next pull. */
+    private fun usage() = if (a.looks.str("drawerSort") == "used" || a.looks.on("frequent")) a.store.usageState else null
     private var shown: List<Any?>? = null
 
     fun refresh() {
