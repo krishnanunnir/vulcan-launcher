@@ -692,7 +692,7 @@ private fun SettingsActivity.smartCategories(): Map<String, List<String>> {
     val names = mapOf(CAT_FINANCE to R.string.cat_finance, CAT_SHOPPING to R.string.cat_shopping, CAT_HEALTH to R.string.cat_health, CAT_TOOLS to R.string.cat_tools)
     // Hidden and Private Space apps stay out of suggested folders, as they do out of All apps.
     val hidden = store.strings("hidden")
-    @Suppress("DEPRECATION") val byName = home.repo.apps.values.filter { it.key !in hidden && !home.repo.isPrivate(it) }.mapNotNull { a ->
+    @Suppress("DEPRECATION") val byName = home.repo.apps.values.filter { home.repo.suggested(it, hidden) }.mapNotNull { a ->
         val ai = a.info.applicationInfo
         val cat = smartCategory(ai.category, ai.flags and ApplicationInfo.FLAG_IS_GAME != 0, roles[a.pkg], a.pkg, a.title,
             ai.flags and ApplicationInfo.FLAG_SYSTEM != 0) ?: return@mapNotNull null

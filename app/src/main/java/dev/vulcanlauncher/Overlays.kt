@@ -432,7 +432,7 @@ fun MainActivity.showResize(cell: CellLayout, item: Item, v: View, minW: Int, mi
     showOverlay(frame, depth = false) {
         val n = frame.result()
         val i = items.indexOf(item)
-        if (n != item && i >= 0) { items[i] = n; save(); render() }
+        if (n != item && i >= 0) replace(i, n)
         else v.layoutParams = CellLayout.CellParams(item.x, item.y, item.w, item.h) // the live preview, undone
     }
 }

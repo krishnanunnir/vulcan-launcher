@@ -314,7 +314,7 @@ class WidgetFlow(private val a: MainActivity) {
             pendingSlot = null
             val i = a.items.indexOfFirst { it.isWidgetSlot && it.page == slot.page && it.x == slot.x && it.y == slot.y }
             if (i < 0) a.host.deleteAppWidgetId(id)
-            else { a.items[i] = Item(slot.page, slot.x, slot.y, slot.w, slot.h, widgetId = id); a.save(); a.render() }
+            else a.replace(i, Item(slot.page, slot.x, slot.y, slot.w, slot.h, widgetId = id))
             restoreNextWidget()
             return
         }
@@ -360,9 +360,7 @@ class WidgetFlow(private val a: MainActivity) {
             val (w, h) = sizes[i]
             val at = a.items.indexOf(item)
             if (at < 0) return@setItems // gone while the list was open
-            a.items[at] = item.copy(w = w, h = h)
-            a.save()
-            a.render()
+            a.replace(at, item.copy(w = w, h = h))
         }.show()
     }
 

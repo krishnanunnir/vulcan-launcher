@@ -22,7 +22,28 @@ class ParityTest {
     }
 
     @Test
+    fun profiles() {
+        val p = "android.os.usertype.profile."
+        assertEquals(Profile.PERSONAL, profileOf(true, null, 0))
+        assertEquals(Profile.WORK, profileOf(false, p + "MANAGED", 10))
+        assertEquals(Profile.PRIVATE, profileOf(false, p + "PRIVATE", 11))
+        assertEquals(Profile.CLONE, profileOf(false, p + "CLONE", 12))
+        // Before Android 15 there's no type: a second profile is work, unless its id is a known clone's.
+        assertEquals(Profile.WORK, profileOf(false, null, 10))
+        assertEquals(Profile.CLONE, profileOf(false, null, 95))
+        assertEquals(Profile.CLONE, profileOf(false, null, 999))
+        // Android's word wins over the id.
+        assertEquals(Profile.WORK, profileOf(false, p + "MANAGED", 999))
+        assertEquals(setOf("b"), unlisted(setOf("b"), false))
+        assertEquals(emptySet<String>(), unlisted(setOf("b"), true))
+        assertTrue(suggested("a", setOf("b"), false))
+        assertFalse(suggested("b", setOf("b"), false))
+        assertFalse(suggested("a", emptySet(), true))
+    }
+
+    @Test
     fun actions() {
+        assertEquals(ACTIONS.size, ACTIONS.toSet().size)
         assertEquals(ACTIONS.size, ACTION_NAMES.size)
         assertEquals(GESTURE_KEYS.size, GESTURE_NAMES.size)
         assertEquals(GESTURE_KEYS.size, GESTURE_DEFAULTS.size)
@@ -210,16 +231,16 @@ class ParityTest {
     fun drawerTabs() {
         val all = listOf("a", "b", "c", "w")
         val groups = listOf(Group("Games", "tab", listOf("b")), Group("Tools", "folder", listOf("c")))
-        assertEquals(listOf("a", "b", "c"), tabApps(all, groups, "", emptySet(), false, true, setOf("w"), true))
-        assertEquals(listOf("a"), tabApps(all, groups, "", emptySet(), false, false, setOf("w"), true))
-        assertEquals(listOf("a", "c", "w"), tabApps(all, groups, "", setOf("b"), false, true, setOf("w"), false))
-        assertEquals(listOf("a", "b", "c", "w"), tabApps(all, groups, "", setOf("b"), true, true, setOf("w"), false))
-        assertEquals(listOf("w"), tabApps(all, groups, "work", emptySet(), false, true, setOf("w"), true))
-        assertEquals(listOf("b"), tabApps(all, groups, "Games", emptySet(), false, true, emptySet(), false))
-        assertEquals(emptyList<String>(), tabApps(all, groups, "Tools", emptySet(), false, true, emptySet(), false))
+        assertEquals(listOf("a", "b", "c"), tabApps(all, groups, "", emptySet(), true, setOf("w"), true))
+        assertEquals(listOf("a"), tabApps(all, groups, "", emptySet(), false, setOf("w"), true))
+        assertEquals(listOf("a", "c", "w"), tabApps(all, groups, "", setOf("b"), true, setOf("w"), false))
+        assertEquals(listOf("a", "b", "c", "w"), tabApps(all, groups, "", emptySet(), true, setOf("w"), false))
+        assertEquals(listOf("w"), tabApps(all, groups, "work", emptySet(), true, setOf("w"), true))
+        assertEquals(listOf("b"), tabApps(all, groups, "Games", emptySet(), true, emptySet(), false))
+        assertEquals(emptyList<String>(), tabApps(all, groups, "Tools", emptySet(), true, emptySet(), false))
         // Private Space apps only ever show in their own tab, even with no work tab.
-        assertEquals(listOf("a", "b", "c"), tabApps(all, groups, "", emptySet(), false, true, emptySet(), false, setOf("w")))
-        assertEquals(listOf("w"), tabApps(all, groups, "private", emptySet(), false, true, emptySet(), false, setOf("w")))
+        assertEquals(listOf("a", "b", "c"), tabApps(all, groups, "", emptySet(), true, emptySet(), false, setOf("w")))
+        assertEquals(listOf("w"), tabApps(all, groups, "private", emptySet(), true, emptySet(), false, setOf("w")))
         assertEquals(groups, groupsFromJson(groupsToJson(groups)))
     }
 

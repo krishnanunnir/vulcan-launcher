@@ -540,13 +540,14 @@ class Drawer(private val a: MainActivity) {
     fun groups() = groupsFromJson(a.store.data.getString("groups", "[]")!!)
 
     /** What [refresh] reads; when it's unchanged, opening the drawer reuses what's already built. */
-    private fun inputs() = listOf(a.repo.apps, a.store.data.all, a.looks.all(), a.repo.privateUser, tab, showHidden, search.text.toString())
+    private fun inputs() = listOf(a.repo.apps, a.store.data.all, a.store.usageState, a.looks.all(), a.repo.privateUser, tab, showHidden, search.text.toString())
     private var shown: List<Any?>? = null
 
     fun refresh() {
         shown = inputs()
         val q = search.text.toString().trim()
         val hidden = a.store.strings("hidden")
+        val unlisted = unlisted(hidden, showHidden)
         val launches = a.launches()
         // Each key once: a comparator's selector runs on every comparison.
         val sort = a.looks.str("drawerSort")
@@ -567,21 +568,21 @@ class Drawer(private val a: MainActivity) {
         val foldersFirst = a.looks.on("foldersFirst")
         val keys = ordered.map { it.key }
         entriesOf = { t ->
-            val list = tabApps(keys, groups, t, hidden, showHidden, keepInAll, work, workTab, private, sort == "manual").mapNotNull { a.repo.apps[it] }.map { Entry.AppE(it) }
+            val list = tabApps(keys, groups, t, unlisted, keepInAll, work, workTab, private, sort == "manual").mapNotNull { a.repo.apps[it] }.map { Entry.AppE(it) }
             val folders = if (t == homeTab) groups.filter { it.type == "folder" }.map { Entry.FolderE(it) } else emptyList()
             if (foldersFirst) folders + list else list + folders
         }
         entries = if (q.isNotEmpty()) {
             // Best match first; sortedByDescending is stable, so equal matches keep the drawer's order.
-            found.quick(q) + ordered.filter { showHidden || it.key !in hidden }.map { it to matchScore(a.repo.label(it), q) }
+            found.quick(q) + ordered.filter { it.key !in unlisted }.map { it to matchScore(a.repo.label(it), q) }
                 .filter { it.second > 0 }.sortedByDescending { it.second }.map { Entry.AppE(it.first) } +
-                found.shortcutHits(q, hidden, showHidden, iconStyle.sizePx) + found.settingsHits(q) +
+                found.shortcutHits(q, unlisted, iconStyle.sizePx) + found.settingsHits(q) +
                 found.contacts(q) + if (a.looks.on("webSearch")) listOf(Entry.WebE(q)) else emptyList()
         } else entriesOf(tab)
         // As Nova: the row sits above the tabs and stays whichever tab is open.
         buildFrequent(if (q.isEmpty() && a.looks.on("frequent"))
             frequentApps(a.store.strings("favourites").toList(), a.repo.apps.keys.associateWith { launches.optInt(it) },
-                { it in a.repo.apps && it !in hidden && it !in private }, gridCols).mapNotNull { a.repo.apps[it] } else emptyList())
+                { k -> a.repo.apps[k]?.let { a.repo.suggested(it, hidden) } == true }, gridCols).mapNotNull { a.repo.apps[it] } else emptyList())
         // Glass and housing: search results sit just above the bottom search bar, under the thumb.
         grid.isStackFromBottom = fromBottom || bottomBar && q.isNotEmpty()
         // No index for a list that fits on one screen: there's nothing to jump to.
@@ -794,7 +795,7 @@ class Drawer(private val a: MainActivity) {
     }
 
     /** Hidden apps stay out of a folder as they do out of a tab. */
-    private fun folderApps(g: Group) = a.store.strings("hidden").let { hidden -> g.apps.filter { showHidden || it !in hidden } }.mapNotNull { a.repo.apps[it] }
+    private fun folderApps(g: Group) = unlisted(a.store.strings("hidden"), showHidden).let { out -> g.apps.filter { it !in out } }.mapNotNull { a.repo.apps[it] }
     private fun folderItems(g: Group) = folderApps(g).map { Item(0, 0, 0, pkg = it.pkg, cls = it.cls, user = it.serial) }
 
     /**

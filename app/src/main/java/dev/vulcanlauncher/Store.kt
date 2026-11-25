@@ -139,8 +139,9 @@ fun layoutIn(items: List<Item>, saved: Int?, current: Int): List<Item> = when {
 }
 
 /**
- * Everything is stored as strings in three SharedPreferences files:
- * `layout` (home items), `looks` (settings) and `data` (hidden apps, drawer groups, launch counts, custom app edits).
+ * Everything is stored as strings in SharedPreferences files:
+ * `layout` (home items), `looks` (settings), `data` (hidden apps, drawer groups, custom app edits) and `usage`
+ * (launch counts: written on every app launch, so kept apart from what the user set up).
  */
 class Store(private val context: Context) {
     private val prefs = context.getSharedPreferences("layout", Context.MODE_PRIVATE)
@@ -149,6 +150,21 @@ class Store(private val context: Context) {
         val text = all.filterValues { it == "true" || it == "false" }
         if (text.isNotEmpty()) edit().apply { text.forEach { (k, v) -> putBoolean(k, v == "true") } }.commit()
     }
+
+    private val usage = context.getSharedPreferences("usage", Context.MODE_PRIVATE)
+    init { adoptLaunches() }
+
+    /** The counts were data's "launches" before 0.34, and a backup still holds them there: moved to `usage`. */
+    private fun adoptLaunches() {
+        val old = data.all["launches"] as? String ?: return
+        usage.edit().putString("launches", old).commit()
+        data.edit().remove("launches").commit()
+    }
+    /** How often each app (by key) was opened. */
+    fun launches() = runCatching { JSONObject(usage.getString("launches", "{}")!!) }.getOrElse { JSONObject() }
+    fun countLaunch(key: String) = launches().let { usage.edit().putString("launches", it.put(key, it.optInt(key) + 1).toString()).apply() }
+    /** Changes whenever a launch is counted: the drawer's most used order depends on it. */
+    val usageState: Any? get() = usage.getString("launches", null)
 
     /** Nothing saved yet: first run, or after a reset. */
     val isNew get() = !prefs.contains("items")
@@ -203,7 +219,9 @@ class Store(private val context: Context) {
         val looks = context.getSharedPreferences("looks", Context.MODE_PRIVATE).all.mapValues { it.value.toString() }
         val sub = prefs.getString("sub", null)?.toIntOrNull() ?: if (looks["subgrid"] == "on") 2 else 1
         val items = itemsFromJson(prefs.getString("items", "[]")!!)
-        val data = data.all.filterKeys { it !in PASSING_STATE }.mapValues { it.value.toString() }
+        // A backup keeps the launch counts where they always were, in data.
+        val data = data.all.filterKeys { it !in PASSING_STATE }.mapValues { it.value.toString() } +
+            listOfNotNull(usage.getString("launches", null)?.let { "launches" to it })
         return readableBackup(looks, items, sub, data, apps.map { Triple(it.title, it.pkg, it.cls) to it.serial }, context::getString).toString(2)
     }
 
@@ -234,11 +252,13 @@ class Store(private val context: Context) {
             // data keeps its flags as booleans; the backup has them as "true"/"false"
             values.forEach { (k, v) -> if (restoredAsFlag(name, k, v)) putBoolean(k, v == "true") else putString(k, v) }
         }.commit()
+        if (replacedLayout) usage.edit().clear().commit()
+        adoptLaunches()
         return RestoreResult(replacedLayout, rejected)
     }
 
     /** Clears everything, after saving what was there as an automatic backup (best effort: the reset was asked for). */
-    fun reset() = runCatching { rotateAutoBackup() }.let { _ -> FILES.forEach { context.getSharedPreferences(it, Context.MODE_PRIVATE).edit().clear().commit() } }
+    fun reset() = runCatching { rotateAutoBackup() }.let { _ -> (FILES + "usage").forEach { context.getSharedPreferences(it, Context.MODE_PRIVATE).edit().clear().commit() } }
 
     companion object { val FILES = listOf("layout", "looks", "data") }
 }

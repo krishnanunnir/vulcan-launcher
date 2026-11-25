@@ -79,7 +79,7 @@ fun MainActivity.editDialog(title: String, label: String, defaultLabel: String, 
  * swipe action, for an app in a folder, whose icons take no swipes; its own setting is kept.
  */
 fun MainActivity.editItem(item: Item, swipes: Boolean = true, replace: (Item) -> Unit = { new ->
-    items.indexOf(item).takeIf { it >= 0 }?.let { items[it] = new; save(); render() }
+    items.indexOf(item).takeIf { it >= 0 }?.let { replace(it, new) }
 }) {
     val default = when {
         item.folder -> getString(R.string.folder)

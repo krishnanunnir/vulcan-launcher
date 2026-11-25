@@ -333,7 +333,7 @@ fun MainActivity.openFolder(item: Item) {
     var folder = item
     openFolderWindow(item.label, item.children, { name ->
         val i = folderIndex(folder)
-        if (i >= 0 && name != items[i].label) { folder = items[i].copy(label = name.ifEmpty { getString(R.string.folder) }); items[i] = folder; save(); render() }
+        if (i >= 0 && name != items[i].label) { folder = items[i].copy(label = name.ifEmpty { getString(R.string.folder) }); replace(i, folder) }
     }, reorder = { from, to ->
         val i = items.indexOf(folder)
         if (i >= 0) {

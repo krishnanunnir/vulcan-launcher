@@ -618,6 +618,8 @@ class MainActivity : VulcanActivity() {
     fun fit(list: List<Item>) = fitItems(list, looks.pages, looks.cols * sub, looks.rows * sub, looks.dockCols, looks.dockPages).toMutableList()
 
     fun save() = store.save(items, sub)
+    /** Puts [item] in place of the one at [i], saves and redraws. */
+    fun replace(i: Int, item: Item) { items[i] = item; save(); render() }
 
     /** First run: the default phone, messages, browser, camera and gallery apps in the dock (as many as fit). */
     /** A fresh install's layout, as Nova sets it up: a five-app dock, mail and photos above it, settings top right. */
@@ -696,12 +698,11 @@ class MainActivity : VulcanActivity() {
     fun launch(a: App, v: View?) {
         runCatching { launcherApps.startMainActivity(a.info.componentName, a.info.user, bounds(v), launchOptions(v)) }
             .onFailure { toast(R.string.cant_open, repo.label(a)) }
-        val counts = store.obj("launches")
-        store.putObj("launches", counts.put(a.key, counts.optInt(a.key) + 1))
+        store.countLaunch(a.key)
         if (drawer.visible && looks.on("closeAfterLaunch")) drawer.hide()
     }
 
-    fun launches() = store.obj("launches")
+    fun launches() = store.launches()
 
     private fun bounds(v: View?): Rect? = v?.let {
         val loc = IntArray(2).also { l -> it.getLocationOnScreen(l) }
@@ -831,9 +832,7 @@ class MainActivity : VulcanActivity() {
             if (spot == null) { toast(R.string.no_room); return@setItems }
             val i = items.indexOf(item)
             if (i < 0) return@setItems // gone while the list was open
-            items[i] = item.copy(page = spot.page, x = spot.x, y = spot.y)
-            save()
-            render()
+            replace(i, item.copy(page = spot.page, x = spot.x, y = spot.y))
             workspace.snapTo(spot.page)
         }.show()
     }

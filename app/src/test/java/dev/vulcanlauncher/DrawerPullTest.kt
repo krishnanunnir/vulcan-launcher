@@ -80,9 +80,9 @@ class ManualOrderTest {
     @org.junit.Test fun tabKeepsItsOwnOrderOnlyWhenManual() {
         val groups = listOf(Group("T", "tab", listOf("c", "a", "x", "b")))
         val all = listOf("a", "b", "c")
-        eq(listOf("a", "b", "c"), tabApps(all, groups, "T", emptySet(), false, true, emptySet(), false))
-        eq(listOf("c", "a", "b"), tabApps(all, groups, "T", emptySet(), false, true, emptySet(), false, manual = true))
-        eq(listOf("c", "b"), tabApps(all, groups, "T", setOf("a"), false, true, emptySet(), false, manual = true))
+        eq(listOf("a", "b", "c"), tabApps(all, groups, "T", emptySet(), true, emptySet(), false))
+        eq(listOf("c", "a", "b"), tabApps(all, groups, "T", emptySet(), true, emptySet(), false, manual = true))
+        eq(listOf("c", "b"), tabApps(all, groups, "T", setOf("a"), true, emptySet(), false, manual = true))
     }
     @org.junit.Test fun arrangingKeepsTheRestBehind() {
         eq(listOf("c", "a", "b", "x"), arranged(listOf("a", "x", "b", "c"), listOf("c", "a", "b")))

@@ -61,9 +61,9 @@ internal class DrawerSearch(private val a: MainActivity) {
     fun forget() { shortcuts = null }
 
     /** Up to four app shortcuts ("New tab", "Compose") whose names match, from apps the drawer shows. */
-    fun shortcutHits(q: String, hidden: Set<String>, showHidden: Boolean, iconPx: Int): List<Drawer.Entry> {
+    fun shortcutHits(q: String, unlisted: Set<String>, iconPx: Int): List<Drawer.Entry> {
         if (q.length < 3) return emptyList()
-        val shown = a.repo.apps.values.filter { showHidden || it.key !in hidden }.map { it.pkg to it.info.user }.toSet()
+        val shown = a.repo.apps.values.filter { it.key !in unlisted }.map { it.pkg to it.info.user }.toSet()
         val all = shortcuts ?: a.repo.allShortcuts().also { shortcuts = it }
         return all.filter { (it.`package` to it.userHandle) in shown }.map { it to matchScore(it.shortLabel?.toString() ?: "", q) }
             .filter { it.second >= 2 }.sortedByDescending { it.second }.take(4).map { (s, _) ->

@@ -98,8 +98,10 @@ class AppRepo(private val context: Context, private val store: Store, private va
     /** [changed]: the only packages whose icons may have changed; null drops every cached icon. */
     fun loadApps(changed: Collection<String>? = null) {
         val profiles = launcherApps.profiles
-        privateUser = if (android.os.Build.VERSION.SDK_INT >= 35)
-            profiles.firstOrNull { launcherApps.getLauncherUserInfo(it)?.userType == UserManager.USER_TYPE_PROFILE_PRIVATE } else null
+        // hashCode is the user id: UserHandle has no public getter for it.
+        kinds = profiles.associateWith { profileOf(it == Process.myUserHandle(),
+            if (android.os.Build.VERSION.SDK_INT >= 35) launcherApps.getLauncherUserInfo(it)?.userType else null, it.hashCode()) }
+        privateUser = profiles.firstOrNull { kinds[it] == Profile.PRIVATE }
         // A locked Private Space shows none of its apps, anywhere.
         pausedUsers = profiles.filter { it != Process.myUserHandle() && it != privateUser && um.isQuietModeEnabled(it) }.toSet()
         apps = profiles.filter { it != privateUser || !privateLocked }.flatMap { user -> launcherApps.getActivityList(null, user).map { App(it, serial(user), appCache::label) } }
@@ -216,7 +218,11 @@ class AppRepo(private val context: Context, private val store: Store, private va
     fun appLabel(key: String): String? = shortcutAction(key)?.let { (p, id, u) ->
         pinnedShortcut(Item(0, 0, 0, pkg = p, shortcutId = id, user = u))?.shortLabel?.toString()
     } ?: apps[key]?.let(::label)
-    fun isWork(a: App) = a.info.user != Process.myUserHandle() && !isPrivate(a)
+    /** Each profile's kind, as of the last [loadApps]. */
+    private var kinds = emptyMap<UserHandle, Profile>()
+    val workUsers get() = kinds.filterValues { it == Profile.WORK }.keys
+    fun isWork(a: App) = kinds[a.info.user] == Profile.WORK
+    fun suggested(a: App, hidden: Set<String>) = suggested(a.key, hidden, isPrivate(a))
     fun isPrivate(a: App) = a.info.user == privateUser
 
     /** Locks or unlocks Private Space; unlocking asks for the screen lock first. The profile broadcast then reloads the apps. */
