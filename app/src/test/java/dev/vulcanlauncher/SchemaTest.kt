@@ -28,6 +28,13 @@ class SchemaTest {
         }
     }
 
+    /** The schema's item is the backup's item: a field added to [Item] (or dropped) must be added to the schema too. */
+    @Test
+    fun itemPropertiesMatchTheItem() {
+        val props = root.getJSONObject("\$defs").getJSONObject("item").getJSONObject("properties")
+        assertEquals(Item(0, 0, 0).toJson().keys().asSequence().toSet(), props.keys().asSequence().toSet())
+    }
+
     /** A gesture, the home button and an icon swipe can open a page, an app or one of its shortcuts. */
     @Test
     fun everyActionSettingTakesPageAppAndShortcutCodes() {
