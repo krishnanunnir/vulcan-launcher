@@ -89,6 +89,15 @@
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- An icon pack's icons, picked from Edit. In a task of its own for the same reason as settings (#100). -->
+        <activity
+            android:name=".IconGridActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- Receives "add to home screen" requests from apps (pinned shortcuts and widgets). -->
         <activity
             android:name=".PinActivity"

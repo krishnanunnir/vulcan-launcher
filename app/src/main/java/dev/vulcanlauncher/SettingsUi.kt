@@ -81,14 +81,6 @@ class SettingsActivity : VulcanActivity() {
         showPage(state?.getString("page") ?: intent.getStringExtra("page").orEmpty(), state?.getInt("scroll") ?: 0)
     }
 
-    @Suppress("DEPRECATION")
-    private fun bars() {
-        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(m3.surface))
-        window.statusBarColor = m3.surface
-        window.navigationBarColor = m3.surface
-        window.decorView.systemUiVisibility = if (m3.dark) 0 else View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-    }
-
     /** A setting changed: home is built again when it shows, and this page now, in the new colours and where it was. */
     fun changed() {
         home.stale = true

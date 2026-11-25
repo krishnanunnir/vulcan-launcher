@@ -130,80 +130,112 @@ fun MainActivity.pickIcon(onPicked: (String) -> Unit) {
     }
 }
 
-/** A full-screen grid of a pack's icons under a search bar. Icons load off the main thread, so scrolling stays smooth. */
+/** Opens [pkg]'s icon grid; [onPicked] gets the icon chosen there. */
 private fun MainActivity.pickPackIcon(pkg: String, onPicked: (String) -> Unit) {
-    val pack = loadIconPack(this, pkg) ?: run { toast(getString(R.string.icon_pack_unreadable)); return }
-    val all = pack.names
-    var shown = all
-    val cell = (72 * dp).toInt()
-    val pad = (10 * dp).toInt()
-    // ponytail: ~150 icons kept (a few screens' worth, ~10 MB drawn at cell size); a pack's thousands are redrawn as they scroll back in.
-    val cache = android.util.LruCache<String, Drawable>(150)
-    val loader = java.util.concurrent.Executors.newSingleThreadExecutor()
-    val adapter = object : BaseAdapter() {
-        override fun getCount() = shown.size
-        override fun getItem(p: Int) = shown[p]
-        override fun getItemId(p: Int) = p.toLong()
-        override fun getView(p: Int, convert: View?, parent: ViewGroup) = ((convert as? ImageView) ?: ImageView(this@pickPackIcon).apply {
-            layoutParams = android.widget.AbsListView.LayoutParams(-1, cell)
-            setPadding(pad, pad, pad, pad)
-            background = pressable(null, 16 * dp)
-        }).apply {
-            val n = shown[p]
-            tag = n
-            contentDescription = n
-            setImageDrawable(cache.get(n))
-            if (cache.get(n) == null) loader.execute {
-                if (tag != n) return@execute // scrolled past before its turn
-                val d = pack.drawable(n)?.let { flatIcon(this@pickPackIcon, it, cell - 2 * pad) } ?: return@execute
-                cache.put(n, d)
-                post { if (tag == n) setImageDrawable(d) }
+    if (loadIconPack(this, pkg) == null) { toast(getString(R.string.icon_pack_unreadable)); return }
+    IconGridActivity.onPicked = onPicked
+    // Its own task, as settings: as a dialog in home's task, the Home gesture faded it out and back in together with
+    // home before home was told to close it (#100).
+    startActivity(Intent(this, IconGridActivity::class.java).putExtra("pack", pkg)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+}
+
+/** A full-screen grid of a pack's icons under a search bar. Icons load off the main thread, so scrolling stays smooth. */
+class IconGridActivity : VulcanActivity() {
+    override val home get() = checkNotNull(MainActivity.running?.get())
+    private val loader = java.util.concurrent.Executors.newSingleThreadExecutor()
+    /** Who asked for this pick; a later grid has its own. */
+    private var picked: ((String) -> Unit)? = null
+
+    override fun onCreate(state: android.os.Bundle?) {
+        super.onCreate(state)
+        val h = MainActivity.running?.get()
+        val pkg = intent.getStringExtra("pack").orEmpty()
+        val pack = loadIconPack(this, pkg) // parsed already by pickPackIcon
+        picked = onPicked
+        // Brought back alone after the process died: nobody is waiting for the pick.
+        if (h == null || h.isDestroyed || picked == null || pack == null) { finish(); return }
+        store = h.store
+        looks = h.looks
+        applyOrientation()
+        recolor()
+        bars()
+        val all = pack.names
+        var shown = all
+        val cell = (72 * dp).toInt()
+        val pad = (10 * dp).toInt()
+        // ponytail: ~150 icons kept (a few screens' worth, ~10 MB drawn at cell size); a pack's thousands are redrawn as they scroll back in.
+        val cache = android.util.LruCache<String, Drawable>(150)
+        val adapter = object : BaseAdapter() {
+            override fun getCount() = shown.size
+            override fun getItem(p: Int) = shown[p]
+            override fun getItemId(p: Int) = p.toLong()
+            override fun getView(p: Int, convert: View?, parent: ViewGroup) = ((convert as? ImageView) ?: ImageView(this@IconGridActivity).apply {
+                layoutParams = android.widget.AbsListView.LayoutParams(-1, cell)
+                setPadding(pad, pad, pad, pad)
+                background = pressable(null, 16 * dp)
+            }).apply {
+                val n = shown[p]
+                tag = n
+                contentDescription = n
+                setImageDrawable(cache.get(n))
+                if (cache.get(n) == null) loader.execute {
+                    if (tag != n) return@execute // scrolled past before its turn
+                    val d = pack.drawable(n)?.let { flatIcon(this@IconGridActivity, it, cell - 2 * pad) } ?: return@execute
+                    cache.put(n, d)
+                    post { if (tag == n) setImageDrawable(d) }
+                }
             }
         }
+        val grid = GridView(this).apply {
+            numColumns = GridView.AUTO_FIT
+            columnWidth = cell
+            this.adapter = adapter
+            val pad = (12 * dp).toInt()
+            setPadding(pad, 0, pad, pad)
+            clipToPadding = false
+            setOnItemClickListener { _, _, p, _ -> picked?.invoke("pack:$pkg:${shown[p]}"); finish() }
+        }
+        val filter = EditText(this).apply {
+            hint = resources.getQuantityString(R.plurals.filter_icons, all.size, all.size)
+            setSingleLine()
+            textSize = 16f
+            setTextColor(m3.onSurface)
+            setHintTextColor(m3.onSurfaceVariant)
+            background = null
+            addTextChangedListener(object : TextWatcher {
+                override fun afterTextChanged(s: Editable?) { shown = all.filter { it.contains(s.toString(), true) }; adapter.notifyDataSetChanged() }
+                override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            })
+        }
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(m3.surface)
+            // M3 search bar: back, then the filter.
+            addView(LinearLayout(context).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                background = rounded(m3.surfaceHighest, 28 * dp)
+                setPadding((4 * dp).toInt(), 0, (16 * dp).toInt(), 0)
+                addView(iconButton("back", getString(R.string.back), m3.onSurface) { finish() })
+                addView(filter, LinearLayout.LayoutParams(0, -1, 1f))
+            }, LinearLayout.LayoutParams(-1, (56 * dp).toInt()).apply { setMargins((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt()) })
+            addView(grid, LinearLayout.LayoutParams(-1, 0, 1f))
+            @Suppress("DEPRECATION")
+            setOnApplyWindowInsetsListener { v, i -> v.setPadding(i.systemWindowInsetLeft, i.systemWindowInsetTop, i.systemWindowInsetRight, i.systemWindowInsetBottom); i }
+        }
+        root = android.widget.FrameLayout(this).apply { addView(panel) }
+        setContentView(root)
     }
-    lateinit var d: android.app.Dialog
-    val grid = GridView(this).apply {
-        numColumns = GridView.AUTO_FIT
-        columnWidth = cell
-        this.adapter = adapter
-        val pad = (12 * dp).toInt()
-        setPadding(pad, 0, pad, pad)
-        clipToPadding = false
-        setOnItemClickListener { _, _, p, _ -> d.dismiss(); onPicked("pack:$pkg:${shown[p]}") }
+
+    override fun onDestroy() {
+        loader.shutdownNow()
+        if (isFinishing && onPicked === picked) onPicked = null
+        super.onDestroy()
     }
-    val filter = EditText(this).apply {
-        hint = resources.getQuantityString(R.plurals.filter_icons, all.size, all.size)
-        setSingleLine()
-        textSize = 16f
-        setTextColor(m3.onSurface)
-        setHintTextColor(m3.onSurfaceVariant)
-        background = null
-        addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) { shown = all.filter { it.contains(s.toString(), true) }; adapter.notifyDataSetChanged() }
-            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-        })
-    }
-    val panel = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        setBackgroundColor(m3.surface)
-        // M3 search bar: back, then the filter.
-        addView(LinearLayout(context).apply {
-            gravity = Gravity.CENTER_VERTICAL
-            background = rounded(m3.surfaceHighest, 28 * dp)
-            setPadding((4 * dp).toInt(), 0, (16 * dp).toInt(), 0)
-            addView(iconButton("back", getString(R.string.back), m3.onSurface) { d.dismiss() })
-            addView(filter, LinearLayout.LayoutParams(0, -1, 1f))
-        }, LinearLayout.LayoutParams(-1, (56 * dp).toInt()).apply { setMargins((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt()) })
-        addView(grid, LinearLayout.LayoutParams(-1, 0, 1f))
-        @Suppress("DEPRECATION")
-        setOnApplyWindowInsetsListener { v, i -> v.setPadding(i.systemWindowInsetLeft, i.systemWindowInsetTop, i.systemWindowInsetRight, i.systemWindowInsetBottom); i }
-    }
-    d = android.app.Dialog(this, android.R.style.Theme_DeviceDefault_NoActionBar).apply {
-        setContentView(panel)
-        window?.apply { setLayout(-1, -1); setBackgroundDrawable(android.graphics.drawable.ColorDrawable(m3.surface)) }
-        setOnDismissListener { loader.shutdownNow(); dialogs -= d }
-        dialogs += this // not d: it's assigned only after apply returns
-        show()
+
+    companion object {
+        /** The waiting pick, handed over in memory: a result can't cross to another task. */
+        var onPicked: ((String) -> Unit)? = null
     }
 }
