@@ -644,7 +644,20 @@ class Icons(private val context: Context, private val looks: Looks) {
         return InsetDrawable(icon, inset)
     }
 
+    /**
+     * Item-level custom icons drawn so far, by their custom string: home re-resolves every item on each render, and an
+     * image or pack icon costs a decode. Held for this [Icons], so it already matches the settings that shape them.
+     * ponytail: an "app:" icon whose target app changes keeps the old face until home rebuilds; drop entries on a package change if that shows.
+     */
+    private val customs = android.util.LruCache<String, Drawable>(32)
+
     fun custom(custom: String): Drawable? {
+        if (custom.isEmpty()) return null
+        customs.get(custom)?.let { return it }
+        return customUncached(custom)?.also { customs.put(custom, it) }
+    }
+
+    private fun customUncached(custom: String): Drawable? {
         // A picked image is shaped like a legacy icon, unless the icon opted out (uriraw:) or the setting is off (#92).
         imageIcon(custom)?.let { (uri, reshape) ->
             return image(Uri.parse(uri))?.let { if (reshape && looks.str("reshape") != "off") drawn(reshaped(it)) else flat(it) }
