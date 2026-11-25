@@ -1,6 +1,7 @@
 #!/bin/sh
 # Perfetto trace of 3 drawer open/fling/close cycles (drawer.cfg), then the launcher's main-thread frame times.
 # Usage: tools/perf/trace.sh out.pftrace   (needs Perfetto's trace_processor on PATH: curl -LO https://get.perfetto.dev/trace_processor)
+[ -n "$ANDROID_SERIAL" ] || adb devices | awk 'NR > 1 && NF { n++ } END { exit n > 1 }' || { echo "More than one device attached: set ANDROID_SERIAL (adb devices -l)" >&2; exit 1; }
 D=$(dirname "$0")
 adb push "$D/drawer.cfg" /data/local/tmp/drawer.cfg >/dev/null
 adb shell input keyevent KEYCODE_HOME; sleep 1

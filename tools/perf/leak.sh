@@ -2,6 +2,7 @@
 # Debug-build check (am dumpheap needs a debuggable app): recreates the launcher 10 times by flipping night mode,
 # forces a GC with a heap dump and prints the Activity count, which should be 1 or 2 (one may still be finishing).
 # Usage: tools/perf/leak.sh [heap.hprof]   (keeps the dump for `shark-cli --hprof heap.hprof analyze` when named)
+[ -n "$ANDROID_SERIAL" ] || adb devices | awk 'NR > 1 && NF { n++ } END { exit n > 1 }' || { echo "More than one device attached: set ANDROID_SERIAL (adb devices -l)" >&2; exit 1; }
 P=dev.vulcanlauncher
 adb shell input keyevent KEYCODE_HOME; sleep 3
 night=$(adb shell cmd uimode night | tr -d '\r' | awk '{print $3}')

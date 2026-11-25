@@ -16,6 +16,8 @@ import argparse
 import json
 import os
 import re
+import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -27,6 +29,11 @@ OUT = f"{ROOT}/out/sweep1"
 PKG = "dev.vulcanlauncher"
 ACT = "dev.vulcanlauncher/.MainActivity"
 W, H = 1080, 2340
+
+# Before the first adb call below: with a phone and an emulator attached, every adb command would fail.
+if not os.environ.get("ANDROID_SERIAL") and len([l for l in subprocess.run(
+        ["adb", "devices"], capture_output=True, text=True).stdout.splitlines()[1:] if l.strip()]) > 1:
+    sys.exit("More than one device attached: set ANDROID_SERIAL (adb devices -l)")
 
 # ---------------------------------------------------------------- testbed layout
 
@@ -662,6 +669,49 @@ def run_state(r, sid, setting, value, probe, prefs, fresh=False, extra_steps=Non
     return not entry.get("crash")
 
 
+# ---------------------------------------------------------------- the owner's setup
+
+# Outside any --out run directory, so a later run with another --out still finds what an aborted one left.
+BEFORE = f"{ROOT}/out/before"
+ROTATION = ("accelerometer_rotation", "user_rotation")  # Runner.start sets both
+
+
+def save_setup(r):
+    """Copies the launcher's shared_prefs and the rotation settings to BEFORE, ahead of the sweep overwriting them."""
+    serial = r.sh(["get-serialno"])[1].strip()
+    if os.path.isdir(f"{BEFORE}/shared_prefs"):
+        # A run that was killed or unplugged couldn't restore: this copy is the real setup, the device holds a testbed.
+        with open(f"{BEFORE}/device.json") as fh:
+            if json.load(fh)["serial"] != serial:
+                sys.exit(f"{BEFORE} holds another device's setup: put it back there with restore.sh first")
+        print(f"Keeping the setup an earlier run saved in {BEFORE}; it is put back at the end.", flush=True)
+        return
+    rc, names = r.sh(["shell", f"run-as {PKG} ls /data/data/{PKG}/shared_prefs"])
+    if rc != 0:
+        sys.exit(f"Can't read the launcher's settings, so nothing was changed (needs the debuggable build, see README): {names.strip()}")
+    tmp = f"{BEFORE}.tmp"
+    shutil.rmtree(tmp, ignore_errors=True)
+    os.makedirs(f"{tmp}/shared_prefs")
+    for n in names.split():
+        if n.endswith(".xml"):
+            rc, data = r.sh(["exec-out", f"run-as {PKG} cat /data/data/{PKG}/shared_prefs/{n}"], binary=True)
+            if rc != 0 or not data:
+                sys.exit(f"Couldn't copy {n}, so nothing was changed")
+            with open(f"{tmp}/shared_prefs/{n}", "wb") as fh:
+                fh.write(data)
+    with open(f"{tmp}/device.json", "w") as fh:
+        json.dump({"serial": serial, "rotation": {k: r.shell(f"settings get system {k}").strip() for k in ROTATION}}, fh)
+    os.rename(tmp, BEFORE)  # only a complete copy counts as saved
+
+
+def restore_setup(r):
+    with open(f"{BEFORE}/device.json") as fh:
+        for k, v in json.load(fh)["rotation"].items():
+            r.shell(f"settings delete system {k}" if v == "null" else f"settings put system {k} {v}")
+    subprocess.run(["sh", f"{ROOT}/restore.sh", BEFORE], check=True)
+    shutil.rmtree(BEFORE)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--phase", default="main")
@@ -674,9 +724,14 @@ def main():
     pick = json.load(open(args.pick)) if args.pick else None
     os.makedirs(OUT, exist_ok=True)
     settings = json.load(open(f"{ROOT}/settings.json"))
+    if args.phase != "main":
+        sys.exit("phase not implemented yet")
     r = Runner()
-
-    if args.phase == "main":
+    save_setup(r)
+    # Ctrl-C raises KeyboardInterrupt; a closed terminal or kill sends these: all end in the finally below.
+    for sig in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(sig, lambda *_: sys.exit(1))
+    try:
         for s in settings:
             if args.only and s["key"] != args.only or pick is not None and s["key"] not in pick:
                 continue
@@ -692,8 +747,11 @@ def main():
                 for pi, probe in enumerate(probes):
                     rsid = sid if pi == 0 else f"{sid}__p{pi}"
                     run_state(r, rsid, key, v, probe, prefs)
-    else:
-        print("phase not implemented yet", file=sys.stderr)
+    finally:
+        try:
+            restore_setup(r)
+        except Exception as e:
+            sys.exit(f"Putting the setup back failed ({e}): run tools/ui-test/restore.sh {BEFORE}, then delete {BEFORE}")
 
 
 if __name__ == "__main__":

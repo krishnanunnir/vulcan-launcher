@@ -362,7 +362,7 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
             listItem(null, getString(c.title), if (c.info != 0) getString(c.info) else null, trailing = toggle) {
                 toggle.checked = !toggle.checked
                 applyChoice(c, if (toggle.checked) "on" else "off")
-            }
+            }.apply { readAsSwitch(toggle) }
         }
         c.action -> listItem(null, getString(c.title), valueName(c)) { pickAction(getString(c.title)) { looks[c] = it; changed() } }
         // Settings the chosen dock background doesn't use: shown dimmed and saying so, still pickable.

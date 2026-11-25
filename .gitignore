@@ -10,6 +10,10 @@ local.properties
 *.jks
 *.aab
 *.pepk
+# Heap dumps and traces (tools/perf) hold contact names and other personal data
+*.hprof
+*.pftrace
+*.perfetto-trace
 
 # Impeccable working files (screenshots, decision page)
 .impeccable/review/

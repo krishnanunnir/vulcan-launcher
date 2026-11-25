@@ -2,6 +2,7 @@
 # Put a configuration backed up from the test device back and restart Vulcan.
 # Usage: ./restore.sh [backup-dir]   (default: ./backup-prefs; expects shared_prefs/*.xml and files/*)
 set -e
+[ -n "$ANDROID_SERIAL" ] || adb devices | awk 'NR > 1 && NF { n++ } END { exit n > 1 }' || { echo "More than one device attached: set ANDROID_SERIAL (adb devices -l)" >&2; exit 1; }
 PKG=dev.vulcanlauncher
 DIR=${1:-$(cd "$(dirname "$0")" && pwd)/backup-prefs}
 [ -d "$DIR/shared_prefs" ] || { echo "no shared_prefs in $DIR" >&2; exit 1; }

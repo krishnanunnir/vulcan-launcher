@@ -183,12 +183,13 @@ internal class DrawerMotion(private val a: MainActivity, private val d: Drawer) 
         if (!d.visible || !held) d.prepare()
         stop()
         held = !end
+        // On release too: the last MOVE can lag well behind where the finger lifted when input comes in sparse.
+        setProgress(up / travel())
         if (end) {
             val open = release(vy, 0.3f)
             if (open && !armed) d.root.tick() // a fling that never crossed the line still gets its tick
             armed = false
         } else {
-            setProgress(up / travel())
             // The tick comes as the pull crosses the line where letting go opens the drawer, not on release (#97).
             if (!armed && progress >= 0.3f) { armed = true; d.root.tick() } else if (armed && progress < 0.3f) armed = false
         }

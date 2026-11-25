@@ -612,6 +612,24 @@ fun VulcanActivity.styleDialog(d: AlertDialog, sheet: Boolean = false) {
     }
 }
 
+/** Has TalkBack read this row, the tap target around [toggle], as a switch that is on or off (the Toggle is only drawn). */
+fun View.readAsSwitch(toggle: Toggle) {
+    accessibilityDelegate = object : View.AccessibilityDelegate() {
+        override fun onInitializeAccessibilityNodeInfo(host: View, info: android.view.accessibility.AccessibilityNodeInfo) {
+            super.onInitializeAccessibilityNodeInfo(host, info)
+            info.className = android.widget.Switch::class.java.name
+            info.isCheckable = true
+            info.isChecked = toggle.checked
+        }
+        // The click event carries the new state, so TalkBack says "on" or "off" after a tap.
+        override fun onInitializeAccessibilityEvent(host: View, event: android.view.accessibility.AccessibilityEvent) {
+            super.onInitializeAccessibilityEvent(host, event)
+            event.className = android.widget.Switch::class.java.name
+            event.isChecked = toggle.checked
+        }
+    }
+}
+
 /** M3 switch: 52×32 dp track, thumb that grows when on. The row around it handles taps. */
 @SuppressLint("ViewConstructor")
 class Toggle(private val a: VulcanActivity, on: Boolean) : View(a) {

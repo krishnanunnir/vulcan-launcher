@@ -55,6 +55,17 @@ Per state the harness:
 5. screenshots to `out/sweep1/<setting>__<value>/`;
 6. greps the app's own logcat and appends a record to `out/sweep1/results.jsonl`.
 
+With a phone and an emulator both attached, set `ANDROID_SERIAL=<serial>` (`adb devices -l`): the harness,
+`restore.sh` and the `tools/perf` scripts stop at once otherwise.
+
+**Your setup is put back.** Before the first state the harness copies the launcher's `shared_prefs/*.xml` and the
+auto-rotate settings to `out/before/`, and puts them back when the sweep ends, fails or is stopped with Ctrl-C (or
+`kill`, or a closed terminal), then deletes the copy. If it can't (the process was `kill -9`ed, the phone was
+unplugged, the restore failed), `out/before/` stays, and the next run keeps it instead of saving the testbed over it.
+To put it back by hand: `tools/ui-test/restore.sh tools/ui-test/out/before`, then delete `out/before/`. Not covered:
+the launcher's own files (`files/`, such as its daily automatic backup, which may be taken of a testbed layout during
+a sweep), and any `shared_prefs` file the sweep creates that wasn't there before stays.
+
 States already in `results.jsonl` are skipped; crashed/errored entries are retried. `PROBE_FOR` maps
 each setting to the probe(s) that surface it — everything else uses `home`.
 
