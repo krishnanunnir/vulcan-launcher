@@ -826,7 +826,8 @@ fun VulcanActivity.importNote(layout: ImportedLayout, lead: Boolean = true, sepa
 
 /** Stores an imported layout and its grid settings in place of the current ones; home is rebuilt after (restart). */
 fun VulcanActivity.applyImport(layout: ImportedLayout, settings: Map<String, String>) {
-    runCatching { store.rotateAutoBackup() } // the home this replaces stays restorable from Settings
+    // The home this replaces stays restorable from Settings; like Store.import, nothing is replaced if that can't be saved.
+    runCatching { store.rotateAutoBackup() }.onFailure { toast(R.string.import_failed, it.message); return }
     home.items.flatMap { it.widgetIds }.forEach(home.host::deleteAppWidgetId)
     settings.forEach { (k, v) -> looks[k] = v }
     looks["subgrid"] = if (layout.subgrid) "on" else "off"
