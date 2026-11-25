@@ -101,7 +101,12 @@ fun SettingsActivity.pasteStyle() {
             return@setOnClickListener
         }
         dialog().setTitle(R.string.apply_style_link)
-            .setMessage(resources.getQuantityString(R.plurals.apply_style_confirm, changes.size, changes.size))
+            // Each change by name: a link from anyone can change the grid, orientation or gestures, not just colours.
+            .setMessage(resources.getQuantityString(R.plurals.apply_style_confirm, changes.size, changes.size) + "\n\n" +
+                changes.entries.joinToString("\n") { (k, v) -> LOOKS.first { it.key == k }.let { c ->
+                    val shown = if (c.action) actionName(v, home.repo::appLabel) else c.values.indexOf(v).let { i -> if (i >= 0) choiceName(c, i) else v }
+                    "${getString(c.title)}: $shown"
+                } })
             .setPositiveButton(R.string.apply_style_apply) { _, _ ->
                 looks.applyStyle(changes)
                 changed()
