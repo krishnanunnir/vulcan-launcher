@@ -829,9 +829,10 @@ class Drawer(private val a: MainActivity) {
                     a.saveGroups(groups().map { if (it.name == group.name) group else it })
                     folderItems(group)
                 }, icon = (v as? IconView)?.image, more = { a.closeOverlay(); a.editGroup(group) }, reload = {
+                    // None of its apps left (all uninstalled or hidden): it closes, as a home folder does, not an empty window.
                     groups().firstOrNull { it.name == group.name && it.type == "folder" }?.let {
                         group = it; apps = folderApps(it); folderItems(it)
-                    }
+                    }?.takeIf { it.isNotEmpty() }
                 }) { i, _ -> GroupChild(group.name, apps[i]) }
             }
             is Entry.WebE -> a.webSearch(e.query)
