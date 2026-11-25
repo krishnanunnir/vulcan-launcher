@@ -190,7 +190,7 @@ class Store(private val context: Context) {
     val autoBackups get() = listOf("auto-backup.json", "auto-backup-2.json", "auto-backup-3.json").map { File(context.filesDir, it) }
 
     /**
-     * The saved layout, in subgrid factor [sub]. If it can't be read at all (a bad restore or a hand edit), the raw text
+     * The saved layout, in subgrid factor [sub]. If it can't be read at all (a bad restore, a hand edit or a newer format), the raw text
      * is kept in `files/layout-unreadable.json` and the newest readable automatic backup is used, so the launcher never
      * crash-loops.
      */
@@ -198,8 +198,13 @@ class Store(private val context: Context) {
         val raw = prefs.getString("items", "[]")!!
         // Subgrid factors are 1 and 2; any other (a hand-edited backup) is taken as the current one, not divided by.
         val saved = prefs.getString("sub", null)?.toIntOrNull()?.takeIf { it == 1 || it == 2 }
-        runCatching { return layoutIn(itemsFromJson(raw), saved, sub).toMutableList() }
-        runCatching { File(context.filesDir, "layout-unreadable.json").writeText(raw) }
+        val unreadable = File(context.filesDir, "layout-unreadable.json")
+        runCatching {
+            // A layout from a newer build (read after a downgrade) may mean something else: set aside like an unreadable one.
+            require((prefs.getString("version", null)?.toIntOrNull() ?: 1) <= LAYOUT_VERSION)
+            return layoutIn(itemsFromJson(raw), saved, sub).toMutableList()
+        }
+        runCatching { unreadable.writeText(raw) }
         // What's recovered is saved at once: export reads the stored layout, so a restore (which backs up first) would fail too.
         for (f in autoBackups) runCatching {
             val l = backupLayout(JSONObject(f.readText()))
