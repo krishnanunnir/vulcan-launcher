@@ -456,6 +456,7 @@
     <string name="no_room">No room on the home screen</string>
     <string name="remove">Remove</string>
     <string name="app_info">App info</string>
+    <string name="permission_blocked">Android no longer asks for this permission. Allow it in App info, under Permissions.</string>
     <string name="uninstall">Uninstall</string>
     <string name="added_to_home">Added to home screen</string>
     <string name="menu_add">Add</string>

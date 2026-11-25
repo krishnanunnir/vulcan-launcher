@@ -105,6 +105,19 @@ class SettingsActivity : VulcanActivity() {
 
     override fun handleBack() { (panel?.tag as? Runnable)?.run() ?: finish() }
 
+    /**
+     * A permission a setting needs was refused. Once Android stops asking (after the second refusal), the request
+     * returns at once with nothing shown, so the switch looked dead: offer Vulcan's App info, where it can be allowed.
+     */
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        val perm = permissions.firstOrNull() ?: return
+        if (grantResults.firstOrNull() != android.content.pm.PackageManager.PERMISSION_DENIED || shouldShowRequestPermissionRationale(perm)) return
+        dialog().setMessage(R.string.permission_blocked).setNegativeButton(R.string.cancel, null).setPositiveButton(R.string.app_info) { _, _ ->
+            runCatching { startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.fromParts("package", packageName, null))) }
+        }.show()
+    }
+
     /** After a restore, an import or a reset: home starts again from what was stored, and settings closes. */
     fun restartHome() {
         home.recreate()
