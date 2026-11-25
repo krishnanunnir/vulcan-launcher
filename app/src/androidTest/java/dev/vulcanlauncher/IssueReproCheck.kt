@@ -23,6 +23,7 @@ import kotlin.math.abs
 /** Disposable-emulator issue audit. Setup uses the app model; target gestures use real input events.
  * adb shell am instrument -w -e check issues dev.vulcanlauncher.test/dev.vulcanlauncher.DeviceCheck
  * Writes screenshots, view geometry, observations and restores the original backup in finally.
+ * A REPRODUCED, INCONCLUSIVE or RESTORE ERROR line finishes the run with RESULT_CANCELED.
  */
 class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
     private val wanted = filter.split(',').filter { it.isNotEmpty() }
@@ -32,18 +33,13 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
     private var settings: SettingsActivity? = null
     private fun ui(f: () -> Unit) = t.runOnMainSync(f)
     private fun settle(ms: Long = 450) { t.waitForIdleSync(); SystemClock.sleep(ms) }
-    private fun note(id: String, result: String, detail: String) { log.append("$id | $result | $detail\n") }
-    private fun check(id: String, ok: Boolean, detail: String) = note(id, if (ok) "EXPECTED" else "REPRODUCED", detail)
-    private fun all(v: View): List<View> = listOf(v) + if (v is ViewGroup) (0 until v.childCount).flatMap { all(v.getChildAt(it)) } else emptyList()
-    private fun field(o: Any, name: String): Any? {
-        var c: Class<*>? = o.javaClass
-        while (c != null) {
-            try { return c.getDeclaredField(name).apply { isAccessible = true }.get(o) } catch (_: NoSuchFieldException) { c = c.superclass }
-        }
-        error("Missing field $name")
+    private var failures = 0
+    private fun note(id: String, result: String, detail: String) {
+        if (result in FAILING) failures++
+        log.append("$id | $result | $detail\n")
     }
-    @Suppress("UNCHECKED_CAST")
-    private fun dialogs(v: VulcanActivity = a) = (field(v, "dialogs") as Set<AlertDialog>).filter { it.isShowing }
+    private fun check(id: String, ok: Boolean, detail: String) = note(id, if (ok) "EXPECTED" else "REPRODUCED", detail)
+    private fun dialogs(v: VulcanActivity = a) = showingDialogs(v)
     private fun rect(v: View): Rect = Rect().also { r ->
         var visible=false
         ui { visible=v.getGlobalVisibleRect(r); val p=IntArray(2); v.getLocationOnScreen(p); r.set(p[0],p[1],p[0]+v.width,p[1]+v.height) }
@@ -123,7 +119,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
         repeat(100) { if (MainActivity.running?.get()?.hasWindowFocus() != true) SystemClock.sleep(100) }
         a = MainActivity.running?.get() ?: error("Launcher did not start")
         out = File(a.filesDir,"issue-repro").apply { mkdirs() }
-        val original = a.store.export(a.repo.apps.values.toList())
+        val original = auditBackup(a) { note("RESTORE","INFO",it) }
         try {
             note("ENV","INFO","API ${android.os.Build.VERSION.SDK_INT}; apps=${a.repo.apps.size}; privateUser=${a.repo.privateUser}; privateLocked=${a.repo.privateLocked}")
             case("#33") {
@@ -249,7 +245,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                     back()
                 } else back()
                 clean()
-                a.javaClass.getDeclaredMethod("addShortcutMenu").apply { isAccessible=true }.let { m -> ui { m.invoke(a) } }; settle()
+                HomeMenus::class.java.getDeclaredMethod("addShortcutMenu").apply { isAccessible=true }.let { m -> ui { m.invoke(a.homeMenus) } }; settle()
                 val choose=dialogs().last()
                 ui { choose.listView.performItemClick(choose.listView.getChildAt(1),1,1) }; settle(); shot("30-app-shortcuts")
                 val rows=all(dialogs().last().window!!.decorView)
@@ -298,9 +294,9 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 val cm=a.getSystemService(android.hardware.camera2.CameraManager::class.java)
                 val flash=cm.cameraIdList.filter { cm.getCameraCharacteristics(it).get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE)==true }
                 ui { a.homeMenus.perform("torch") }; settle()
-                val first=field(a,"torchOn")
+                val first=field(a.homeMenus,"torchOn")
                 ui { a.homeMenus.perform("torch") }; settle()
-                note("#15/hardware",if(flash.isEmpty()) "LIMITED" else "OBSERVED","flash cameras=$flash; two toggles=$first -> ${field(a,"torchOn")}; no physical light verification")
+                note("#15/hardware",if(flash.isEmpty()) "LIMITED" else "OBSERVED","flash cameras=$flash; two toggles=$first -> ${field(a.homeMenus,"torchOn")}; no physical light verification")
                 note("#24","LIMITED","Settings navigated. GrapheneOS Android 17 unavailable")
             }
             case("#24") {
@@ -370,10 +366,14 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
             }
         } finally {
             runCatching { clean(); ui { a.store.import(original,a.repo::mainActivity); a.items=a.store.load(a.sub); a.rebuild() } }
-                .onFailure { note("RESTORE","ERROR",it.stackTraceToString()) }
+                .onSuccess { dropAuditBackup(a) }.onFailure { note("RESTORE","ERROR",it.stackTraceToString()) }
             for(name in listOf("layout","looks","data")) t.targetContext.getSharedPreferences(name,0).edit().commit()
             File(out,"results.txt").writeText(log.toString())
         }
-        t.finish(Activity.RESULT_OK,Bundle().apply { putString("stream",log.toString()) })
+        log.append(if (failures == 0) "NO ISSUE REPRODUCED\n" else "$failures FAILED\n")
+        t.finish(if (failures == 0) Activity.RESULT_OK else Activity.RESULT_CANCELED, Bundle().apply { putString("stream",log.toString()) })
     }
 }
+
+/** Statuses that fail the instrumentation run; the others (INFO, OBSERVED, LIMITED, …) are notes. */
+internal val FAILING = setOf("REPRODUCED", "FAIL", "INCONCLUSIVE", "CONTROL_FAILED", "ERROR")

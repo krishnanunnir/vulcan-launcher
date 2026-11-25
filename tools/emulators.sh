@@ -1,5 +1,6 @@
 #!/bin/bash
-# One Android emulator for checking the launcher: a Pixel 8 on API 35 (targetSdk). Apple silicon (arm64 image).
+# Android emulators for checking the launcher: a Pixel 8 on API 35 and a Pixel 4 on API 30 (targetSdk is 36, which
+# isn't covered here). Apple silicon (arm64 images).
 # To try another version or screen, add a line to AVDS (images: sdkmanager --list; screens: avdmanager list device -c).
 #
 #   tools/emulators.sh setup           download the images and create the AVDs (safe to re-run)
@@ -52,12 +53,20 @@ boot() { # name port [extra emulator flags…]
     done
 }
 
+# These run as `check_one … || bad=…`, where bash ignores set -e, so each step that must stop the check says so.
+install_home() { # serial: install the debug APK and make it the home app, or kill the emulator and fail
+    local s=$1
+    if ! adb -s "$s" install -r "$APK" >/dev/null || ! adb -s "$s" shell cmd package set-home-activity dev.vulcanlauncher/.MainActivity >/dev/null; then
+        echo "   couldn't install the debug APK or make it the home app"
+        adb -s "$s" emu kill >/dev/null 2>&1; sleep 3; return 1
+    fi
+}
+
 check_one() {
     local name=$1 port=5560 s=emulator-5560 failed=0
     echo "== $name"
     boot "$name" "$port" -no-window || { adb -s "$s" emu kill >/dev/null 2>&1; return 1; }
-    adb -s "$s" install -r "$APK" >/dev/null
-    adb -s "$s" shell cmd package set-home-activity dev.vulcanlauncher/.MainActivity >/dev/null
+    install_home "$s" || return 1
     adb -s "$s" shell input keyevent KEYCODE_WAKEUP
     adb -s "$s" shell wm dismiss-keyguard 2>/dev/null || adb -s "$s" shell input keyevent KEYCODE_MENU
     adb -s "$s" logcat -c
@@ -89,8 +98,7 @@ flows_one() { # name [extra emulator flags…]
     local name=$1 port=5560 s=emulator-5560 failed=0; shift
     echo "== $name"
     boot "$name" "$port" "$@" || { adb -s "$s" emu kill >/dev/null 2>&1; return 1; }
-    adb -s "$s" install -r "$APK" >/dev/null
-    adb -s "$s" shell cmd package set-home-activity dev.vulcanlauncher/.MainActivity >/dev/null
+    install_home "$s" || return 1
     adb -s "$s" shell input keyevent KEYCODE_WAKEUP
     adb -s "$s" shell wm dismiss-keyguard 2>/dev/null || true
     MAESTRO_CLI_NO_ANALYTICS=1 maestro --device "$s" test "$ROOT/flows" || failed=1
@@ -116,5 +124,5 @@ case "${1:-}" in
     start) [ -n "${2:-}" ] || { echo "usage: $0 start NAME" >&2; exit 2; }; "$EMULATOR" -avd "$2" -no-snapshot-save & ;;
     check) shift; check "$@" ;;
     flows) shift; flows "$@" ;;
-    *) sed -n '2,9p' "$0"; exit 2 ;;
+    *) sed -n '2,11p' "$0"; exit 2 ;;
 esac

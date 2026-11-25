@@ -17,6 +17,7 @@ import kotlin.math.sin
  * Each gesture is mapped to "jump to page N" and the resulting page is checked. Settings are restored afterwards.
  * Run: adb shell am instrument -w dev.vulcanlauncher.test/dev.vulcanlauncher.DeviceCheck  (add -e check import for the import check,
  * -e check readable for the readable backup, -e check pages for the page overview)
+ * Disposable emulator only: -e check issues / openissues [-e cases '#33,#34'] (issue audits), -e check persona.
  */
 class DeviceCheck : Instrumentation() {
     private var mode = "gestures"

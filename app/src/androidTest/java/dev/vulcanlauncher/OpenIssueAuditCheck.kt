@@ -20,7 +20,7 @@ import java.io.File
 
 /** Observation audit for open GitHub issues; only run on disposable emulators.
  * Setup uses the app model. The rapid tab test dispatches through the drawer directly to control animation timing.
- * REPRODUCED describes a finding, rather than an instrumentation assertion failure.
+ * Any FAILING status (REPRODUCED, FAIL, INCONCLUSIVE, CONTROL_FAILED, RESTORE ERROR) finishes the run with RESULT_CANCELED.
  */
 class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
     private val wanted = cases.split(',').filter(String::isNotBlank)
@@ -30,22 +30,13 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
     private val log = StringBuilder()
     private fun ui(f: () -> Unit) = t.runOnMainSync(f)
     private fun settle(ms: Long = 400) { t.waitForIdleSync(); SystemClock.sleep(ms) }
+    private var failures = 0
     private fun note(id: String, status: String, detail: String) {
+        if (status in FAILING) failures++
         log.append("$id | $status | $detail\n")
         File(out, "results.txt").writeText(log.toString())
     }
-    private fun all(v: View): List<View> = listOf(v) + if (v is ViewGroup)
-        (0 until v.childCount).flatMap { all(v.getChildAt(it)) } else emptyList()
-    private fun field(o: Any, name: String): Any? {
-        var c: Class<*>? = o.javaClass
-        while (c != null) {
-            try { return c.getDeclaredField(name).apply { isAccessible = true }.get(o) }
-            catch (_: NoSuchFieldException) { c = c.superclass }
-        }
-        error("No field $name")
-    }
-    @Suppress("UNCHECKED_CAST")
-    private fun dialogs(v: VulcanActivity = a) = (field(v, "dialogs") as Set<AlertDialog>).filter { it.isShowing }
+    private fun dialogs(v: VulcanActivity = a) = showingDialogs(v)
     private fun bounds(v: View): Rect = Rect().also { r -> ui { require(v.getGlobalVisibleRect(r)) { "Not visible: ${v.contentDescription}" } } }
     private fun point(x: Int, y: Int) = Rect(x, y, x + 1, y + 1)
     private fun event(time: Long, action: Int, x: Float, y: Float) {
@@ -134,7 +125,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
         repeat(100) { if (MainActivity.running?.get()?.hasWindowFocus() != true) SystemClock.sleep(100) }
         a = MainActivity.running?.get() ?: error("Launcher did not start")
         out = File(a.filesDir, "open-issue-audit").apply { mkdirs() }
-        val original = a.store.export(a.repo.apps.values.toList())
+        val original = auditBackup(a) { note("RESTORE", "INFO", it) }
         try {
             note("ENV", "INFO", "API=${android.os.Build.VERSION.SDK_INT}; density=${a.dp}; size=${a.resources.displayMetrics.widthPixels}x${a.resources.displayMetrics.heightPixels}; fontScale=${a.resources.configuration.fontScale}; apps=${a.repo.apps.size}; longPressTimeout=${ViewConfiguration.getLongPressTimeout()}")
             case("#34") {
@@ -148,8 +139,8 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
                     val r = bounds(a.workspace)
                     val p = point(r.centerX(), r.top + r.height() / 3)
                     drag(p, p, ViewConfiguration.getLongPressTimeout() + 250L)
-                    require(field(a, "menu") != null) { "Hold did not open menu" }
-                    val row = (field(a, "menu") as ViewGroup).getChildAt(0)
+                    val menu = a.homeMenus.menu ?: error("Hold did not open menu")
+                    val row = (menu as ViewGroup).getChildAt(0)
                     val card = bounds(a.pages[a.workspace.current]); val buttons = bounds(row)
                     val gap = buttons.top - card.bottom
                     note("#34/$name", if (gap < 0) "REPRODUCED" else "NO_OVERLAP", "card=$card; buttons=$buttons; gapPx=$gap; gapDp=${gap/a.dp}; workspaceScale=${a.workspace.scaleX}")
@@ -305,7 +296,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
                             SystemClock.sleep(35)
                             shot("37-$style-move-$i")
                         }
-                        note("#37/$style", "VISUAL_REVIEW_REQUIRED", "icon=${icon.contentDescription}; bounds=$r; dragSource=${field(a,"dragSource")?.javaClass?.simpleName}; dragMoved=${field(a,"dragMoved")}; held and five movement frames saved")
+                        note("#37/$style", "VISUAL_REVIEW_REQUIRED", "icon=${icon.contentDescription}; bounds=$r; dragSource=${a.drag.dragSource?.javaClass?.simpleName}; dragMoved=${a.drag.dragMoved}; held and five movement frames saved")
                     } finally {
                         // Cancel the framework drag with Back before releasing, avoiding an accidental drop on home.
                         t.uiAutomation.injectInputEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK), true)
@@ -362,9 +353,10 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
             }
         } finally {
             runCatching { clean(); ui { a.store.import(original, a.repo::mainActivity); a.items = a.store.load(a.sub); a.rebuild() } }
-                .onSuccess { note("RESTORE", "OK", "Original exported configuration restored") }
+                .onSuccess { dropAuditBackup(a); note("RESTORE", "OK", "Original exported configuration restored") }
                 .onFailure { note("RESTORE", "ERROR", it.stackTraceToString()) }
         }
-        t.finish(Activity.RESULT_OK, Bundle().apply { putString("stream", log.toString()) })
+        log.append(if (failures == 0) "NO ISSUE REPRODUCED\n" else "$failures FAILED\n")
+        t.finish(if (failures == 0) Activity.RESULT_OK else Activity.RESULT_CANCELED, Bundle().apply { putString("stream", log.toString()) })
     }
 }
