@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.annotation.TargetApi
 import android.app.AlertDialog
 import android.app.WallpaperManager
+import android.R.color as S
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Canvas
@@ -186,18 +187,34 @@ fun seedPalette(seed: Int, dark: Boolean, ov: Map<String, Int> = emptyMap()) = P
 
 /** Android 12+ wallpaper ("Material You") palette. Shade N of a system ramp is tone 100 − N/10; tones in between are mixed. */
 @TargetApi(31)
-@SuppressLint("DiscouragedApi")
 private fun systemPalette(c: Context, dark: Boolean, ov: Map<String, Int>): Palette {
     val shades = intArrayOf(0, 10, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000)
-    fun ramp(name: String): (Int) -> Int {
-        val colors = shades.map { c.getColor(c.resources.getIdentifier("system_${name}_$it", "color", "android")) }
+    fun ramp(ids: IntArray): (Int) -> Int {
+        val colors = ids.map(c::getColor)
         return { t ->
             val shade = (100 - t) * 10f
             val i = shades.indexOfLast { it <= shade }.coerceIn(0, shades.size - 2)
             blend(colors[i], colors[i + 1], ((shade - shades[i]) / (shades[i + 1] - shades[i])).coerceIn(0f, 1f))
         }
     }
-    return Palette(dark, ramp("accent1"), ramp("accent2"), ramp("neutral1"), ramp("neutral2"), ov = ov)
+    // The platform's own constants, one per shade: no name lookups on every recolor.
+    val accent1 = intArrayOf(
+        S.system_accent1_0, S.system_accent1_10, S.system_accent1_50, S.system_accent1_100, S.system_accent1_200,
+        S.system_accent1_300, S.system_accent1_400, S.system_accent1_500, S.system_accent1_600,
+        S.system_accent1_700, S.system_accent1_800, S.system_accent1_900, S.system_accent1_1000)
+    val accent2 = intArrayOf(
+        S.system_accent2_0, S.system_accent2_10, S.system_accent2_50, S.system_accent2_100, S.system_accent2_200,
+        S.system_accent2_300, S.system_accent2_400, S.system_accent2_500, S.system_accent2_600,
+        S.system_accent2_700, S.system_accent2_800, S.system_accent2_900, S.system_accent2_1000)
+    val neutral1 = intArrayOf(
+        S.system_neutral1_0, S.system_neutral1_10, S.system_neutral1_50, S.system_neutral1_100, S.system_neutral1_200,
+        S.system_neutral1_300, S.system_neutral1_400, S.system_neutral1_500, S.system_neutral1_600,
+        S.system_neutral1_700, S.system_neutral1_800, S.system_neutral1_900, S.system_neutral1_1000)
+    val neutral2 = intArrayOf(
+        S.system_neutral2_0, S.system_neutral2_10, S.system_neutral2_50, S.system_neutral2_100, S.system_neutral2_200,
+        S.system_neutral2_300, S.system_neutral2_400, S.system_neutral2_500, S.system_neutral2_600,
+        S.system_neutral2_700, S.system_neutral2_800, S.system_neutral2_900, S.system_neutral2_1000)
+    return Palette(dark, ramp(accent1), ramp(accent2), ramp(neutral1), ramp(neutral2), ov = ov)
 }
 
 /**
