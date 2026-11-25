@@ -20,7 +20,7 @@ import java.io.File
 
 /** Observation audit for open GitHub issues; only run on disposable emulators.
  * Setup uses the app model. The rapid tab test dispatches through the drawer directly to control animation timing.
- * REPRODUCED describes a finding, rather than an instrumentation assertion failure.
+ * Any FAILING status (REPRODUCED, FAIL, INCONCLUSIVE, CONTROL_FAILED, RESTORE ERROR) finishes the run with RESULT_CANCELED.
  */
 class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
     private val wanted = cases.split(',').filter(String::isNotBlank)
@@ -30,7 +30,9 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
     private val log = StringBuilder()
     private fun ui(f: () -> Unit) = t.runOnMainSync(f)
     private fun settle(ms: Long = 400) { t.waitForIdleSync(); SystemClock.sleep(ms) }
+    private var failures = 0
     private fun note(id: String, status: String, detail: String) {
+        if (status in FAILING) failures++
         log.append("$id | $status | $detail\n")
         File(out, "results.txt").writeText(log.toString())
     }
@@ -365,6 +367,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
                 .onSuccess { note("RESTORE", "OK", "Original exported configuration restored") }
                 .onFailure { note("RESTORE", "ERROR", it.stackTraceToString()) }
         }
-        t.finish(Activity.RESULT_OK, Bundle().apply { putString("stream", log.toString()) })
+        log.append(if (failures == 0) "NO ISSUE REPRODUCED\n" else "$failures FAILED\n")
+        t.finish(if (failures == 0) Activity.RESULT_OK else Activity.RESULT_CANCELED, Bundle().apply { putString("stream", log.toString()) })
     }
 }

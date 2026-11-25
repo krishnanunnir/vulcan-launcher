@@ -23,6 +23,7 @@ import kotlin.math.abs
 /** Disposable-emulator issue audit. Setup uses the app model; target gestures use real input events.
  * adb shell am instrument -w -e check issues dev.vulcanlauncher.test/dev.vulcanlauncher.DeviceCheck
  * Writes screenshots, view geometry, observations and restores the original backup in finally.
+ * A REPRODUCED, INCONCLUSIVE or RESTORE ERROR line finishes the run with RESULT_CANCELED.
  */
 class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
     private val wanted = filter.split(',').filter { it.isNotEmpty() }
@@ -32,7 +33,11 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
     private var settings: SettingsActivity? = null
     private fun ui(f: () -> Unit) = t.runOnMainSync(f)
     private fun settle(ms: Long = 450) { t.waitForIdleSync(); SystemClock.sleep(ms) }
-    private fun note(id: String, result: String, detail: String) { log.append("$id | $result | $detail\n") }
+    private var failures = 0
+    private fun note(id: String, result: String, detail: String) {
+        if (result in FAILING) failures++
+        log.append("$id | $result | $detail\n")
+    }
     private fun check(id: String, ok: Boolean, detail: String) = note(id, if (ok) "EXPECTED" else "REPRODUCED", detail)
     private fun all(v: View): List<View> = listOf(v) + if (v is ViewGroup) (0 until v.childCount).flatMap { all(v.getChildAt(it)) } else emptyList()
     private fun field(o: Any, name: String): Any? {
@@ -374,6 +379,10 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
             for(name in listOf("layout","looks","data")) t.targetContext.getSharedPreferences(name,0).edit().commit()
             File(out,"results.txt").writeText(log.toString())
         }
-        t.finish(Activity.RESULT_OK,Bundle().apply { putString("stream",log.toString()) })
+        log.append(if (failures == 0) "NO ISSUE REPRODUCED\n" else "$failures FAILED\n")
+        t.finish(if (failures == 0) Activity.RESULT_OK else Activity.RESULT_CANCELED, Bundle().apply { putString("stream",log.toString()) })
     }
 }
+
+/** Statuses that fail the instrumentation run; the others (INFO, OBSERVED, LIMITED, …) are notes. */
+internal val FAILING = setOf("REPRODUCED", "FAIL", "INCONCLUSIVE", "CONTROL_FAILED", "ERROR")
