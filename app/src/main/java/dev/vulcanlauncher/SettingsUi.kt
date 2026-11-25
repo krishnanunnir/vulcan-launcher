@@ -139,7 +139,7 @@ fun SettingsActivity.showPage(page: String, scroll: Int = 0, restoring: Boolean 
     var search: ((String) -> Unit)? = null
     when (page) { "" -> search = settingsHome(list); COLORS -> colorsPage(list); BACKUP -> backupPage(list); PERMISSIONS -> permissionsPage(list); TABS_GROUP -> tabsPage(list); DRAWER_FOLDERS -> foldersPage(list); CONTRIBUTORS_PAGE -> contributorsPage(list); else -> settingsCategory(page, list) }
     val scrollView = ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(list) }
-    val title = text(getString(when (page) { "" -> R.string.settings; COLORS -> R.string.custom_colors; BACKUP -> R.string.backup_restore; PERMISSIONS -> R.string.permissions; CONTRIBUTORS_PAGE -> R.string.contributors; else -> GROUP_TITLES.getValue(page) }), 22f).apply { setPadding((8 * dp).toInt(), 0, 0, 0); maxLines = 1 }
+    val title = text(getString(when (page) { "" -> R.string.settings; COLORS -> R.string.custom_colors; BACKUP -> R.string.backup_restore; PERMISSIONS -> R.string.permissions; CONTRIBUTORS_PAGE -> R.string.contributors; else -> GROUP_TITLES.getValue(page) }), 22f).apply { setPaddingRelative((8 * dp).toInt(), 0, 0, 0); maxLines = 1 }
     // Settings home, as One UI: a search button in the bar turns the title into the search field.
     val field = search?.let { onQuery -> EditText(this).apply {
         visibility = View.GONE
@@ -149,7 +149,7 @@ fun SettingsActivity.showPage(page: String, scroll: Int = 0, restoring: Boolean 
         setTextColor(m3.onSurface)
         setHintTextColor(m3.onSurfaceVariant)
         background = null
-        setPadding((8 * dp).toInt(), 0, 0, 0)
+        setPaddingRelative((8 * dp).toInt(), 0, 0, 0)
         imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
         addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) { onQuery(s.toString()); scrollView.scrollTo(0, 0) }
@@ -208,7 +208,8 @@ fun SettingsActivity.showPage(page: String, scroll: Int = 0, restoring: Boolean 
         }
     })
     // Pages slide; Android's "Remove animations" turns this off along with the system's own transitions.
-    val shift = 32 * dp
+    // From the end side, mirrored in a right-to-left language.
+    val shift = 32 * dp * if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) -1 else 1
     when {
         // The first page comes with the screen, in the system's own animation.
         old == null -> {}
@@ -276,7 +277,7 @@ private val SettingsActivity.versionName get() = packageManager.getPackageInfo(p
 
 /** Rows on one raised face, divided by hairlines, under a printed legend: one panel of the appliance. */
 fun SettingsActivity.panel(list: LinearLayout, title: String?, rows: List<View>) {
-    if (title != null) list.addView(legend(title, 12f).apply { setPadding((32 * dp).toInt(), (20 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt()) })
+    if (title != null) list.addView(legend(title, 12f).apply { setPaddingRelative((32 * dp).toInt(), (20 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt()) })
     list.addView(LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         housing(this, 24 * dp)
@@ -390,7 +391,7 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
         "@tabs" -> tabsLink()
         "@folders" -> foldersLink()
         // Not a setting: says how cards come and go, and how to move them.
-        "@nowCards" -> text(getString(R.string.now_cards_info), 14f, m3.onSurfaceVariant).apply { setPadding((16 * dp).toInt(), (12 * dp).toInt(), (24 * dp).toInt(), (12 * dp).toInt()) }
+        "@nowCards" -> text(getString(R.string.now_cards_info), 14f, m3.onSurfaceVariant).apply { setPaddingRelative((16 * dp).toInt(), (12 * dp).toInt(), (24 * dp).toInt(), (12 * dp).toInt()) }
         "@colors" -> listItem(null, getString(R.string.custom_colors),
             resources.getQuantityString(R.plurals.custom_colors_set, looks.colors().size, looks.colors().size)) { showPage(COLORS) }
         else -> byKey[key]?.let(::row) // null: hidden for now (night hours)
@@ -863,7 +864,7 @@ private fun SettingsActivity.permissionsPage(list: LinearLayout) {
         val state = if (p.on) LinearLayout(this).apply {
             gravity = Gravity.CENTER_VERTICAL
             addView(ImageView(context).apply { setImageDrawable(symbol("check", m3.onSurfaceVariant, 18f)) })
-            addView(text(getString(p.onText), 14f, m3.onSurfaceVariant).apply { setPadding((4 * dp).toInt(), 0, 0, 0) })
+            addView(text(getString(p.onText), 14f, m3.onSurfaceVariant).apply { setPaddingRelative((4 * dp).toInt(), 0, 0, 0) })
         } else tonalButton(getString(p.offText), open)
         listItem(symbol(p.icon, m3.onPrimaryContainer), getString(p.title), getString(p.info), trailing = state, tonalIcon = true) { open() }
     })

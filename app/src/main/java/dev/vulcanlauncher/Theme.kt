@@ -272,7 +272,7 @@ fun VulcanActivity.listItem(icon: Drawable?, title: CharSequence, summary: CharS
     gravity = Gravity.CENTER_VERTICAL
     minimumHeight = ((if (dense) 48 else if (summary == null) 56 else 72) * dp).toInt()
     val h = ((if (dense) 12 else 16) * dp).toInt()
-    setPadding(h, (8 * dp).toInt(), if (dense) h else (24 * dp).toInt(), (8 * dp).toInt())
+    setPaddingRelative(h, (8 * dp).toInt(), if (dense) h else (24 * dp).toInt(), (8 * dp).toInt())
     if (onClick != null) { background = pressable(null); setOnClickListener(onClick) }
     if (icon != null) addView(ImageView(context).apply {
         setImageDrawable(icon)
@@ -373,7 +373,7 @@ fun VulcanActivity.pickList(title: CharSequence, rows: List<Pair<Drawable?, Char
                 setTextColor(m3.onSurface)
                 setHintTextColor(m3.onSurfaceVariant)
                 background = null
-                setPadding((12 * dp).toInt(), 0, 0, 0)
+                setPaddingRelative((12 * dp).toInt(), 0, 0, 0)
                 addTextChangedListener(object : android.text.TextWatcher {
                     override fun afterTextChanged(s: android.text.Editable?) {
                         val q = s.toString().trim()
@@ -398,7 +398,7 @@ fun VulcanActivity.divider() = View(this).apply {
 }
 
 /** A printed legend, Appliance style: small tracked capitals in the secondary ink. */
-fun VulcanActivity.legend(s: String, sp: Float = 11f, color: Int = m3.onSurfaceVariant) = text(s.uppercase(), sp, color, medium = true).apply {
+fun VulcanActivity.legend(s: String, sp: Float = 11f, color: Int = m3.onSurfaceVariant) = text(s.uppercase(java.util.Locale.getDefault()), sp, color, medium = true).apply {
     letterSpacing = 0.1f
 }
 

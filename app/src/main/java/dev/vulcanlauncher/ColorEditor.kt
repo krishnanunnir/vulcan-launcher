@@ -95,7 +95,7 @@ private fun VulcanActivity.schemePreview(): Pair<View, (Palette) -> Unit> {
     val slot = android.widget.ImageView(this).apply { scaleType = android.widget.ImageView.ScaleType.CENTER }
     val dock = LinearLayout(this).apply {
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(px(10), px(6), px(6), px(6))
+        setPaddingRelative(px(10), px(6), px(6), px(6))
         dockKeys.forEach { addView(it, (it.layoutParams as LinearLayout.LayoutParams).apply { marginEnd = px(10) }) }
         addView(View(context), LinearLayout.LayoutParams(0, 0, 1f))
         addView(slot, LinearLayout.LayoutParams(px(64), px(30)))
@@ -204,7 +204,7 @@ private fun SettingsActivity.partSample(key: String): Pair<View, (Int) -> Unit> 
             { c -> bar.background = rounded(c, 24 * dp) }
         }
         "searchColor" -> {
-            val pill = text(getString(R.string.color_preview_search), 15f).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(pad * 3 / 2, 0, pad, 0) }
+            val pill = text(getString(R.string.color_preview_search), 15f).apply { gravity = Gravity.CENTER_VERTICAL; setPaddingRelative(pad * 3 / 2, 0, pad, 0) }
             wall.addView(pill, LinearLayout.LayoutParams(-1, (48 * dp).toInt()));
             { c -> pill.background = rounded(c, 24 * dp); pill.setTextColor(ink(c)) }
         }
@@ -259,7 +259,7 @@ private fun VulcanActivity.colorSheet(title: Int, start: Int, following: Boolean
         contentDescription = getString(R.string.exact_color)
         // A slot pressed into the sheet, led by a dot in the colour it holds.
         background = rounded(m3.well, 16 * dp)
-        setPadding((6 * dp).toInt(), 0, pad * 3 / 5, 0)
+        setPaddingRelative((6 * dp).toInt(), 0, pad * 3 / 5, 0)
         compoundDrawablePadding = (8 * dp).toInt()
     }
     val fieldDot = GradientDrawable().apply { shape = GradientDrawable.OVAL; setStroke(dp.toInt(), m3.outlineVariant); setSize((20 * dp).toInt(), (20 * dp).toInt()) }
@@ -462,7 +462,7 @@ fun SettingsActivity.pickTheme(c: Choice, save: (String) -> Unit) {
             setPadding(pad / 2, pad / 2, pad / 2, pad / 2)
             background = if (chosen) rounded(m3.secondaryContainer, 18 * dp) else pressable(null, 18 * dp)
             addView(picture)
-            addView(text((if (chosen) "✓  " else "") + getString(title), 14f).apply { setPadding(pad / 3, pad / 2, 0, pad / 3) })
+            addView(text((if (chosen) "✓  " else "") + getString(title), 14f).apply { setPaddingRelative(pad / 3, pad / 2, 0, pad / 3) })
             contentDescription = getString(title)
             isSelected = chosen
             setOnClickListener {

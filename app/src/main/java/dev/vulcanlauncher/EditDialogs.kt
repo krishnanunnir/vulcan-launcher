@@ -216,7 +216,7 @@ class IconGridActivity : VulcanActivity() {
             addView(LinearLayout(context).apply {
                 gravity = Gravity.CENTER_VERTICAL
                 background = rounded(m3.surfaceHighest, 28 * dp)
-                setPadding((4 * dp).toInt(), 0, (16 * dp).toInt(), 0)
+                setPaddingRelative((4 * dp).toInt(), 0, (16 * dp).toInt(), 0)
                 addView(iconButton("back", getString(R.string.back), m3.onSurface) { finish() })
                 addView(filter, LinearLayout.LayoutParams(0, -1, 1f))
             }, LinearLayout.LayoutParams(-1, (56 * dp).toInt()).apply { setMargins((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt()) })
