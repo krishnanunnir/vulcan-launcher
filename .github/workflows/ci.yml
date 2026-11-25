@@ -1,10 +1,8 @@
-# Tests, debug build and lint for every push to main and every pull request.
+# Tests, debug build and lint for every pull request. Pushes to main are tested by the release workflow.
 # pull_request (never pull_request_target): runs from forks get a read-only token and no secrets.
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
 
 permissions:
