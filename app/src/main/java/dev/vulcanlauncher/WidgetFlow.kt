@@ -164,11 +164,10 @@ class WidgetFlow(private val a: MainActivity) {
                 maxHeight = previewH
                 setImageDrawable(info.loadPreviewImage(a, 0) ?: info.loadIcon(a, 0))
             }, LinearLayout.LayoutParams(-2, -2))
-            val t = info.targetCells()
-            val w = t?.first ?: ceil(info.minWidth / page.cellW.toFloat() / a.sub).toInt().coerceAtLeast(1)
-            val h = t?.second ?: ceil(info.minHeight / page.cellH.toFloat() / a.sub).toInt().coerceAtLeast(1)
-            addView(TextView(context).apply { setTextColor(a.m3.onSurface); textSize = 14f; setPadding(0, pad / 4, 0, 0); text = "$label ($w×$h)" })
-            contentDescription = "$label ($w×$h)"
+            val (w, h) = widgetSpan(info.targetCells(), info.minWidth, info.minHeight, page.cellW.toFloat(), page.cellH.toFloat(), page.cols, page.rows, a.sub)
+            val size = "${cellCount(w, a.sub)}×${cellCount(h, a.sub)}"
+            addView(TextView(context).apply { setTextColor(a.m3.onSurface); textSize = 14f; setPadding(0, pad / 4, 0, 0); text = "$label ($size)" })
+            contentDescription = "$label ($size)"
             setOnClickListener { d.dismiss(); addWidget(info) }
         }
         val list = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL }
@@ -318,9 +317,7 @@ class WidgetFlow(private val a: MainActivity) {
             restoreNextWidget()
             return
         }
-        val t = info.targetCells()
-        val w = (t?.first?.times(a.sub) ?: ceil(info.minWidth / page.cellW.toFloat()).toInt()).coerceIn(1, page.cols)
-        val h = (t?.second?.times(a.sub) ?: ceil(info.minHeight / page.cellH.toFloat()).toInt()).coerceIn(1, page.rows)
+        val (w, h) = widgetSpan(info.targetCells(), info.minWidth, info.minHeight, page.cellW.toFloat(), page.cellH.toFloat(), page.cols, page.rows, a.sub)
         if (!a.addItem(Item(a.workspace.current, 0, 0, w, h, widgetId = id), quiet = true)) {
             a.host.deleteAppWidgetId(id)
             a.toast(R.string.no_room)
@@ -354,8 +351,7 @@ class WidgetFlow(private val a: MainActivity) {
             .filter { (w, h) -> a.looks.on("widgetOverlap") || cell.isFree(item.x, item.y, w, h, ignore = v) }
             // Subgrid: whole-cell steps only, or the list runs to a hundred entries.
             .filter { (w, h) -> (w == item.w || w % a.sub == 0) && (h == item.h || h % a.sub == 0) }
-        fun cells(n: Int) = if (n % a.sub == 0) "${n / a.sub}" else "${n / a.sub}½"
-        a.sheet().setTitle(R.string.resize).setItems(sizes.map { (w, h) -> "${cells(w)} × ${cells(h)}".let { if (w == item.w && h == item.h) a.getString(R.string.resize_current, it) else it } }
+        a.sheet().setTitle(R.string.resize).setItems(sizes.map { (w, h) -> "${cellCount(w, a.sub)} × ${cellCount(h, a.sub)}".let { if (w == item.w && h == item.h) a.getString(R.string.resize_current, it) else it } }
             .toTypedArray()) { _, i ->
             val (w, h) = sizes[i]
             val at = a.items.indexOf(item)
@@ -374,3 +370,14 @@ class WidgetFlow(private val a: MainActivity) {
             { slotProvider(it) != null }), s)
     }
 }
+
+/**
+ * The sub-cells a new widget takes: its target cells if it gives them, else its minimum size over the cell size, within
+ * the page. [cellW], [cellH], [cols] and [rows] are in sub-cells; the picker, placing and pinning all use this.
+ */
+fun widgetSpan(target: Pair<Int, Int>?, minW: Int, minH: Int, cellW: Float, cellH: Float, cols: Int, rows: Int, sub: Int): Pair<Int, Int> =
+    (target?.first?.times(sub) ?: ceil(minW / cellW).toInt()).coerceIn(1, cols) to
+        (target?.second?.times(sub) ?: ceil(minH / cellH).toInt()).coerceIn(1, rows)
+
+/** [n] sub-cells as whole cells, with a ½ for an odd half cell: "2", "1½". */
+fun cellCount(n: Int, sub: Int) = if (n % sub == 0) "${n / sub}" else "${n / sub}½"
