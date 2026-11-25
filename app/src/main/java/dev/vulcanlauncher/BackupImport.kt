@@ -35,7 +35,8 @@ fun intentComponent(intent: String): Pair<String, String>? {
 fun intentShortcut(intent: String): Pair<String, String>? {
     val id = Regex("S\\.shortcut_id=([^;]+)").find(intent)?.groupValues?.get(1) ?: return null
     val pkg = Regex("(?:^|;)package=([^;]+)").find(intent)?.groupValues?.get(1) ?: intentComponent(intent)?.first ?: return null
-    return pkg to java.net.URLDecoder.decode(id.replace("+", "%2B"), "UTF-8")
+    // A malformed %xx drops this shortcut, not the whole import.
+    return runCatching { pkg to java.net.URLDecoder.decode(id.replace("+", "%2B"), "UTF-8") }.getOrNull()
 }
 
 /**
@@ -72,11 +73,12 @@ fun importToItems(rows: List<ImportRow>, screenRank: Map<Long, Int>, dockCols: I
             else -> null
         }
     }
+    val inFolder = rows.groupBy { it.container }
     val out = ArrayList<Item>()
     for (r in rows.filter { it.container == -100L || it.container == -101L }) {
         val base = when (r.itemType) {
             2 -> {
-                val kids = rows.filter { it.container == r.id }.sortedWith(compareBy({ it.rank }, { it.cellY }, { it.cellX })).mapNotNull { k ->
+                val kids = inFolder[r.id].orEmpty().sortedWith(compareBy({ it.rank }, { it.cellY }, { it.cellX })).mapNotNull { k ->
                     leaf(k).also { if (it == null) skipped++ }
                 }
                 // ponytail: an untitled imported folder is named in English (this is pure code, no resources); Nova always stores a title.
@@ -87,10 +89,12 @@ fun importToItems(rows: List<ImportRow>, screenRank: Map<Long, Int>, dockCols: I
         }
         if (base == null) { skipped++; continue }
         out += if (r.container == -101L) {
-            val pos = (if (r.cellX >= 0) r.cellX else r.screen.toDouble()).roundToInt()
+            // Never below 0: a negative position would land on a home page.
+            val pos = (if (r.cellX >= 0) r.cellX else r.screen.toDouble()).roundToInt().coerceAtLeast(0)
             base.copy(page = -1 - pos / dockCols, x = pos % dockCols, y = 0)
         } else {
-            val page = screenRank[r.screen] ?: r.screen.toInt()
+            // An unlisted screen is taken as a page number; a negative one (or one past Int) must not become a dock page.
+            val page = screenRank[r.screen] ?: r.screen.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
             base.copy(page = page, x = (r.cellX * f).roundToInt(), y = (r.cellY * f).roundToInt(),
                 w = maxOf(1, (r.spanX * f).roundToInt()), h = maxOf(1, (r.spanY * f).roundToInt()))
         }
@@ -114,12 +118,12 @@ fun importedPrefs(xml: String): Map<String, String> {
 /** More than any backup holds: a picked file is read on the main thread, so a bigger one (or a zip bomb) is refused. */
 const val MAX_BACKUP_BYTES = 16L shl 20
 
-/** Copies this stream to [out], throwing [IOException] with message [tooLarge] once more than [max] bytes come. */
-fun InputStream.copyAtMost(out: OutputStream, max: Long, tooLarge: String) {
+/** Copies this stream to [out], throwing [IOException] with message [tooLarge] once more than [max] bytes come. Returns the bytes copied. */
+fun InputStream.copyAtMost(out: OutputStream, max: Long, tooLarge: String): Long {
     val buf = ByteArray(8192)
     var total = 0L
     while (true) {
-        val n = read(buf).takeIf { it >= 0 } ?: return
+        val n = read(buf).takeIf { it >= 0 } ?: return total
         total += n
         if (total > max) throw IOException(tooLarge)
         out.write(buf, 0, n)
@@ -128,21 +132,30 @@ fun InputStream.copyAtMost(out: OutputStream, max: Long, tooLarge: String) {
 
 fun InputStream.readAtMost(max: Long, tooLarge: String): ByteArray = ByteArrayOutputStream().also { copyAtMost(it, max, tooLarge) }.toByteArray()
 
+/** More rows or zip entries than any launcher backup has: a file with more entries is refused, rows past it are left out, not read for minutes on the main thread. */
+const val MAX_IMPORT_ROWS = 5000
+
 /** Reads a .novabackup chosen by the user. Throws with a readable message when the file isn't one. */
 fun readLauncherBackup(context: Context, uri: Uri): Pair<ImportedLayout, Map<String, String>> {
     val dir = File(context.cacheDir, "launcher-import").apply { deleteRecursively(); mkdirs() }
     var db: File? = null
     var prefs = ""
     val tooLarge = context.getString(R.string.backup_too_large)
+    // One budget for everything unpacked, entries skipped included (they're unpacked to move past them): no zip bomb anywhere.
+    var used = 0L
+    val skip = object : OutputStream() { override fun write(b: Int) {}; override fun write(b: ByteArray, off: Int, len: Int) {} }
     ZipInputStream(context.contentResolver.openInputStream(uri)!!).use { zip ->
-        while (true) {
+        for (count in 0..MAX_IMPORT_ROWS) {
+            if (count == MAX_IMPORT_ROWS) throw IOException(tooLarge)
             val e = zip.nextEntry ?: break
             val name = e.name.substringAfterLast('/')
+            fun copy(out: OutputStream) { used += zip.copyAtMost(out, MAX_BACKUP_BYTES - used, tooLarge) }
             when {
                 e.isDirectory -> {}
                 name.endsWith(".db") && (db == null || name == "backup.db" || name == "launcher.db") ->
-                    db = File(dir, "import.db").apply { outputStream().use { zip.copyAtMost(it, MAX_BACKUP_BYTES, tooLarge) } }
-                name.endsWith("preferences.xml") -> prefs = zip.readAtMost(MAX_BACKUP_BYTES, tooLarge).decodeToString()
+                    db = File(dir, "import.db").apply { outputStream().use(::copy) }
+                name.endsWith("preferences.xml") -> prefs = ByteArrayOutputStream().also(::copy).toByteArray().decodeToString()
+                else -> copy(skip)
             }
         }
     }
@@ -157,7 +170,7 @@ fun readLauncherBackup(context: Context, uri: Uri): Pair<ImportedLayout, Map<Str
                 }
             }
             val rows = ArrayList<ImportRow>()
-            sql.rawQuery("SELECT * FROM favorites", null).use { c ->
+            sql.rawQuery("SELECT * FROM favorites LIMIT $MAX_IMPORT_ROWS", null).use { c ->
                 fun s(n: String) = c.getColumnIndex(n).let { if (it < 0 || c.isNull(it)) "" else c.getString(it) }
                 fun d(n: String) = c.getColumnIndex(n).let { if (it < 0 || c.isNull(it)) 0.0 else c.getDouble(it) }
                 fun l(n: String, def: Long = 0) = c.getColumnIndex(n).let { if (it < 0 || c.isNull(it)) def else c.getLong(it) }

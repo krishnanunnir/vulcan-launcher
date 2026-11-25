@@ -152,6 +152,7 @@ class OfflineFeaturesTest {
         assertNull(intentComponent("#Intent;action=android.intent.action.VIEW;end"))
         assertEquals("com.g" to "compose id", intentShortcut("#Intent;action=android.intent.action.MAIN;category=com.android.launcher3.DEEP_SHORTCUT;package=com.g;S.shortcut_id=compose%20id;end"))
         assertNull(intentShortcut("#Intent;component=com.a/.Main;end"))
+        assertNull(intentShortcut("#Intent;package=com.g;S.shortcut_id=bad%zz;end")) // dropped, not the whole import
     }
 
     @Test
@@ -186,6 +187,11 @@ class OfflineFeaturesTest {
         val half = importToItems(listOf(row(1, -100, 10, 0.5, 1.5)), mapOf(10L to 0), 5)
         assertTrue(half.subgrid)
         assertEquals(Item(0, 1, 3, 2, 2, pkg = "p1", cls = "p1.A"), half.items[0])
+
+        // Rows from an untrusted file: a negative screen or dock position stays off the dock and home pages it doesn't name.
+        val odd = importToItems(listOf(row(1, -100, -3, 0.0, 0.0), row(2, -101, -6, -1.0, 0.0)), emptyMap(), 5).items
+        assertEquals(0, odd[0].page)
+        assertEquals(Item(-1, 0, 0, pkg = "p2", cls = "p2.A"), odd[1])
     }
 
     @Test
