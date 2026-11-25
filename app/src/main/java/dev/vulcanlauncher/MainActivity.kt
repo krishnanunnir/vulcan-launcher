@@ -179,14 +179,15 @@ class MainActivity : VulcanActivity() {
             widgetFlow.pendingWidget = null; widgetFlow.pendingSlot = null
         }
         // A widget whose ID is gone (its app uninstalled while Vulcan wasn't running) has no view, but would hold its cells.
-        runCatching { host.appWidgetIds.toSet() }.getOrNull()?.let { ids ->
+        // Read once: if it throws, a second unguarded read would too, and a launcher crashing in onCreate loops.
+        runCatching { host.appWidgetIds.toSet() }.onFailure { android.util.Log.w("Vulcan", "can't list widget IDs", it) }.getOrNull()?.let { ids ->
             val kept = keepWidgets(items) { it in ids }
             if (kept != items) { items.clear(); items += kept; save(); render() }
+            // Widget IDs no item holds (the process died mid-flow, a pin failed, an undo bar was cut short) still get
+            // updates from their providers: free them.
+            val held = items.flatMap { it.widgetIds } + nowCards().flatMap { it.widgetIds } + listOfNotNull(widgetFlow.pendingWidget?.first)
+            ids.filter { it !in held }.forEach(host::deleteAppWidgetId)
         }
-        // Widget IDs no item holds (the process died mid-flow, a pin failed, an undo bar was cut short) still get
-        // updates from their providers: free them.
-        val held = items.flatMap { it.widgetIds } + nowCards().flatMap { it.widgetIds } + listOfNotNull(widgetFlow.pendingWidget?.first)
-        host.appWidgetIds.filter { it !in held }.forEach(host::deleteAppWidgetId)
         launcherApps.registerCallback(appsCallback)
         val dateFilter = android.content.IntentFilter(Intent.ACTION_DATE_CHANGED).apply {
             addAction(Intent.ACTION_TIME_CHANGED); addAction(Intent.ACTION_TIMEZONE_CHANGED) }
@@ -477,7 +478,7 @@ class MainActivity : VulcanActivity() {
         unregisterReceiver(profileReceiver)
         // A copy left over from before Vulcan became the home app must not take the live one's badge updates away.
         if (running?.get() === this) BadgeService.onChange = {}
-        mainHandler.removeCallbacks(notified)
+        mainHandler.removeCallbacks(notified); mainHandler.removeCallbacks(listenAgain)
         homeMenus.torchWatch?.let { getSystemService(android.hardware.camera2.CameraManager::class.java).unregisterTorchCallback(it) }
     }
 
@@ -485,12 +486,20 @@ class MainActivity : VulcanActivity() {
         super.onStart()
         if (stale) { stale = false; rebuild() }
         // The system answers with every widget's waiting update at once; too big a reply throws, and home must still open.
-        runCatching { host.startListening() }
+        // Once more a moment later, or widgets would stay frozen until the next start.
+        runCatching { host.startListening() }.onFailure {
+            android.util.Log.w("Vulcan", "widget host: can't start listening, retrying", it)
+            mainHandler.postDelayed(listenAgain, 1000)
+        }
+    }
+    private val listenAgain = Runnable {
+        if (!isDestroyed && running?.get() === this) runCatching { host.startListening() }.onFailure { android.util.Log.w("Vulcan", "widget host: can't start listening", it) }
     }
 
     override fun onStop() {
         super.onStop()
         // Stops the host id for the whole process: only the live copy may (see onDestroy).
+        mainHandler.removeCallbacks(listenAgain)
         if (running?.get() === this) host.stopListening()
         if (drawer.closeOnStop) { drawer.closeOnStop = false; drawer.hide(animate = false) }
         // Daily automatic backup, kept privately on the device and offered in Backup & restore.
