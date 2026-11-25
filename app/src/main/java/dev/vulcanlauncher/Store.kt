@@ -62,6 +62,20 @@ fun Item.withWidgets(ids: List<Int>): Item? =
 fun keepWidgets(items: List<Item>, valid: (Int) -> Boolean): List<Item> =
     items.mapNotNull { if (it.isWidget) it.withWidgets(it.widgetIds.filter(valid)) else it }
 
+/**
+ * A restored layout's widgets. An ID [provider] ("pkg/cls", null when gone) still knows stays, and the front one only as
+ * the widget the backup noted (IDs are small numbers; another phone's can name a different widget here). A widget left
+ * with none, whose noted provider [canAdd] takes, becomes a spot to add it again: an import or reset freed its ID.
+ */
+fun restoredWidgets(items: List<Item>, provider: (Int) -> String?, canAdd: (Item) -> Boolean): List<Item> = items.mapNotNull { i ->
+    if (!i.isWidget) return@mapNotNull i
+    val noted = if (i.pkg.isEmpty()) null else "${i.pkg}/${i.cls}"
+    val ids = i.widgetIds.filter { id -> provider(id)?.let { id != i.widgetId || noted == null || it == noted } == true }
+    // ponytail: a stack whose IDs are all gone comes back as its front widget's spot only; note each one's provider if missed
+    i.copy(pkg = "", cls = "", user = 0).withWidgets(ids)
+        ?: Item(i.page, i.x, i.y, i.w, i.h, i.pkg, i.cls, user = i.user, action = WIDGET_SLOT).takeIf { noted != null && canAdd(it) }
+}
+
 fun appKey(pkg: String, cls: String, user: Long) = "$pkg/$cls/$user"
 
 fun Item.toJson(): JSONObject = JSONObject().put("page", page).put("x", x).put("y", y).put("w", w).put("h", h)
@@ -146,9 +160,8 @@ fun layoutIn(items: List<Item>, saved: Int?, current: Int): List<Item> = when {
 class Store(private val context: Context) {
     private val prefs = context.getSharedPreferences("layout", Context.MODE_PRIVATE)
     val data = context.getSharedPreferences("data", Context.MODE_PRIVATE)!!.apply {
-        // Before 0.31 a restore wrote data's flags (welcome, restoringWidgets) back as "true"/"false" text, and getBoolean threw.
-        val text = all.filterValues { it == "true" || it == "false" }
-        if (text.isNotEmpty()) edit().apply { text.forEach { (k, v) -> putBoolean(k, v == "true") } }.commit()
+        val fix = dataTypeFixes(all)
+        if (fix.isNotEmpty()) edit().apply { fix.forEach { (k, v) -> if (v is Boolean) putBoolean(k, v) else putString(k, v.toString()) } }.commit()
     }
 
     private val usage = context.getSharedPreferences("usage", Context.MODE_PRIVATE)
@@ -194,14 +207,17 @@ class Store(private val context: Context) {
     fun save(items: List<Item>, sub: Int) = prefs.edit().putString("items", itemsToJson(items))
         .putString("version", LAYOUT_VERSION.toString()).putString("sub", sub.toString()).apply()
 
-    /** Writes today's automatic backup, keeping the two before it. */
+    /**
+     * Writes today's automatic backup, keeping the two before it. A setup already kept moves to the front instead of
+     * taking a second slot, so restoring back and forth between backups can't push out the last different one.
+     */
     fun rotateAutoBackup() {
-        val (a, b, c) = autoBackups
-        // Written whole before the older ones move: a write cut short must not stand as today's backup.
-        val tmp = java.io.File(a.path + ".tmp").apply { writeText(export()) }
-        if (b.exists()) b.renameTo(c)
-        if (a.exists()) a.renameTo(b)
-        tmp.renameTo(a)
+        val old = autoBackups.mapNotNull { f -> runCatching { f.readText() to f.lastModified() }.getOrNull() }.toMap()
+        val texts = rotatedBackups(export(), old.keys.toList(), autoBackups.size)
+        // All written whole before any replaces a file: a write cut short (a full disk) must not stand as a backup or lose one.
+        // A kept backup keeps its date: the list in Settings tells them apart by it.
+        texts.zip(autoBackups).map { (text, f) -> File(f.path + ".tmp").apply { writeText(text); old[text]?.let(::setLastModified) } to f }
+            .forEach { (tmp, f) -> tmp.renameTo(f) }
     }
 
     // Lenient: a restored or hand-edited value of the wrong type reads as empty instead of crashing home on every start.
@@ -216,12 +232,20 @@ class Store(private val context: Context) {
      * whoever edits the file knows what is installed.
      */
     fun export(apps: List<App> = emptyList()): String {
-        val looks = context.getSharedPreferences("looks", Context.MODE_PRIVATE).all.mapValues { it.value.toString() }
+        // Sorted: the same setup always reads as the same text, which is how rotateAutoBackup spots one it already keeps.
+        val looks = context.getSharedPreferences("looks", Context.MODE_PRIVATE).all.mapValues { it.value.toString() }.toSortedMap()
         val sub = prefs.getString("sub", null)?.toIntOrNull() ?: if (looks["subgrid"] == "on") 2 else 1
-        val items = itemsFromJson(prefs.getString("items", "[]")!!)
+        // Each widget notes its provider, so a restore can offer it again once its ID is gone (an import or reset freed it).
+        val awm = android.appwidget.AppWidgetManager.getInstance(context)
+        val um = context.getSystemService(android.os.UserManager::class.java)
+        val items = itemsFromJson(prefs.getString("items", "[]")!!).map { i ->
+            (if (i.isWidget) awm.getAppWidgetInfo(i.widgetId) else null)?.let { w ->
+                i.copy(pkg = w.provider.packageName, cls = w.provider.className, user = um.getSerialNumberForUser(w.profile))
+            } ?: i
+        }
         // A backup keeps the launch counts where they always were, in data.
-        val data = data.all.filterKeys { it !in PASSING_STATE }.mapValues { it.value.toString() } +
-            listOfNotNull(usage.getString("launches", null)?.let { "launches" to it })
+        val data = (data.all.filterKeys { it !in PASSING_STATE }.mapValues { it.value.toString() } +
+            listOfNotNull(usage.getString("launches", null)?.let { "launches" to it })).toSortedMap()
         return readableBackup(looks, items, sub, data, apps.map { Triple(it.title, it.pkg, it.cls) to it.serial }, context::getString).toString(2)
     }
 
@@ -242,16 +266,16 @@ class Store(private val context: Context) {
             }.also { f -> f["layout"]?.get("items")?.let { JSONArray(it) } } to emptyList()
             else -> throw IllegalArgumentException(context.getString(R.string.not_vulcan_backup))
         }
-        // ponytail: three commits, not one transaction; an I/O failure between them can mix old and new files. The layout
-        // carries its own subgrid factor, so its positions still read right; only grid sizes could be the old ones (fitItems copes)
+        // ponytail: three commits, not one transaction; an I/O failure between them can mix old and new files (each
+        // failed commit throws, and the auto-backup just written restores the rest). Upgrade if a mixed restore is ever reported.
         val replacedLayout = "layout" in files
         // What's about to be replaced stays restorable from Settings. It throws, and nothing is replaced, if it can't be saved.
         if (replacedLayout) rotateAutoBackup()
         for ((name, values) in files) context.getSharedPreferences(name, Context.MODE_PRIVATE).edit().apply {
             if (replacedLayout) clear()
             // data keeps its flags as booleans; the backup has them as "true"/"false"
-            values.forEach { (k, v) -> if (restoredAsFlag(name, k, v)) putBoolean(k, v == "true") else putString(k, v) }
-        }.commit()
+            values.forEach { (k, v) -> if (restoredKey(name, k)) { if (restoredAsFlag(name, k)) putBoolean(k, v == "true") else putString(k, v) } }
+        }.commit().let { ok -> check(ok) { context.getString(R.string.restore_not_saved) } }
         if (replacedLayout) usage.edit().clear().commit()
         adoptLaunches()
         return RestoreResult(replacedLayout, rejected)
@@ -301,14 +325,39 @@ val PASSING_STATE = setOf("welcome", "welcomeStep", "welcomeImport", "pendingWid
 /** data keys read with getBoolean, which throws on text: on every start, for a hand-edited "hideWorkTab": "on". */
 val DATA_FLAGS = setOf(WELCOME, WELCOME_IMPORT, RESTORING_WIDGETS, REPIN_SHORTCUTS, ALL_HIDDEN, WORK_HIDDEN)
 
-/** Whether a restore stores [key] = [v] of preference file [file] as a boolean: a flag always, whatever the backup says. */
-fun restoredAsFlag(file: String, key: String, v: String) = file == "data" && (key in DATA_FLAGS || v == "true" || v == "false")
+/** Whether a restore stores [key] of preference file [file] as a boolean: a flag always, whatever the backup says. */
+fun restoredAsFlag(file: String, key: String) = file == "data" && key in DATA_FLAGS
+
+/** looks keys holding the phone's last known location (sunset night mode): never in a backup, and looked up again after one. */
+val LOCATION_KEYS = setOf("lat", "lon")
+
+/**
+ * Whether a restore writes [key] of preference file [file]. Passing state (a widget mid-setup, a welcome step) belongs to
+ * the phone that wrote it, and a hand-edited one could crash every start; a location belongs to this phone.
+ */
+fun restoredKey(file: String, key: String) = !(file == "data" && key in PASSING_STATE) && !(file == "looks" && key in LOCATION_KEYS)
+
+/**
+ * data's values ([all]) stored as the wrong type, each as it should be: a flag kept as "true"/"false" text (a restore
+ * before 0.31) makes getBoolean throw, and any other key kept as a boolean (a restore before 0.35 of a hand-edited
+ * "groups": false) makes getString throw, on every start.
+ */
+fun dataTypeFixes(all: Map<String, Any?>): Map<String, Any> = all.mapNotNull { (k, v) ->
+    when {
+        k in DATA_FLAGS -> if (v == "true" || v == "false") v == "true" else null
+        v is Boolean -> v.toString()
+        else -> null
+    }?.let { k to it }
+}.toMap()
+
+/** The automatic backups after saving [now] in front of [kept] (newest first): one already kept moves up, not into a second slot. */
+fun rotatedBackups(now: String, kept: List<String>, slots: Int) = (listOf(now) + kept).distinct().take(slots)
 
 fun readableBackup(looks: Map<String, String>, items: List<Item>, sub: Int, data: Map<String, String>,
                    apps: List<Pair<Triple<String, String, String>, Long>>, text: (Int) -> String): JSONObject = JSONObject()
     .put("format", "vulcan-backup-2")
     .put("howTo", JSONArray(BACKUP_HOW_TO))
-    .put("settings", JSONObject(LOOKS.associate { it.key to it.default } + looks))
+    .put("settings", JSONObject(LOOKS.associate { it.key to it.default } + (looks - LOCATION_KEYS)))
     .put("home", JSONObject().put("sub", sub).put("items", JSONArray(items.map { it.toReadable() })))
     // Values the launcher keeps as JSON text (hidden apps, groups, custom edits) are written as JSON, not as strings of it.
     .put("data", JSONObject().apply { data.forEach { (k, v) -> put(k, runCatching { org.json.JSONTokener(v).nextValue() }.getOrNull()?.takeIf { it is JSONObject || it is JSONArray } ?: v) } })

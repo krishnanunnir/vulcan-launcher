@@ -364,9 +364,13 @@ class WidgetFlow(private val a: MainActivity) {
         }.show()
     }
 
-    /** After a restore: widget IDs belong to the install that made them; drop the ones this install doesn't own. */
+    /**
+     * After a restore: widget IDs belong to the install that made them. The ones this install doesn't own (another phone's,
+     * or freed by an import or reset since) become spots that add the same widget again, when its app is installed.
+     */
     fun dropForeignWidgets() {
         val s = a.looks.sub // the restored setting; load converts the restored layout to it
-        a.store.save(keepWidgets(a.store.load(s)) { a.awm.getAppWidgetInfo(it) != null }, s)
+        a.store.save(restoredWidgets(a.store.load(s), { a.awm.getAppWidgetInfo(it)?.provider?.let { p -> "${p.packageName}/${p.className}" } },
+            { slotProvider(it) != null }), s)
     }
 }

@@ -31,10 +31,57 @@ class StoreTest {
     fun restoredFlagsAreBooleansWhateverTheFileSays() {
         // getBoolean throws on text, and these are read on every start.
         for (k in listOf("welcome", "welcomeImport", "restoringWidgets", "repinShortcuts", "hideAllTab", "hideWorkTab"))
-            assertEquals(k, true, restoredAsFlag("data", k, "on"))
-        assertEquals(true, restoredAsFlag("data", "anything", "false"))
-        assertEquals(false, restoredAsFlag("data", "groups", "[]"))
-        assertEquals(false, restoredAsFlag("looks", "hideWorkTab", "true"))
+            assertEquals(k, true, restoredAsFlag("data", k))
+        // Any other key stays text, even "false": a hand-edited "groups": false stored as a boolean made getString throw.
+        assertEquals(false, restoredAsFlag("data", "groups"))
+        assertEquals(false, restoredAsFlag("looks", "hideWorkTab"))
+        // What such a restore left behind is put right on the next start; text and real flags are left alone.
+        assertEquals(mapOf("groups" to "false", "welcome" to true, "hideWorkTab" to false),
+            dataTypeFixes(mapOf("groups" to false, "welcome" to "true", "hideWorkTab" to "false", "repinShortcuts" to true, "hidden" to "[]", "custom" to "true")))
+    }
+
+    @Test
+    fun restoreSkipsPassingStateAndLocation() {
+        assertEquals(false, restoredKey("data", "pendingWidget"))
+        assertEquals(false, restoredKey("looks", "lat"))
+        assertEquals(false, restoredKey("looks", "lon"))
+        assertEquals(true, restoredKey("data", "groups"))
+        assertEquals(true, restoredKey("looks", "cols"))
+    }
+
+    @Test
+    fun autoBackupsKeepDifferentSetups() {
+        // Restoring back and forth between kept backups moves one up instead of pushing the last different one out.
+        assertEquals(listOf("b", "a", "c"), rotatedBackups("b", listOf("a", "b", "c"), 3))
+        assertEquals(listOf("d", "a", "b"), rotatedBackups("d", listOf("a", "b", "c"), 3))
+        assertEquals(listOf("a"), rotatedBackups("a", emptyList(), 3))
+        assertEquals(listOf("a", "b"), rotatedBackups("a", listOf("a", "b", "b"), 3))
+    }
+
+    @Test
+    fun restoredWidgetsComeBackAsSpots() {
+        val providers = mapOf(7 to "p/W", 8 to "q/V")
+        fun restore(items: List<Item>, canAdd: Boolean = true) = restoredWidgets(items, providers::get) { canAdd }
+        // A live widget stays, without the provider its backup noted.
+        assertEquals(listOf(Item(0, 1, 1, 2, 2, widgetId = 7)), restore(listOf(Item(0, 1, 1, 2, 2, pkg = "p", cls = "W", widgetId = 7))))
+        // Its ID freed by an import or reset: a spot that adds the same widget again, in the same place and profile.
+        assertEquals(listOf(Item(0, 1, 1, 2, 2, pkg = "p", cls = "W", user = 10, action = WIDGET_SLOT)),
+            restore(listOf(Item(0, 1, 1, 2, 2, pkg = "p", cls = "W", user = 10, widgetId = 5))))
+        // The same ID naming another widget here (another phone's backup) is a spot too.
+        assertEquals(WIDGET_SLOT, restore(listOf(Item(0, 0, 0, pkg = "p", cls = "W", widgetId = 8)))[0].action)
+        // Gone with no provider noted (a backup from before 0.35), or one that isn't installed: dropped, as before.
+        assertEquals(emptyList<Item>(), restore(listOf(Item(0, 0, 0, widgetId = 5))))
+        assertEquals(emptyList<Item>(), restore(listOf(Item(0, 0, 0, pkg = "p", cls = "W", widgetId = 5)), canAdd = false))
+        // A stack keeps what's left of it.
+        val stack = Item(0, 0, 0, pkg = "p", cls = "W", widgetId = 5).withWidgets(listOf(5, 8))!!
+        assertEquals(listOf(8), restore(listOf(stack))[0].widgetIds)
+    }
+
+    @Test
+    fun pickedFilesHaveASizeCap() {
+        assertEquals(3, java.io.ByteArrayInputStream(ByteArray(3)).readAtMost(3, "big").size)
+        val e = assertThrows(java.io.IOException::class.java) { java.io.ByteArrayInputStream(ByteArray(20000)).readAtMost(10000, "big") }
+        assertEquals("big", e.message)
     }
 
     @Test
@@ -116,7 +163,9 @@ class StoreTest {
     fun readableBackupRoundTrips() {
         val items = listOf(Item(0, 1, 2, pkg = "a", cls = "A", label = "Mail"),
             Item(-1, 0, 0, folder = true, label = "F", children = listOf(Item(0, 0, 0, pkg = "b", cls = "B", user = 10))))
-        val doc = readableBackup(mapOf("cols" to "5", "c_surface" to "#101828"), items, 1, mapOf("hidden" to "[]"), listOf(Triple("A app", "a", "A") to 0L)) { "s$it" }
+        val doc = readableBackup(mapOf("cols" to "5", "c_surface" to "#101828", "lat" to "51.5", "lon" to "-0.1"), items, 1, mapOf("hidden" to "[]"), listOf(Triple("A app", "a", "A") to 0L)) { "s$it" }
+        // The phone's location (sunset night mode) never leaves it in a backup.
+        assertEquals(false, doc.getJSONObject("settings").has("lat") || doc.getJSONObject("settings").has("lon"))
         // Fields left at their defaults aren't written.
         assertEquals(setOf("page", "x", "y", "pkg", "cls", "label"), doc.getJSONObject("home").getJSONArray("items").getJSONObject(0).keys().asSequence().toSet())
         val (files, rejected) = readableBackupFiles(org.json.JSONObject(doc.toString()), { _, _ -> null })

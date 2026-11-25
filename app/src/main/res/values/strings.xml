@@ -583,6 +583,8 @@
     <string name="page_of">Page %1$d of %2$d</string>
     <string name="not_launcher_backup">No launcher database in this file; is it a launcher backup?</string>
     <string name="not_vulcan_backup">Not a Vulcan backup</string>
+    <string name="backup_too_large">The file is too large to be a backup</string>
+    <string name="restore_not_saved">The restored setup couldn’t be saved</string>
     <string name="app_name" translatable="false">Vulcan</string>
     <string name="badge_service_label">Vulcan badges</string>
     <string name="action_service_label">Vulcan actions</string>

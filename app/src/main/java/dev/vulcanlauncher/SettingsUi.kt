@@ -791,8 +791,8 @@ private fun SettingsActivity.backupPage(list: LinearLayout) {
     panel(list, getString(R.string.backup_panel_reset), listOf(row("delete", R.string.reset_defaults, getString(R.string.reset_defaults_info)) {
         dialog().setMessage(R.string.reset_confirm)
             .setPositiveButton(R.string.reset) { _, _ ->
+                store.reset() // first: its automatic backup notes each widget's provider, which goes with the ID
                 home.items.flatMap { it.widgetIds }.forEach(home.host::deleteAppWidgetId)
-                store.reset()
                 restartHome()
             }.setNegativeButton(R.string.cancel, null).show()
     }))
@@ -806,7 +806,7 @@ fun VulcanActivity.toastMissing() {
 
 /** Restores a backup or applies an older style file, then [restart] rebuilds home. */
 fun VulcanActivity.restoreBackup(uri: android.net.Uri, restart: () -> Unit) {
-    runCatching { store.import(contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() }, home.repo::mainActivity) }
+    runCatching { store.import(contentResolver.openInputStream(uri)!!.use { it.readAtMost(MAX_BACKUP_BYTES, getString(R.string.backup_too_large)) }.decodeToString(), home.repo::mainActivity) }
         .onSuccess { result ->
             if (result.rejected.isNotEmpty()) toast(R.string.skipped_settings, result.rejected.joinToString())
             // Widget IDs belong to the install that made them; drop the ones this install doesn't own.
