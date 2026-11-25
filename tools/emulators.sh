@@ -1,5 +1,6 @@
 #!/bin/bash
-# One Android emulator for checking the launcher: a Pixel 8 on API 35 (targetSdk). Apple silicon (arm64 image).
+# Android emulators for checking the launcher: a Pixel 8 on API 35 and a Pixel 4 on API 30 (targetSdk is 36, which
+# isn't covered here). Apple silicon (arm64 images).
 # To try another version or screen, add a line to AVDS (images: sdkmanager --list; screens: avdmanager list device -c).
 #
 #   tools/emulators.sh setup           download the images and create the AVDs (safe to re-run)
@@ -123,5 +124,5 @@ case "${1:-}" in
     start) [ -n "${2:-}" ] || { echo "usage: $0 start NAME" >&2; exit 2; }; "$EMULATOR" -avd "$2" -no-snapshot-save & ;;
     check) shift; check "$@" ;;
     flows) shift; flows "$@" ;;
-    *) sed -n '2,9p' "$0"; exit 2 ;;
+    *) sed -n '2,11p' "$0"; exit 2 ;;
 esac
