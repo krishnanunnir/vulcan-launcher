@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.annotation.TargetApi
 import android.app.AlertDialog
 import android.app.WallpaperManager
+import android.R.color as S
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Canvas
@@ -164,9 +165,11 @@ fun Palette.role(key: String) = when (key) {
  * drawn on needs 4.5:1, the accent (as text, buttons and glyphs) 3:1.
  */
 fun Palette.lowContrast(): Pair<Double, Double>? {
-    val bgs = listOf(surface, surfaceHigh, raised, well)
+    // surfaceContainer: the Now page's cards, titled in primary. The signal ink is also drawn as a glyph in a well.
+    val bgs = listOf(surface, surfaceHigh, surfaceContainer, raised, well)
     return (listOf(onSurface, onSurfaceVariant).flatMap { fg -> bgs.map { contrast(fg, it) to 4.5 } } +
-        listOf(primary, signalInk).flatMap { fg -> listOf(surface, surfaceHigh).map { contrast(fg, it) to 3.0 } })
+        listOf(primary, signalInk).flatMap { fg -> listOf(surface, surfaceHigh, surfaceContainer).map { contrast(fg, it) to 3.0 } } +
+        (contrast(signalInk, well) to 3.0))
         .filter { it.first < it.second }.minByOrNull { it.first / it.second }
 }
 
@@ -184,18 +187,34 @@ fun seedPalette(seed: Int, dark: Boolean, ov: Map<String, Int> = emptyMap()) = P
 
 /** Android 12+ wallpaper ("Material You") palette. Shade N of a system ramp is tone 100 − N/10; tones in between are mixed. */
 @TargetApi(31)
-@SuppressLint("DiscouragedApi")
 private fun systemPalette(c: Context, dark: Boolean, ov: Map<String, Int>): Palette {
     val shades = intArrayOf(0, 10, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000)
-    fun ramp(name: String): (Int) -> Int {
-        val colors = shades.map { c.getColor(c.resources.getIdentifier("system_${name}_$it", "color", "android")) }
+    fun ramp(ids: IntArray): (Int) -> Int {
+        val colors = ids.map(c::getColor)
         return { t ->
             val shade = (100 - t) * 10f
             val i = shades.indexOfLast { it <= shade }.coerceIn(0, shades.size - 2)
             blend(colors[i], colors[i + 1], ((shade - shades[i]) / (shades[i + 1] - shades[i])).coerceIn(0f, 1f))
         }
     }
-    return Palette(dark, ramp("accent1"), ramp("accent2"), ramp("neutral1"), ramp("neutral2"), ov = ov)
+    // The platform's own constants, one per shade: no name lookups on every recolor.
+    val accent1 = intArrayOf(
+        S.system_accent1_0, S.system_accent1_10, S.system_accent1_50, S.system_accent1_100, S.system_accent1_200,
+        S.system_accent1_300, S.system_accent1_400, S.system_accent1_500, S.system_accent1_600,
+        S.system_accent1_700, S.system_accent1_800, S.system_accent1_900, S.system_accent1_1000)
+    val accent2 = intArrayOf(
+        S.system_accent2_0, S.system_accent2_10, S.system_accent2_50, S.system_accent2_100, S.system_accent2_200,
+        S.system_accent2_300, S.system_accent2_400, S.system_accent2_500, S.system_accent2_600,
+        S.system_accent2_700, S.system_accent2_800, S.system_accent2_900, S.system_accent2_1000)
+    val neutral1 = intArrayOf(
+        S.system_neutral1_0, S.system_neutral1_10, S.system_neutral1_50, S.system_neutral1_100, S.system_neutral1_200,
+        S.system_neutral1_300, S.system_neutral1_400, S.system_neutral1_500, S.system_neutral1_600,
+        S.system_neutral1_700, S.system_neutral1_800, S.system_neutral1_900, S.system_neutral1_1000)
+    val neutral2 = intArrayOf(
+        S.system_neutral2_0, S.system_neutral2_10, S.system_neutral2_50, S.system_neutral2_100, S.system_neutral2_200,
+        S.system_neutral2_300, S.system_neutral2_400, S.system_neutral2_500, S.system_neutral2_600,
+        S.system_neutral2_700, S.system_neutral2_800, S.system_neutral2_900, S.system_neutral2_1000)
+    return Palette(dark, ramp(accent1), ramp(accent2), ramp(neutral1), ramp(neutral2), ov = ov)
 }
 
 /**
@@ -270,7 +289,7 @@ fun VulcanActivity.listItem(icon: Drawable?, title: CharSequence, summary: CharS
     gravity = Gravity.CENTER_VERTICAL
     minimumHeight = ((if (dense) 48 else if (summary == null) 56 else 72) * dp).toInt()
     val h = ((if (dense) 12 else 16) * dp).toInt()
-    setPadding(h, (8 * dp).toInt(), if (dense) h else (24 * dp).toInt(), (8 * dp).toInt())
+    setPaddingRelative(h, (8 * dp).toInt(), if (dense) h else (24 * dp).toInt(), (8 * dp).toInt())
     if (onClick != null) { background = pressable(null); setOnClickListener(onClick) }
     if (icon != null) addView(ImageView(context).apply {
         setImageDrawable(icon)
@@ -303,7 +322,7 @@ fun VulcanActivity.searchField(hintText: String) = android.widget.EditText(this)
     compoundDrawablePadding = (12 * dp).toInt()
     setCompoundDrawablesRelative(symbol("search", m3.onSurfaceVariant).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
     // The drawer style, not the Appliance theme, decides the well: the grid drawer's pill is flat in every theme.
-    val housing = getSharedPreferences("looks", android.content.Context.MODE_PRIVATE).getString("drawerStyle", "grid") == "housing"
+    val housing = looks.str("drawerStyle") == "housing"
     background = if (housing) well(28 * dp) else rounded(m3.surfaceHighest, 28 * dp)
 }
 
@@ -371,7 +390,7 @@ fun VulcanActivity.pickList(title: CharSequence, rows: List<Pair<Drawable?, Char
                 setTextColor(m3.onSurface)
                 setHintTextColor(m3.onSurfaceVariant)
                 background = null
-                setPadding((12 * dp).toInt(), 0, 0, 0)
+                setPaddingRelative((12 * dp).toInt(), 0, 0, 0)
                 addTextChangedListener(object : android.text.TextWatcher {
                     override fun afterTextChanged(s: android.text.Editable?) {
                         val q = s.toString().trim()
@@ -396,7 +415,7 @@ fun VulcanActivity.divider() = View(this).apply {
 }
 
 /** A printed legend, Appliance style: small tracked capitals in the secondary ink. */
-fun VulcanActivity.legend(s: String, sp: Float = 11f, color: Int = m3.onSurfaceVariant) = text(s.uppercase(), sp, color, medium = true).apply {
+fun VulcanActivity.legend(s: String, sp: Float = 11f, color: Int = m3.onSurfaceVariant) = text(s.uppercase(java.util.Locale.getDefault()), sp, color, medium = true).apply {
     letterSpacing = 0.1f
 }
 
@@ -410,6 +429,10 @@ fun VulcanActivity.housingFace(color: Int, radius: Float): Drawable = android.gr
     )).apply { cornerRadius = radius },
     rounded(color, maxOf(0f, radius - dp)),
 )).apply { val i = dp.roundToInt(); setLayerInset(1, i, i, i, i) }
+
+/** A settings panel's face (the panels and the nameplate): its corner radius and its resting elevation, in dp. */
+const val PANEL_RADIUS = 24f
+const val PANEL_REST = 2f
 
 /** Raised housing (dock, menus, folder windows): a machined face and a soft shadow under it. */
 fun VulcanActivity.housing(v: View, radius: Float, color: Int = m3.raised) {
@@ -610,6 +633,14 @@ fun VulcanActivity.styleDialog(d: AlertDialog, sheet: Boolean = false) {
         isAllCaps = false
         typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
     }
+    // A list's checked radio or box in the switch-on colour: the dialog theme's colorAccent is fixed (themes.xml), so
+    // a custom accent or "Your colour" didn't reach it. Unreadable on this surface, it falls back to ink, as the buttons.
+    val checked = if (contrast(m3.on, m3.surfaceHigh) >= 3) m3.on else m3.onSurface
+    val tint = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(checked, m3.onSurfaceVariant))
+    d.listView?.setOnHierarchyChangeListener(object : android.view.ViewGroup.OnHierarchyChangeListener {
+        override fun onChildViewAdded(parent: View, child: View) { (child as? android.widget.CheckedTextView)?.checkMarkTintList = tint }
+        override fun onChildViewRemoved(parent: View, child: View) {}
+    })
 }
 
 /** Has TalkBack read this row, the tap target around [toggle], as a switch that is on or off (the Toggle is only drawn). */

@@ -105,6 +105,19 @@ class SettingsActivity : VulcanActivity() {
 
     override fun handleBack() { (panel?.tag as? Runnable)?.run() ?: finish() }
 
+    /**
+     * A permission a setting needs was refused. Once Android stops asking (after the second refusal), the request
+     * returns at once with nothing shown, so the switch looked dead: offer Vulcan's App info, where it can be allowed.
+     */
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        val perm = permissions.firstOrNull() ?: return
+        if (grantResults.firstOrNull() != android.content.pm.PackageManager.PERMISSION_DENIED || shouldShowRequestPermissionRationale(perm)) return
+        dialog().setMessage(R.string.permission_blocked).setNegativeButton(R.string.cancel, null).setPositiveButton(R.string.app_info) { _, _ ->
+            runCatching { startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.fromParts("package", packageName, null))) }
+        }.show()
+    }
+
     /** After a restore, an import or a reset: home starts again from what was stored, and settings closes. */
     fun restartHome() {
         home.recreate()
@@ -139,7 +152,7 @@ fun SettingsActivity.showPage(page: String, scroll: Int = 0, restoring: Boolean 
     var search: ((String) -> Unit)? = null
     when (page) { "" -> search = settingsHome(list); COLORS -> colorsPage(list); BACKUP -> backupPage(list); PERMISSIONS -> permissionsPage(list); TABS_GROUP -> tabsPage(list); DRAWER_FOLDERS -> foldersPage(list); CONTRIBUTORS_PAGE -> contributorsPage(list); else -> settingsCategory(page, list) }
     val scrollView = ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(list) }
-    val title = text(getString(when (page) { "" -> R.string.settings; COLORS -> R.string.custom_colors; BACKUP -> R.string.backup_restore; PERMISSIONS -> R.string.permissions; CONTRIBUTORS_PAGE -> R.string.contributors; else -> GROUP_TITLES.getValue(page) }), 22f).apply { setPadding((8 * dp).toInt(), 0, 0, 0); maxLines = 1 }
+    val title = text(getString(when (page) { "" -> R.string.settings; COLORS -> R.string.custom_colors; BACKUP -> R.string.backup_restore; PERMISSIONS -> R.string.permissions; CONTRIBUTORS_PAGE -> R.string.contributors; else -> GROUP_TITLES.getValue(page) }), 22f).apply { setPaddingRelative((8 * dp).toInt(), 0, 0, 0); maxLines = 1 }
     // Settings home, as One UI: a search button in the bar turns the title into the search field.
     val field = search?.let { onQuery -> EditText(this).apply {
         visibility = View.GONE
@@ -149,7 +162,7 @@ fun SettingsActivity.showPage(page: String, scroll: Int = 0, restoring: Boolean 
         setTextColor(m3.onSurface)
         setHintTextColor(m3.onSurfaceVariant)
         background = null
-        setPadding((8 * dp).toInt(), 0, 0, 0)
+        setPaddingRelative((8 * dp).toInt(), 0, 0, 0)
         imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
         addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) { onQuery(s.toString()); scrollView.scrollTo(0, 0) }
@@ -175,12 +188,13 @@ fun SettingsActivity.showPage(page: String, scroll: Int = 0, restoring: Boolean 
         isClickable = true
         addView(LinearLayout(context).apply {
             gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = (64 * dp).toInt() // not a fixed height: a large font scale would cut the title off
             setPadding((4 * dp).toInt(), 0, (4 * dp).toInt(), 0)
             addView(iconButton("back", getString(R.string.back), m3.onSurface) { back.run() })
             addView(title, LinearLayout.LayoutParams(0, -2, 1f))
             field?.let { addView(it, LinearLayout.LayoutParams(0, -1, 1f)) }
             searchButton?.let { addView(it) }
-        }, LinearLayout.LayoutParams(-1, (64 * dp).toInt()))
+        }, LinearLayout.LayoutParams(-1, -2))
         addView(scrollView, LinearLayout.LayoutParams(-1, 0, 1f))
         tag = back
     }
@@ -207,7 +221,8 @@ fun SettingsActivity.showPage(page: String, scroll: Int = 0, restoring: Boolean 
         }
     })
     // Pages slide; Android's "Remove animations" turns this off along with the system's own transitions.
-    val shift = 32 * dp
+    // From the end side, mirrored in a right-to-left language.
+    val shift = 32 * dp * if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) -1 else 1
     when {
         // The first page comes with the screen, in the system's own animation.
         old == null -> {}
@@ -275,11 +290,11 @@ private val SettingsActivity.versionName get() = packageManager.getPackageInfo(p
 
 /** Rows on one raised face, divided by hairlines, under a printed legend: one panel of the appliance. */
 fun SettingsActivity.panel(list: LinearLayout, title: String?, rows: List<View>) {
-    if (title != null) list.addView(legend(title, 12f).apply { setPadding((32 * dp).toInt(), (20 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt()) })
+    if (title != null) list.addView(legend(title, 12f).apply { setPaddingRelative((32 * dp).toInt(), (20 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt()) })
     list.addView(LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        housing(this, 24 * dp)
-        elevation = 2 * dp
+        housing(this, PANEL_RADIUS * dp)
+        elevation = PANEL_REST * dp
         clipToOutline = true
         setPadding(0, (4 * dp).toInt(), 0, (4 * dp).toInt())
         rows.forEachIndexed { i, row ->
@@ -296,8 +311,8 @@ fun SettingsActivity.panel(list: LinearLayout, title: String?, rows: List<View>)
 /** The rating plate at the top of settings: the name and version, printed on a raised face. */
 private fun SettingsActivity.nameplate() = LinearLayout(this).apply {
     gravity = Gravity.CENTER_VERTICAL
-    housing(this, 24 * dp)
-    elevation = 2 * dp
+    housing(this, PANEL_RADIUS * dp)
+    elevation = PANEL_REST * dp
     setPadding((20 * dp).toInt(), (20 * dp).toInt(), (20 * dp).toInt(), (20 * dp).toInt())
     addView(LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
@@ -305,7 +320,7 @@ private fun SettingsActivity.nameplate() = LinearLayout(this).apply {
             typeface = android.graphics.Typeface.create("sans-serif-light", android.graphics.Typeface.NORMAL)
             letterSpacing = -0.02f
         })
-        addView(legend(getString(R.string.version, versionName), 11f, m3.outline).apply { setPadding(0, (6 * dp).toInt(), 0, 0) })
+        addView(legend(getString(R.string.version, versionName), 11f, m3.onSurfaceVariant).apply { setPadding(0, (6 * dp).toInt(), 0, 0) })
     }, LinearLayout.LayoutParams(0, -2, 1f))
     addView(ImageView(context).apply {
         setImageResource(R.mipmap.ic_launcher)
@@ -389,7 +404,7 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
         "@tabs" -> tabsLink()
         "@folders" -> foldersLink()
         // Not a setting: says how cards come and go, and how to move them.
-        "@nowCards" -> text(getString(R.string.now_cards_info), 14f, m3.onSurfaceVariant).apply { setPadding((16 * dp).toInt(), (12 * dp).toInt(), (24 * dp).toInt(), (12 * dp).toInt()) }
+        "@nowCards" -> text(getString(R.string.now_cards_info), 14f, m3.onSurfaceVariant).apply { setPaddingRelative((16 * dp).toInt(), (12 * dp).toInt(), (24 * dp).toInt(), (12 * dp).toInt()) }
         "@colors" -> listItem(null, getString(R.string.custom_colors),
             resources.getQuantityString(R.plurals.custom_colors_set, looks.colors().size, looks.colors().size)) { showPage(COLORS) }
         else -> byKey[key]?.let(::row) // null: hidden for now (night hours)
@@ -863,7 +878,7 @@ private fun SettingsActivity.permissionsPage(list: LinearLayout) {
         val state = if (p.on) LinearLayout(this).apply {
             gravity = Gravity.CENTER_VERTICAL
             addView(ImageView(context).apply { setImageDrawable(symbol("check", m3.onSurfaceVariant, 18f)) })
-            addView(text(getString(p.onText), 14f, m3.onSurfaceVariant).apply { setPadding((4 * dp).toInt(), 0, 0, 0) })
+            addView(text(getString(p.onText), 14f, m3.onSurfaceVariant).apply { setPaddingRelative((4 * dp).toInt(), 0, 0, 0) })
         } else tonalButton(getString(p.offText), open)
         listItem(symbol(p.icon, m3.onPrimaryContainer), getString(p.title), getString(p.info), trailing = state, tonalIcon = true) { open() }
     })

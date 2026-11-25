@@ -395,19 +395,26 @@ class IconPack(val pkg: String, val res: Resources, val map: Map<String, String>
      * appfilter maps. Icons the pack offers but maps to no app are only in the catalogue.
      */
     val names by lazy {
-        val listed = runCatching {
-            val p = packXml(res, pkg, "drawable")
-            buildList { while (p.next() != XmlPullParser.END_DOCUMENT) if (p.eventType == XmlPullParser.START_TAG && p.name == "item") p.getAttributeValue(null, "drawable")?.let(::add) }
-        }.getOrDefault(emptyList())
+        val listed = ArrayList<String>()
+        runCatching {
+            readPackXml(res, pkg, "drawable") { p ->
+                while (p.next() != XmlPullParser.END_DOCUMENT) if (p.eventType == XmlPullParser.START_TAG && p.name == "item") p.getAttributeValue(null, "drawable")?.let(listed::add)
+            }
+        }
         (map.values + listed).distinct().sorted()
     }
 }
 
-/** An icon pack's res/xml/[name].xml, or assets/[name].xml for packs that ship it there. */
-private fun packXml(res: Resources, pkg: String, name: String): XmlPullParser {
+/**
+ * Runs [read] over an icon pack's res/xml/[name].xml, or assets/[name].xml for packs that ship it there, and closes
+ * it. A malformed tag ends the read but keeps what [read] took before it: one bad entry mustn't drop a whole pack.
+ * Throws only when the file isn't there.
+ */
+private fun readPackXml(res: Resources, pkg: String, name: String, read: (XmlPullParser) -> Unit) {
+    fun safely(p: XmlPullParser) = try { read(p) } catch (e: Exception) { android.util.Log.w("Vulcan", "icon pack $pkg: $name.xml stops early", e) }
     val id = res.getIdentifier(name, "xml", pkg)
-    return if (id != 0) res.getXml(id)
-    else XmlPullParserFactory.newInstance().newPullParser().apply { setInput(res.assets.open("$name.xml"), null) }
+    if (id != 0) res.getXml(id).let { p -> try { safely(p) } finally { p.close() } }
+    else res.assets.open("$name.xml").use { s -> safely(XmlPullParserFactory.newInstance().newPullParser().apply { setInput(s, null) }) }
 }
 
 /**
@@ -420,24 +427,25 @@ fun loadIconPack(context: Context, pkg: String): IconPack? = runCatching {
     val version = context.packageManager.getPackageInfo(pkg, 0).lastUpdateTime
     parsedPacks[pkg]?.takeIf { it.first == version }?.let { return it.second }
     val res = context.packageManager.getResourcesForApplication(pkg)
-    val parser = packXml(res, pkg, "appfilter")
     val map = HashMap<String, String>()
     val back = ArrayList<String>()
     var mask: String? = null
     var upon: String? = null
     var scale = 1f
-    while (parser.next() != XmlPullParser.END_DOCUMENT) {
-        if (parser.eventType != XmlPullParser.START_TAG) continue
-        fun attrs() = (0 until parser.attributeCount).map { parser.getAttributeValue(it) }
-        when (parser.name) {
-            "item" -> {
-                val c = parseComponent(parser.getAttributeValue(null, "component") ?: continue) ?: continue
-                map.putIfAbsent(c, parser.getAttributeValue(null, "drawable") ?: continue)
+    readPackXml(res, pkg, "appfilter") { parser ->
+        while (parser.next() != XmlPullParser.END_DOCUMENT) {
+            if (parser.eventType != XmlPullParser.START_TAG) continue
+            fun attrs() = (0 until parser.attributeCount).map { parser.getAttributeValue(it) }
+            when (parser.name) {
+                "item" -> {
+                    val c = parseComponent(parser.getAttributeValue(null, "component") ?: continue) ?: continue
+                    map.putIfAbsent(c, parser.getAttributeValue(null, "drawable") ?: continue)
+                }
+                "iconback" -> back += attrs()
+                "iconmask" -> mask = attrs().firstOrNull()
+                "iconupon" -> upon = attrs().firstOrNull()
+                "scale" -> scale = parser.getAttributeValue(null, "factor")?.toFloatOrNull() ?: 1f
             }
-            "iconback" -> back += attrs()
-            "iconmask" -> mask = attrs().firstOrNull()
-            "iconupon" -> upon = attrs().firstOrNull()
-            "scale" -> scale = parser.getAttributeValue(null, "factor")?.toFloatOrNull() ?: 1f
         }
     }
     IconPack(pkg, res, map, back, mask, upon, scale).also { parsedPacks[pkg] = version to it }
@@ -507,7 +515,9 @@ class AppCache(context: Context, private val looks: String) {
 
     private fun write(f: File, stamp: String, body: (DataOutputStream) -> Unit) {
         val tmp = File(f.path + ".tmp")
-        runCatching { DataOutputStream(tmp.outputStream().buffered()).use { it.writeUTF(stamp); body(it) }; tmp.renameTo(f) }
+        // A failed write (a full disk) leaves no half-written .tmp behind until the next keepOnly.
+        runCatching { DataOutputStream(tmp.outputStream().buffered()).use { it.writeUTF(stamp); body(it) }; check(tmp.renameTo(f)) }
+            .onFailure { tmp.delete() }
     }
 
     companion object { private val writer = java.util.concurrent.Executors.newSingleThreadExecutor() }
@@ -533,10 +543,6 @@ class Icons(private val context: Context, private val looks: Looks) {
     /** The largest size any surface shows an icon at, in px: every icon is drawn once at this size (see [flat]). */
     private val size = (listOf("iconSize", "dockIconSize", "drawerIconSize").maxOf { looks.int(it) } * context.resources.displayMetrics.density).toInt()
     /**
-     * Everything that shapes an icon here, for [AppCache]: the pack and its version, the options, the size, dark mode
-     * (an icon can have a night variant) and the system's adaptive-icon mask, which a theme can change.
-     */
-    /**
      * Themed icons (Android 13+): an app's monochrome layer in the system's wallpaper colours, light or dark, as the
      * platform's own launcher pairs them. Null when off.
      */
@@ -546,9 +552,14 @@ class Icons(private val context: Context, private val looks: Looks) {
         else context.getColor(android.R.color.system_accent1_100) to context.getColor(android.R.color.system_neutral2_700)
     } else null
 
+    /**
+     * Everything that shapes an icon here, for [AppCache]: the pack and its version, the options, the size, the themed
+     * colours and the system's adaptive-icon mask, which a theme can change. Dark mode only through the themed colours:
+     * with it in, every day/night flip redrew every icon.
+     * ponytail: an app's own night icon variant (rare) shows after its next update; key the cache per mode if one matters.
+     */
     val signature: String = listOf(looks.iconPack, pack?.let { runCatching { context.packageManager.getPackageInfo(it.pkg, 0).lastUpdateTime }.getOrNull() },
         looks.str("shape"), looks.str("reshape"), looks.on("normalize"), looks.on("autogen"), size, themeColors,
-        context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK,
         context.resources.getIdentifier("config_icon_mask", "string", "android").takeIf { it != 0 }?.let { context.resources.getString(it) },
     ).joinToString("|")
 
@@ -635,7 +646,20 @@ class Icons(private val context: Context, private val looks: Looks) {
         return InsetDrawable(icon, inset)
     }
 
+    /**
+     * Item-level custom icons drawn so far, by their custom string: home re-resolves every item on each render, and an
+     * image or pack icon costs a decode. Held for this [Icons], so it already matches the settings that shape them.
+     * ponytail: an "app:" icon whose target app changes keeps the old face until home rebuilds; drop entries on a package change if that shows.
+     */
+    private val customs = android.util.LruCache<String, Drawable>(32)
+
     fun custom(custom: String): Drawable? {
+        if (custom.isEmpty()) return null
+        customs.get(custom)?.let { return it }
+        return customUncached(custom)?.also { customs.put(custom, it) }
+    }
+
+    private fun customUncached(custom: String): Drawable? {
         // A picked image is shaped like a legacy icon, unless the icon opted out (uriraw:) or the setting is off (#92).
         imageIcon(custom)?.let { (uri, reshape) ->
             return image(Uri.parse(uri))?.let { if (reshape && looks.str("reshape") != "off") drawn(reshaped(it)) else flat(it) }

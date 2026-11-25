@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
@@ -62,9 +61,9 @@ fun accessibleActions(v: View, menu: () -> Unit, move: (() -> Unit)? = null) {
 }
 
 /** The icon drawn with an optional drop shadow and notification badge. */
-class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, private val badgeStyle: BadgeStyle) : View(context) {
+class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, val badgeStyle: BadgeStyle) : View(context) {
     var icon = icon
-        set(v) { field = v; shadowBmp = null; invalidate() }
+        set(v) { field = v; invalidate() }
     var badgeCount = 0
         set(v) { field = v; invalidate() }
     var badgeIcon: Drawable? = null
@@ -73,7 +72,6 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
     private val badgeRect = android.graphics.Rect()
     private var badgePath: android.graphics.Path? = null // rebuilt only when the badge moves or resizes
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private var shadowBmp: Bitmap? = null
     /** Blank pixels above and below this image inside its IconView; a badge never draws past them onto a neighbour's label. */
     var roomUp = 0
     var roomDown = 0
@@ -81,19 +79,17 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
     var roomLeft = Int.MAX_VALUE / 2
     var roomRight = Int.MAX_VALUE / 2
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { shadowBmp = null }
-
     override fun onDraw(canvas: Canvas) {
         val s = minOf(width, height)
         val l = (width - s) / 2
         val t = (height - s) / 2
         if (shadow) {
             // A software copy: the alpha of a hardware bitmap can't be read.
-            val bmp = shadowBmp ?: rendered(s, s) { icon.setBounds(0, 0, s, s); icon.draw(it) }.let { r ->
+            val bmp = shadows[icon]?.takeIf { it.first == s }?.second ?: rendered(s, s) { icon.setBounds(0, 0, s, s); icon.draw(it) }.let { r ->
                 if (r.config == Bitmap.Config.HARDWARE) r.copy(Bitmap.Config.ARGB_8888, false).also { r.recycle() } else r
             }.let { b ->
                 // Only the blurred alpha is kept: free the full-colour copy now instead of at some later GC.
-                b.extractAlpha(Paint().apply { maskFilter = BlurMaskFilter(s / 24f, BlurMaskFilter.Blur.NORMAL) }, null).also { shadowBmp = it; b.recycle() }
+                b.extractAlpha(Paint().apply { maskFilter = BlurMaskFilter(s / 24f, BlurMaskFilter.Blur.NORMAL) }, null).also { shadows[icon] = s to it; b.recycle() }
             }
             paint.color = 0x66000000
             canvas.drawBitmap(bmp, l.toFloat(), t + s / 30f, paint)
@@ -125,12 +121,20 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
         paint.color = badgeStyle.color
         canvas.drawPath(path, paint)
         if (badgeStyle.style != "dots") {
-            paint.color = if (Color.luminance(badgeStyle.color) > 0.5f) Color.BLACK else Color.WHITE // readable on a bright badge (#82)
+            paint.color = onColor(badgeStyle.color) // readable on a bright badge (#82), by the same contrast rule as the rest
             paint.textAlign = Paint.Align.CENTER
             paint.textSize = r * 1.2f
             paint.typeface = Typeface.DEFAULT_BOLD
             canvas.drawText(if (badgeCount > 99) "99+" else "$badgeCount", cx, cy - (paint.ascent() + paint.descent()) / 2, paint)
         }
+    }
+
+    private companion object {
+        /**
+         * Each icon's blurred shadow at the size it was last drawn, by the icon itself: icons are shared, so a drawer
+         * view recycled while scrolling finds its new icon's shadow made already. Dropped with the icon. UI thread only.
+         */
+        val shadows = java.util.WeakHashMap<Drawable, Pair<Int, Bitmap>>()
     }
 }
 
@@ -159,7 +163,7 @@ class IconView(context: Context, label: CharSequence, icon: Drawable, style: Ico
             // A little air between icon and label; touching labels look cramped.
             // Side air too, so a label that fills its cell doesn't run into the next one.
             val side = (3 * resources.displayMetrics.density).toInt()
-            if (style.horizontal) setPadding(style.sizePx / 3, 0, 0, 0) else setPadding(side, style.sizePx / 10, side, 0)
+            if (style.horizontal) setPaddingRelative(style.sizePx / 3, 0, 0, 0) else setPadding(side, style.sizePx / 10, side, 0)
             if (style.shadow) setShadowLayer(4f, 0f, 1f, 0xAA000000.toInt())
             setTextColor(style.labelColor)
         }
@@ -171,6 +175,15 @@ class IconView(context: Context, label: CharSequence, icon: Drawable, style: Ico
         clipChildren = false // the badge pokes past the icon's corner
         addView(image, LayoutParams(sizePx, sizePx))
         text?.let { addView(it) }
+    }
+
+    /** TalkBack reads the badge's count too, which is otherwise only pixels. */
+    override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
+        super.onInitializeAccessibilityNodeInfo(info)
+        val n = image.badgeCount
+        if (n <= 0 || image.badgeStyle.style == "off") return
+        val count = resources.getQuantityString(R.plurals.a11y_notifications, n, n)
+        if (android.os.Build.VERSION.SDK_INT >= 30) info.stateDescription = count else info.contentDescription = "$contentDescription, $count"
     }
 
     // A badge on a large icon reaches past its cell too, so the cell's container mustn't clip it either.
