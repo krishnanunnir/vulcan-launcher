@@ -395,19 +395,26 @@ class IconPack(val pkg: String, val res: Resources, val map: Map<String, String>
      * appfilter maps. Icons the pack offers but maps to no app are only in the catalogue.
      */
     val names by lazy {
-        val listed = runCatching {
-            val p = packXml(res, pkg, "drawable")
-            buildList { while (p.next() != XmlPullParser.END_DOCUMENT) if (p.eventType == XmlPullParser.START_TAG && p.name == "item") p.getAttributeValue(null, "drawable")?.let(::add) }
-        }.getOrDefault(emptyList())
+        val listed = ArrayList<String>()
+        runCatching {
+            readPackXml(res, pkg, "drawable") { p ->
+                while (p.next() != XmlPullParser.END_DOCUMENT) if (p.eventType == XmlPullParser.START_TAG && p.name == "item") p.getAttributeValue(null, "drawable")?.let(listed::add)
+            }
+        }
         (map.values + listed).distinct().sorted()
     }
 }
 
-/** An icon pack's res/xml/[name].xml, or assets/[name].xml for packs that ship it there. */
-private fun packXml(res: Resources, pkg: String, name: String): XmlPullParser {
+/**
+ * Runs [read] over an icon pack's res/xml/[name].xml, or assets/[name].xml for packs that ship it there, and closes
+ * it. A malformed tag ends the read but keeps what [read] took before it: one bad entry mustn't drop a whole pack.
+ * Throws only when the file isn't there.
+ */
+private fun readPackXml(res: Resources, pkg: String, name: String, read: (XmlPullParser) -> Unit) {
+    fun safely(p: XmlPullParser) = try { read(p) } catch (e: Exception) { android.util.Log.w("Vulcan", "icon pack $pkg: $name.xml stops early", e) }
     val id = res.getIdentifier(name, "xml", pkg)
-    return if (id != 0) res.getXml(id)
-    else XmlPullParserFactory.newInstance().newPullParser().apply { setInput(res.assets.open("$name.xml"), null) }
+    if (id != 0) res.getXml(id).let { p -> try { safely(p) } finally { p.close() } }
+    else res.assets.open("$name.xml").use { s -> safely(XmlPullParserFactory.newInstance().newPullParser().apply { setInput(s, null) }) }
 }
 
 /**
@@ -420,24 +427,25 @@ fun loadIconPack(context: Context, pkg: String): IconPack? = runCatching {
     val version = context.packageManager.getPackageInfo(pkg, 0).lastUpdateTime
     parsedPacks[pkg]?.takeIf { it.first == version }?.let { return it.second }
     val res = context.packageManager.getResourcesForApplication(pkg)
-    val parser = packXml(res, pkg, "appfilter")
     val map = HashMap<String, String>()
     val back = ArrayList<String>()
     var mask: String? = null
     var upon: String? = null
     var scale = 1f
-    while (parser.next() != XmlPullParser.END_DOCUMENT) {
-        if (parser.eventType != XmlPullParser.START_TAG) continue
-        fun attrs() = (0 until parser.attributeCount).map { parser.getAttributeValue(it) }
-        when (parser.name) {
-            "item" -> {
-                val c = parseComponent(parser.getAttributeValue(null, "component") ?: continue) ?: continue
-                map.putIfAbsent(c, parser.getAttributeValue(null, "drawable") ?: continue)
+    readPackXml(res, pkg, "appfilter") { parser ->
+        while (parser.next() != XmlPullParser.END_DOCUMENT) {
+            if (parser.eventType != XmlPullParser.START_TAG) continue
+            fun attrs() = (0 until parser.attributeCount).map { parser.getAttributeValue(it) }
+            when (parser.name) {
+                "item" -> {
+                    val c = parseComponent(parser.getAttributeValue(null, "component") ?: continue) ?: continue
+                    map.putIfAbsent(c, parser.getAttributeValue(null, "drawable") ?: continue)
+                }
+                "iconback" -> back += attrs()
+                "iconmask" -> mask = attrs().firstOrNull()
+                "iconupon" -> upon = attrs().firstOrNull()
+                "scale" -> scale = parser.getAttributeValue(null, "factor")?.toFloatOrNull() ?: 1f
             }
-            "iconback" -> back += attrs()
-            "iconmask" -> mask = attrs().firstOrNull()
-            "iconupon" -> upon = attrs().firstOrNull()
-            "scale" -> scale = parser.getAttributeValue(null, "factor")?.toFloatOrNull() ?: 1f
         }
     }
     IconPack(pkg, res, map, back, mask, upon, scale).also { parsedPacks[pkg] = version to it }
