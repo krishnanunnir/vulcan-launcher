@@ -4,7 +4,7 @@ name: Auto release
 
 on:
   schedule:
-    - cron: "0 3 * * 1" # Mondays 03:00 UTC: major
+    - cron: "0 3 * * 1" # Mondays 03:00 UTC: major. KIND in the bump step matches this exact string: change both.
     - cron: "0 3 * * 3" # Wednesdays 03:00 UTC: minor
   workflow_dispatch:
     inputs:
