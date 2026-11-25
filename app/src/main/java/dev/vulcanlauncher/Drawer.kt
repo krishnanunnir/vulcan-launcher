@@ -258,7 +258,7 @@ class Drawer(private val a: MainActivity) {
         val market = if (!locked && hasStore && android.os.Build.VERSION.SDK_INT >= 35) a.repo.privateUser?.let { u ->
             runCatching { a.launcherApps.getAppMarketActivityIntent(null, u) }.getOrNull() } else null
         if (market != null) privateBar.addView(a.iconButton("download", a.getString(R.string.private_install)) {
-            runCatching { a.startIntentSender(market, null, 0, 0, 0) }
+            runCatching { a.startIntentSender(market, null, 0, 0, 0) }.onFailure { android.util.Log.w("Vulcan", "can't open the app store in Private Space", it) }
         })
         privateBar.addView(a.iconButton(if (locked) "unlock" else "lock", a.getString(if (locked) R.string.private_unlock else R.string.private_lock)) {
             a.repo.setPrivateLocked(!locked)
@@ -839,6 +839,7 @@ class Drawer(private val a: MainActivity) {
             }
             is Entry.WebE -> a.webSearch(e.query)
             is Entry.ContactE -> runCatching { a.startActivity(Intent(Intent.ACTION_VIEW, e.uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                .onFailure { android.util.Log.w("Vulcan", "can't open contact", it); a.toast(R.string.cant_open, e.name) }
             is Entry.ActionE -> e.run(v)
         }
     }
