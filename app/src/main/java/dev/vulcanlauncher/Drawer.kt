@@ -106,7 +106,7 @@ class Drawer(private val a: MainActivity) {
         class AppE(val app: App) : Entry()
         class FolderE(val group: Group) : Entry()
         class WebE(val query: String) : Entry()
-        class ContactE(val name: String, val photo: String?, val uri: android.net.Uri) : Entry()
+        class ContactE(val name: String, val photo: android.graphics.drawable.Drawable?, val uri: android.net.Uri) : Entry()
         /** A search result that does one thing when tapped: an app shortcut, a settings page, a sum, a timer. */
         class ActionE(val label: String, val icon: android.graphics.drawable.Drawable, val run: (View?) -> Unit) : Entry()
     }
@@ -574,11 +574,20 @@ class Drawer(private val a: MainActivity) {
         }
         entries = if (q.isNotEmpty()) {
             // Best match first; sortedByDescending is stable, so equal matches keep the drawer's order.
-            found.quick(q) + ordered.filter { it.key !in unlisted }.map { it to matchScore(a.repo.label(it), q) }
-                .filter { it.second > 0 }.sortedByDescending { it.second }.map { Entry.AppE(it.first) } +
-                found.shortcutHits(q, unlisted, iconStyle.sizePx) + found.settingsHits(q) +
-                found.contacts(q) + if (a.looks.on("webSearch")) listOf(Entry.WebE(q)) else emptyList()
-        } else entriesOf(tab)
+            val apps = found.quick(q) + ordered.filter { it.key !in unlisted }.map { it to matchScore(a.repo.label(it), q) }
+                .filter { it.second > 0 }.sortedByDescending { it.second }.map { Entry.AppE(it.first) }
+            val settings = found.settingsHits(q)
+            val web = if (a.looks.on("webSearch")) listOf(Entry.WebE(q)) else emptyList()
+            // Apps show at once; shortcuts and contacts join them when the worker has them, if no key came since.
+            val shown = a.repo.apps.values.filter { it.key !in unlisted }.map { it.pkg to it.info.user }.toSet()
+            found.later(q, shown, iconStyle.sizePx) { hits, people ->
+                if (hits.isEmpty() && people.isEmpty()) return@later
+                entries = apps + hits + settings + people + web
+                empty.visibility = View.GONE
+                if (styleName == "pages") buildPages() else adapter.notifyDataSetChanged()
+            }
+            apps + settings + web
+        } else { found.cancel(); entriesOf(tab) }
         // As Nova: the row sits above the tabs and stays whichever tab is open.
         buildFrequent(if (q.isEmpty() && a.looks.on("frequent"))
             frequentApps(a.store.strings("favourites").toList(), a.repo.apps.keys.associateWith { launches.optInt(it) },
@@ -788,9 +797,7 @@ class Drawer(private val a: MainActivity) {
         }
         // Short label so the query survives the one-line ellipsis; the globe says "web".
         is Entry.WebE -> IconView(a, a.getString(R.string.search_web_for, e.query),GlyphIcon(a.m3.primaryContainer, a.m3.onPrimaryContainer, symbol = "globe"), iconStyle, a.badgeStyle(), "")
-        is Entry.ContactE -> IconView(a, e.name, e.photo?.let { p ->
-            runCatching { a.contentResolver.openInputStream(android.net.Uri.parse(p))!!.use { android.graphics.drawable.BitmapDrawable(a.resources, android.graphics.BitmapFactory.decodeStream(it)) } }.getOrNull()
-        } ?: GlyphIcon(a.m3.primaryContainer, a.m3.onPrimaryContainer, text = e.name.take(1).uppercase()), iconStyle, a.badgeStyle(), "")
+        is Entry.ContactE -> IconView(a, e.name, e.photo ?: GlyphIcon(a.m3.primaryContainer, a.m3.onPrimaryContainer, text = e.name.take(1).uppercase()), iconStyle, a.badgeStyle(), "")
         is Entry.ActionE -> IconView(a, e.label, e.icon, iconStyle, a.badgeStyle(), "")
     }
 

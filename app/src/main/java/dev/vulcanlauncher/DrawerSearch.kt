@@ -14,21 +14,49 @@ private val SETTINGS_PAGES = listOf(R.string.page_wifi to Settings.ACTION_WIFI_S
     R.string.page_date to Settings.ACTION_DATE_SETTINGS, R.string.page_developer to Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS,
     R.string.page_about to Settings.ACTION_DEVICE_INFO_SETTINGS)
 
+/** One worker for the whole process: a drawer is built again on every rebuild, and a thread each would outlive it. */
+private val searchWorker = java.util.concurrent.Executors.newSingleThreadExecutor()
+
 /** What drawer search finds besides apps: contacts, a sum or a timer, app shortcuts and Android's settings pages. */
 internal class DrawerSearch(private val a: MainActivity) {
-    /** Up to four matching contacts, when contact search is on and the user granted access. */
-    fun contacts(q: String): List<Drawer.Entry> {
+    /** Bumped on every query: work for an older one is skipped, and its results are dropped. */
+    @Volatile private var asked = 0
+
+    /** Drops what [later] has under way; the next results come from a new query. */
+    fun cancel() { asked++ }
+
+    /**
+     * The slow sources (shortcuts, contacts and their icons: binder calls, a provider query and decoding) off the UI
+     * thread, so each key only waits for the apps. [done] gets shortcut hits and contacts on the UI thread, unless
+     * another key came first.
+     */
+    fun later(q: String, shown: Set<Pair<String, android.os.UserHandle>>, iconPx: Int, done: (List<Drawer.Entry>, List<Drawer.Entry>) -> Unit) {
+        val mine = ++asked
+        searchWorker.execute {
+            if (asked != mine) return@execute // typed on meanwhile: this query's answer would be dropped anyway
+            val hits = runCatching { shortcutHits(q, shown, iconPx) }.getOrDefault(emptyList())
+            val people = contacts(q)
+            a.runOnUiThread { if (asked == mine) done(hits, people) }
+        }
+    }
+
+    /** Up to four matching contacts, when contact search is on and the user granted access. Off the UI thread. */
+    private fun contacts(q: String): List<Drawer.Entry> {
         if (!a.looks.on("contactSearch") || !a.granted(android.Manifest.permission.READ_CONTACTS)) return emptyList()
         val out = ArrayList<Drawer.Entry>()
         runCatching {
             a.contentResolver.query(android.net.Uri.withAppendedPath(android.provider.ContactsContract.Contacts.CONTENT_FILTER_URI, android.net.Uri.encode(q)),
                 arrayOf("_id", "lookup", "display_name", "photo_thumb_uri"), null, null, null)?.use { c ->
-                while (c.moveToNext() && out.size < 4) out += Drawer.Entry.ContactE(c.getString(2) ?: "", c.getString(3),
+                while (c.moveToNext() && out.size < 4) out += Drawer.Entry.ContactE(c.getString(2) ?: "", photo(c.getString(3)),
                     android.provider.ContactsContract.Contacts.getLookupUri(c.getLong(0), c.getString(1)))
             }
         }
         return out
     }
+
+    private fun photo(uri: String?) = uri?.let { p -> runCatching {
+        a.contentResolver.openInputStream(android.net.Uri.parse(p))!!.use { android.graphics.drawable.BitmapDrawable(a.resources, android.graphics.BitmapFactory.decodeStream(it)) }
+    }.getOrNull() }
 
     private fun glyph(symbol: String? = null, text: String? = null) = GlyphIcon(a.m3.primaryContainer, a.m3.onPrimaryContainer, text, symbol)
 
@@ -57,13 +85,12 @@ internal class DrawerSearch(private val a: MainActivity) {
     }
 
     /** Every app's shortcuts, read on the first search after the drawer opens and dropped when it closes. */
-    private var shortcuts: List<android.content.pm.ShortcutInfo>? = null
+    @Volatile private var shortcuts: List<android.content.pm.ShortcutInfo>? = null
     fun forget() { shortcuts = null }
 
-    /** Up to four app shortcuts ("New tab", "Compose") whose names match, from apps the drawer shows. */
-    fun shortcutHits(q: String, unlisted: Set<String>, iconPx: Int): List<Drawer.Entry> {
+    /** Up to four app shortcuts ("New tab", "Compose") whose names match, from the apps the drawer [shown]. Off the UI thread. */
+    private fun shortcutHits(q: String, shown: Set<Pair<String, android.os.UserHandle>>, iconPx: Int): List<Drawer.Entry> {
         if (q.length < 3) return emptyList()
-        val shown = a.repo.apps.values.filter { it.key !in unlisted }.map { it.pkg to it.info.user }.toSet()
         val all = shortcuts ?: a.repo.allShortcuts().also { shortcuts = it }
         return all.filter { (it.`package` to it.userHandle) in shown }.map { it to matchScore(it.shortLabel?.toString() ?: "", q) }
             .filter { it.second >= 2 }.sortedByDescending { it.second }.take(4).map { (s, _) ->
