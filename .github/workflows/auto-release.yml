@@ -53,10 +53,10 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         with: { distribution: temurin, java-version: "21" }
 
-      # Before anything is tagged: a main that fails its tests isn't released.
-      - name: Unit tests
+      # Before anything is tagged: a main that fails its tests or lint, or whose device checks don't compile, isn't released.
+      - name: Unit tests, lint, device checks compile
         if: steps.check.outputs.skip != 'true'
-        run: ./gradlew --no-daemon testDebugUnitTest
+        run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebugAndroidTest
 
       # Local only: the commit and tag are pushed once the APK is built, so a failed build leaves no tag without a release.
       # Heal mode (see above) skips the bump, commit and tag: the tag already exists and is published as it is.
