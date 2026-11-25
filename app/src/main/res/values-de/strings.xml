@@ -416,6 +416,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="padding_top">Oben</string>
     <string name="padding_bottom">Unten</string>
     <string name="set_widgetRadius">Widget-Eckenradius</string>
+    <string name="set_widgetPadding">Widget-Innenabstand</string>
     <string name="set_wiggle">Symbole beim Ziehen und Ablegen wackeln</string>
     <string name="settings">Einstellungen</string>
     <string name="setup_needed">Einmalige Einrichtung erforderlich</string>
@@ -707,7 +708,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="drag_to_reorder">Zum Umsortieren ziehen</string>
     <string name="tab_all_hide">Diesen Tab ausblenden</string>
     <string name="tab_all_hide_info">Apps, die in keinem anderen Tab sind, lassen sich trotzdem über die Suche finden</string>
-    <string name="tab_all_needs_tab">Füge zuerst einen Tab hinzu: Die App-Übersicht braucht mindestens einen Tab</string>
+    <string name="tab_all_needs_tab">Füge mindestens einen Tab hinzu</string>
     <string name="move_apps_title">Hierher verschieben?</string>
     <string name="move_apps_move">Hierher verschieben</string>
     <string name="move_apps_keep">In beiden Gruppen behalten</string>

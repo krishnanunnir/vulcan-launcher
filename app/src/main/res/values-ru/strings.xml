@@ -416,6 +416,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="padding_top">Сверху</string>
     <string name="padding_bottom">Снизу</string>
     <string name="set_widgetRadius">Радиус углов виджетов</string>
+    <string name="set_widgetPadding">Отступы виджетов</string>
     <string name="set_wiggle">Покачивать значки при перетаскивании</string>
     <string name="settings">Настройки</string>
     <string name="setup_needed">Требуется однократная настройка</string>
@@ -740,7 +741,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="drag_to_reorder">Перетащите, чтобы изменить порядок</string>
     <string name="tab_all_hide">Скрыть эту вкладку</string>
     <string name="tab_all_hide_info">Приложения, которых нет в других вкладках, всё равно можно найти через поиск</string>
-    <string name="tab_all_needs_tab">Сначала добавьте вкладку: в меню приложений должна быть хотя бы одна вкладка</string>
+    <string name="tab_all_needs_tab">Добавьте хотя бы одну вкладку</string>
     <string name="move_apps_title">Переместить их сюда?</string>
     <string name="move_apps_move">Переместить сюда</string>
     <string name="move_apps_keep">Оставить в обеих группах</string>
