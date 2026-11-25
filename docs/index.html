@@ -22,139 +22,168 @@
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
+<meta name="theme-color" content="#FFFFFF">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600&family=Geist:wght@400;500&family=Geist+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;800&display=swap" rel="stylesheet">
 <style>
+  /* The paint chart, shared with the designer: white card, ink, warm card grey; colour only comes from the six looks.
+     The page's accent is the Fresh install chip, the look a new install starts with. */
   :root {
-    color-scheme: dark;
-    --char: #2A2A28; --deep: #1A1A18; --cream: #E9E7E2; --sun: #E8721C;
-    --mute: #BDBAB1; --mute-dark: #55534E; --line: rgba(233,231,226,.14);
-    --display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
-    --font: "Geist", ui-sans-serif, system-ui, sans-serif;
-    --mono: "Geist Mono", ui-monospace, monospace;
+    color-scheme: light;
+    --paper: #FFFFFF; --card: #F1EEE8; --card-2: #E6E2DA; --rule: #DDD9D0; --ink: #15171A; --ink-2: #555A61;
+    --acc: #2B50E8; --on-acc: #FFFFFF; --key: inset 0 0 0 1.5px var(--ink);
+    --font: "Figtree", ui-sans-serif, system-ui, sans-serif; --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --out: cubic-bezier(.16, 1, .3, 1);
   }
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; scroll-padding-top: 24px; }
-  body { margin: 0; background: var(--char); color: var(--cream); font: 400 16px/1.6 var(--font); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
-  ::selection { background: var(--sun); color: var(--deep); }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.55 var(--font); -webkit-font-smoothing: antialiased; }
+  ::selection { background: var(--acc); color: var(--on-acc); }
   a { color: inherit; text-underline-offset: .2em; text-decoration-thickness: 1px; }
-  a:focus-visible { outline: 2px solid var(--sun); outline-offset: 3px; }
-  .on-sun a:focus-visible, .on-cream a:focus-visible { outline-color: var(--deep); }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   img { display: block; max-width: 100%; height: auto; }
   .wrap { max-width: 1200px; margin: 0 auto; padding: 0 32px; }
-  @media (max-width: 560px) { .wrap { padding: 0 20px; } }
-  h1, h2 { font-family: var(--display); font-weight: 600; letter-spacing: -.035em; margin: 0; }
-  h2 { font-size: clamp(34px, 5vw, 64px); line-height: 1; max-width: 14ch; margin-bottom: 16px; }
-  .intro { color: var(--mute); font-size: 18px; max-width: 54ch; margin: 0 0 48px; }
-  .mono { font: 400 14px/1.4 var(--mono); }
-  section { padding: 104px 0; }
-  @media (max-width: 560px) { section { padding: 72px 0; } }
-  .deep { background: var(--deep); }
+  h1, h2 { font-weight: 800; letter-spacing: -.035em; margin: 0; text-wrap: balance; }
+  h2 { font-size: clamp(32px, 4.6vw, 58px); line-height: 1.02; max-width: 15ch; margin-bottom: 16px; }
+  .intro { color: var(--ink-2); font-size: 19px; max-width: 54ch; margin: 0 0 44px; }
+  section { padding: 104px 0; border-top: 1px solid var(--rule); }
+  .well { background: var(--card); }
 
-  header.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 24px; min-height: 72px; }
-  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 600 20px/1 var(--display); min-height: 44px; }
-  nav { display: flex; flex-wrap: wrap; align-items: center; gap: 0 28px; font-size: 15px; }
-  nav a { color: var(--mute); text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
-  nav a:hover { color: var(--cream); }
+  header.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 24px; min-height: 68px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 800; font-size: 19px; letter-spacing: -.02em; min-height: 44px; }
+  .brand img { width: 30px; height: 30px; border-radius: 8px; }
+  nav { display: flex; flex-wrap: wrap; align-items: center; gap: 0 26px; font-size: 16px; font-weight: 500; }
+  nav a { text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
+  nav a:hover { text-decoration: underline; }
 
-  .pill { display: inline-flex; align-items: center; min-height: 52px; padding: 0 28px; border-radius: 999px; text-decoration: none; font-weight: 500; border: 1.5px solid currentColor; transition: transform .15s; }
+  .pill { display: inline-flex; align-items: center; min-height: 52px; padding: 0 26px; border-radius: 999px; text-decoration: none; font-weight: 600; box-shadow: var(--key); transition: background .2s, transform .15s; }
+  .pill:hover { background: var(--card); }
   .pill:active { transform: translateY(1px); }
-  .pill.sun { background: var(--sun); color: var(--deep); border-color: var(--sun); }
-  .pill.ink { background: var(--deep); color: var(--cream); border-color: var(--deep); }
+  .pill.go { background: var(--acc); color: var(--on-acc); }
+  .pill.go:hover { background: #2344CC; }
   .actions { display: flex; flex-wrap: wrap; gap: 12px; }
 
-  /* Hero: the logo at page size. A flat half-sun on a cream horizon, the phone standing in front. */
-  .hero { text-align: center; padding: 64px 24px 0; }
-  .hero h1 { font-size: clamp(44px, 7.6vw, 104px); line-height: .98; max-width: 12ch; margin: 0 auto 24px; }
-  .hero .lede { font-size: clamp(17px, 1.8vw, 20px); color: var(--mute); max-width: 44ch; margin: 0 auto 36px; }
-  .hero .actions { justify-content: center; margin-bottom: 72px; }
-  .dusk { display: grid; justify-items: center; align-items: end; }
-  .dusk > * { grid-area: 1 / 1; }
-  .halfsun { width: min(980px, 92vw); aspect-ratio: 2 / 1; border-radius: 9999px 9999px 0 0; background: var(--sun); }
-  .dusk img { position: relative; width: clamp(190px, 24vw, 300px); border-radius: 36px 36px 0 0; border: 6px solid var(--deep); border-bottom: 0; }
-  .horizon { height: 14px; background: var(--cream); }
+  /* Headline left, pitch and buttons right, so the chart below starts high enough to show whole phones. */
+  .hero { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); align-items: end; gap: 24px 56px; padding-top: clamp(28px, 4.4vw, 56px); padding-bottom: clamp(32px, 4vw, 48px); }
+  .hero h1 { font-size: clamp(44px, 6.3vw, 88px); line-height: .96; max-width: 13ch; }
+  .hero .lede { font-size: clamp(18px, 1.5vw, 20px); color: var(--ink-2); max-width: 46ch; margin: 0 0 24px; }
 
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 40px 48px; padding-top: 72px; padding-bottom: 72px; }
-  .stats b { display: block; font: 600 72px/1 var(--display); letter-spacing: -.03em; margin-bottom: 12px; }
-  .stats div:first-child b { color: var(--sun); }
-  .stats strong { display: block; font-weight: 500; }
-  .stats span { color: var(--mute); font-size: 15px; }
+  /* The chart: six looks, edge to edge, each with its phone standing on the chip. */
+  .chart { display: grid; grid-template-columns: repeat(6, 1fr); overflow: hidden; }
+  .chip { position: relative; display: flex; flex-direction: column; padding: 28px clamp(14px, 1.6vw, 24px) 26px; background: var(--chip); color: var(--on-chip); text-decoration: none; }
+  .chip img { width: min(100%, 176px); margin: 0 auto 26px; border: 5px solid #0E0F11; border-radius: 13% / 6%; box-shadow: 0 22px 34px -20px rgba(21,23,26,.6); transition: transform .5s var(--out); }
+  .chip b { font-size: clamp(16px, 1.5vw, 21px); font-weight: 800; letter-spacing: -.02em; line-height: 1.15; margin-top: auto; }
+  .chip small { font-size: 14px; line-height: 1.3; margin-top: 2px; }
+  .chip::after { content: ""; position: absolute; inset: auto 0 0; height: 8px; background: var(--ink); transform: scaleY(0); transform-origin: bottom; transition: transform .35s var(--out); }
+  .chip[style*="#111315"]::after { background: #FFFFFF; }
+  .chip:hover::after, .chip:focus-visible::after { transform: none; }
+  .chip:hover img { transform: translateY(-8px); }
+  .chip:focus-visible { outline-offset: -5px; outline-color: var(--on-chip); }
+  .chart-note { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; padding-top: 16px; padding-bottom: 16px; color: var(--ink-2); font-size: 15px; }
+  .chart-note a { color: var(--ink); font-weight: 600; }
+
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--rule); }
+  .stats div { padding: 36px 32px 40px 0; }
+  .stats div + div { padding-left: 32px; border-left: 1px solid var(--rule); }
+  .stats b { display: block; font-size: clamp(44px, 5.4vw, 68px); font-weight: 800; line-height: 1; letter-spacing: -.035em; margin-bottom: 12px; }
+  .stats strong { display: block; font-weight: 600; }
+  .stats span { color: var(--ink-2); font-size: 16px; }
 
   .bars { display: grid; gap: 28px; }
-  .bars p { display: flex; justify-content: space-between; gap: 16px; margin: 0 0 10px; font-weight: 500; }
-  .bars p span { font: 400 14px/1.6 var(--mono); color: var(--mute); }
-  .bars i { display: block; height: 44px; border-radius: 6px; background: var(--mute-dark); }
-  .bars .v, .bars .v span { color: var(--sun); }
-  .bars .v + i { width: 1.44%; min-width: 6px; border-radius: 3px; background: var(--sun); }
+  .bars p { display: flex; justify-content: space-between; gap: 16px; margin: 0 0 10px; font-weight: 600; }
+  .bars p span { font-weight: 500; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .bars i { display: block; height: 44px; background: var(--card-2); }
+  .bars .v + i { width: 1.44%; min-width: 6px; background: var(--acc); }
 
   .privacy { display: grid; grid-template-columns: .9fr 1.1fr; gap: 48px; align-items: start; }
-  .panel { border: 1px solid var(--line); border-radius: 20px; }
-  .row { display: grid; grid-template-columns: 1fr auto; gap: 4px 20px; padding: 18px 22px; align-items: baseline; }
-  .row + .row { border-top: 1px solid var(--line); }
-  .row b { font-weight: 500; }
-  .row .when { font: 400 12px/1.4 var(--mono); color: var(--mute); white-space: nowrap; }
-  .row p { grid-column: 1 / -1; margin: 0; color: var(--mute); font-size: 15px; }
-  @media (max-width: 860px) { .privacy { grid-template-columns: 1fr; } }
-  @media (max-width: 560px) { .row { grid-template-columns: 1fr; } .row .when { white-space: normal; } }
+  .panel { background: var(--paper); border-radius: 16px; padding: 4px 24px; }
+  .row { display: grid; grid-template-columns: 1fr auto; gap: 4px 20px; padding: 18px 0; align-items: baseline; }
+  .row + .row { border-top: 1px solid var(--rule); }
+  .row b { font-weight: 600; }
+  .row .when { font-size: 14px; font-weight: 500; color: var(--ink-2); white-space: nowrap; }
+  .row p { grid-column: 1 / -1; margin: 0; color: var(--ink-2); font-size: 16px; }
 
-  .compare-wrap { border: 1px solid var(--line); border-radius: 20px; overflow: hidden; }
-  .compare { width: 100%; border-collapse: collapse; font-size: 15px; }
-  .compare th, .compare td { text-align: left; vertical-align: top; padding: 16px 22px; }
-  .compare thead th { font: 400 12px/1.4 var(--mono); color: var(--mute); background: rgba(233,231,226,.04); }
-  .compare tbody tr { border-top: 1px solid var(--line); }
-  .compare tbody th { font-weight: 500; width: 22%; }
-  .compare td { color: var(--mute); width: 46%; }
-  .compare td.v { color: var(--cream); width: 32%; }
-  .note { color: var(--mute); font-size: 14px; max-width: 70ch; margin: 18px 0 0; }
-  @media (max-width: 700px) {
-    .compare thead { display: none; }
-    .compare tr, .compare th, .compare td { display: block; width: auto !important; }
-    .compare tbody th { padding: 18px 18px 6px; }
-    .compare td { padding: 4px 18px 6px; }
-    .compare td.v { padding-bottom: 18px; }
-    .compare td::before { content: attr(data-label); display: block; font: 400 11px/1.4 var(--mono); color: var(--mute); margin-bottom: 2px; }
-  }
+  .compare { width: 100%; border-collapse: collapse; font-size: 16px; }
+  .compare th, .compare td { text-align: left; vertical-align: top; padding: 16px 20px 16px 0; }
+  .compare thead th { font-size: 14px; font-weight: 600; color: var(--ink-2); border-bottom: 1.5px solid var(--ink); padding-bottom: 10px; }
+  .compare tbody tr { border-bottom: 1px solid var(--rule); }
+  .compare tbody th { font-weight: 600; width: 22%; }
+  .compare td { color: var(--ink-2); width: 46%; }
+  .compare td.v { color: var(--ink); font-weight: 600; width: 32%; padding-right: 0; }
+  .note { color: var(--ink-2); font-size: 15px; max-width: 70ch; margin: 20px 0 0; }
 
   .steps { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; counter-reset: s; padding: 0; margin: 0; list-style: none; }
-  .steps li { padding: 24px; counter-increment: s; color: var(--mute); border: 1px solid var(--line); border-radius: 20px; }
-  .steps li::before { content: "0" counter(s); display: block; margin-bottom: 16px; font: 600 28px/1 var(--display); color: var(--sun); }
-  .steps strong { font-weight: 500; color: var(--cream); }
-  @media (max-width: 700px) { .steps { grid-template-columns: 1fr; } }
+  .steps li { padding: 24px 26px 28px; counter-increment: s; color: var(--ink-2); background: var(--paper); border-radius: 16px; }
+  .steps li::before { content: counter(s); display: grid; place-items: center; width: 34px; height: 34px; margin-bottom: 16px; border-radius: 50%; background: var(--ink); color: var(--paper); font-weight: 800; }
+  .steps strong { font-weight: 600; color: var(--ink); }
 
-  .on-cream { background: var(--cream); color: var(--deep); }
   .split { display: flex; flex-wrap: wrap; align-items: center; gap: 56px 80px; }
   .shots { flex: 1 1 360px; min-width: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  .shots img { width: 100%; border-radius: 26px; border: 5px solid var(--deep); }
+  .shots img { width: 100%; border-radius: 26px; border: 5px solid #0E0F11; }
   .shots img + img { margin-top: 64px; }
   .split > div:last-child { flex: 1 1 420px; min-width: 0; }
-  .features { margin: 20px 0 0; display: grid; gap: 20px; font-size: 17px; }
-  .features dt { font-weight: 500; }
-  .features dd { margin: 0; color: var(--mute-dark); }
+  .features { margin: 24px 0 0; display: grid; gap: 0; }
+  .features div { padding: 16px 0; border-top: 1px solid var(--rule); }
+  .features dt { font-weight: 600; }
+  .features dd { margin: 0; color: var(--ink-2); }
 
-  .on-sun { background: var(--sun); color: var(--deep); text-align: center; padding: 96px 0; }
-  .on-sun h2 { font-size: clamp(36px, 5.6vw, 76px); line-height: .98; max-width: none; margin-bottom: 16px; }
-  .on-sun p { max-width: 46ch; margin: 0 auto 32px; }
-  .on-sun .actions { justify-content: center; }
+  .close { background: var(--acc); color: var(--on-acc); padding: 96px 0; border-top: 0; }
+  .close h2 { font-size: clamp(38px, 5.8vw, 80px); line-height: .98; max-width: none; margin-bottom: 14px; }
+  .close p { max-width: 46ch; margin: 0 0 30px; font-size: 19px; }
+  .close ::selection { background: #FFFFFF; color: var(--ink); }
+  .close :focus-visible { outline-color: #FFFFFF; }
+  .close .pill { box-shadow: inset 0 0 0 1.5px #FFFFFF; }
+  .close .pill:hover { background: rgba(255,255,255,.14); }
+  .close .pill.paper { background: var(--paper); color: var(--ink); box-shadow: var(--key); }
+  .close .pill.paper:hover { background: var(--card); }
 
-  footer { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between; padding-top: 32px; padding-bottom: 48px; color: var(--mute); font-size: 14px; }
+  footer { display: flex; flex-wrap: wrap; gap: 8px 28px; justify-content: space-between; padding-top: 28px; padding-bottom: 44px; color: var(--ink-2); font-size: 15px; }
+  footer a { display: inline-block; padding: 8px 0; }
 
+  @media (max-width: 960px) {
+    /* The chart becomes a row to swipe; the next chip always shows at the edge. */
+    .chart { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+    .chip { flex: 0 0 min(46vw, 230px); scroll-snap-align: start; }
+  }
+  @media (max-width: 1000px) { .hero { grid-template-columns: 1fr; } .hero .lede { margin-bottom: 26px; } }
+  @media (max-width: 860px) { .privacy { grid-template-columns: 1fr; } }
+  @media (max-width: 700px) {
+    section { padding: 72px 0; }
+    .stats { grid-template-columns: 1fr; }
+    .stats div, .stats div + div { padding: 26px 0; border-left: 0; }
+    .stats div + div { border-top: 1px solid var(--rule); }
+    .steps { grid-template-columns: 1fr; }
+    .compare thead { display: none; }
+    .compare tr, .compare th, .compare td { display: block; width: auto !important; }
+    .compare tbody th { padding: 18px 0 6px; }
+    .compare td { padding: 4px 0 6px; }
+    .compare td.v { padding-bottom: 18px; }
+    .compare td::before { content: attr(data-label); display: block; font-size: 13px; font-weight: 600; color: var(--ink-2); margin-bottom: 2px; }
+  }
+  @media (max-width: 560px) {
+    .wrap { padding-inline: 20px; }
+    nav .jump { display: none; } /* the page is one scroll on a phone; keep the two links that leave it */
+    .row { grid-template-columns: 1fr; } .row .when { white-space: normal; }
+    .actions .pill { flex: 1 1 100%; justify-content: center; }
+    .shots img + img { margin-top: 40px; }
+  }
   @media (prefers-reduced-motion: no-preference) {
-    .halfsun { animation: rise 1.2s cubic-bezier(.16,1,.3,1) both; transform-origin: bottom; }
-    @keyframes rise { from { transform: translateY(40%); } }
-    .dusk { overflow: hidden; }
+    /* The one entrance: the six phones settle onto their chips, left to right. */
+    .chip img { animation: settle .9s var(--out) backwards; animation-delay: calc(var(--i) * 70ms); }
+    @keyframes settle { from { transform: translateY(46px); } }
   }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
-    <a class="brand" href="#"><svg aria-hidden="true" width="30" height="22" viewBox="28 32 52 38"><path fill="#E8721C" d="M30.08,58.44 A23.92,23.92 0 0 1 77.92,58.44 Z"/><path fill="none" stroke="#E9E7E2" stroke-width="5.06" stroke-linecap="round" d="M31.92,66.72 H76.08"/></svg>Vulcan</a>
+    <a class="brand" href="#"><img src="icon.png" width="30" height="30" alt="">Vulcan</a>
     <nav>
-      <a href="#size">Size</a>
-      <a href="#compare">Vs Nova</a>
-      <a href="#nova">From Nova</a>
-      <a href="#features">Features</a>
+      <a class="jump" href="#size">Size</a>
+      <a class="jump" href="#compare">Vs Nova</a>
+      <a class="jump" href="#nova">From Nova</a>
+      <a class="jump" href="#features">Features</a>
       <a href="design/">Designer</a>
       <a href="https://github.com/krishnanunnir/vulcan-launcher">GitHub</a>
     </nav>
@@ -162,27 +191,35 @@
 </div>
 
 <main>
-  <div class="hero">
+  <div class="wrap hero">
     <h1>A full launcher in half a megabyte.</h1>
+    <div>
     <p class="lede">Grids, gestures, icon packs, widgets and smart search. No libraries. No internet access.</p>
     <div class="actions">
-      <a class="pill sun" href="https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk">Download · 0.5 MB</a>
+      <a class="pill go" href="https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk">Download · 0.5 MB</a>
       <a class="pill" href="https://f-droid.org/packages/dev.vulcanlauncher/">Get it on F-Droid</a>
       <a class="pill" href="design/">Design your home screen</a>
     </div>
-    <div class="dusk">
-      <div class="halfsun"></div>
-      <img src="screenshots/home.jpg" width="540" height="1170" alt="Vulcan home screen: a dusk wallpaper, a few apps, a five-app dock and a search bar">
     </div>
   </div>
-  <div class="horizon"></div>
 
-  <div class="deep">
-    <div class="wrap stats">
-      <div><b>0.5 MB</b><strong>The whole download</strong><span>Smaller than a single photo from your camera.</span></div>
-      <div><b>0</b><strong>Third-party libraries</strong><span>Built on Android's own APIs and nothing else.</span></div>
-      <div><b>0</b><strong>Network permissions</strong><span>Nothing it does can leave your phone.</span></div>
-    </div>
+  <div class="chart" aria-label="Six starting looks">
+      <a class="chip" href="design/" style="--i:0;--chip:#2B50E8;--on-chip:#FFFFFF"><img src="screenshots/look-fresh-install.webp" width="540" height="1170" alt="Fresh install look: a cobalt dawn wallpaper, labelled icons and a search bar under the dock"><b>Fresh install</b><small>Vulcan defaults</small></a>
+      <a class="chip" href="design/" style="--i:1;--chip:#E3DFD6;--on-chip:#15171A"><img src="screenshots/look-appliance.webp" width="540" height="1170" alt="Appliance look: a warm stone wallpaper and a dock in a framed panel"><b>Appliance</b><small>Framed panels</small></a>
+      <a class="chip" href="design/" style="--i:2;--chip:#9CBCAE;--on-chip:#15171A"><img src="screenshots/look-calm.webp" width="540" height="1170" alt="Calm look: a sage wallpaper with round icons and no labels"><b>Calm</b><small>Unlabelled icons</small></a>
+      <a class="chip" href="design/" style="--i:3;--chip:#C7B6F2;--on-chip:#15171A"><img src="screenshots/look-samsung-like.webp" width="540" height="1170" alt="Samsung-like look: a lilac dusk wallpaper with squircle icons" loading="lazy"><b>Samsung-like</b><small>Paged app drawer</small></a>
+      <a class="chip" href="design/" style="--i:4;--chip:#111315;--on-chip:#FFFFFF"><img src="screenshots/look-amoled.webp" width="540" height="1170" alt="AMOLED look: a black wallpaper with a crescent moon and monochrome icons" loading="lazy"><b>AMOLED</b><small>Black panels</small></a>
+      <a class="chip" href="design/" style="--i:5;--chip:#E4572E;--on-chip:#15171A"><img src="screenshots/look-big-and-clear.webp" width="540" height="1170" alt="Big and clear look: a sunset wallpaper with large icons and large labels" loading="lazy"><b>Big and clear</b><small>Large icons and text</small></a>
+  </div>
+  <div class="wrap chart-note">
+    <span>Six starting looks, drawn by the designer. App icons are approximations.</span>
+    <a href="design/">Pick one and tune it in the designer</a>
+  </div>
+
+  <div class="wrap stats">
+    <div><b>0.5 MB</b><strong>The whole download</strong><span>Smaller than a single photo from your camera.</span></div>
+    <div><b>0</b><strong>Third-party libraries</strong><span>Built on Android's own APIs and nothing else.</span></div>
+    <div><b>0</b><strong>Network permissions</strong><span>Nothing it does can leave your phone.</span></div>
   </div>
 
   <section id="size">
@@ -196,7 +233,7 @@
     </div>
   </section>
 
-  <section id="privacy" class="deep">
+  <section id="privacy" class="well">
     <div class="wrap privacy">
       <div>
         <h2>Nothing it does can leave your phone.</h2>
@@ -221,7 +258,6 @@
     <div class="wrap">
       <h2>What Nova sends, and what Vulcan doesn't.</h2>
       <p class="intro">Nova Launcher changed owners in 2022 and again in January 2026, and picked up ads and trackers along the way. This is what the current version contains.</p>
-      <div class="compare-wrap">
         <table class="compare">
           <thead>
             <tr><th scope="col"><span>What</span></th><th scope="col"><span>Nova Launcher 8.9.4</span></th><th scope="col"><span>Vulcan</span></th></tr>
@@ -236,12 +272,11 @@
             <tr><th scope="row">Source code</th><td data-label="Nova">Closed.</td><td data-label="Vulcan" class="v">Public on GitHub, MIT license.</td></tr>
           </tbody>
         </table>
-      </div>
       <p class="note">The Nova column comes from reading the code of the Nova Launcher 8.9.4 app (October 2026) without running it, so it shows what the app contains, not what it sent from any one phone. <a href="https://github.com/krishnanunnir/vulcan-launcher/blob/main/docs/nova-reference.md">How this was checked</a>.</p>
     </div>
   </section>
 
-  <section id="nova" class="deep">
+  <section id="nova" class="well">
     <div class="wrap">
       <h2>Bring your Nova home screen with you.</h2>
       <p class="intro">Your apps, folders, dock, grid size and most shortcuts come over. Widgets have to be added again.</p>
@@ -252,7 +287,7 @@
     </div>
   </section>
 
-  <section id="features" class="on-cream">
+  <section id="features">
     <div class="wrap split">
       <div class="shots">
         <img src="screenshots/drawer.jpg" width="540" height="1170" loading="lazy" alt="App drawer with an alphabetical app grid and search field">
@@ -272,12 +307,12 @@
     </div>
   </section>
 
-  <section class="on-sun">
+  <section class="close">
     <div class="wrap">
       <h2>Press Home. Pick Vulcan.</h2>
       <p>Get it on F-Droid or download the APK. The dusk wallpaper is free to use.</p>
       <div class="actions">
-        <a class="pill ink" href="https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk">Download · 0.5 MB</a>
+        <a class="pill paper" href="https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk">Download · 0.5 MB</a>
         <a class="pill" href="https://f-droid.org/packages/dev.vulcanlauncher/">Get it on F-Droid</a>
         <a class="pill" href="wallpaper-dusk.jpg" download>Download the wallpaper</a>
       </div>
@@ -285,11 +320,9 @@
   </section>
 </main>
 
-<div class="deep">
-  <footer class="wrap">
-    <span>Vulcan · MIT license. Not affiliated with Nova Launcher. · <a href="privacy.html">Privacy policy</a></span>
-    <span><a href="https://github.com/krishnanunnir/vulcan-launcher">Source on GitHub</a> · <a href="https://discord.gg/SH4R7ERCVK">Discord</a> · <a href="https://github.com/krishnanunnir/vulcan-launcher/blob/main/docs/BUILDING.md">Build it yourself</a></span>
-  </footer>
-</div>
+<footer class="wrap">
+  <span>Vulcan · MIT license. Not affiliated with Nova Launcher. · <a href="privacy.html">Privacy policy</a></span>
+  <span><a href="https://github.com/krishnanunnir/vulcan-launcher">Source on GitHub</a> · <a href="https://discord.gg/SH4R7ERCVK">Discord</a> · <a href="https://github.com/krishnanunnir/vulcan-launcher/blob/main/docs/BUILDING.md">Build it yourself</a></span>
+</footer>
 </body>
 </html>
