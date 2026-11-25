@@ -306,7 +306,7 @@ private fun SettingsActivity.nameplate() = LinearLayout(this).apply {
             typeface = android.graphics.Typeface.create("sans-serif-light", android.graphics.Typeface.NORMAL)
             letterSpacing = -0.02f
         })
-        addView(legend(getString(R.string.version, versionName), 11f, m3.outline).apply { setPadding(0, (6 * dp).toInt(), 0, 0) })
+        addView(legend(getString(R.string.version, versionName), 11f, m3.onSurfaceVariant).apply { setPadding(0, (6 * dp).toInt(), 0, 0) })
     }, LinearLayout.LayoutParams(0, -2, 1f))
     addView(ImageView(context).apply {
         setImageResource(R.mipmap.ic_launcher)

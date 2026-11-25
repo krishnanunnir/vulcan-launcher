@@ -164,9 +164,11 @@ fun Palette.role(key: String) = when (key) {
  * drawn on needs 4.5:1, the accent (as text, buttons and glyphs) 3:1.
  */
 fun Palette.lowContrast(): Pair<Double, Double>? {
-    val bgs = listOf(surface, surfaceHigh, raised, well)
+    // surfaceContainer: the Now page's cards, titled in primary. The signal ink is also drawn as a glyph in a well.
+    val bgs = listOf(surface, surfaceHigh, surfaceContainer, raised, well)
     return (listOf(onSurface, onSurfaceVariant).flatMap { fg -> bgs.map { contrast(fg, it) to 4.5 } } +
-        listOf(primary, signalInk).flatMap { fg -> listOf(surface, surfaceHigh).map { contrast(fg, it) to 3.0 } })
+        listOf(primary, signalInk).flatMap { fg -> listOf(surface, surfaceHigh, surfaceContainer).map { contrast(fg, it) to 3.0 } } +
+        (contrast(signalInk, well) to 3.0))
         .filter { it.first < it.second }.minByOrNull { it.first / it.second }
 }
 
