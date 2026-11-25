@@ -45,6 +45,7 @@ class StoreTest {
         assertEquals(false, restoredKey("data", "pendingWidget"))
         assertEquals(false, restoredKey("looks", "lat"))
         assertEquals(false, restoredKey("looks", "lon"))
+        assertEquals(false, restoredKey("looks", "clockHiddenByUs"))
         assertEquals(true, restoredKey("data", "groups"))
         assertEquals(true, restoredKey("looks", "cols"))
     }

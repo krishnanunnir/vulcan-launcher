@@ -342,14 +342,17 @@ val DATA_FLAGS = setOf(WELCOME, WELCOME_IMPORT, RESTORING_WIDGETS, REPIN_SHORTCU
 /** Whether a restore stores [key] of preference file [file] as a boolean: a flag always, whatever the backup says. */
 fun restoredAsFlag(file: String, key: String) = file == "data" && key in DATA_FLAGS
 
-/** looks keys holding the phone's last known location (sunset night mode): never in a backup, and looked up again after one. */
-val LOCATION_KEYS = setOf("lat", "lon")
+/**
+ * looks keys that belong to this phone: its last known location (sunset night mode, looked up again after a restore) and
+ * whether Vulcan hid its status-bar clock (restored elsewhere, it would take out a clock the user hid). Never in a backup.
+ */
+val DEVICE_KEYS = setOf("lat", "lon", "clockHiddenByUs")
 
 /**
  * Whether a restore writes [key] of preference file [file]. Passing state (a widget mid-setup, a welcome step) belongs to
- * the phone that wrote it, and a hand-edited one could crash every start; a location belongs to this phone.
+ * the phone that wrote it, and a hand-edited one could crash every start; [DEVICE_KEYS] belong to this phone.
  */
-fun restoredKey(file: String, key: String) = !(file == "data" && key in PASSING_STATE) && !(file == "looks" && key in LOCATION_KEYS)
+fun restoredKey(file: String, key: String) = !(file == "data" && key in PASSING_STATE) && !(file == "looks" && key in DEVICE_KEYS)
 
 /**
  * data's values ([all]) stored as the wrong type, each as it should be: a flag kept as "true"/"false" text (a restore
@@ -371,7 +374,7 @@ fun readableBackup(looks: Map<String, String>, items: List<Item>, sub: Int, data
                    apps: List<Pair<Triple<String, String, String>, Long>>, text: (Int) -> String): JSONObject = JSONObject()
     .put("format", "vulcan-backup-2")
     .put("howTo", JSONArray(BACKUP_HOW_TO))
-    .put("settings", JSONObject(LOOKS.associate { it.key to it.default } + (looks - LOCATION_KEYS)))
+    .put("settings", JSONObject(LOOKS.associate { it.key to it.default } + (looks - DEVICE_KEYS)))
     .put("home", JSONObject().put("sub", sub).put("items", JSONArray(items.map { it.toReadable() })))
     // Values the launcher keeps as JSON text (hidden apps, groups, custom edits) are written as JSON, not as strings of it.
     .put("data", JSONObject().apply { data.forEach { (k, v) -> put(k, runCatching { org.json.JSONTokener(v).nextValue() }.getOrNull()?.takeIf { it is JSONObject || it is JSONArray } ?: v) } })
