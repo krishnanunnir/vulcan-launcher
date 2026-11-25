@@ -314,11 +314,13 @@ class WidgetFlow(private val a: MainActivity) {
         val page = a.pages[a.workspace.current]
         // After a restart the result arrives before the first layout; with no cell size yet the widget would fill the page.
         if (page.width == 0) {
-            page.addOnLayoutChangeListener(object : View.OnLayoutChangeListener {
-                override fun onLayoutChange(v: View, l: Int, t: Int, r: Int, b: Int, ol: Int, ot: Int, or: Int, ob: Int) {
-                    v.removeOnLayoutChangeListener(this)
+            // On the window, not the page: a rebuild before the first layout replaces the page, and its listener with it.
+            val window = a.window.decorView
+            window.viewTreeObserver.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
+                override fun onGlobalLayout() {
+                    window.viewTreeObserver.removeOnGlobalLayoutListener(this)
                     // After this layout pass: views added during it (the widget, and render()'s dock) were never laid out.
-                    v.post { placeWidget() }
+                    window.post { placeWidget() }
                 }
             })
             return
