@@ -34,9 +34,8 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 
-/** Drag payload for an item dragged out of a home-screen folder. */
 /**
- * An item inside the home folder on cell ([page], [x], [y]). The child itself and the folder's cell, not a copy of the
+ * Drag payload for an item dragged out of a home-screen folder: an item inside the home folder on cell ([page], [x], [y]). The child itself and the folder's cell, not a copy of the
  * folder and a position in it: a rename, sort or uninstall since would leave those pointing at the wrong thing.
  */
 class FolderChild(val page: Int, val x: Int, val y: Int, val child: Item)
@@ -464,7 +463,6 @@ class MainActivity : VulcanActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putInt("page", workspace.current)
-        outState.putIntArray("insets", intArrayOf(insets.left, insets.top, insets.right, insets.bottom))
     }
 
     /** Back inside an overlay: its own back handler (a view tag) if it has one, else close it. */
@@ -649,7 +647,6 @@ class MainActivity : VulcanActivity() {
     /** Puts [item] in place of the one at [i], saves and redraws. */
     fun replace(i: Int, item: Item) { items[i] = item; save(); render() }
 
-    /** First run: the default phone, messages, browser, camera and gallery apps in the dock (as many as fit). */
     /** A fresh install's layout, as Nova sets it up: a five-app dock, mail and photos above it, settings top right. */
     fun defaultLayout(): MutableList<Item> {
         val me = repo.serial(Process.myUserHandle())
