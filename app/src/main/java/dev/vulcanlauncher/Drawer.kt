@@ -958,7 +958,9 @@ class Drawer(private val a: MainActivity) {
             if (pos % cols == 0 && pos < entries.size) a.repo.prefetchIcons(entries.drop(pos).take(cols * rows).filterIsInstance<Entry.AppE>().map { it.app })
             return (getItem(pos)?.let { entryView(it, convert) }?.apply {
             if (styleName == "list") setPadding((8 * a.dp).toInt(), 0, 0, 0)
-        } ?: entryView(entries[0]).apply { visibility = View.INVISIBLE }).apply { // a filler as tall as a real cell, or GridView misplaces the row
+        // A filler as tall as a real cell, or GridView misplaces the row. With the cell height known, a plain view will do:
+        // a real one (a folder, a contact) resolved icons or decoded a photo just to be hidden.
+        } ?: (if (cellH > 0 && styleName != "list") View(a) else entryView(entries[0])).apply { visibility = View.INVISIBLE }).apply {
             if (styleName == "list") return@apply
             if (!search.hasFocus() && parent.height > 0) cellH = (parent.height - parent.paddingTop - parent.paddingBottom) / rows
             // Kept, not replaced: GridView marks the first cell it measures forceAdd, and new params lost that, so the
