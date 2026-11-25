@@ -12,6 +12,7 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
 - APK: `app/build/outputs/apk/debug/app-debug.apk`. Install it with `adb install -r <apk>`.
 - The first build downloads Gradle, AGP and Kotlin (versions in `gradle/wrapper/gradle-wrapper.properties` and the build files). In the Claude Code sandbox, Java's network access times out (even though curl works), so run Gradle with the sandbox disabled when dependencies must be fetched.
 - Emulators: `tools/emulators.sh setup` once, then `tools/emulators.sh check` after `assembleDebug`. `tools/emulators.sh flows` runs the Maestro scenarios in `flows/`. Run with the sandbox disabled.
+- Before a release, on the phone with the release build as home: `ANDROID_SERIAL=<serial> tools/perf/release-check.sh <version>`, then `tools/perf/summ.py .local/perf/*.txt` to compare with earlier versions (0.32 on a Galaxy S23: cold start ~200 ms, drawer scroll 1.4% janky). A clear jump is a regression to find before shipping. `tools/perf/screens.py <version>` does the same for every screen and gesture (drawer, folders, menus, Now page, each Settings page). For a slow one, trace it with Perfetto (`.local/tools/trace_processor`).
 - To check permissions after a build: `/opt/homebrew/share/android-commandlinetools/build-tools/35.0.0/aapt2 dump permissions <apk>`.
 
 ## Hard rules
