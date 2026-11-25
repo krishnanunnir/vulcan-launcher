@@ -113,6 +113,15 @@ class LooksTest {
         assertEquals(Triple(0, 0, 0), paddingOf(""))
     }
 
+    @Test fun gridNumbersStayWithinTheirSetting() {
+        fun c(key: String) = LOOKS.first { it.key == key }
+        assertEquals(9, c("pages").intOf("100000"))
+        assertEquals(3, c("cols").intOf("-4"))
+        assertEquals(5, c("dockCols").intOf("five"))
+        assertEquals(6, c("rows").intOf(null))
+        assertEquals(7, c("rows").intOf("7"))
+    }
+
     private companion object {
         const val SETTINGS_BUDGET = 120 // 120 for Widget padding (#121), the owner's yes 2026-11-24
         const val MAX_SECTION_ROWS = 8

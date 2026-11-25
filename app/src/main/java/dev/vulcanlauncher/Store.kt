@@ -264,10 +264,7 @@ class Store(private val context: Context) {
         // Read the whole file before writing anything, so a bad one leaves the current setup untouched.
         val (files, rejected) = when (root.optString("format")) {
             "vulcan-backup-2" -> readableBackupFiles(root, cls)
-            "vulcan-backup-1" -> FILES.associateWith { name ->
-                val o = root.optJSONObject(name) ?: JSONObject()
-                o.keys().asSequence().associateWith { o.getString(it) }
-            }.also { f -> f["layout"]?.get("items")?.let { JSONArray(it) } } to emptyList()
+            "vulcan-backup-1" -> legacyBackupFiles(root)
             else -> throw IllegalArgumentException(context.getString(R.string.not_vulcan_backup))
         }
         // ponytail: three commits, not one transaction; an I/O failure between them can mix old and new files (each
@@ -385,6 +382,22 @@ fun backupLayout(root: JSONObject): Map<String, String> {
     // A backup from before version 2 is in the subgrid factor of the settings saved with it.
     val sub = layout.optString("sub").toIntOrNull() ?: if (root.optJSONObject("looks")?.optString("subgrid") == "on") 2 else 1
     return mapOf("items" to layout.getString("items"), "sub" to sub.toString())
+}
+
+/**
+ * The preference files a format 1 backup restores to, and the "key=value" settings left out: its settings are held to
+ * what a format 2 one accepts, so a hand-edited "pages": "100000" can't crash home on every start.
+ */
+fun legacyBackupFiles(root: JSONObject): Pair<Map<String, Map<String, String>>, List<String>> {
+    val rejected = ArrayList<String>()
+    val files = Store.FILES.associateWith { name ->
+        val o = root.optJSONObject(name) ?: JSONObject()
+        o.keys().asSequence().associateWith { o.getString(it) }.filter { (k, v) ->
+            (name != "looks" || LOOKS.firstOrNull { it.key == k }?.accepts(v) != false).also { if (!it) rejected += "$k=$v" }
+        }
+    }
+    files["layout"]?.get("items")?.let { JSONArray(it) }
+    return files to rejected
 }
 
 /**

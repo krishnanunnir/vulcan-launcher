@@ -13,6 +13,16 @@ class Choice(
     val info: Int = 0, // a toggle's summary line
 )
 
+/**
+ * Stored value [v] of this setting as a number: its default when unset or not a number, and held within the setting's
+ * numbers, so a hand-edited or restored "pages": "100000" can't build 100000 pages.
+ */
+fun Choice.intOf(v: String?): Int {
+    val n = v?.toIntOrNull() ?: default.toInt()
+    val allowed = values.mapNotNull { it.toIntOrNull() }
+    return if (allowed.isEmpty()) n else n.coerceIn(allowed.min(), allowed.max())
+}
+
 /** What value [i] is called on screen; [text] reads a string resource. */
 fun Choice.name(i: Int, text: (Int) -> String): String = names.getOrNull(i)?.takeIf { it != 0 }?.let(text) ?: shown.getOrElse(i) { "" }
 // Schedule hours in the phone's own 12- or 24-hour clock: "8:00" meant as 8 pm swapped the schedule (#52).
@@ -308,7 +318,7 @@ class Looks(context: Context) {
     fun colors() = COLOR_ROLES.mapNotNull { (k, _) -> raw("c_$k")?.let { runCatching { android.graphics.Color.parseColor(it) }.getOrNull() }?.let { k to it } }.toMap()
 
     fun str(key: String) = prefs.getString(key, null) ?: LOOKS.first { it.key == key }.default
-    fun int(key: String) = str(key).toIntOrNull() ?: LOOKS.first { it.key == key }.default.toInt()
+    fun int(key: String) = LOOKS.first { it.key == key }.intOf(prefs.getString(key, null))
     fun on(key: String) = str(key) == "on"
     /** A label size setting in sp; "home" (or a missing key) is the home screen's. */
     fun labelSize(key: String) = prefs.getString(key, null)?.toFloatOrNull() ?: int("labelSize").toFloat()

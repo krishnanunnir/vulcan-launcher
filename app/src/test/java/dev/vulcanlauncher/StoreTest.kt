@@ -282,4 +282,12 @@ class StoreTest {
         val looks = readableBackupFiles(org.json.JSONObject("""{"format":"vulcan-backup-2","settings":{"cols":"6"},"home":{"items":[]}}""")) { _, _ -> null }.first.getValue("looks")
         assertEquals(mapOf("cols" to "6", "defaults" to "nova", "defaults032" to "on"), looks)
     }
+
+    @Test fun aFormatOneBackupIsCheckedLikeFormatTwo() {
+        val old = org.json.JSONObject("""{"format":"vulcan-backup-1","layout":{"items":"[]"},"looks":{"pages":"100000","cols":"6","subgrid":"on"},"data":{"hidden":"[]"}}""")
+        val (files, rejected) = legacyBackupFiles(old)
+        assertEquals(mapOf("cols" to "6", "subgrid" to "on"), files["looks"])
+        assertEquals(listOf("pages=100000"), rejected)
+        assertEquals(mapOf("hidden" to "[]"), files["data"])
+    }
 }
