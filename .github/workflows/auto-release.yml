@@ -161,6 +161,8 @@ jobs:
           fi
 
       # --atomic: main and the tag land together or not at all. If publishing fails after the push, the next run heals it.
+      # The push needs main unprotected for GITHUB_TOKEN. A merge to main during the run rejects it (not a fast-forward):
+      # nothing is left half-done, and the changes go out on the next run. No rebase-and-retry: the APK is built from this tag.
       - name: Publish release
         if: steps.check.outputs.skip != 'true'
         env: { GH_TOKEN: "${{ github.token }}", HEAL: "${{ steps.check.outputs.heal }}" }
