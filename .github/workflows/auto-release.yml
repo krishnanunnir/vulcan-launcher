@@ -43,7 +43,9 @@ jobs:
             git checkout -q --detach "$last"
             echo "heal=$last" >> "$GITHUB_OUTPUT"
             last=$(git describe --tags --abbrev=0 --match 'v*' "$last^")   # notes cover previous tag..healed tag
-          elif git diff --quiet "$last" HEAD; then
+          # Only what changes the APK or the store listing counts: docs, CI, tools and tests alone don't cut a release.
+          elif git diff --quiet "$last" HEAD -- app ':!app/src/test' ':!app/src/androidTest' fastlane \
+                 build.gradle.kts settings.gradle.kts gradle.properties gradle gradlew; then
             echo "No changes since $last"; echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
           echo "last=$last" >> "$GITHUB_OUTPUT"
