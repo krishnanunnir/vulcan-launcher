@@ -56,6 +56,15 @@ class ThemeTest {
         assertTrue(seedPalette(0xFF1E88E5.toInt(), false, mapOf("accent" to 0xFFFDD835.toInt())).let { contrast(it.onPrimary, it.primary) >= 4.5 })
     }
 
+    /** The Appliance dialogs' checked colour (res/values/themes.xml) is the switch-on green: a copy that must stay equal. */
+    @Test
+    fun applianceDialogAccentMatchesPalette() {
+        val xml = java.io.File("src/main/res/values/themes.xml").readText()
+        fun accent(style: String) = Regex("""name="$style"[^>]*>\s*<item name="android:colorAccent">#(\w{6})<""").find(xml)!!.groupValues[1]
+        assertEquals(hex(appliancePalette(false).on), "#" + accent("VulcanDialogAppliance"))
+        assertEquals(hex(appliancePalette(true).on), "#" + accent("VulcanDialogApplianceDark"))
+    }
+
     private fun check(p: Palette, name: String, dark: Boolean) {
         for ((role, pair) in mapOf("surface" to (p.onSurface to p.surfaceHigh), "variant" to (p.onSurfaceVariant to p.surfaceHigh),
             "primary" to (p.onPrimary to p.primary), "primaryContainer" to (p.onPrimaryContainer to p.primaryContainer),
