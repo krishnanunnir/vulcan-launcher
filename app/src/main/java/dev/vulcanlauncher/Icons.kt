@@ -515,7 +515,9 @@ class AppCache(context: Context, private val looks: String) {
 
     private fun write(f: File, stamp: String, body: (DataOutputStream) -> Unit) {
         val tmp = File(f.path + ".tmp")
-        runCatching { DataOutputStream(tmp.outputStream().buffered()).use { it.writeUTF(stamp); body(it) }; tmp.renameTo(f) }
+        // A failed write (a full disk) leaves no half-written .tmp behind until the next keepOnly.
+        runCatching { DataOutputStream(tmp.outputStream().buffered()).use { it.writeUTF(stamp); body(it) }; check(tmp.renameTo(f)) }
+            .onFailure { tmp.delete() }
     }
 
     companion object { private val writer = java.util.concurrent.Executors.newSingleThreadExecutor() }
