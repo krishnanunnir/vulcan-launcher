@@ -141,15 +141,16 @@ fun readLauncherBackup(context: Context, uri: Uri): Pair<ImportedLayout, Map<Str
     var db: File? = null
     var prefs = ""
     val tooLarge = context.getString(R.string.backup_too_large)
-    // One budget for everything unpacked, entries skipped included (they're unpacked to move past them): no zip bomb anywhere.
-    var used = 0L
+    // A budget for everything unpacked, entries skipped included (they're unpacked to move past them), so no entry is an
+    // uncapped zip bomb; roomier than one entry's cap, as a backup can also hold a wallpaper and icons.
+    var left = 4 * MAX_BACKUP_BYTES
     val skip = object : OutputStream() { override fun write(b: Int) {}; override fun write(b: ByteArray, off: Int, len: Int) {} }
     ZipInputStream(context.contentResolver.openInputStream(uri)!!).use { zip ->
         for (count in 0..MAX_IMPORT_ROWS) {
             if (count == MAX_IMPORT_ROWS) throw IOException(tooLarge)
             val e = zip.nextEntry ?: break
             val name = e.name.substringAfterLast('/')
-            fun copy(out: OutputStream) { used += zip.copyAtMost(out, MAX_BACKUP_BYTES - used, tooLarge) }
+            fun copy(out: OutputStream) { left -= zip.copyAtMost(out, minOf(MAX_BACKUP_BYTES, left), tooLarge) }
             when {
                 e.isDirectory -> {}
                 name.endsWith(".db") && (db == null || name == "backup.db" || name == "launcher.db") ->
