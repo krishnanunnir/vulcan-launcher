@@ -190,7 +190,8 @@ class WidgetFlow(private val a: MainActivity) {
             val size = "${cellCount(w, a.sub)}×${cellCount(h, a.sub)}"
             addView(TextView(context).apply { setTextColor(a.m3.onSurface); textSize = 14f; setPadding(0, pad / 4, 0, 0); text = "$label ($size)" })
             contentDescription = "$label ($size)"
-            setOnClickListener { d.dismiss(); addWidget(info) }
+            // Once: a second tap before the sheet closes would allocate a second widget and open a second bind screen.
+            setOnClickListener { if (d.isShowing) { d.dismiss(); addWidget(info) } }
         }
         val list = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL }
         val scroll = android.widget.ScrollView(a).apply { addView(list) }
