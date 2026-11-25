@@ -23,18 +23,10 @@ fun SettingsActivity.colorsPage(list: LinearLayout) {
         listItem(null, getString(title), set[key]?.let(::hex) ?: getString(R.string.color_from_theme), trailing = dot(m3.role(key))) { editColor(key, title) }
     }
     list.addView(text(getString(R.string.custom_colors_info), 14f, m3.onSurfaceVariant).apply { setPadding((32 * dp).toInt(), (8 * dp).toInt(), (32 * dp).toInt(), (8 * dp).toInt()) })
-    list.addView(LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        housing(this, 24 * dp)
-        elevation = 2 * dp
-        clipToOutline = true
-        setPadding(0, (4 * dp).toInt(), 0, (4 * dp).toInt())
-        rows.forEach(::addView)
-        if (set.isNotEmpty()) addView(listItem(null, getString(R.string.reset_colors), null) {
-            looks.remove(COLOR_ROLES.map { "c_${it.first}" })
-            changed()
-        })
-    }, LinearLayout.LayoutParams(-1, -2).apply { setMargins((16 * dp).toInt(), (8 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt()) })
+    panel(list, null, rows + listOfNotNull(if (set.isEmpty()) null else listItem(null, getString(R.string.reset_colors), null) {
+        looks.remove(COLOR_ROLES.map { "c_${it.first}" })
+        changed()
+    }))
 }
 
 private fun SettingsActivity.dot(color: Int) = View(this).apply {
