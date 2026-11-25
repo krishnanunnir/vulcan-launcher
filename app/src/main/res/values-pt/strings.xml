@@ -53,8 +53,8 @@
     <string name="padding_sides">Esquerda &amp; direita</string>
     <string name="padding_top">Superior</string>
     <string name="padding_bottom">Inferior</string>
-    <string name="padding_value">%1$d × %2$d dp</string>
-    <string name="padding_value_ends">%1$d × %2$d / %3$d dp</string>
+    <string name="padding_value" translatable="false">%1$d × %2$d dp</string>
+    <string name="padding_value_ends" translatable="false">%1$d × %2$d / %3$d dp</string>
     <string name="set_widgetRadius">Raio dos cantos do widget</string>
     <string name="set_widgetPadding">Preenchimento do widget</string>
     <string name="set_autoAdd">Adicionar ícones de novos apps à tela inicial</string>
@@ -423,18 +423,14 @@
     <string name="icon_from_app">Ícone de outro app</string>
     <string name="icon">Ícone</string>
     <string name="icon_pack_unreadable">Não é possível ler este pacote de ícones</string>
-    <string name="choose_icon">Escolher ícone</string>
     <string name="hide_apps">Ocultar apps</string>
     <string name="new_tab">Nova aba</string>
     <string name="new_folder">Nova pasta</string>
     <string name="group_exists">Já existe um grupo com esse nome</string>
     <string name="tab_color">Cor</string>
-    <string name="rename">Renomear</string>
     <string name="choose_apps">Escolher apps</string>
     <string name="convert_to_tab">Converter em aba</string>
     <string name="convert_to_folder">Converter para pasta</string>
-    <string name="move_left">Mover para a esquerda</string>
-    <string name="move_right">Mover para a direita</string>
     <string name="delete">Excluir</string>
     <string name="add_to_group">Adicionar ao grupo</string>
     <string name="cat_finance">Finanças</string>
@@ -447,7 +443,6 @@
     <string name="reset_confirm">Remover todas as configurações e todo o layout da tela inicial?</string>
     <string name="reset">Restaurar</string>
     <string name="import_failed">Falha na importação: %1$s</string>
-    <string name="import_title">Importar este layout?</string>
     <string name="import_">Importar</string>
     <string name="picker_restarted">O Vulcan reiniciou enquanto o seletor estava aberto. Tente novamente</string>
     <string name="no_web_search_app">Nenhum app lida com pesquisa na web</string>
@@ -468,6 +463,7 @@
     <string name="menu_group">Agrupar</string>
     <string name="resize">Redimensionar</string>
     <string name="unstack">Desempilhar</string>
+    <string name="widget_padding">Preenchimento</string>
     <string name="widgets">Widgets</string>
     <string name="shortcuts">Atalhos</string>
     <string name="wallpaper">Papel de parede</string>
@@ -496,13 +492,11 @@
     <string name="accessibility_text">O Vulcan usa a API AccessibilityService apenas quando você aciona um gesto ou atalho para bloquear a tela, abrir apps recentes, notificações, configurações rápidas ou o menu de energia.\n\nO serviço não lê o conteúdo da tela, não grava suas interações nem coleta ou compartilha dados pessoais. Ele executa apenas a ação solicitada. O acesso é opcional; o restante do launcher funciona sem ele. Você pode desativá-lo a qualquer momento nas configurações de Acessibilidade do Android.\n\nToque em Concordar e abrir configurações para continuar e, em seguida, ative as ações do Vulcan.</string>
     <string name="agree_open_settings">Concordar e abrir configurações</string>
     <string name="privacy_policy">Política de privacidade</string>
-    <string name="open_settings">Abrir configurações</string>
     <string name="backup_saved">Backup salvo</string>
     <string name="backup_failed">Falha no backup: %1$s</string>
     <string name="skipped_settings">Configurações ignoradas com valores que o Vulcan não pode usar: %1$s</string>
     <string name="now_media">Mídia</string>
     <string name="now_notification_access">Ativar acesso às notificações</string>
-    <string name="now_nothing_playing">Nada tocando</string>
     <string name="now_playing">Tocando</string>
     <string name="media_previous">Anterior</string>
     <string name="media_pause">Pausar</string>
@@ -511,14 +505,12 @@
     <string name="now_upcoming">Em breve</string>
     <string name="now_allow_calendar">Permitir acesso ao calendário</string>
     <string name="now_all_day">%1$s o dia todo</string>
-    <string name="now_no_events">Nenhum evento nos próximos 7 dias</string>
     <string name="now_favourites">Favoritos</string>
     <string name="now_allow_contacts">Permitir acesso aos contatos</string>
-    <string name="now_star_contacts">Favorite contatos no seu app de Contatos para vê-los aqui</string>
     <string name="now_add_card">Adicionar um cartão</string>
     <string name="now_card_apps">Apps</string>
     <string name="now_card_widget">Widget</string>
-    <string name="now_card_height">%1$d dp</string>
+    <string name="now_card_height" translatable="false">%1$d dp</string>
     <string name="now_frequent">Usados com frequência</string>
     <string name="now_now">Now</string>
     <string name="charging">Carregando · %1$d%%</string>
@@ -543,8 +535,6 @@
     <string name="drag_to_reorder">Arraste para reordenar</string>
     <string name="tab_all_hide">Ocultar esta aba</string>
     <string name="tab_all_hide_info">Apps que não estão em nenhuma outra aba ainda são encontrados pela pesquisa</string>
-    <string name="tab_all_shown">Exibida primeiro na gaveta</string>
-    <string name="tab_all_hidden">Oculta. Apps que não estão em nenhuma outra aba ainda são encontrados pela pesquisa</string>
     <string name="tab_all_needs_tab">Adicione uma aba primeiro: a gaveta precisa de uma aba para exibir</string>
     <string name="move_apps_title">Mover para cá?</string>
     <plurals name="move_apps_message">
@@ -716,8 +706,6 @@
     <string name="perm_allow">Permitir</string>
     <string name="perm_is_default">Padrão</string>
     <string name="perm_set_default">Definir</string>
-    <string name="new_tab_info">Uma página da gaveta apenas com os apps que você escolher</string>
-    <string name="new_folder_info">Apps escolhidos por você, sob um único ícone na gaveta</string>
     <plurals name="group_apps">
         <item quantity="one">%1$d app</item>
         <item quantity="other">%1$d apps</item>
