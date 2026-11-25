@@ -154,9 +154,6 @@ val COLOR_ROLES = listOf("accent" to R.string.role_accent, "surface" to R.string
 /** This palette with [more] of the user's colours laid over it. */
 fun Palette.with(more: Map<String, Int>) = Palette(dark, ramps[0], ramps[1], ramps[2], ramps[3], housing, ov + more)
 
-/** The worst contrast of text on the backgrounds it's drawn on, for showing; [lowContrast] decides what falls short. */
-fun Palette.textContrast() = listOf(onSurface, onSurfaceVariant).minOf { fg -> listOf(surface, surfaceHigh, raised, well).minOf { contrast(fg, it) } }
-
 fun Palette.role(key: String) = when (key) {
     "accent" -> signal; "surface" -> surface; "onSurface" -> onSurface; "onSurfaceVariant" -> onSurfaceVariant
     "raised" -> raised; "well" -> well; else -> outlineVariant
@@ -398,11 +395,6 @@ fun VulcanActivity.divider() = View(this).apply {
     layoutParams = LinearLayout.LayoutParams(-1, maxOf(1, dp.toInt())).apply { setMargins(0, (8 * dp).toInt(), 0, (8 * dp).toInt()) }
 }
 
-/** M3 section header in a list. */
-fun VulcanActivity.sectionHeader(title: String) = (if (m3.housing) legend(title, 12f) else text(title, 14f, m3.primary, medium = true)).apply {
-    setPadding((16 * dp).toInt(), (24 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt())
-}
-
 /** A printed legend, Appliance style: small tracked capitals in the secondary ink. */
 fun VulcanActivity.legend(s: String, sp: Float = 11f, color: Int = m3.onSurfaceVariant) = text(s.uppercase(), sp, color, medium = true).apply {
     letterSpacing = 0.1f
@@ -555,36 +547,6 @@ fun View.tick() = performHapticFeedback(android.view.HapticFeedbackConstants.CLO
 
 /** A firmer confirmation (folder made, drop accepted). */
 fun View.confirm() = performHapticFeedback(if (Build.VERSION.SDK_INT >= 30) android.view.HapticFeedbackConstants.CONFIRM else android.view.HapticFeedbackConstants.VIRTUAL_KEY)
-
-/** M3 modal bottom sheet over a scrim, with a drag handle and an optional title. Tap the scrim to close. */
-fun MainActivity.showSheet(title: String?, build: LinearLayout.() -> Unit) {
-    val body = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        background = GradientDrawable().apply {
-            // Housing, or glass over the blurred home screen (showOverlay blurs it). Same corner as the drawer sheet.
-            setColor(if (looks.on("blur")) glassTint(glassBlur) else m3.surface)
-            val r = (if (m3.housing) 22 else 28) * dp
-            cornerRadii = floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f)
-        }
-        isClickable = true
-        setPadding(0, 0, 0, insets.bottom + (12 * dp).toInt())
-        addView(View(context).apply { background = rounded(m3.onSurfaceVariant and 0x66FFFFFF, 2 * dp) },
-            LinearLayout.LayoutParams((32 * dp).toInt(), (4 * dp).toInt()).apply { gravity = Gravity.CENTER_HORIZONTAL; setMargins(0, (16 * dp).toInt(), 0, (12 * dp).toInt()) })
-        if (title != null) addView(text(title, 22f).apply { setPadding((24 * dp).toInt(), 0, (24 * dp).toInt(), (12 * dp).toInt()) })
-        build()
-    }
-    val scrim = FrameLayout(this).apply {
-        setBackgroundColor(if (m3.housing) 0x66000000 else 0x52000000)
-        setOnClickListener { closeOverlay() }
-        addView(ScrollView(context).apply { isVerticalScrollBarEnabled = false; addView(body) },
-            FrameLayout.LayoutParams(minOf(root.width, (640 * dp).toInt()).takeIf { it > 0 } ?: -1, -2, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
-                topMargin = insets.top + (48 * dp).toInt()
-            })
-    }
-    showOverlay(scrim)
-    body.translationY = root.height.toFloat()
-    body.animate().translationY(0f).setDuration(300).setInterpolator(DecelerateInterpolator(2f)).start()
-}
 
 /** Dialogs: M3 surface, 28 dp corners and primary-coloured buttons. The scrim is the activity's (see VulcanActivity.dialog).
  *  A [sheet] (pickers, forms) slides up from the bottom edge, in thumb reach; confirmations and warnings stay centred (#46). */

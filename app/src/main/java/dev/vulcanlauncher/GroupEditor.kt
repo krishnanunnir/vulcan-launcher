@@ -603,10 +603,6 @@ fun VulcanActivity.deleteGroup(g: Group) {
 /** The selected tab's fill when the tab has no colour of its own: solid ink, so it stands out from the plain ones (0.32). */
 fun VulcanActivity.tabFill() = m3.onSurface
 
-private fun VulcanActivity.colorDot(c: Int) = GradientDrawable().apply {
-    shape = GradientDrawable.OVAL; setColor(c); setStroke(dp.toInt(), m3.outlineVariant); setSize((24 * dp).toInt(), (24 * dp).toInt())
-}
-
 fun VulcanActivity.addToGroup(key: String) {
     val groups = home.drawer.groups()
     // A checklist: the app's groups start ticked, so unticking one takes it out.

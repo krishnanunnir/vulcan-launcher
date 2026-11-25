@@ -67,7 +67,6 @@
     <string name="charged">Заряжено</string>
     <string name="charging">Зарядка · %1$d%%</string>
     <string name="choose_apps">Выбрать приложения</string>
-    <string name="choose_icon">Выбрать значок</string>
     <string name="color_black">Чёрный</string>
     <string name="color_blue">Синий</string>
     <string name="color_charcoal">Антрацитовый</string>
@@ -83,8 +82,6 @@
     <string name="color_white">Белый</string>
     <string name="color_yellow">Жёлтый</string>
     <string name="convert_to_folder">Преобразовать в папку</string>
-    <string name="move_left">Переместить влево</string>
-    <string name="move_right">Переместить вправо</string>
     <string name="convert_to_tab">Преобразовать во вкладку</string>
     <string name="default_home">Приложение главного экрана по умолчанию</string>
     <string name="default_home_info">Сделать Vulcan вашим главным экраном</string>
@@ -179,7 +176,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="icon_pack_unreadable">"Не удаётся прочитать этот набор значков"</string>
     <string name="import_">Импортировать</string>
     <string name="import_failed">Не удалось импортировать: %1$s</string>
-    <string name="import_title">Импортировать этот макет?</string>
     <string name="indicator_dots">Точки</string>
     <string name="indicator_line">Линия</string>
     <string name="indicator_none">Нет</string>
@@ -244,19 +240,15 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="now_favourites">Избранное</string>
     <string name="now_frequent">Часто используемые</string>
     <string name="now_media">Медиа</string>
-    <string name="now_no_events">Нет событий в ближайшие 7 дней</string>
-    <string name="now_nothing_playing">Ничего не воспроизводится</string>
     <string name="now_notification_access">Включите доступ к уведомлениям</string>
     <string name="now_now">Сейчас</string>
     <string name="now_playing">Воспроизводится</string>
-    <string name="now_star_contacts">Отметьте контакты как избранные в приложении «Контакты», чтобы они появились здесь</string>
     <string name="now_upcoming">Предстоящие</string>
     <string name="off">Выкл.</string>
     <string name="ok">ОК</string>
     <string name="on">Вкл.</string>
     <string name="open_app">Открыть приложение</string>
     <string name="open_app_item">Открыть приложение…</string>
-    <string name="open_settings">Открыть настройки</string>
     <string name="orientation_auto">Поворачивать с телефоном</string>
     <string name="orientation_landscape">Альбомная</string>
     <string name="orientation_portrait">Книжная</string>
@@ -281,7 +273,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="private_install">Устанавливать приложения в приватное пространство</string>
     <string name="remove">Убрать</string>
     <string name="tab_color">Цвет</string>
-    <string name="rename">Переименовать</string>
     <string name="reset">Сбросить</string>
     <string name="reset_confirm">Удалить все настройки и весь макет главного экрана?</string>
     <string name="reset_defaults">Сбросить к значениям по умолчанию</string>
@@ -532,8 +523,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="perm_allow">Разрешить</string>
     <string name="perm_is_default">Выбран</string>
     <string name="perm_set_default">Выбрать</string>
-    <string name="new_tab_info">Страница меню приложений только с выбранными приложениями</string>
-    <string name="new_folder_info">Выбранные приложения под одним значком в меню приложений</string>
     <plurals name="group_apps">
         <item quantity="one">%1$d приложение</item>
         <item quantity="few">%1$d приложения</item>
@@ -751,8 +740,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="drag_to_reorder">Перетащите, чтобы изменить порядок</string>
     <string name="tab_all_hide">Скрыть эту вкладку</string>
     <string name="tab_all_hide_info">Приложения, которых нет в других вкладках, всё равно можно найти через поиск</string>
-    <string name="tab_all_shown">Отображается первой в меню приложений</string>
-    <string name="tab_all_hidden">Скрыта. Приложения, которых нет в других вкладках, всё равно можно найти через поиск</string>
     <string name="tab_all_needs_tab">Сначала добавьте вкладку: в меню приложений должна быть хотя бы одна вкладка</string>
     <string name="move_apps_title">Переместить их сюда?</string>
     <string name="move_apps_move">Переместить сюда</string>

@@ -60,15 +60,6 @@ fun frequentApps(pinned: List<String>, launches: Map<String, Int>, shown: (Strin
 fun groupsOfApps(groups: List<Group>, except: String?): Map<String, List<String>> =
     groups.filter { it.name != except }.flatMap { g -> g.apps.map { it to g.name } }.groupBy({ it.first }, { it.second })
 
-/** [groups] with [name] swapped with the nearest group of its type [by] -1 (earlier) or 1 (later); null at that end. */
-fun moveGroup(groups: List<Group>, name: String, by: Int): List<Group>? {
-    val i = groups.indexOfFirst { it.name == name }
-    if (i < 0) return null
-    val range = if (by < 0) (i - 1 downTo 0) else (i + 1 until groups.size)
-    val j = range.firstOrNull { groups[it].type == groups[i].type } ?: return null
-    return groups.toMutableList().apply { this[i] = groups[j]; this[j] = groups[i] }
-}
-
 // ---- Smart folders ----
 
 /** Smart-folder categories Android's own list (ApplicationInfo.CATEGORY_*, 0..8) lacks. */

@@ -70,24 +70,6 @@ class SwipedTabTest {
     }
 }
 
-class MoveGroupTest {
-    private val zulu = Group("Zulu", "tab", listOf("a"))
-    private val box = Group("Box", "folder", emptyList())
-    private val alpha = Group("Alpha", "tab", listOf("b"))
-    private val groups = listOf(zulu, box, alpha)
-
-    @org.junit.Test fun swapsWithNearestTabSkippingFolders() {
-        org.junit.Assert.assertEquals(listOf(alpha, box, zulu), moveGroup(groups, "Alpha", -1))
-        org.junit.Assert.assertEquals(listOf(alpha, box, zulu), moveGroup(groups, "Zulu", 1))
-    }
-    @org.junit.Test fun nullAtEitherEnd() {
-        org.junit.Assert.assertNull(moveGroup(groups, "Zulu", -1))
-        org.junit.Assert.assertNull(moveGroup(groups, "Alpha", 1))
-        org.junit.Assert.assertNull(moveGroup(groups, "Box", 1))
-        org.junit.Assert.assertNull(moveGroup(groups, "Nope", 1))
-    }
-}
-
 class ManualOrderTest {
     private fun eq(expected: Any?, actual: Any?) = org.junit.Assert.assertEquals(expected, actual)
 
