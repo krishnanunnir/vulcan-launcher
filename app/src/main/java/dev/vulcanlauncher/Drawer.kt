@@ -902,6 +902,11 @@ class Drawer(private val a: MainActivity) {
             if (s.size < 2) return
             val step = step(s.size)
             val top = (height - step * s.size) / 2
+            // It sits on the right edge: with gesture navigation a scrub starting there was read as Back and closed the
+            // drawer. Android honours up to 200 dp of each edge; the letters' span is asked for, set again as it changes.
+            if (android.os.Build.VERSION.SDK_INT >= 29) android.graphics.Rect(0, top.toInt(), width, (top + step * s.size).toInt()).let { r ->
+                if (systemGestureExclusionRects.singleOrNull() != r) systemGestureExclusionRects = listOf(r)
+            }
             val cx = width / 2f + 3 * a.dp
             s.forEachIndexed { i, l ->
                 val cy = top + step * i + step / 2
