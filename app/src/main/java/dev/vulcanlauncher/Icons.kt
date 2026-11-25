@@ -541,10 +541,6 @@ class Icons(private val context: Context, private val looks: Looks) {
     /** The largest size any surface shows an icon at, in px: every icon is drawn once at this size (see [flat]). */
     private val size = (listOf("iconSize", "dockIconSize", "drawerIconSize").maxOf { looks.int(it) } * context.resources.displayMetrics.density).toInt()
     /**
-     * Everything that shapes an icon here, for [AppCache]: the pack and its version, the options, the size, dark mode
-     * (an icon can have a night variant) and the system's adaptive-icon mask, which a theme can change.
-     */
-    /**
      * Themed icons (Android 13+): an app's monochrome layer in the system's wallpaper colours, light or dark, as the
      * platform's own launcher pairs them. Null when off.
      */
@@ -554,9 +550,14 @@ class Icons(private val context: Context, private val looks: Looks) {
         else context.getColor(android.R.color.system_accent1_100) to context.getColor(android.R.color.system_neutral2_700)
     } else null
 
+    /**
+     * Everything that shapes an icon here, for [AppCache]: the pack and its version, the options, the size, the themed
+     * colours and the system's adaptive-icon mask, which a theme can change. Dark mode only through the themed colours:
+     * with it in, every day/night flip redrew every icon.
+     * ponytail: an app's own night icon variant (rare) shows after its next update; key the cache per mode if one matters.
+     */
     val signature: String = listOf(looks.iconPack, pack?.let { runCatching { context.packageManager.getPackageInfo(it.pkg, 0).lastUpdateTime }.getOrNull() },
         looks.str("shape"), looks.str("reshape"), looks.on("normalize"), looks.on("autogen"), size, themeColors,
-        context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK,
         context.resources.getIdentifier("config_icon_mask", "string", "android").takeIf { it != 0 }?.let { context.resources.getString(it) },
     ).joinToString("|")
 
