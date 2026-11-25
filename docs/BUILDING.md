@@ -77,10 +77,6 @@ keyPassword=…
 
 Without it the release APK is built unsigned. Publish it as `vulcan-launcher.apk` on a GitHub release so the README's "latest" download link keeps working.
 
-Releases are normally cut by `.github/workflows/auto-release.yml` (major on Mondays, minor on Wednesdays) when `app/`
-(not its tests), `fastlane/` or the Gradle build files changed since the last tag. Before it bumps anything it runs
-`testDebugUnitTest lintDebug assembleDebugAndroidTest`, and it refuses a versionCode that isn't above the last tag's.
-
 Commit the version bump and changelog, tag that commit, and then run `./gradlew clean assembleRelease` from the tagged checkout. AGP embeds the current Git revision in `META-INF/version-control-info.textproto`; building before committing embeds the previous revision and prevents F-Droid from reproducing the published APK. Verify a separate clean, unsigned build of the tag with `apksigcopier compare --unsigned <signed-apk> <unsigned-apk>` before uploading the APK and its `SHA256SUMS`.
 
 Keep both dependenciesInfo options disabled in app/build.gradle.kts. AGP otherwise adds encrypted dependency metadata to the APK signing block, which F-Droid rejects. Run `fdroid scanner --exit-code <signed-apk>` before publishing.
