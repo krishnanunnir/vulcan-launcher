@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- English, the default. A translation goes in values-<language>/strings.xml with the same names. -->
 <resources>
     <string name="action_service_description">Permite que o Vulcan bloqueie a tela, abra aplicativos recentes, configurações rápidas e o menu de energia a partir de um gesto. Ele não lê o conteúdo da tela.</string>
     <string name="set_cols">Colunas</string>
