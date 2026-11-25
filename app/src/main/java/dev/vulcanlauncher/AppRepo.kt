@@ -45,12 +45,20 @@ class AppRepo(private val context: Context, private val store: Store, private va
     private val ui = android.os.Handler(android.os.Looper.getMainLooper())
     private lateinit var icons: Icons
 
-    /** New icon settings: [icons] draws from now on, with the disk cache that matches it. Follow with [loadApps]. */
+    /**
+     * New settings: [icons] draws from now on. Follow with [loadApps]. Only a change that shapes icons
+     * ([Icons.signature]) drops the ones held: any other setting keeps them, so home isn't drawn from disk again (#100).
+     */
     fun restyle(icons: Icons) = synchronized(this) {
+        val same = ::icons.isInitialized && this.icons.signature == icons.signature
         this.icons = icons
+        if (same) return@synchronized
         appCache = AppCache(context, icons.signature)
         generation++
+        restyled = true
     }
+    /** [restyle] changed how icons look, and [loadApps] hasn't dropped the old ones yet. */
+    private var restyled = false
     /** Counts [restyle]s: an icon the worker thread began in the old style must not land in the new style's cache. */
     private var generation = 0
 
@@ -96,6 +104,7 @@ class AppRepo(private val context: Context, private val store: Store, private va
         pausedUsers = profiles.filter { it != Process.myUserHandle() && it != privateUser && um.isQuietModeEnabled(it) }.toSet()
         apps = profiles.filter { it != privateUser || !privateLocked }.flatMap { user -> launcherApps.getActivityList(null, user).map { App(it, serial(user), appCache::label) } }
             .filter { it.pkg != context.packageName }.associateBy { it.key }
+        val customsWere = customs.toString()
         customs = store.obj("custom")
         // ponytail: personal profile only (PackageManager sees one user); a work-profile calendar keeps its static icon.
         dateIcons = packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), PackageManager.GET_META_DATA)
@@ -104,7 +113,12 @@ class AppRepo(private val context: Context, private val store: Store, private va
                 (ai.metaData?.getInt("${ai.packageName}.dynamic_icons")?.takeIf { it != 0 }
                     ?: 0.takeIf { ai.applicationInfo.metaData?.getBoolean("LiveIconSupport") == true })?.let { "${ai.packageName}/${ai.name}" to it } } }
             .toMap()
-        if (changed == null) { iconCache.evictAll(); appCache.keepOnly(apps.keys) }
+        if (changed == null) {
+            // Held icons stay good unless their style or a custom icon (a restored backup) changed.
+            if (restyled || customs.toString() != customsWere) iconCache.evictAll()
+            restyled = false
+            appCache.keepOnly(apps.keys)
+        }
         else { iconCache.snapshot().keys.filter { it.substringBefore('/') in changed }.forEach(iconCache::remove); appCache.forget(changed) }
     }
 
