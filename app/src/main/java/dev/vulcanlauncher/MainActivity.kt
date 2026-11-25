@@ -474,6 +474,7 @@ class MainActivity : VulcanActivity() {
         super.onDestroy()
         if (!::launcherApps.isInitialized) return // handed off to home in onCreate
         launcherApps.unregisterCallback(appsCallback)
+        appsCallback.cancel()
         unregisterReceiver(dateReceiver)
         unregisterReceiver(profileReceiver)
         // A copy left over from before Vulcan became the home app must not take the live one's badge updates away.
@@ -691,13 +692,30 @@ class MainActivity : VulcanActivity() {
         // Apps republish their shortcuts often (messaging apps on every message): redraw only for one pinned on home.
         override fun onShortcutsChanged(pkg: String, shortcuts: MutableList<ShortcutInfo>, user: UserHandle) {
             val s = repo.serial(user)
-            if ((items + items.flatMap { it.children }).any { it.isShortcut && it.pkg == pkg && it.user == s }) render()
+            if ((items + items.flatMap { it.children }).any { it.isShortcut && it.pkg == pkg && it.user == s }) reload(emptyList())
+        }
+        /**
+         * Changes come in storms (the Play Store updating 40 apps, an SD card mounting, a chat republishing shortcuts):
+         * the apps are listed and home is drawn once for all that came within 100 ms, not once each.
+         */
+        private val changed = HashSet<String>()
+        private var redraw = false
+        private var queued = false
+        private val reloadNow = Runnable {
+            queued = false
+            if (isDestroyed) return@Runnable
+            val pkgs = changed.toList().also { changed.clear() }
+            if (pkgs.isNotEmpty()) { repo.loadApps(pkgs); drawer.invalidate() }
+            if (redraw || (items + items.flatMap { it.children }).any { it.pkg in pkgs }) render()
+            redraw = false
         }
         private fun reload(pkgs: List<String>, homeOnly: Boolean = false) {
-            repo.loadApps(pkgs)
-            drawer.invalidate()
-            if (!homeOnly || (items + items.flatMap { it.children }).any { it.pkg in pkgs }) render()
+            changed += pkgs
+            if (!homeOnly) redraw = true
+            // Not pushed back by each new change: a steady stream still redraws every 100 ms.
+            if (!queued) { queued = true; mainHandler.postDelayed(reloadNow, 100) }
         }
+        fun cancel() { mainHandler.removeCallbacks(reloadNow); queued = false }
     }
 
     /** Midnight or a clock/time-zone change: date icons redraw with the new day. */
