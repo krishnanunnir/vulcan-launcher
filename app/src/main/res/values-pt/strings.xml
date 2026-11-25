@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="action_service_description">Permite que o Vulcan bloqueie a tela, abra apps recentes, configurações rápidas e o menu de energia a partir de um gesto. Ele não lê o conteúdo da tela.</string>
+    <string name="action_service_description">Permite que o Vulcan bloqueie a tela, abra aplicativos recentes, configurações rápidas e o menu de energia a partir de um gesto. Ele não lê o conteúdo da tela.</string>
     <string name="set_cols">Colunas</string>
     <string name="set_rows">Linhas</string>
     <string name="set_pages">Páginas</string>
@@ -57,7 +57,7 @@
     <string name="padding_value_ends" translatable="false">%1$d × %2$d / %3$d dp</string>
     <string name="set_widgetRadius">Raio dos cantos do widget</string>
     <string name="set_widgetPadding">Preenchimento do widget</string>
-    <string name="set_autoAdd">Adicionar ícones de novos apps à tela inicial</string>
+    <string name="set_autoAdd">Adicionar ícones de novos aplicativos à tela inicial</string>
     <string name="set_hideClock">Ocultar o relógio da barra de status</string>
     <string name="set_hideClock_info">Na tela inicial. Exige uma permissão concedida uma única vez por um computador</string>
     <string name="set_statusBar">Barra de notificações</string>
@@ -87,7 +87,7 @@
     <string name="set_dockShadow">Sombra de fundo</string>
     <string name="set_dockOverlay">Exibir como sobreposição</string>
     <string name="set_dockOverlay_info">A grade da tela inicial continua a ser exibida atrás da doca.</string>
-    <string name="set_drawerStyle">Estilo da gaveta de apps</string>
+    <string name="set_drawerStyle">Estilo da gaveta de aplicativos</string>
     <string name="drawerStyle_housing">Grade em invólucro</string>
     <string name="drawerStyle_glass">Grade em vidro</string>
     <string name="drawerStyle_grid">Grade vertical</string>
@@ -102,18 +102,18 @@
     <string name="drawerTheme_dark">Escuro</string>
     <string name="drawerTheme_light">Claro</string>
     <string name="set_drawerAlpha">Opacidade de fundo</string>
-    <string name="set_drawerSort">Ordenar apps</string>
-    <string name="set_frequent">Linha de apps usados com frequência</string>
+    <string name="set_drawerSort">Ordenar aplicativos</string>
+    <string name="set_frequent">Linha de aplicativos usados com frequência</string>
     <string name="set_showKeyboard">Mostrar teclado ao abrir</string>
     <string name="set_pullToSearch">Puxar para baixo para pesquisar</string>
     <string name="set_pullToSearch_info">Em vez de fechar</string>
     <string name="set_rememberPosition">Lembrar aba e posição da rolagem</string>
-    <string name="set_closeAfterLaunch">Fechar após abrir um app</string>
+    <string name="set_closeAfterLaunch">Fechar após abrir um aplicativo</string>
     <string name="set_fastScroll">Barra de rolagem rápida</string>
     <string name="set_fillFromBottom">Preencher de baixo para cima</string>
-    <string name="set_fillFromBottom_info">Apps e abas começam na parte inferior da tela, ao alcance do polegar</string>
+    <string name="set_fillFromBottom_info">Aplicativos e abas começam na parte inferior da tela, ao alcance do polegar</string>
     <string name="set_foldersFirst">Pastas primeiro</string>
-    <string name="set_keepInAll">Mostrar também apps que estão em outras abas</string>
+    <string name="set_keepInAll">Mostrar também aplicativos que estão em outras abas</string>
     <string name="set_webSearch">Oferecer pesquisa na web na gaveta</string>
     <string name="set_webSearch_info">Abre o seu navegador</string>
     <string name="set_searchEngine">Pesquisar na web com</string>
@@ -143,10 +143,10 @@
     <string name="set_autogen">Aplicar tema a ícones não cobertos pelo pacote de ícones</string>
     <string name="set_normalize">Normalizar tamanho dos ícones</string>
     <string name="set_themedIcons">Ícones temáticos</string>
-    <string name="set_themedIcons_info">Ícones monocromáticos nas cores do seu papel de parede, para apps compatíveis (Android 13+)</string>
+    <string name="set_themedIcons_info">Ícones monocromáticos nas cores do seu papel de parede, para aplicativos compatíveis (Android 13+)</string>
     <string name="set_iconShadow">Sombra dos ícones</string>
     <string name="set_wiggle">Tremer ícones ao arrastar e soltar</string>
-    <string name="set_launchAnim">Animação de apps</string>
+    <string name="set_launchAnim">Animação de aplicativos</string>
     <string name="launchAnim_system">Padrão do sistema</string>
     <string name="launchAnim_zoom">Zoom</string>
     <string name="launchAnim_reveal">Revelar</string>
@@ -157,7 +157,7 @@
     <string name="set_accent">Cor do tema</string>
     <string name="set_blur">Desfocar a tela inicial atrás dos painéis</string>
     <string name="set_blur_info">Exige Android 12+</string>
-    <string name="set_popupShortcuts">Atalhos de apps no menu de toque longo</string>
+    <string name="set_popupShortcuts">Atalhos de aplicativos no menu de toque longo</string>
     <string name="set_popupNotifications">Notificações no menu de toque longo</string>
     <string name="set_undoBar">Mostrar barra de desfazer após remover um item</string>
     <string name="set_nightMode">Modo noturno</string>
@@ -184,7 +184,7 @@
     <string name="set_nowCalendar_info">Solicita permissão de calendário</string>
     <string name="set_nowContacts">Contatos favoritos</string>
     <string name="set_nowContacts_info">Solicita permissão de contatos</string>
-    <string name="set_nowApps">Apps usados com frequência</string>
+    <string name="set_nowApps">Aplicativos usados com frequência</string>
     <string name="set_homeButton">Botão Início</string>
     <string name="set_homeFirst">O primeiro toque vai para a página padrão; o segundo executa a ação</string>
     <string name="searchBar_off">Desativada</string>
@@ -217,12 +217,12 @@
     <string name="sort_installed">Mais recentes primeiro</string>
     <string name="sort_used">Mais usados</string>
     <string name="sort_manual">Manual</string>
-    <string name="arrange_apps">Organizar apps</string>
+    <string name="arrange_apps">Organizar aplicativos</string>
     <string name="move_up">Mover para cima</string>
     <string name="move_down">Mover para baixo</string>
     <string name="favourites">Favoritos</string>
     <string name="in_groups">Em %1$s</string>
-    <string name="engine_browser">App de pesquisa na web padrão</string>
+    <string name="engine_browser">Aplicativo de pesquisa na web padrão</string>
     <string name="engine_google">Google</string>
     <string name="engine_duckduckgo">DuckDuckGo</string>
     <string name="engine_bing">Bing</string>
@@ -261,12 +261,12 @@
     <string name="shape_heptagon">Heptágono</string>
     <string name="shape_octagon">Octógono</string>
     <string name="action_none">Nada</string>
-    <string name="action_drawer">Gaveta de apps</string>
+    <string name="action_drawer">Gaveta de aplicativos</string>
     <string name="action_now">Página Now</string>
     <string name="action_notifications">Expandir notificações</string>
     <string name="action_quicksettings">Expandir configurações rápidas</string>
     <string name="action_togglebar">Alternar barra de notificações</string>
-    <string name="action_recents">Apps recentes</string>
+    <string name="action_recents">Aplicativos recentes</string>
     <string name="action_defaultpage">Página padrão</string>
     <string name="action_previews">Pré-visualizações da área de trabalho</string>
     <string name="action_toggledock">Alternar doca</string>
@@ -308,7 +308,7 @@
     <string name="off">Desligado</string>
     <string name="group_home">Tela inicial</string>
     <string name="group_dock">Doca</string>
-    <string name="group_drawer">Gaveta de apps</string>
+    <string name="group_drawer">Gaveta de aplicativos</string>
     <string name="group_folders">Pastas</string>
     <string name="group_look">Aparência &amp; estilo</string>
     <string name="group_night">Modo noturno</string>
@@ -317,7 +317,7 @@
     <string name="group_now">Página Now</string>
     <string name="action_jump_to_page">Ir para a página %1$d</string>
     <string name="action_open_app">Abrir %1$s</string>
-    <string name="action_app_fallback">app</string>
+    <string name="action_app_fallback">Aplicativo</string>
     <string name="ok">OK</string>
     <string name="cancel">Cancelar</string>
     <string name="save">Salvar</string>
@@ -325,7 +325,7 @@
     <string name="settings">Configurações</string>
     <string name="cat_home">Grade, doca, rótulos, rolagem e widgets</string>
     <string name="cat_dock">Ícones, páginas e fundo</string>
-    <string name="cat_drawer">Layout, ordenação, apps ocultos e grupos</string>
+    <string name="cat_drawer">Layout, ordenação, aplicativos ocultos e grupos</string>
     <string name="cat_folders">Prévias, fundos e janelas</string>
     <string name="cat_look">Ícones, cores, modo noturno e animação</string>
     <string name="cat_badges">Pontos e contagens de notificações</string>
@@ -340,11 +340,11 @@
     <string name="sec_scroll">Rolagem</string>
     <string name="sec_widgets">Widgets &amp; relógio</string>
     <string name="sec_status">Barra de status</string>
-    <string name="sec_new_apps">Novos apps</string>
+    <string name="sec_new_apps">Novos aplicativos</string>
     <string name="sec_advanced">Avançado</string>
     <string name="sec_background">Fundo</string>
     <string name="sec_colors">Cores</string>
-    <string name="sec_apps">Apps</string>
+    <string name="sec_apps">Aplicativos</string>
     <string name="sec_folder_icon">Ícone da pasta</string>
     <string name="sec_window">Janela da pasta</string>
     <string name="sec_search_bar">Barra de pesquisa</string>
@@ -355,16 +355,16 @@
     <string name="sec_buttons">Ações de botão</string>
     <string name="sec_gestures">Gestos</string>
     <string name="panel_launcher">Launcher</string>
-    <string name="hidden_apps">Apps ocultos</string>
-    <string name="hidden_apps_info">Manter apps fora da gaveta</string>
+    <string name="hidden_apps">Aplicativos ocultos</string>
+    <string name="hidden_apps_info">Manter aplicativos fora da gaveta</string>
     <string name="backup_restore">Backup &amp; restauração</string>
     <string name="backup_restore_info">Exportar, importar ou trazer o layout de outro launcher</string>
     <string name="permissions">Permissões</string>
     <string name="permissions_info">O que o launcher pode acessar</string>
-    <string name="default_home">App inicial padrão</string>
+    <string name="default_home">Aplicativo inicial padrão</string>
     <string name="default_home_info">Definir o Vulcan como sua tela inicial</string>
     <string name="default_home_is">O Vulcan é a sua tela inicial</string>
-    <string name="choose_hidden_apps">Escolher apps ocultos</string>
+    <string name="choose_hidden_apps">Escolher aplicativos ocultos</string>
     <string name="default_page_one">Adicione uma página para escolher uma</string>
     <string name="restart">Reiniciar Launcher</string>
     <string name="about">Sobre</string>
@@ -401,7 +401,7 @@
     <string name="settings_no_match">Nenhuma configuração correspondente</string>
     <string name="dock_shadow_no_bg">Não usada sem um fundo na doca</string>
     <string name="dock_shadow_housing">A doca Invólucro já tem sombra própria</string>
-    <string name="tab_private_fixed">Sempre após Todos os apps</string>
+    <string name="tab_private_fixed">Sempre após Todos os aplicativos</string>
     <string name="badges_off_unused">Não usados enquanto os selos estiverem desativados</string>
     <string name="not_used_by_bg">Não usado pelo fundo %1$s</string>
     <string name="panels_amoled">Sempre escuros com a cor de tema Preto AMOLED</string>
@@ -410,25 +410,25 @@
     <string name="housing_follows_theme">Invólucro (segue o tema)</string>
     <string name="none">Nenhum</string>
     <string name="setup_needed">Configuração única necessária</string>
-    <string name="hide_clock_help">O Android só permite que apps ocultem o relógio da barra de status com uma permissão concedida por um computador:\n\nadb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS\n\nExecute o comando uma vez e reabra o launcher.</string>
+    <string name="hide_clock_help">O Android só permite que aplicativos ocultem o relógio da barra de status com uma permissão concedida por um computador:\n\nadb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS\n\nExecute o comando uma vez e reabra o launcher.</string>
     <string name="label">Rótulo</string>
     <string name="swipe_up_action">Ação de deslizar para cima</string>
     <string name="folder">Pasta</string>
     <string name="edit_folder">Editar pasta</string>
     <string name="edit">Editar</string>
-    <string name="edit_app">Editar app</string>
+    <string name="edit_app">Editar aplicativo</string>
     <string name="icon_default_option">Ícone padrão</string>
     <string name="icon_from_pack">De %1$s</string>
     <string name="icon_from_gallery">Imagem da galeria</string>
-    <string name="icon_from_app">Ícone de outro app</string>
+    <string name="icon_from_app">Ícone de outro aplicativo</string>
     <string name="icon">Ícone</string>
     <string name="icon_pack_unreadable">Não é possível ler este pacote de ícones</string>
-    <string name="hide_apps">Ocultar apps</string>
+    <string name="hide_apps">Ocultar aplicativos</string>
     <string name="new_tab">Nova aba</string>
     <string name="new_folder">Nova pasta</string>
     <string name="group_exists">Já existe um grupo com esse nome</string>
     <string name="tab_color">Cor</string>
-    <string name="choose_apps">Escolher apps</string>
+    <string name="choose_apps">Escolher aplicativos</string>
     <string name="convert_to_tab">Converter em aba</string>
     <string name="convert_to_folder">Converter para pasta</string>
     <string name="delete">Excluir</string>
@@ -445,16 +445,16 @@
     <string name="import_failed">Falha na importação: %1$s</string>
     <string name="import_">Importar</string>
     <string name="picker_restarted">O Vulcan reiniciou enquanto o seletor estava aberto. Tente novamente</string>
-    <string name="no_web_search_app">Nenhum app lida com pesquisa na web</string>
+    <string name="no_web_search_app">Nenhum aplicativo lida com pesquisa na web</string>
     <string name="cant_open">Não é possível abrir %1$s</string>
     <string name="shortcut_unavailable">O atalho não está disponível (defina o Vulcan como launcher padrão)</string>
     <string name="cant_open_activity">Não é possível abrir esta atividade</string>
-    <string name="app_not_installed">O app não está instalado</string>
+    <string name="app_not_installed">O aplicativo não está instalado</string>
     <string name="move_to_page">Mover para a página</string>
     <string name="page_n">Página %1$d</string>
     <string name="no_room">Não há espaço na tela inicial</string>
     <string name="remove">Remover</string>
-    <string name="app_info">Informações do app</string>
+    <string name="app_info">Informações do aplicativo</string>
     <string name="uninstall">Desinstalar</string>
     <string name="added_to_home">Adicionado à tela inicial</string>
     <string name="menu_add">Adicionar</string>
@@ -475,21 +475,21 @@
     <string name="layout_unlocked">Layout desbloqueado</string>
     <string name="resize_current">%1$s (atual)</string>
     <string name="launcher_action">Ação do launcher</string>
-    <string name="app_shortcut">Atalho de app</string>
-    <string name="app_shortcut_item">Atalho do app…</string>
+    <string name="app_shortcut">Atalho de aplicativo</string>
+    <string name="app_shortcut_item">Atalho do aplicativo…</string>
     <string name="no_app_shortcuts">%1$s não tem atalhos</string>
-    <string name="shortcut_requires_home">Defina o Vulcan como seu app inicial padrão para adicionar atalhos de apps.</string>
+    <string name="shortcut_requires_home">Defina o Vulcan como seu aplicativo inicial padrão para adicionar atalhos de aplicativos.</string>
     <string name="activity">Atividade</string>
     <string name="add_to_home">Adicionar à tela inicial</string>
     <string name="work_app">%1$s (trabalho)</string>
     <string name="jump_to_page_item">Ir para a página…</string>
-    <string name="open_app_item">Abrir app…</string>
+    <string name="open_app_item">Abrir aplicativo…</string>
     <string name="page">Página</string>
-    <string name="open_app">Abrir app</string>
+    <string name="open_app">Abrir aplicativo</string>
     <string name="lock_needs_9">O bloqueio de tela exige o Android 9</string>
-    <string name="no_app_handles">Nenhum app lida com isso</string>
+    <string name="no_app_handles">Nenhum aplicativo lida com isso</string>
     <string name="accessibility_title">Ativar o serviço de acessibilidade</string>
-    <string name="accessibility_text">O Vulcan usa a API AccessibilityService apenas quando você aciona um gesto ou atalho para bloquear a tela, abrir apps recentes, notificações, configurações rápidas ou o menu de energia.\n\nO serviço não lê o conteúdo da tela, não grava suas interações nem coleta ou compartilha dados pessoais. Ele executa apenas a ação solicitada. O acesso é opcional; o restante do launcher funciona sem ele. Você pode desativá-lo a qualquer momento nas configurações de Acessibilidade do Android.\n\nToque em Concordar e abrir configurações para continuar e, em seguida, ative as ações do Vulcan.</string>
+    <string name="accessibility_text">O Vulcan usa a API AccessibilityService apenas quando você aciona um gesto ou atalho para bloquear a tela, abrir aplicativos recentes, notificações, configurações rápidas ou o menu de energia.\n\nO serviço não lê o conteúdo da tela, não grava suas interações nem coleta ou compartilha dados pessoais. Ele executa apenas a ação solicitada. O acesso é opcional; o restante do launcher funciona sem ele. Você pode desativá-lo a qualquer momento nas configurações de Acessibilidade do Android.\n\nToque em Concordar e abrir configurações para continuar e, em seguida, ative as ações do Vulcan.</string>
     <string name="agree_open_settings">Concordar e abrir configurações</string>
     <string name="privacy_policy">Política de privacidade</string>
     <string name="backup_saved">Backup salvo</string>
@@ -508,7 +508,7 @@
     <string name="now_favourites">Favoritos</string>
     <string name="now_allow_contacts">Permitir acesso aos contatos</string>
     <string name="now_add_card">Adicionar um cartão</string>
-    <string name="now_card_apps">Apps</string>
+    <string name="now_card_apps">Aplicativos</string>
     <string name="now_card_widget">Widget</string>
     <string name="now_card_height" translatable="false">%1$d dp</string>
     <string name="now_frequent">Usados com frequência</string>
@@ -525,21 +525,21 @@
     <string name="page_remove_confirm">Remover a página %1$d e tudo o que está nela?</string>
     <string name="item_removed">Item removido</string>
     <string name="undo">Desfazer</string>
-    <string name="search_apps">Pesquisar apps</string>
+    <string name="search_apps">Pesquisar aplicativos</string>
     <string name="search_list">Pesquisar</string>
     <string name="more_options">Mais opções</string>
-    <string name="folder_select_apps">Selecionar apps</string>
+    <string name="folder_select_apps">Selecionar aplicativos</string>
     <string name="folder_sort">Ordenar de A a Z</string>
-    <string name="no_apps_match">Nenhum app corresponde a “%1$s”</string>
-    <string name="tab_all">Todos os apps</string>
+    <string name="no_apps_match">Nenhum aplicativo corresponde a “%1$s”</string>
+    <string name="tab_all">Todos os aplicativos</string>
     <string name="drag_to_reorder">Arraste para reordenar</string>
     <string name="tab_all_hide">Ocultar esta aba</string>
-    <string name="tab_all_hide_info">Apps que não estão em nenhuma outra aba ainda são encontrados pela pesquisa</string>
+    <string name="tab_all_hide_info">Aplicativos que não estão em nenhuma outra aba ainda são encontrados pela pesquisa</string>
     <string name="tab_all_needs_tab">Adicione uma aba primeiro: a gaveta precisa de uma aba para exibir</string>
     <string name="move_apps_title">Mover para cá?</string>
     <plurals name="move_apps_message">
-        <item quantity="one">%1$d destes apps também está em outro grupo.</item>
-        <item quantity="other">%1$d destes apps também estão em outros grupos.</item>
+        <item quantity="one">%1$d destes aplicativos também está em outro grupo.</item>
+        <item quantity="other">%1$d destes aplicativos também estão em outros grupos.</item>
     </plurals>
     <string name="move_apps_move">Mover para cá</string>
     <string name="move_apps_keep">Manter em ambos</string>
@@ -552,12 +552,12 @@
     <string name="private_locked">O Espaço Privado está bloqueado</string>
     <string name="private_lock">Bloquear Espaço Privado</string>
     <string name="private_unlock">Desbloquear Espaço Privado</string>
-    <string name="private_install">Instalar apps no Espaço Privado</string>
+    <string name="private_install">Instalar aplicativos no Espaço Privado</string>
     <string name="search_web_for">Pesquisar “%1$s”</string>
     <string name="search_timer">Temporizador %1$s</string>
     <string name="search_alarm">Alarme %1$s</string>
     <string name="copied">Copiado</string>
-    <string name="no_clock_app">Nenhum app de relógio consegue fazer isso</string>
+    <string name="no_clock_app">Nenhum aplicativo de relógio consegue fazer isso</string>
     <string name="page_wifi">Configurações de Wi-Fi</string>
     <string name="page_bluetooth">Configurações de Bluetooth</string>
     <string name="page_network">Configurações de rede</string>
@@ -565,8 +565,8 @@
     <string name="page_display">Configurações de tela</string>
     <string name="page_sound">Configurações de som</string>
     <string name="page_battery">Configurações de bateria</string>
-    <string name="page_apps">Configurações de apps</string>
-    <string name="page_default_apps">Configurações de apps padrão</string>
+    <string name="page_apps">Configurações de aplicativos</string>
+    <string name="page_default_apps">Configurações de aplicativos padrão</string>
     <string name="page_storage">Configurações de armazenamento</string>
     <string name="page_location">Configurações de localização</string>
     <string name="page_security">Configurações de segurança</string>
@@ -575,8 +575,8 @@
     <string name="page_date">Configurações de data e hora</string>
     <string name="page_developer">Opções do desenvolvedor</string>
     <string name="page_about">Sobre o telefone</string>
-    <string name="hidden_hide">Não mostrar apps ocultos</string>
-    <string name="hidden_show">Mostrar apps ocultos</string>
+    <string name="hidden_hide">Não mostrar aplicativos ocultos</string>
+    <string name="hidden_show">Mostrar aplicativos ocultos</string>
     <string name="launcher_settings">Configurações do launcher</string>
     <string name="letter_index">Índice de letras</string>
     <string name="a11y_menu">Menu</string>
@@ -593,20 +593,20 @@
         <item quantity="other">Filtrar %1$d ícones</item>
     </plurals>
     <plurals name="added_to_folders">
-        <item quantity="one">%1$d app adicionado às pastas</item>
-        <item quantity="other">%1$d apps adicionados às pastas</item>
+        <item quantity="one">%1$d aplicativo adicionado às pastas</item>
+        <item quantity="other">%1$d aplicativos adicionados às pastas</item>
     </plurals>
     <plurals name="created_folders">
         <item quantity="one">%1$d pasta criada</item>
         <item quantity="other">%1$d pastas criadas</item>
     </plurals>
     <plurals name="import_skipped">
-        <item quantity="one">%1$d item não pode ser importado: é exclusivo do Nova ou o app correspondente não está neste aparelho.</item>
-        <item quantity="other">%1$d itens não podem ser importados: são exclusivos do Nova ou os apps correspondentes não estão neste aparelho.</item>
+        <item quantity="one">%1$d item não pode ser importado: é exclusivo do Nova ou o aplicativo correspondente não está neste aparelho.</item>
+        <item quantity="other">%1$d itens não podem ser importados: são exclusivos do Nova ou os aplicativos correspondentes não estão neste aparelho.</item>
     </plurals>
     <plurals name="restore_missing">
-        <item quantity="one">%1$d ícone ficou de fora: o app dele não está instalado. Restaure novamente quando ele for instalado.</item>
-        <item quantity="other">%1$d ícones ficaram de fora: os apps deles não estão instalados. Restaure novamente quando eles forem instalados.</item>
+        <item quantity="one">%1$d ícone ficou de fora: o aplicativo dele não está instalado. Restaure novamente quando ele for instalado.</item>
+        <item quantity="other">%1$d ícones ficaram de fora: os aplicativos deles não estão instalados. Restaure novamente quando eles forem instalados.</item>
     </plurals>
     <plurals name="import_items">
         <item quantity="one">%1$d item substituirá sua tela inicial.</item>
@@ -651,7 +651,7 @@
     <string name="labelSize_home">Igual à tela inicial</string>
     <string name="action_torch">Alternar lanterna</string>
     <string name="action_locklayout">Bloquear ou desbloquear layout</string>
-    <string name="action_work">Pausar ou retomar apps de trabalho</string>
+    <string name="action_work">Pausar ou retomar aplicativos de trabalho</string>
     <string name="action_open_folder">Abrir pasta</string>
     <string name="no_work_profile">Sem perfil de trabalho</string>
     <string name="work_paused">Perfil de trabalho pausado</string>
@@ -674,7 +674,7 @@
     <string name="restore">Restaurar</string>
     <string name="share_style_link">Compartilhar como URL</string>
     <string name="share_style_info">Copie ou envie suas configurações como um link do Designer</string>
-    <string name="share_style_message">O link contém as configurações compatíveis que você alterou em relação ao padrão. Ele não inclui seus apps, widgets e itens da tela inicial.</string>
+    <string name="share_style_message">O link contém as configurações compatíveis que você alterou em relação ao padrão. Ele não inclui seus aplicativos, widgets e itens da tela inicial.</string>
     <string name="share_style_copy">Copiar link</string>
     <string name="share_style_send">Compartilhar</string>
     <string name="apply_style_link">Importar de URL</string>
@@ -699,16 +699,16 @@
     <string name="perm_notifications">Acesso às notificações</string>
     <string name="perm_notifications_info">Selos e notificações no menu de toque longo</string>
     <string name="perm_accessibility">Serviço de acessibilidade</string>
-    <string name="perm_accessibility_info">Bloqueio de tela, apps recentes e menu de energia por gestos</string>
-    <string name="perm_default">App inicial padrão</string>
-    <string name="perm_default_info">Necessário para atalhos de apps</string>
+    <string name="perm_accessibility_info">Bloqueio de tela, aplicativos recentes e menu de energia por gestos</string>
+    <string name="perm_default">aplicativo inicial padrão</string>
+    <string name="perm_default_info">Necessário para atalhos de aplicativos</string>
     <string name="perm_allowed">Permitido</string>
     <string name="perm_allow">Permitir</string>
     <string name="perm_is_default">Padrão</string>
     <string name="perm_set_default">Definir</string>
     <plurals name="group_apps">
-        <item quantity="one">%1$d app</item>
-        <item quantity="other">%1$d apps</item>
+        <item quantity="one">%1$d aplicativo</item>
+        <item quantity="other">%1$d aplicativos</item>
     </plurals>
     <plurals name="widget_count">
         <item quantity="one">%1$d widget</item>
@@ -719,20 +719,20 @@
     <string name="welcome_begin">Começar</string>
     <string name="welcome_home_title">Faça dela a sua tela inicial</string>
     <string name="welcome_home_body">O Vulcan abre quando você toca em Início. Você pode voltar atrás a qualquer momento nas configurações do Android.</string>
-    <string name="welcome_home_set">Definir como app inicial</string>
+    <string name="welcome_home_set">Definir como aplicativo inicial</string>
     <string name="welcome_not_now">Agora não</string>
     <string name="welcome_setup_title">Traga sua tela inicial</string>
-    <string name="welcome_setup_body">Escolha um backup do Nova e seus apps, pastas, doca, grade e widgets serão importados.</string>
+    <string name="welcome_setup_body">Escolha um backup do Nova e seus aplicativos, pastas, doca, grade e widgets serão importados.</string>
     <string name="welcome_nova">Importar do Nova</string>
     <string name="welcome_restore">Restaurar um backup do Vulcan</string>
     <string name="welcome_fresh">Começar do zero</string>
     <string name="widget_slot_add">Toque para adicionar</string>
-    <string name="widget_slot_missing">App não instalado</string>
-    <string name="widget_slot_missing_toast">O app deste widget não está instalado</string>
+    <string name="widget_slot_missing">Aplicativo não instalado</string>
+    <string name="widget_slot_missing_toast">O aplicativo deste widget não está instalado</string>
     <string name="widget_slot_describe">Adicionar o widget %1$s</string>
     <string name="review_title">Sua tela inicial do Nova</string>
     <string name="review_another">Escolher outro arquivo</string>
-    <plurals name="review_apps"><item quantity="one">%1$d app</item><item quantity="other">%1$d apps</item></plurals>
+    <plurals name="review_apps"><item quantity="one">%1$d aplicativo</item><item quantity="other">%1$d aplicativos</item></plurals>
     <plurals name="review_folders"><item quantity="one">%1$d pasta</item><item quantity="other">%1$d pastas</item></plurals>
     <plurals name="review_widgets"><item quantity="one">%1$d widget</item><item quantity="other">%1$d widgets</item></plurals>
     <plurals name="review_pages"><item quantity="one">%1$d página</item><item quantity="other">%1$d páginas</item></plurals>
@@ -760,24 +760,24 @@
     </plurals>
     <string name="folders_in_grid">Pastas na grade</string>
     <string name="folders_first">Primeiro</string>
-    <string name="folders_sorted">Ordenadas junto com os apps</string>
+    <string name="folders_sorted">Ordenadas junto com os aplicativos</string>
     <string name="your_folders">Suas pastas</string>
-    <string name="folders_empty">Nenhuma pasta ainda. Uma pasta reúne apps sob um único ícone na gaveta.</string>
-    <string name="folders_hint">Arraste uma pasta para movê-la. Deslize uma para a esquerda para excluí-la; os apps dela voltam para a gaveta.</string>
+    <string name="folders_empty">Nenhuma pasta ainda. Uma pasta reúne aplicativos sob um único ícone na gaveta.</string>
+    <string name="folders_hint">Arraste uma pasta para movê-la. Deslize uma para a esquerda para excluí-la; os aplicativos dela voltam para a gaveta.</string>
     <string name="suggest_folders">Sugerir pastas</string>
     <string name="suggest_title">Pastas sugeridas</string>
-    <string name="suggest_info">Agrupadas pelo que cada app informa ser. Apps que já estão em uma pasta permanecem onde estão.</string>
+    <string name="suggest_info">Agrupadas pelo que cada aplicativo informa ser. aplicativos que já estão em uma pasta permanecem onde estão.</string>
     <string name="create">Criar</string>
     <string name="create_n">Criar %d</string>
     <string name="done">Concluir</string>
     <string name="delete_group_title">Excluir %s?</string>
     <plurals name="delete_tab_message">
-        <item quantity="one">Apenas a aba é removida. O %d app dela permanece na sua gaveta.</item>
-        <item quantity="other">Apenas a aba é removida. Os %d apps dela permanecem na sua gaveta.</item>
+        <item quantity="one">Apenas a aba é removida. O %d aplicativo dela permanece na sua gaveta.</item>
+        <item quantity="other">Apenas a aba é removida. Os %d aplicativos dela permanecem na sua gaveta.</item>
     </plurals>
     <plurals name="delete_folder_message">
-        <item quantity="one">Apenas a pasta é removida. O %d app dela volta para a sua gaveta.</item>
-        <item quantity="other">Apenas a pasta é removida. Os %d apps dela voltam para a sua gaveta.</item>
+        <item quantity="one">Apenas a pasta é removida. O %d aplicativo dela volta para a sua gaveta.</item>
+        <item quantity="other">Apenas a pasta é removida. Os %d aplicativos dela voltam para a sua gaveta.</item>
     </plurals>
     <plurals name="screens">
         <item quantity="one">%1$d tela</item>
