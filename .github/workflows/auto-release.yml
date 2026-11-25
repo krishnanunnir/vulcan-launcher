@@ -143,7 +143,8 @@ jobs:
           bt=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)
           certs=$("${bt}apksigner" verify --print-certs vulcan-launcher.apk)
           echo "$certs"
-          got=$(sed -nE 's/^Signer #[0-9]+ certificate SHA-256 digest: //p' <<<"$certs")
+          # apksigner prints "Signer #1 certificate …" or, for a v2/v3-only APK, "V2 Signer: certificate …".
+          got=$(sed -nE 's/^(Signer #[0-9]+|V[0-9.]+ Signer):? certificate SHA-256 digest: //p' <<<"$certs" | sort -u)
           if [ "$got" != "$RELEASE_CERT_SHA256" ]; then
             echo "::error::Signed with $got, expected $RELEASE_CERT_SHA256"; exit 1
           fi
