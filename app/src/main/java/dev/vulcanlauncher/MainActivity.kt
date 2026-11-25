@@ -137,7 +137,8 @@ class MainActivity : VulcanActivity() {
     var glance: Pair<String, (() -> Unit)?>? = null
     @Volatile var glanceAsked = 0
     /** Notifications come in bursts (a busy chat): the glance line and the Now page follow once the burst settles. */
-    private val notified = Runnable { if (!isDestroyed) { updateGlance(); prepareNow() } }
+    private var notifyQueued = false
+    private val notified = Runnable { notifyQueued = false; if (!isDestroyed) { updateGlance(); prepareNow() } }
     /** Where the last touch went down, in window coordinates; menus opened by a long-press appear there. */
     val lastDown = PointF()
 
@@ -200,10 +201,12 @@ class MainActivity : VulcanActivity() {
         }
         if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(profileReceiver, profileFilter, RECEIVER_NOT_EXPORTED)
         else registerReceiver(profileReceiver, profileFilter)
-        BadgeService.onChange = { pkgs -> runOnUiThread { if (pkgs.isNotEmpty()) {
-            updateBadges(pkgs); drawer.refreshBadges()
-            mainHandler.removeCallbacks(notified); mainHandler.postDelayed(notified, 500)
-        } } }
+        BadgeService.onChange = { pkgs -> runOnUiThread {
+            if (pkgs.isNotEmpty()) { updateBadges(pkgs); drawer.refreshBadges() }
+            // Also with no badge change: a player whose channel shows no dot still changes the glance line. Not pushed
+            // back by each one: a download's progress, posted several times a second, would hold the line still.
+            if (!notifyQueued) { notifyQueued = true; mainHandler.postDelayed(notified, 500) }
+        } }
         // Rotation recreates the activity: stay on the page the user was on.
         savedInstanceState?.getInt("page", -1)?.takeIf { it in 0 until looks.pages }?.let { workspace.snapTo(it, animate = false) }
         // Just imported: put the widgets back (not when a restore was already under way and this is its restart).

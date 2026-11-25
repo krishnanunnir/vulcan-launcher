@@ -6,3 +6,18 @@ appId: dev.vulcanlauncher
 - clearState
 - pressKey: Home
 - waitForAnimationToEnd
+# A fresh install opens on the welcome: through it, with nothing imported.
+- runFlow:
+    when:
+      visible: "Get started"
+    commands:
+      - tapOn: "Get started"
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible: "Not now"
+          commands:
+            - tapOn: "Not now"
+            - waitForAnimationToEnd
+      - tapOn: "Start fresh"
+      - waitForAnimationToEnd

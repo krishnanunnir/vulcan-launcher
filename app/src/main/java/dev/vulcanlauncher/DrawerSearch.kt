@@ -86,12 +86,15 @@ internal class DrawerSearch(private val a: MainActivity) {
 
     /** Every app's shortcuts, read on the first search after the drawer opens and dropped when it closes. */
     @Volatile private var shortcuts: List<android.content.pm.ShortcutInfo>? = null
-    fun forget() { shortcuts = null }
+    /** Bumped by [forget]: a read that was under way then is of the drawer's last opening, and isn't kept. */
+    @Volatile private var opening = 0
+    fun forget() { opening++; shortcuts = null }
 
     /** Up to four app shortcuts ("New tab", "Compose") whose names match, from the apps the drawer [shown]. Off the UI thread. */
     private fun shortcutHits(q: String, shown: Set<Pair<String, android.os.UserHandle>>, iconPx: Int): List<Drawer.Entry> {
         if (q.length < 3) return emptyList()
-        val all = shortcuts ?: a.repo.allShortcuts().also { shortcuts = it }
+        val now = opening
+        val all = shortcuts ?: a.repo.allShortcuts().also { if (opening == now) shortcuts = it }
         return all.filter { (it.`package` to it.userHandle) in shown }.map { it to matchScore(it.shortLabel?.toString() ?: "", q) }
             .filter { it.second >= 2 }.sortedByDescending { it.second }.take(4).map { (s, _) ->
                 // Drawn once at cell size: a shortcut's own icon can be a 108 dp adaptive one.
