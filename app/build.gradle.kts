@@ -71,5 +71,9 @@ dependencies {
     testImplementation("org.json:json:20240303") // real org.json for JVM tests; Android supplies its own at runtime
 }
 
-// SchemaTest reads the published backup schema; a change to it must rerun the tests, not leave them up to date.
-tasks.withType<Test>().configureEach { inputs.file(rootProject.file("docs/schema/vulcan-backup-2.json")) }
+// SchemaTest reads the published backup schema and StringsTest reads src/main/res from disk; a change to either must
+// rerun the tests, not leave them up to date (a translation's text doesn't change R).
+tasks.withType<Test>().configureEach {
+    inputs.file(rootProject.file("docs/schema/vulcan-backup-2.json"))
+    inputs.dir("src/main/res")
+}
