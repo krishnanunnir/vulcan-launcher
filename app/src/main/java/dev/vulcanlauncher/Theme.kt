@@ -610,6 +610,14 @@ fun VulcanActivity.styleDialog(d: AlertDialog, sheet: Boolean = false) {
         isAllCaps = false
         typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
     }
+    // A list's checked radio or box in the switch-on colour: the dialog theme's colorAccent is fixed (themes.xml), so
+    // a custom accent or "Your colour" didn't reach it. Unreadable on this surface, it falls back to ink, as the buttons.
+    val checked = if (contrast(m3.on, m3.surfaceHigh) >= 3) m3.on else m3.onSurface
+    val tint = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(checked, m3.onSurfaceVariant))
+    d.listView?.setOnHierarchyChangeListener(object : android.view.ViewGroup.OnHierarchyChangeListener {
+        override fun onChildViewAdded(parent: View, child: View) { (child as? android.widget.CheckedTextView)?.checkMarkTintList = tint }
+        override fun onChildViewRemoved(parent: View, child: View) {}
+    })
 }
 
 /** Has TalkBack read this row, the tap target around [toggle], as a switch that is on or off (the Toggle is only drawn). */
