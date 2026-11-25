@@ -221,7 +221,7 @@ class Store(private val context: Context) {
         // All written whole before any replaces a file: a write cut short (a full disk) must not stand as a backup or lose one.
         // A kept backup keeps its date: the list in Settings tells them apart by it.
         texts.zip(autoBackups).map { (text, f) -> File(f.path + ".tmp").apply { writeText(text); old[text]?.let(::setLastModified) } to f }
-            .forEach { (tmp, f) -> tmp.renameTo(f) }
+            .forEach { (tmp, f) -> check(tmp.renameTo(f)) { context.getString(R.string.auto_backup_not_saved) } }
     }
 
     // Lenient: a restored or hand-edited value of the wrong type reads as empty instead of crashing home on every start.
