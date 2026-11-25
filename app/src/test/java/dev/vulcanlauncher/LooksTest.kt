@@ -122,6 +122,13 @@ class LooksTest {
         assertEquals(7, c("rows").intOf("7"))
     }
 
+    @Test fun aHugeSizeDoesNotOverflowIntoAFit() {
+        val huge = Item(0, 1, 0, w = Int.MAX_VALUE, h = 1, pkg = "a")
+        val moved = fitItems(listOf(huge), 1, 5, 5, 5).single()
+        assertEquals(5, moved.w)
+        assertEquals(Item(0, 1, 2, w = 1000, h = -1000), itemFromJson(Item(0, 1, 2, w = Int.MAX_VALUE, h = Int.MIN_VALUE).toJson()))
+    }
+
     private companion object {
         const val SETTINGS_BUDGET = 120 // 120 for Widget padding (#121), the owner's yes 2026-11-24
         const val MAX_SECTION_ROWS = 8

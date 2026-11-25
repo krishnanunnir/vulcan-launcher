@@ -27,8 +27,9 @@ fun scaleSpan(n: Int, portrait: Int, now: Int) = maxOf(1, Math.round(n * now / p
 // ponytail: items with no room anywhere keep their old spot and stay hidden until the grid grows back
 fun fitItems(items: List<Item>, pages: Int, cols: Int, rows: Int, dockCols: Int, dockPages: Int = 1, sub: Int = 1, overlapOk: Boolean = true): List<Item> {
     // A backup edited by hand can hold a negative cell or a size of 0: off the grid too, not a fit left out of sight.
-    fun fits(i: Item) = i.x >= 0 && i.y >= 0 && i.w >= 1 && i.h >= 1 && if (isDock(i.page)) dockIndex(i.page) < dockPages && i.x + i.w <= dockCols && i.y == 0
-        else i.page in 0 until pages && i.x + i.w <= cols && i.y + i.h <= rows
+    // Sizes are compared with what's left of the grid: x + w could overflow for a huge w and pass.
+    fun fits(i: Item) = i.x >= 0 && i.y >= 0 && i.w >= 1 && i.h >= 1 && if (isDock(i.page)) dockIndex(i.page) < dockPages && i.w <= dockCols - i.x && i.y == 0
+        else i.page in 0 until pages && i.w <= cols - i.x && i.h <= rows - i.y
     // An item hidden by a smaller grid keeps its cells on paper, and one moved since may sit in them: once both fit again
     // they would stack. Unless overlap is the user's choice ([overlapOk]), the bigger one stays and the other moves.
     val kept = ArrayList<Item>()

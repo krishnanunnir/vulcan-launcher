@@ -83,12 +83,17 @@ fun Item.toJson(): JSONObject = JSONObject().put("page", page).put("x", x).put("
     .put("action", action).put("folder", folder).put("label", label).put("icon", icon).put("swipe", swipe)
     .put("children", JSONArray().apply { children.forEach { put(it.toJson()) } })
 
+/** Far past any grid, and small enough that adding two never overflows: a hand-written cell or size is held within it. */
+const val MAX_CELL = 1000
+
 fun itemFromJson(o: JSONObject): Item = Item(
-    o.getInt("page"), o.getInt("x"), o.getInt("y"), o.optInt("w", 1), o.optInt("h", 1),
+    o.getInt("page"), cell(o.getInt("x")), cell(o.getInt("y")), cell(o.optInt("w", 1)), cell(o.optInt("h", 1)),
     o.optString("pkg"), o.optString("cls"), o.optInt("widgetId", -1), o.optLong("user"), o.optString("shortcutId"),
     o.optString("action"), o.optBoolean("folder"),
     o.optJSONArray("children")?.let(::itemList) ?: emptyList(),
     o.optString("label"), o.optString("icon"), o.optString("swipe"))
+
+private fun cell(n: Int) = n.coerceIn(-MAX_CELL, MAX_CELL)
 
 fun itemsToJson(items: List<Item>) = JSONArray().apply { items.forEach { put(it.toJson()) } }.toString()
 /** The items of [s]; an item that can't be read is dropped, not the whole layout. Throws when [s] isn't a JSON array. */
