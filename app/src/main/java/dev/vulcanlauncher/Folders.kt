@@ -25,6 +25,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
@@ -256,8 +257,9 @@ fun MainActivity.folderOf(fc: FolderChild) = items.firstOrNull { it.folder && it
  * all back into the icon, then calls [done]. It starts on the first frame after layout, so nothing flashes in place first.
  */
 private fun MainActivity.reveal(card: View, grid: ViewGroup, name: View, from: Rect, slots: List<Slot>,
-                                startCorner: Float, corner: Float, open: Boolean, done: () -> Unit = {}) {
-    var f = if (open) 0f else 1f
+                                startCorner: Float, corner: Float, open: Boolean, at: Float = if (open) 0f else 1f,
+                                started: (ValueAnimator) -> Unit = {}, done: () -> Unit = {}) {
+    var f = at
     fun lerp(x: Float, y: Float) = x + (y - x) * f
     // The folder icon draws in the largest square of its view, centred.
     val side = minOf(from.width(), from.height()).toFloat()
@@ -309,7 +311,8 @@ private fun MainActivity.reveal(card: View, grid: ViewGroup, name: View, from: R
         ValueAnimator.ofFloat(f, if (open) 1f else 0f).apply {
             // Short cubic ease-out both ways: moving from the first frame and done when it looks done. Emphasized curves
             // (a long creep in, a slow start out) measured as half a second of lag on a 120 Hz phone.
-            duration = if (open) 200 else 160
+            // A close that cuts an open short runs back from where the open got to, in its share of the time.
+            duration = ((if (open) 200 else 160) * abs((if (open) 1f else 0f) - f)).toLong()
             interpolator = DecelerateInterpolator(1.5f)
             addUpdateListener { f = it.animatedValue as Float; frame() }
             addListener(object : AnimatorListenerAdapter() {
@@ -319,6 +322,7 @@ private fun MainActivity.reveal(card: View, grid: ViewGroup, name: View, from: R
                 }
             })
             start()
+            started(this)
         }
     }
     if (card.isLaidOut && !card.isLayoutRequested) begin()
@@ -596,7 +600,8 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
             override fun onViewDetachedFromWindow(v: View) = v.viewTreeObserver.removeOnGlobalLayoutListener(lift)
         })
     }
-    showOverlay(dim, depth = false) { onRename?.invoke(name.text.toString().trim()) }
+    // A pending shuffle or leave dies with the window: Back during a drag out once left [leave] to hide the drawer 400 ms later.
+    showOverlay(dim, depth = false) { root.removeCallbacks(leave); root.removeCallbacks(shuffle); onRename?.invoke(name.text.toString().trim()) }
     // A folder that's gone (or became a single app) closes; the grid keeps its size, so the last slots stay empty.
     // ponytail: not while an icon is being dragged in here (the rebuild would lose the gap); the drop refills it.
     if (reload != null) refillFolder = { if (gap < 0) reload()?.let(::fill) ?: closeOverlay() }
@@ -608,9 +613,15 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         // As Launcher3: the whole folder icon hides while open, its label too (it showed under the window).
         val tile = icon?.parent as? IconView ?: icon
         tile?.alpha = 0f
-        reveal(card, cell, footer, anchor, slots, iconCorner, corner, open = true)
+        // Kept, so a close during the open stops it first: two animators on the same views fought, and the open's end
+        // dropped the shrinking card's outline.
+        var opening: ValueAnimator? = null
+        reveal(card, cell, footer, anchor, slots, iconCorner, corner, open = true, started = { opening = it })
         // Dragging an icon out, Back, or a tap outside: the window shrinks back into its folder.
-        overlayExit = { done -> reveal(card, cell, footer, anchor, slots, iconCorner, corner, open = false) { tile?.alpha = 1f; done() } }
+        overlayExit = { done ->
+            val at = opening?.takeIf { it.isRunning }?.let { it.cancel(); it.animatedValue as Float } ?: 1f
+            reveal(card, cell, footer, anchor, slots, iconCorner, corner, open = false, at = at) { tile?.alpha = 1f; done() }
+        }
     } else if (!full) {
         card.scaleX = 0.9f; card.scaleY = 0.9f; card.alpha = 0f
         card.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(150).setInterpolator(DecelerateInterpolator()).start()
