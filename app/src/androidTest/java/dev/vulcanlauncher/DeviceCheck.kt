@@ -106,6 +106,7 @@ class DeviceCheck : Instrumentation() {
         if (mode == "import") return importCheck()
         if (mode == "readable") return readableCheck()
         if (mode == "pages") return OverviewCheck(this).run()
+        if (mode == "pull") return PullCheck(this).run()
         val looks = targetContext.getSharedPreferences("looks", Context.MODE_PRIVATE)
         val layout = targetContext.getSharedPreferences("layout", Context.MODE_PRIVATE)
         // The setup is copied to disk before the test touches it: a crash or a killed process skips the finally below,
