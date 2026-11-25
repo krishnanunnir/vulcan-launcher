@@ -430,6 +430,10 @@ fun VulcanActivity.housingFace(color: Int, radius: Float): Drawable = android.gr
     rounded(color, maxOf(0f, radius - dp)),
 )).apply { val i = dp.roundToInt(); setLayerInset(1, i, i, i, i) }
 
+/** A settings panel's face (the panels and the nameplate): its corner radius and its resting elevation, in dp. */
+const val PANEL_RADIUS = 24f
+const val PANEL_REST = 2f
+
 /** Raised housing (dock, menus, folder windows): a machined face and a soft shadow under it. */
 fun VulcanActivity.housing(v: View, radius: Float, color: Int = m3.raised) {
     v.background = housingFace(color, radius)

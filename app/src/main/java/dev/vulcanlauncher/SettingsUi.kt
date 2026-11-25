@@ -293,8 +293,8 @@ fun SettingsActivity.panel(list: LinearLayout, title: String?, rows: List<View>)
     if (title != null) list.addView(legend(title, 12f).apply { setPaddingRelative((32 * dp).toInt(), (20 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt()) })
     list.addView(LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        housing(this, 24 * dp)
-        elevation = 2 * dp
+        housing(this, PANEL_RADIUS * dp)
+        elevation = PANEL_REST * dp
         clipToOutline = true
         setPadding(0, (4 * dp).toInt(), 0, (4 * dp).toInt())
         rows.forEachIndexed { i, row ->
@@ -311,8 +311,8 @@ fun SettingsActivity.panel(list: LinearLayout, title: String?, rows: List<View>)
 /** The rating plate at the top of settings: the name and version, printed on a raised face. */
 private fun SettingsActivity.nameplate() = LinearLayout(this).apply {
     gravity = Gravity.CENTER_VERTICAL
-    housing(this, 24 * dp)
-    elevation = 2 * dp
+    housing(this, PANEL_RADIUS * dp)
+    elevation = PANEL_REST * dp
     setPadding((20 * dp).toInt(), (20 * dp).toInt(), (20 * dp).toInt(), (20 * dp).toInt())
     addView(LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
