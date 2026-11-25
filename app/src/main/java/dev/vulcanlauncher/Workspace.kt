@@ -96,6 +96,8 @@ class Workspace(context: Context) : ViewGroup(context) {
     var onPageTap: ((Int) -> Unit)? = null
     var onPageHold: ((Int) -> Unit)? = null
     private val hold = Runnable { if (mode == NONE) { mode = DONE; onPageHold?.invoke(pageAt(downX, downY)) } }
+    // A rebuild mid-hold replaces this workspace: its hold must not lift a page of the new one.
+    override fun onDetachedFromWindow() { removeCallbacks(hold); super.onDetachedFromWindow() }
     /** The touch began in the overview: the hold that opens it ends with a lift that must not count as a tap. */
     private var overviewTouch = false
 
