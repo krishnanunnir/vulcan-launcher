@@ -65,7 +65,7 @@ internal class DrawerMotion(private val a: MainActivity, private val d: Drawer) 
             private set
         private var downY = 0f
         private var velocity: android.view.VelocityTracker? = null
-        /** The finger whose move started the pull: its lift ends it, wherever other fingers are. */
+        /** The finger that went down last, and so owns a pull it starts. */
         private var owner = -1
 
         fun handle(ev: MotionEvent): Boolean {
@@ -75,6 +75,7 @@ internal class DrawerMotion(private val a: MainActivity, private val d: Drawer) 
             // the drawer half-open. It's swallowed instead, and the first finger's pull carries on.
             if (closing && ev.getPointerId(ev.actionIndex) != owner) return true
             if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
+                owner = ev.getPointerId(0)
                 // Screen coordinates: the list moves with the sheet, so its own would halve the pull.
                 closing = false; downY = ev.rawY
                 velocity?.recycle(); velocity = android.view.VelocityTracker.obtain()
@@ -85,7 +86,7 @@ internal class DrawerMotion(private val a: MainActivity, private val d: Drawer) 
                     if (search != null && a.looks.on("pullToSearch")) {
                         if (ev.rawY - downY > 96 * a.dp) { downY = Float.MAX_VALUE; search() }
                     } else {
-                        closing = true; started = true; held = true; downY = ev.rawY; owner = ev.getPointerId(0); stop()
+                        closing = true; started = true; held = true; downY = ev.rawY; stop()
                         // As Launcher3, the keyboard goes as the drag down starts, not once the drawer is gone (#73).
                         d.hideKeyboard()
                     }
@@ -100,9 +101,7 @@ internal class DrawerMotion(private val a: MainActivity, private val d: Drawer) 
             // On release too: the finger's last position decides whether it's past the threshold, even if the last move dropped.
             if (ev.actionMasked == MotionEvent.ACTION_MOVE || ev.actionMasked == MotionEvent.ACTION_UP)
                 setProgress(1 - (ev.rawY - downY) / travel())
-            // The owner lifting while another finger stays on the same view is a POINTER_UP: the pull ends there too, or
-            // the last finger's UP (not the owner's) would be swallowed above and [held] would stay set.
-            if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL || ev.actionMasked == MotionEvent.ACTION_POINTER_UP) {
+            if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
                 velocity?.computeCurrentVelocity(1000)
                 release(-(velocity?.yVelocity ?: 0f), 0.7f)
                 velocity?.recycle(); velocity = null
