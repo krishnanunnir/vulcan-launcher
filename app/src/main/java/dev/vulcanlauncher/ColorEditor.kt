@@ -359,8 +359,9 @@ private fun VulcanActivity.colorSheet(title: Int, start: Int, following: Boolean
     val controls = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         addView(LinearLayout(context).apply {
-            gravity = Gravity.CENTER_VERTICAL; addView(chip, LinearLayout.LayoutParams(-2, (32 * dp).toInt()))
-            addView(field, LinearLayout.LayoutParams(0, (32 * dp).toInt(), 1f).apply { marginStart = pad / 2 })
+            // At least 32 dp, not exactly: a large font scale would cut the text off.
+            gravity = Gravity.CENTER_VERTICAL; addView(chip.apply { minHeight = (32 * dp).toInt() }, LinearLayout.LayoutParams(-2, -2))
+            addView(field.apply { minHeight = (32 * dp).toInt() }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = pad / 2 })
         },
             LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = pad / 2 })
         addView(grid)
@@ -413,15 +414,15 @@ private fun VulcanActivity.colorSheet(title: Int, start: Int, following: Boolean
 /** Picks a drawer tab's colour ([current] null: from the theme), over a sample of the tab bar with the tab selected. */
 fun VulcanActivity.pickTabColor(name: String, current: String?, done: (String?) -> Unit) {
     val pad = (12 * dp).toInt()
-    fun pill(label: String) = text(label, 14f).apply { gravity = Gravity.CENTER; setPadding(pad * 3 / 2, 0, pad * 3 / 2, 0) }
+    fun pill(label: String) = text(label, 14f).apply { gravity = Gravity.CENTER; minHeight = (40 * dp).toInt(); setPadding(pad * 3 / 2, 0, pad * 3 / 2, 0) }
     val all = pill(getString(R.string.tab_all)).apply { setTextColor(m3.onSurfaceVariant) }
     val tab = pill(name)
     val bar = LinearLayout(this).apply {
         gravity = Gravity.CENTER_VERTICAL
         setPadding(pad, pad, pad, pad)
         background = rounded(m3.surface, 16 * dp, m3.outlineVariant)
-        addView(all, LinearLayout.LayoutParams(-2, (40 * dp).toInt()).apply { marginEnd = pad })
-        addView(tab, LinearLayout.LayoutParams(-2, (40 * dp).toInt()))
+        addView(all, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = pad })
+        addView(tab, LinearLayout.LayoutParams(-2, -2))
     }
     val auto = tabFill()
     colorSheet(R.string.tab_color, current?.let(Color::parseColor) ?: auto, current == null, auto, R.string.color_from_theme, bar, { c ->

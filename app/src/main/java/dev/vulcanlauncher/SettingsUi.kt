@@ -175,12 +175,13 @@ fun SettingsActivity.showPage(page: String, scroll: Int = 0, restoring: Boolean 
         isClickable = true
         addView(LinearLayout(context).apply {
             gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = (64 * dp).toInt() // not a fixed height: a large font scale would cut the title off
             setPadding((4 * dp).toInt(), 0, (4 * dp).toInt(), 0)
             addView(iconButton("back", getString(R.string.back), m3.onSurface) { back.run() })
             addView(title, LinearLayout.LayoutParams(0, -2, 1f))
             field?.let { addView(it, LinearLayout.LayoutParams(0, -1, 1f)) }
             searchButton?.let { addView(it) }
-        }, LinearLayout.LayoutParams(-1, (64 * dp).toInt()))
+        }, LinearLayout.LayoutParams(-1, -2))
         addView(scrollView, LinearLayout.LayoutParams(-1, 0, 1f))
         tag = back
     }
