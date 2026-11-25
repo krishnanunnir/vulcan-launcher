@@ -86,6 +86,11 @@ jobs:
             fi
             sed -i -E "s/^( *versionCode = )[0-9]+/\1$code/; s/^( *versionName = )\"[^\"]+\"/\1\"$name\"/" $f
           fi
+          # A hand bump that forgot versionCode would ship as no update at all (and reuse the old changelog).
+          if [ -z "$HEAL" ]; then
+            prev=$(git show "${{ steps.check.outputs.last }}:$f" | sed -nE 's/^ *versionCode = ([0-9]+).*/\1/p')
+            [ "$code" -gt "$prev" ] || { echo "::error::versionCode $code isn't above $prev, the code of ${{ steps.check.outputs.last }}"; exit 1; }
+          fi
 
           # Changelog = commit subjects since the last tag, minus release/CI/repo-housekeeping commits.
           git log --no-merges --format='%s' "${{ steps.check.outputs.last }}..HEAD" \
