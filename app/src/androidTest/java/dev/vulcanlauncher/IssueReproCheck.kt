@@ -249,7 +249,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                     back()
                 } else back()
                 clean()
-                a.javaClass.getDeclaredMethod("addShortcutMenu").apply { isAccessible=true }.let { m -> ui { m.invoke(a) } }; settle()
+                HomeMenus::class.java.getDeclaredMethod("addShortcutMenu").apply { isAccessible=true }.let { m -> ui { m.invoke(a.homeMenus) } }; settle()
                 val choose=dialogs().last()
                 ui { choose.listView.performItemClick(choose.listView.getChildAt(1),1,1) }; settle(); shot("30-app-shortcuts")
                 val rows=all(dialogs().last().window!!.decorView)
@@ -298,9 +298,9 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 val cm=a.getSystemService(android.hardware.camera2.CameraManager::class.java)
                 val flash=cm.cameraIdList.filter { cm.getCameraCharacteristics(it).get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE)==true }
                 ui { a.homeMenus.perform("torch") }; settle()
-                val first=field(a,"torchOn")
+                val first=field(a.homeMenus,"torchOn")
                 ui { a.homeMenus.perform("torch") }; settle()
-                note("#15/hardware",if(flash.isEmpty()) "LIMITED" else "OBSERVED","flash cameras=$flash; two toggles=$first -> ${field(a,"torchOn")}; no physical light verification")
+                note("#15/hardware",if(flash.isEmpty()) "LIMITED" else "OBSERVED","flash cameras=$flash; two toggles=$first -> ${field(a.homeMenus,"torchOn")}; no physical light verification")
                 note("#24","LIMITED","Settings navigated. GrapheneOS Android 17 unavailable")
             }
             case("#24") {

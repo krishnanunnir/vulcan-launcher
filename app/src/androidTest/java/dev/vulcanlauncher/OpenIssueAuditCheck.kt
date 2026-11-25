@@ -148,8 +148,8 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
                     val r = bounds(a.workspace)
                     val p = point(r.centerX(), r.top + r.height() / 3)
                     drag(p, p, ViewConfiguration.getLongPressTimeout() + 250L)
-                    require(field(a, "menu") != null) { "Hold did not open menu" }
-                    val row = (field(a, "menu") as ViewGroup).getChildAt(0)
+                    val menu = a.homeMenus.menu ?: error("Hold did not open menu")
+                    val row = (menu as ViewGroup).getChildAt(0)
                     val card = bounds(a.pages[a.workspace.current]); val buttons = bounds(row)
                     val gap = buttons.top - card.bottom
                     note("#34/$name", if (gap < 0) "REPRODUCED" else "NO_OVERLAP", "card=$card; buttons=$buttons; gapPx=$gap; gapDp=${gap/a.dp}; workspaceScale=${a.workspace.scaleX}")
@@ -305,7 +305,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
                             SystemClock.sleep(35)
                             shot("37-$style-move-$i")
                         }
-                        note("#37/$style", "VISUAL_REVIEW_REQUIRED", "icon=${icon.contentDescription}; bounds=$r; dragSource=${field(a,"dragSource")?.javaClass?.simpleName}; dragMoved=${field(a,"dragMoved")}; held and five movement frames saved")
+                        note("#37/$style", "VISUAL_REVIEW_REQUIRED", "icon=${icon.contentDescription}; bounds=$r; dragSource=${a.drag.dragSource?.javaClass?.simpleName}; dragMoved=${a.drag.dragMoved}; held and five movement frames saved")
                     } finally {
                         // Cancel the framework drag with Back before releasing, avoiding an accidental drop on home.
                         t.uiAutomation.injectInputEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK), true)
