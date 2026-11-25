@@ -104,7 +104,7 @@ class AppRepo(private val context: Context, private val store: Store, private va
         privateUser = profiles.firstOrNull { kinds[it] == Profile.PRIVATE }
         // A locked Private Space shows none of its apps, anywhere.
         pausedUsers = profiles.filter { it != Process.myUserHandle() && it != privateUser && um.isQuietModeEnabled(it) }.toSet()
-        apps = profiles.filter { it != privateUser || !privateLocked }.flatMap { user -> launcherApps.getActivityList(null, user).map { App(it, serial(user), appCache::label) } }
+        apps = profiles.filter { it != privateUser || !privateLocked }.flatMap { user -> val s = serial(user); launcherApps.getActivityList(null, user).map { App(it, s, appCache::label) } } // one binder call per profile, not per app
             .filter { it.pkg != context.packageName }.associateBy { it.key }
         val customsWere = customs.toString()
         customs = store.obj("custom")

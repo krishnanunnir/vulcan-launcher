@@ -500,8 +500,13 @@ class MainActivity : VulcanActivity() {
         if (::repo.isInitialized && level >= TRIM_MEMORY_UI_HIDDEN) repo.trim(all = level >= TRIM_MEMORY_COMPLETE)
     }
 
+    /** Between onResume and onPause: home is what the user sees. */
+    var resumed = false
+        private set
+
     override fun onResume() {
         super.onResume()
+        resumed = true
         // A copy opened from another launcher before Vulcan became the default one.
         if (handOffToHome()) return
         updateLocation()
@@ -541,6 +546,7 @@ class MainActivity : VulcanActivity() {
 
     override fun onPause() {
         super.onPause()
+        resumed = false
         setClockHidden(false)
     }
 

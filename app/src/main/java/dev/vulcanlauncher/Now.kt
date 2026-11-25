@@ -98,7 +98,8 @@ private const val NOW_FRESH_MS = 5 * 60_000L
 fun MainActivity.prepareNow() {
     nowReady = null
     root.removeCallbacks(nowBuilder)
-    if (looks.on("nowPage")) root.postDelayed(nowBuilder, 800)
+    // Not behind another app: a notification there would build a page nobody sees, and onResume builds it anyway.
+    if (resumed && looks.on("nowPage")) root.postDelayed(nowBuilder, 800)
 }
 
 /** [prepareNow]'s delayed build; not while the page is open (a widget's frame can only be in one page). */
