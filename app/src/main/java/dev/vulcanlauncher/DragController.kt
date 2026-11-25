@@ -205,6 +205,8 @@ class DragController(private val a: MainActivity) {
     var springBottom = 0
     /** The shrunk page's scale, from [springScale]. */
     private var cardScale = SPRING_SCALE
+    /** The [springBottom] [cardScale] was worked out for. */
+    private var cardBottom = 0
 
     /**
      * Launcher3's spring-loaded home, for a drag and for the hold-home overview: the pages shrink into outlined cards a
@@ -215,7 +217,9 @@ class DragController(private val a: MainActivity) {
         val accent = workspaceAccent()
         (a.pages + a.dockPages).forEach { it.outlineColor = accent; if (!on) it.landing = null }
         val box = a.workspace.parent as ViewGroup
-        if (on && spring == 0f) {
+        // Also mid-way: the overview opened while a drop's shrink was still undoing needs room for its buttons.
+        if (on && (spring == 0f || springBottom != cardBottom)) {
+            cardBottom = springBottom
             var top = 0
             var v: View = a.workspace
             while (v !== a.root) { top += v.top; v = v.parent as View }
