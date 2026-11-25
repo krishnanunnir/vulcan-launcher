@@ -520,7 +520,8 @@ fun MainActivity.showUndo(item: Item, finalize: () -> Unit) {
     if (!looks.on("undoBar")) { finalize(); return }
     snackbar(getString(R.string.item_removed), onTimeout = finalize) {
         // Its cells may have been taken in the meantime: it then goes to the first free spot.
-        if (items.any { it.page == item.page && overlaps(item.x, item.y, item.w, item.h, it.x, it.y, it.w, it.h) }) addItem(item, quiet = true)
+        if (items.any { it.page == item.page && overlaps(item.x, item.y, item.w, item.h, it.x, it.y, it.w, it.h) })
+            addItem(if (isDock(item.page)) item.copy(w = sub, h = sub) else item, quiet = true) // a dock cell is one home icon
         else { items += item; save(); render() }
     }
 }

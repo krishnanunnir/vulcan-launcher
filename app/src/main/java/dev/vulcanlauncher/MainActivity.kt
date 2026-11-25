@@ -615,7 +615,7 @@ class MainActivity : VulcanActivity() {
         }
     }
 
-    fun fit(list: List<Item>) = fitItems(list, looks.pages, looks.cols * sub, looks.rows * sub, looks.dockCols, looks.dockPages).toMutableList()
+    fun fit(list: List<Item>) = fitItems(list, looks.pages, looks.cols * sub, looks.rows * sub, looks.dockCols, looks.dockPages, sub, looks.on("widgetOverlap")).toMutableList()
 
     fun save() = store.save(items, sub)
     /** Puts [item] in place of the one at [i], saves and redraws. */

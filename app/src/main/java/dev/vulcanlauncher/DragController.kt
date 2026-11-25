@@ -428,6 +428,7 @@ class DragController(private val a: MainActivity) {
     fun newPage(i: Int) = CellLayout(a, a.looks.cols * a.sub, a.looks.rows * a.sub, i).apply {
         setOnDragListener(dropListener(this))
         setOnLongClickListener { a.homeMenus.homeOverview(); true }
+        held = { a.items.filter { it !in a.views } }
     }
 
     /** The empty page a drag adds after the last one ([addDragPage]), the home page it started on, and whether it landed on home. */
