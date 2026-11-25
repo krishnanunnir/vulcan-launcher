@@ -49,8 +49,9 @@ fun addPinned(activity: Activity, req: LauncherApps.PinItemRequest): Boolean {
         if (!req.accept()) return false
         Item(spot.page, spot.x, spot.y, w, h, pkg = s.`package`, shortcutId = s.id, user = serial(s.userHandle), label = s.shortLabel?.toString() ?: "")
     } else {
-        val id = AppWidgetHost(activity, MainActivity.HOST_ID).allocateAppWidgetId()
-        if (!req.accept(Bundle().apply { putInt(AppWidgetManager.EXTRA_APPWIDGET_ID, id) })) return false
+        val host = AppWidgetHost(activity, MainActivity.HOST_ID)
+        val id = host.allocateAppWidgetId()
+        if (!req.accept(Bundle().apply { putInt(AppWidgetManager.EXTRA_APPWIDGET_ID, id) })) { host.deleteAppWidgetId(id); return false }
         Item(spot.page, spot.x, spot.y, w, h, widgetId = id)
     }
     store.save(items, sub)
