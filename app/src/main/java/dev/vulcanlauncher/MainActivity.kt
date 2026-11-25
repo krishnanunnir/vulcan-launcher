@@ -134,6 +134,11 @@ class MainActivity : VulcanActivity() {
     /** The Now page built ahead and when, and the delayed build that makes it (see prepareNow). */
     var nowReady: Pair<Long, NowPanel>? = null
     val nowBuilder = Runnable { prebuildNow() }
+    /** The glance line's last answer, and the number of the latest lookup (see updateGlance). */
+    var glance: Pair<String, (() -> Unit)?>? = null
+    @Volatile var glanceAsked = 0
+    /** Notifications come in bursts (a busy chat): the glance line and the Now page follow once the burst settles. */
+    private val notified = Runnable { if (!isDestroyed) { updateGlance(); prepareNow() } }
     /** Where the last touch went down, in window coordinates; menus opened by a long-press appear there. */
     val lastDown = PointF()
 
@@ -195,7 +200,10 @@ class MainActivity : VulcanActivity() {
         }
         if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(profileReceiver, profileFilter, RECEIVER_NOT_EXPORTED)
         else registerReceiver(profileReceiver, profileFilter)
-        BadgeService.onChange = { pkgs -> runOnUiThread { if (pkgs.isNotEmpty()) { updateBadges(pkgs); drawer.refreshBadges() }; updateGlance(); prepareNow() } }
+        BadgeService.onChange = { pkgs -> runOnUiThread { if (pkgs.isNotEmpty()) {
+            updateBadges(pkgs); drawer.refreshBadges()
+            mainHandler.removeCallbacks(notified); mainHandler.postDelayed(notified, 500)
+        } } }
         // Rotation recreates the activity: stay on the page the user was on.
         savedInstanceState?.getInt("page", -1)?.takeIf { it in 0 until looks.pages }?.let { workspace.snapTo(it, animate = false) }
         // Just imported: put the widgets back (not when a restore was already under way and this is its restart).
@@ -469,6 +477,7 @@ class MainActivity : VulcanActivity() {
         unregisterReceiver(profileReceiver)
         // A copy left over from before Vulcan became the home app must not take the live one's badge updates away.
         if (running?.get() === this) BadgeService.onChange = {}
+        mainHandler.removeCallbacks(notified)
         homeMenus.torchWatch?.let { getSystemService(android.hardware.camera2.CameraManager::class.java).unregisterTorchCallback(it) }
     }
 
