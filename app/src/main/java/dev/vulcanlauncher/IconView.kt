@@ -64,7 +64,7 @@ fun accessibleActions(v: View, menu: () -> Unit, move: (() -> Unit)? = null) {
 /** The icon drawn with an optional drop shadow and notification badge. */
 class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, private val badgeStyle: BadgeStyle) : View(context) {
     var icon = icon
-        set(v) { field = v; shadowBmp = null; invalidate() }
+        set(v) { field = v; invalidate() }
     var badgeCount = 0
         set(v) { field = v; invalidate() }
     var badgeIcon: Drawable? = null
@@ -73,7 +73,6 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
     private val badgeRect = android.graphics.Rect()
     private var badgePath: android.graphics.Path? = null // rebuilt only when the badge moves or resizes
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private var shadowBmp: Bitmap? = null
     /** Blank pixels above and below this image inside its IconView; a badge never draws past them onto a neighbour's label. */
     var roomUp = 0
     var roomDown = 0
@@ -81,19 +80,17 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
     var roomLeft = Int.MAX_VALUE / 2
     var roomRight = Int.MAX_VALUE / 2
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { shadowBmp = null }
-
     override fun onDraw(canvas: Canvas) {
         val s = minOf(width, height)
         val l = (width - s) / 2
         val t = (height - s) / 2
         if (shadow) {
             // A software copy: the alpha of a hardware bitmap can't be read.
-            val bmp = shadowBmp ?: rendered(s, s) { icon.setBounds(0, 0, s, s); icon.draw(it) }.let { r ->
+            val bmp = shadows[icon]?.takeIf { it.first == s }?.second ?: rendered(s, s) { icon.setBounds(0, 0, s, s); icon.draw(it) }.let { r ->
                 if (r.config == Bitmap.Config.HARDWARE) r.copy(Bitmap.Config.ARGB_8888, false).also { r.recycle() } else r
             }.let { b ->
                 // Only the blurred alpha is kept: free the full-colour copy now instead of at some later GC.
-                b.extractAlpha(Paint().apply { maskFilter = BlurMaskFilter(s / 24f, BlurMaskFilter.Blur.NORMAL) }, null).also { shadowBmp = it; b.recycle() }
+                b.extractAlpha(Paint().apply { maskFilter = BlurMaskFilter(s / 24f, BlurMaskFilter.Blur.NORMAL) }, null).also { shadows[icon] = s to it; b.recycle() }
             }
             paint.color = 0x66000000
             canvas.drawBitmap(bmp, l.toFloat(), t + s / 30f, paint)
@@ -131,6 +128,14 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, p
             paint.typeface = Typeface.DEFAULT_BOLD
             canvas.drawText(if (badgeCount > 99) "99+" else "$badgeCount", cx, cy - (paint.ascent() + paint.descent()) / 2, paint)
         }
+    }
+
+    private companion object {
+        /**
+         * Each icon's blurred shadow at the size it was last drawn, by the icon itself: icons are shared, so a drawer
+         * view recycled while scrolling finds its new icon's shadow made already. Dropped with the icon. UI thread only.
+         */
+        val shadows = java.util.WeakHashMap<Drawable, Pair<Int, Bitmap>>()
     }
 }
 
