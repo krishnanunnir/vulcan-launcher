@@ -320,10 +320,9 @@ class HomeMenus(private val a: MainActivity) {
     private fun homeMore(row: LinearLayout): Unit = fillHomeRow(row, listOf(
         Triple("back", a.getString(R.string.back)) { homeButtons(row) },
         Triple("bolt", a.getString(R.string.shortcuts)) { closeMenu(); addShortcutMenu() },
-        // As a clock widget: one row across the page, sized and moved like one.
-        Triple("clock", a.getString(R.string.clock)) { closeMenu(); a.addItem(Item(0, 0, 0, a.looks.cols * a.sub, a.sub, action = "clock")); Unit },
+        Triple("clock", a.getString(R.string.clock)) { closeMenu(); addClock() },
         Triple(if (a.locked) "unlock" else "lock", a.getString(if (a.locked) R.string.unlock else R.string.lock)) {
-            closeMenu(); a.looks["lockLayout"] = if (a.locked) "off" else "on"; a.toast(if (a.locked) R.string.layout_locked else R.string.layout_unlocked)
+            closeMenu(); perform("locklayout")
         },
     ).filter { !a.locked || it.first !in listOf("bolt", "clock") })
 
@@ -351,16 +350,18 @@ class HomeMenus(private val a: MainActivity) {
         setOnClickListener { click() }
     }
 
+    /** As a clock widget: one row across the page, sized and moved like one. */
+    private fun addClock() { a.addItem(Item(0, 0, 0, a.looks.cols * a.sub, a.sub, action = "clock")) }
+
     fun homeMenu() {
         val entries = listOf(
             Triple("image", a.getString(R.string.wallpaper)) { perform("wallpaper") },
             Triple("widgets", a.getString(R.string.widgets)) { a.widgetFlow.pickWidget() },
             Triple("bolt", a.getString(R.string.shortcuts)) { addShortcutMenu() },
             Triple("carousel", a.getString(R.string.pages)) { a.showOverview() },
-            // As a clock widget: one row across the page, sized and moved like one.
-            Triple("clock", a.getString(R.string.clock)) { a.addItem(Item(0, 0, 0, a.looks.cols * a.sub, a.sub, action = "clock")); Unit },
+            Triple("clock", a.getString(R.string.clock)) { addClock() },
             Triple(if (a.locked) "unlock" else "lock", a.getString(if (a.locked) R.string.unlock else R.string.lock)) {
-                a.looks["lockLayout"] = if (a.locked) "off" else "on"; a.toast(if (a.locked) R.string.layout_locked else R.string.layout_unlocked)
+                perform("locklayout")
             },
             Triple("settings", a.getString(R.string.settings)) { a.showSettings() },
         ).filter { !a.locked || it.first !in listOf("widgets", "bolt", "clock") }
