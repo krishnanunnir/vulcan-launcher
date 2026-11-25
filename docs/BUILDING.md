@@ -41,6 +41,12 @@ leaving Pages, the nine-page limit and layout lock. It restores the original ite
 adb -s emulator-5580 shell am instrument -w -e check pages dev.vulcanlauncher.test/dev.vulcanlauncher.DeviceCheck
 ```
 
+Issue audits (disposable emulator only: they wipe and rebuild the layout): `-e check issues` (IssueReproCheck, fixed
+issues that must stay fixed) and `-e check openissues` (OpenIssueAuditCheck); `-e cases '#33,#34'` runs some of them.
+Results and screenshots go to `files/issue-repro/` and `files/open-issue-audit/`. A REPRODUCED, FAIL or INCONCLUSIVE
+case fails the run. The setup is copied to `files/issue-audit-backup.json` first, and a run that finds one left by a
+crashed run restores it.
+
 After using Android CLI's `layout` or `input` commands, stop its UI inspection helper before running separate
 instrumentation checks: `adb -s emulator-5580 shell am force-stop com.android.cli.interact.instrumentation`.
 The helper starts again automatically when Android CLI needs it.
@@ -70,6 +76,10 @@ keyPassword=…
 ```
 
 Without it the release APK is built unsigned. Publish it as `vulcan-launcher.apk` on a GitHub release so the README's "latest" download link keeps working.
+
+Releases are normally cut by `.github/workflows/auto-release.yml` (major on Mondays, minor on Wednesdays) when `app/`
+(not its tests), `fastlane/` or the Gradle build files changed since the last tag. Before it bumps anything it runs
+`testDebugUnitTest lintDebug assembleDebugAndroidTest`, and it refuses a versionCode that isn't above the last tag's.
 
 Commit the version bump and changelog, tag that commit, and then run `./gradlew clean assembleRelease` from the tagged checkout. AGP embeds the current Git revision in `META-INF/version-control-info.textproto`; building before committing embeds the previous revision and prevents F-Droid from reproducing the published APK. Verify a separate clean, unsigned build of the tag with `apksigcopier compare --unsigned <signed-apk> <unsigned-apk>` before uploading the APK and its `SHA256SUMS`.
 
