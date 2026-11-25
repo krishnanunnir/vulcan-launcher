@@ -59,6 +59,8 @@ class ActionService : AccessibilityService() {
 
     override fun onServiceConnected() { instance = this }
     override fun onUnbind(intent: android.content.Intent?): Boolean { instance = null; return super.onUnbind(intent) }
+    // Destroyed without an unbind (the process's service torn down): no stale instance left for performGlobalAction.
+    override fun onDestroy() { if (instance === this) instance = null; super.onDestroy() }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
     override fun onInterrupt() {}
 }
