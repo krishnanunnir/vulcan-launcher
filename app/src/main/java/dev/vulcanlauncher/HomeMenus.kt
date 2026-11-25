@@ -70,8 +70,10 @@ class HomeMenus(private val a: MainActivity) {
                 if (!item.isBlock) tile("edit", a.getString(R.string.edit)) { a.editItem(item) }
                 if (item.folder) a.folderActions(item).forEach { (sym, title, click) -> tile(sym, title, click) }
                 if (item.isBlock) tile("resize", a.getString(R.string.resize)) { a.widgetFlow.resizeWidget(item) }
-                if (item.isWidget && a.awm.getAppWidgetInfo(a.widgetFlow.shownWidget(item))?.configure != null) tile("settings", a.getString(R.string.settings)) {
+                val widget = if (item.isWidget) a.awm.getAppWidgetInfo(a.widgetFlow.shownWidget(item)) else null
+                if (widget?.configure != null) tile("settings", a.getString(R.string.settings)) {
                     runCatching { a.host.startAppWidgetConfigureActivityForResult(a, a.widgetFlow.shownWidget(item), 0, MainActivity.REQ_RECONFIG, null) }
+                        .onFailure { a.toast(R.string.cant_open, widget.loadLabel(a.packageManager)) }
                 }
                 if (item.isWidget && item.children.isNotEmpty()) tile("widgets", a.getString(R.string.unstack)) { a.widgetFlow.unstack(item) }
                 if (item.isClock) {
@@ -100,7 +102,7 @@ class HomeMenus(private val a: MainActivity) {
         if (owner != null) {
             tile("info", a.getString(R.string.app_info)) { a.launcherApps.startAppDetailsActivity(owner.info.componentName, owner.info.user, null, null) }
             // The optional ones last, so every app's other tiles keep their places.
-            if (app != null && a.awm.installedProviders.any { it.provider.packageName == app.pkg }) tile("widgets", a.getString(R.string.widgets)) { a.widgetFlow.pickWidget(app.pkg) }
+            if (app != null && !a.locked && a.widgetFlow.hasWidgets(app)) tile("widgets", a.getString(R.string.widgets)) { a.widgetFlow.pickWidget(app.pkg, user = app.info.user) }
             if (app != null && !isSystemApp(app)) tile("delete", a.getString(R.string.uninstall)) { a.uninstall(app) }
         }
         if (rows.isEmpty() && tiles.isEmpty()) return
@@ -318,10 +320,9 @@ class HomeMenus(private val a: MainActivity) {
     private fun homeMore(row: LinearLayout): Unit = fillHomeRow(row, listOf(
         Triple("back", a.getString(R.string.back)) { homeButtons(row) },
         Triple("bolt", a.getString(R.string.shortcuts)) { closeMenu(); addShortcutMenu() },
-        // As a clock widget: one row across the page, sized and moved like one.
-        Triple("clock", a.getString(R.string.clock)) { closeMenu(); a.addItem(Item(0, 0, 0, a.looks.cols * a.sub, a.sub, action = "clock")); Unit },
+        Triple("clock", a.getString(R.string.clock)) { closeMenu(); addClock() },
         Triple(if (a.locked) "unlock" else "lock", a.getString(if (a.locked) R.string.unlock else R.string.lock)) {
-            closeMenu(); a.looks["lockLayout"] = if (a.locked) "off" else "on"; a.toast(if (a.locked) R.string.layout_locked else R.string.layout_unlocked)
+            closeMenu(); perform("locklayout")
         },
     ).filter { !a.locked || it.first !in listOf("bolt", "clock") })
 
@@ -349,16 +350,18 @@ class HomeMenus(private val a: MainActivity) {
         setOnClickListener { click() }
     }
 
+    /** As a clock widget: one row across the page, sized and moved like one. */
+    private fun addClock() { a.addItem(Item(0, 0, 0, a.looks.cols * a.sub, a.sub, action = "clock")) }
+
     fun homeMenu() {
         val entries = listOf(
             Triple("image", a.getString(R.string.wallpaper)) { perform("wallpaper") },
             Triple("widgets", a.getString(R.string.widgets)) { a.widgetFlow.pickWidget() },
             Triple("bolt", a.getString(R.string.shortcuts)) { addShortcutMenu() },
             Triple("carousel", a.getString(R.string.pages)) { a.showOverview() },
-            // As a clock widget: one row across the page, sized and moved like one.
-            Triple("clock", a.getString(R.string.clock)) { a.addItem(Item(0, 0, 0, a.looks.cols * a.sub, a.sub, action = "clock")); Unit },
+            Triple("clock", a.getString(R.string.clock)) { addClock() },
             Triple(if (a.locked) "unlock" else "lock", a.getString(if (a.locked) R.string.unlock else R.string.lock)) {
-                a.looks["lockLayout"] = if (a.locked) "off" else "on"; a.toast(if (a.locked) R.string.layout_locked else R.string.layout_unlocked)
+                perform("locklayout")
             },
             Triple("settings", a.getString(R.string.settings)) { a.showSettings() },
         ).filter { !a.locked || it.first !in listOf("widgets", "bolt", "clock") }
@@ -504,7 +507,7 @@ class HomeMenus(private val a: MainActivity) {
         val ok = runCatching {
             val sbm = a.getSystemService("statusbar")
             sbm.javaClass.getMethod(method).invoke(sbm)
-        }.isSuccess
+        }.onFailure { android.util.Log.w("Vulcan", "StatusBarManager.$method blocked, using the accessibility service", it) }.isSuccess
         if (!ok) global(fallback)
     }
 

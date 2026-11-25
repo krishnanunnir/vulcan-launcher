@@ -60,7 +60,7 @@ class DragController(private val a: MainActivity) {
         pending = { lift(v, payload, touch) }
         // The menu shows the moment the long-press registers, as on the wallpaper; moving the drag closes it (trackDrag).
         // Not for a drag out of a menu row (a shortcut): that menu stays until the drag moves.
-        if (a.homeMenus.menu == null) a.root.post { if (dragSource === v && !dragMoved) a.homeMenus.showPopup(v, payload) }
+        if (a.homeMenus.menu == null) a.root.post { if (dragSource === v && !dragMoved && v.isAttachedToWindow) a.homeMenus.showPopup(v, payload) }
     }
 
     /** A long-press whose drag starts once the finger moves ([startDrag]); null otherwise. */
@@ -102,7 +102,8 @@ class DragController(private val a: MainActivity) {
      * keeps it and the drawer behind it until the drag leaves the folder.
      */
     fun trackDrag(v: View, e: DragEvent, keepOverlay: Boolean = false) {
-        if (e.action != DragEvent.ACTION_DRAG_LOCATION) return
+        // Only our own drags: one from another window (desktop windowing) has no localState here, and no dragEnded to undo this.
+        if (e.action != DragEvent.ACTION_DRAG_LOCATION || e.localState == null || dragSource == null) return
         val loc = IntArray(2).also { v.getLocationOnScreen(it) }
         val x = loc[0] + e.x
         val y = loc[1] + e.y
@@ -135,6 +136,7 @@ class DragController(private val a: MainActivity) {
     val passDrag = View.OnDragListener { v, e -> trackDrag(v, e); e.action != DragEvent.ACTION_DROP }
 
     fun dropListener(cell: CellLayout) = View.OnDragListener { v, e ->
+        if (e.localState == null) return@OnDragListener false // another window's drag: not for home
         (e.localState as? PageMove)?.let { return@OnDragListener pageDrag(cell, e, it) }
         trackDrag(v, e)
         when (e.action) {
@@ -203,6 +205,8 @@ class DragController(private val a: MainActivity) {
     var springBottom = 0
     /** The shrunk page's scale, from [springScale]. */
     private var cardScale = SPRING_SCALE
+    /** The [springBottom] [cardScale] was worked out for. */
+    private var cardBottom = 0
 
     /**
      * Launcher3's spring-loaded home, for a drag and for the hold-home overview: the pages shrink into outlined cards a
@@ -213,7 +217,9 @@ class DragController(private val a: MainActivity) {
         val accent = workspaceAccent()
         (a.pages + a.dockPages).forEach { it.outlineColor = accent; if (!on) it.landing = null }
         val box = a.workspace.parent as ViewGroup
-        if (on && spring == 0f) {
+        // Also mid-way: the overview opened while a drop's shrink was still undoing needs room for its buttons.
+        if (on && (spring == 0f || springBottom != cardBottom)) {
+            cardBottom = springBottom
             var top = 0
             var v: View = a.workspace
             while (v !== a.root) { top += v.top; v = v.parent as View }

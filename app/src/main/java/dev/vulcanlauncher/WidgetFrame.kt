@@ -45,6 +45,9 @@ open class WidgetFrame(context: Context) : FrameLayout(context) {
     }
 
     override fun onInterceptTouchEvent(ev: MotionEvent) = fired
+
+    // Taken off home mid-press (a render): the long-press must not fire on a frame that isn't shown.
+    override fun onDetachedFromWindow() { removeCallbacks(longPress); super.onDetachedFromWindow() }
 }
 
 /**

@@ -7,7 +7,6 @@ import android.content.pm.LauncherApps
 import android.os.Bundle
 import android.os.UserManager
 import android.widget.Toast
-import kotlin.math.ceil
 
 /** Accepts "add to home screen" requests from other apps (pinned shortcuts and widgets) and places them on the first free spot. */
 class PinActivity : Activity() {
@@ -30,11 +29,9 @@ fun addPinned(activity: Activity, req: LauncherApps.PinItemRequest): Boolean {
         LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT -> sub to sub
         LauncherApps.PinItemRequest.REQUEST_TYPE_APPWIDGET -> {
             val info = req.getAppWidgetProviderInfo(activity) ?: return false
-            // ponytail: cell size estimated from the screen width, exact once the widget is resized
-            val cell = activity.resources.displayMetrics.widthPixels / looks.cols.toFloat()
-            val t = info.targetCells()
-            (t?.first ?: ceil(info.minWidth / cell).toInt()).coerceIn(1, looks.cols) * sub to
-                (t?.second ?: ceil(info.minHeight / cell).toInt()).coerceIn(1, looks.rows) * sub
+            // ponytail: square sub-cells estimated from the screen width (no page margins), exact once the widget is resized
+            val cell = activity.resources.displayMetrics.widthPixels / (looks.cols * sub).toFloat()
+            widgetSpan(info.targetCells(), info.minWidth, info.minHeight, cell, cell, looks.cols * sub, looks.rows * sub, sub)
         }
         else -> return false
     }
@@ -49,8 +46,9 @@ fun addPinned(activity: Activity, req: LauncherApps.PinItemRequest): Boolean {
         if (!req.accept()) return false
         Item(spot.page, spot.x, spot.y, w, h, pkg = s.`package`, shortcutId = s.id, user = serial(s.userHandle), label = s.shortLabel?.toString() ?: "")
     } else {
-        val id = AppWidgetHost(activity, MainActivity.HOST_ID).allocateAppWidgetId()
-        if (!req.accept(Bundle().apply { putInt(AppWidgetManager.EXTRA_APPWIDGET_ID, id) })) return false
+        val host = AppWidgetHost(activity, MainActivity.HOST_ID)
+        val id = host.allocateAppWidgetId()
+        if (!req.accept(Bundle().apply { putInt(AppWidgetManager.EXTRA_APPWIDGET_ID, id) })) { host.deleteAppWidgetId(id); return false }
         Item(spot.page, spot.x, spot.y, w, h, widgetId = id)
     }
     store.save(items, sub)

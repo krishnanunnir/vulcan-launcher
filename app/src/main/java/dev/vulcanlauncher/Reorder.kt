@@ -64,6 +64,8 @@ class Reorder(private val a: VulcanActivity, private val rows: List<View>, priva
     private var slot = 0
     /** The row given a surface for the drag, which goes again on drop. */
     private var lifted: View? = null
+    /** A dropped row still settling: [onDrop] then rebuilds the rows, so a drag begun meanwhile would use the old ones. */
+    private var settling = false
     val dragging get() = from >= 0
 
     init {
@@ -85,6 +87,7 @@ class Reorder(private val a: VulcanActivity, private val rows: List<View>, priva
 
     /** Starts dragging [row] from the finger at [rawY]. */
     fun begin(row: View, rawY: Float) {
+        if (settling) return
         from = rows.indexOf(row).takeIf { it >= 0 } ?: return
         to = from
         startY = rawY
@@ -123,9 +126,11 @@ class Reorder(private val a: VulcanActivity, private val rows: List<View>, priva
                 // A cancelled drag (the system took the touch) goes back to where it started.
                 val f = from; val t = if (ev.actionMasked == MotionEvent.ACTION_CANCEL) from else to
                 from = -1
+                settling = true
                 // Settle into the slot it was dropped on, then hand the new order over (which rebuilds the rows).
                 val land = (tops[t] - tops[f] + if (t > f) heights[t] - heights[f] else 0).toFloat()
                 row.animate().translationY(land).scaleX(1f).scaleY(1f).translationZ(0f).setDuration(150).withEndAction {
+                    settling = false
                     rows.forEach { it.translationY = 0f }
                     if (lifted === row) { row.background = null; lifted = null }
                     if (t != f) onDrop(f, t)

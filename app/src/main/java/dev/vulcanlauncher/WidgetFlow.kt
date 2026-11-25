@@ -34,7 +34,8 @@ class WidgetFlow(private val a: MainActivity) {
         // A frame that was in a stack still sits in it, moved aside or hidden.
         widgetFrames[item.widgetId]?.let { (it.parent as? ViewGroup)?.removeView(it); it.translationX = 0f; it.visibility = View.VISIBLE; return it }
         // A widget whose view can't be made leaves its cells empty this time; it must not take home down.
-        val hv: AppWidgetHostView = runCatching { a.host.createView(a.applicationContext, item.widgetId, info) }.getOrNull() ?: return null
+        val hv: AppWidgetHostView = runCatching { a.host.createView(a.applicationContext, item.widgetId, info) }
+            .onFailure { android.util.Log.w("Vulcan", "widget ${info.provider.flattenToShortString()}: no view", it) }.getOrNull() ?: return null
         // Android's own widget padding, scaled by Widget padding (0–200%, as Lawnchair; #121). Changing it rebuilds home.
         val d = AppWidgetHostView.getDefaultPaddingForWidget(a, info.provider, null)
         val f = a.looks.int("widgetPadding") / 100f
@@ -137,15 +138,36 @@ class WidgetFlow(private val a: MainActivity) {
     // ponytail: in memory only, so a widget whose setup outlives the process lands on home instead
     private var widgetToNow = false
 
-    /** [toNow]: for a Now page card. */
-    fun pickWidget(pkg: String? = null, toNow: Boolean = false) {
+    /** Every profile's widget providers: installedProviders lists only this user's, which leaves work-profile widgets out. */
+    private fun providers(): List<AppWidgetProviderInfo> =
+        a.launcherApps.profiles.flatMap { u -> runCatching { a.awm.getInstalledProvidersForProfile(u) }.getOrDefault(emptyList()) }
+
+    /** Apps that have widgets, as "package serial", for the app menu; listed again when the app list is reloaded. */
+    private var withWidgets: Pair<Map<String, App>, Set<String>>? = null
+
+    /** Whether [app] has widgets. Asking Android lists every provider on the device, too slow for each long-press. */
+    fun hasWidgets(app: App): Boolean {
+        val apps = a.repo.apps
+        val known = withWidgets?.takeIf { it.first === apps }?.second
+            ?: providers().map { "${it.provider.packageName} ${a.um.getSerialNumberForUser(it.profile)}" }.toSet().also { withWidgets = apps to it }
+        return "${app.pkg} ${app.serial}" in known
+    }
+
+    /** [pkg] and [user]: only that app's widgets. [toNow]: for a Now page card. */
+    fun pickWidget(pkg: String? = null, toNow: Boolean = false, user: android.os.UserHandle? = null) {
+        // Here, not in each menu: a gesture or an action shortcut can ask for it too. A Now card isn't the home layout.
+        if (a.locked && !toNow) { a.toast(R.string.layout_locked); return }
         widgetToNow = toNow
         pendingSlot = null // a spot whose setup never reported back must not catch this widget
         val order = labelOrder()
         val page = a.pages[a.workspace.current]
-        val groups = a.awm.installedProviders.filter { pkg == null || it.provider.packageName == pkg }.groupBy { it.provider.packageName }
-            .map { (p, list) ->
-                Triple(p, runCatching { a.packageManager.getApplicationLabel(a.packageManager.getApplicationInfo(p, 0)).toString() }.getOrDefault(p),
+        fun ownerOf(info: AppWidgetProviderInfo) = a.repo.apps.values.firstOrNull { it.pkg == info.provider.packageName && it.info.user == info.profile }
+        // One row per app and profile: a work app's widgets are a row of their own, with the work badge on its icon.
+        val groups = providers().filter { (pkg == null || it.provider.packageName == pkg) && (user == null || it.profile == user) }
+            .groupBy { it.provider.packageName to it.profile }
+            .map { (key, list) ->
+                val p = key.first
+                Triple(p, ownerOf(list[0])?.let(a.repo::label) ?: runCatching { a.packageManager.getApplicationLabel(a.packageManager.getApplicationInfo(p, 0)).toString() }.getOrDefault(p),
                     list.map { it to it.loadLabel(a.packageManager).toString() }.sortedWith(compareBy(order) { it.second }))
             }.sortedWith(compareBy(order) { it.second })
         val flat = groups.size <= 1
@@ -164,12 +186,12 @@ class WidgetFlow(private val a: MainActivity) {
                 maxHeight = previewH
                 setImageDrawable(info.loadPreviewImage(a, 0) ?: info.loadIcon(a, 0))
             }, LinearLayout.LayoutParams(-2, -2))
-            val t = info.targetCells()
-            val w = t?.first ?: ceil(info.minWidth / page.cellW.toFloat() / a.sub).toInt().coerceAtLeast(1)
-            val h = t?.second ?: ceil(info.minHeight / page.cellH.toFloat() / a.sub).toInt().coerceAtLeast(1)
-            addView(TextView(context).apply { setTextColor(a.m3.onSurface); textSize = 14f; setPadding(0, pad / 4, 0, 0); text = "$label ($w×$h)" })
-            contentDescription = "$label ($w×$h)"
-            setOnClickListener { d.dismiss(); addWidget(info) }
+            val (w, h) = widgetSpan(info.targetCells(), info.minWidth, info.minHeight, page.cellW.toFloat(), page.cellH.toFloat(), page.cols, page.rows, a.sub)
+            val size = "${cellCount(w, a.sub)}×${cellCount(h, a.sub)}"
+            addView(TextView(context).apply { setTextColor(a.m3.onSurface); textSize = 14f; setPadding(0, pad / 4, 0, 0); text = "$label ($size)" })
+            contentDescription = "$label ($size)"
+            // Once: a second tap before the sheet closes would allocate a second widget and open a second bind screen.
+            setOnClickListener { if (d.isShowing) { d.dismiss(); addWidget(info) } }
         }
         val list = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL }
         val scroll = android.widget.ScrollView(a).apply { addView(list) }
@@ -178,7 +200,7 @@ class WidgetFlow(private val a: MainActivity) {
             if (flat) { widgets.forEach { (info, label) -> list.addView(widgetRow(info, label)) }; continue }
             val rows by lazy { widgets.map { (info, label) -> widgetRow(info, label) } }
             val chevron = ImageView(a).apply { setImageDrawable(a.symbol("right")); if (layoutDirection == View.LAYOUT_DIRECTION_RTL) scaleX = -1f }
-            val icon = a.repo.apps.values.firstOrNull { it.pkg == p }?.let(a.repo::icon) ?: runCatching { a.packageManager.getApplicationIcon(p) }.getOrNull()
+            val icon = ownerOf(widgets[0].first)?.let(a.repo::icon) ?: runCatching { a.packageManager.getApplicationIcon(p) }.getOrNull()
             lateinit var header: View
             var open = false
             header = a.listItem(icon, app, a.resources.getQuantityString(R.plurals.widget_count, widgets.size, widgets.size), chevron, appIcon = true) {
@@ -285,8 +307,11 @@ class WidgetFlow(private val a: MainActivity) {
 
     fun configureWidget() {
         val (id, info) = pendingWidget ?: return
-        // A setup screen that's missing or closed to us throws: the widget is then placed without it.
-        if (info.configure == null || runCatching { a.host.startAppWidgetConfigureActivityForResult(a, id, 0, MainActivity.REQ_CONFIG, null) }.isFailure) placeWidget()
+        // A setup screen that's missing or closed to us throws: the widget is then placed without it. As Launcher3, one the
+        // widget marks optional is skipped when it can be opened later (Settings in the widget's menu).
+        val optional = android.os.Build.VERSION.SDK_INT >= 31 && info.widgetFeatures.let { f ->
+            f and AppWidgetProviderInfo.WIDGET_FEATURE_CONFIGURATION_OPTIONAL != 0 && f and AppWidgetProviderInfo.WIDGET_FEATURE_RECONFIGURABLE != 0 }
+        if (info.configure == null || optional || runCatching { a.host.startAppWidgetConfigureActivityForResult(a, id, 0, MainActivity.REQ_CONFIG, null) }.isFailure) placeWidget()
     }
 
     fun placeWidget() {
@@ -294,11 +319,13 @@ class WidgetFlow(private val a: MainActivity) {
         val page = a.pages[a.workspace.current]
         // After a restart the result arrives before the first layout; with no cell size yet the widget would fill the page.
         if (page.width == 0) {
-            page.addOnLayoutChangeListener(object : View.OnLayoutChangeListener {
-                override fun onLayoutChange(v: View, l: Int, t: Int, r: Int, b: Int, ol: Int, ot: Int, or: Int, ob: Int) {
-                    v.removeOnLayoutChangeListener(this)
+            // On the window, not the page: a rebuild before the first layout replaces the page, and its listener with it.
+            val window = a.window.decorView
+            window.viewTreeObserver.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
+                override fun onGlobalLayout() {
+                    window.viewTreeObserver.removeOnGlobalLayoutListener(this)
                     // After this layout pass: views added during it (the widget, and render()'s dock) were never laid out.
-                    v.post { placeWidget() }
+                    window.post { placeWidget() }
                 }
             })
             return
@@ -318,9 +345,7 @@ class WidgetFlow(private val a: MainActivity) {
             restoreNextWidget()
             return
         }
-        val t = info.targetCells()
-        val w = (t?.first?.times(a.sub) ?: ceil(info.minWidth / page.cellW.toFloat()).toInt()).coerceIn(1, page.cols)
-        val h = (t?.second?.times(a.sub) ?: ceil(info.minHeight / page.cellH.toFloat()).toInt()).coerceIn(1, page.rows)
+        val (w, h) = widgetSpan(info.targetCells(), info.minWidth, info.minHeight, page.cellW.toFloat(), page.cellH.toFloat(), page.cols, page.rows, a.sub)
         if (!a.addItem(Item(a.workspace.current, 0, 0, w, h, widgetId = id), quiet = true)) {
             a.host.deleteAppWidgetId(id)
             a.toast(R.string.no_room)
@@ -354,8 +379,7 @@ class WidgetFlow(private val a: MainActivity) {
             .filter { (w, h) -> a.looks.on("widgetOverlap") || cell.isFree(item.x, item.y, w, h, ignore = v) }
             // Subgrid: whole-cell steps only, or the list runs to a hundred entries.
             .filter { (w, h) -> (w == item.w || w % a.sub == 0) && (h == item.h || h % a.sub == 0) }
-        fun cells(n: Int) = if (n % a.sub == 0) "${n / a.sub}" else "${n / a.sub}½"
-        a.sheet().setTitle(R.string.resize).setItems(sizes.map { (w, h) -> "${cells(w)} × ${cells(h)}".let { if (w == item.w && h == item.h) a.getString(R.string.resize_current, it) else it } }
+        a.sheet().setTitle(R.string.resize).setItems(sizes.map { (w, h) -> "${cellCount(w, a.sub)} × ${cellCount(h, a.sub)}".let { if (w == item.w && h == item.h) a.getString(R.string.resize_current, it) else it } }
             .toTypedArray()) { _, i ->
             val (w, h) = sizes[i]
             val at = a.items.indexOf(item)
@@ -374,3 +398,14 @@ class WidgetFlow(private val a: MainActivity) {
             { slotProvider(it) != null }), s)
     }
 }
+
+/**
+ * The sub-cells a new widget takes: its target cells if it gives them, else its minimum size over the cell size, within
+ * the page. [cellW], [cellH], [cols] and [rows] are in sub-cells; the picker, placing and pinning all use this.
+ */
+fun widgetSpan(target: Pair<Int, Int>?, minW: Int, minH: Int, cellW: Float, cellH: Float, cols: Int, rows: Int, sub: Int): Pair<Int, Int> =
+    (target?.first?.times(sub) ?: ceil(minW / cellW).toInt()).coerceIn(1, cols) to
+        (target?.second?.times(sub) ?: ceil(minH / cellH).toInt()).coerceIn(1, rows)
+
+/** [n] sub-cells as whole cells, with a ½ for an odd half cell: "2", "1½". */
+fun cellCount(n: Int, sub: Int) = if (n % sub == 0) "${n / sub}" else "${n / sub}½"
