@@ -60,7 +60,7 @@ class DragController(private val a: MainActivity) {
         pending = { lift(v, payload, touch) }
         // The menu shows the moment the long-press registers, as on the wallpaper; moving the drag closes it (trackDrag).
         // Not for a drag out of a menu row (a shortcut): that menu stays until the drag moves.
-        if (a.homeMenus.menu == null) a.root.post { if (dragSource === v && !dragMoved) a.homeMenus.showPopup(v, payload) }
+        if (a.homeMenus.menu == null) a.root.post { if (dragSource === v && !dragMoved && v.isAttachedToWindow) a.homeMenus.showPopup(v, payload) }
     }
 
     /** A long-press whose drag starts once the finger moves ([startDrag]); null otherwise. */
