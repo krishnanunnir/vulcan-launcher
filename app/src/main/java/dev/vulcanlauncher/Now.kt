@@ -603,10 +603,26 @@ fun MainActivity.clockView() = LinearLayout(this).apply {
 /** The clock views on home, from [MainActivity.views]. */
 val MainActivity.clocks get() = views.filterKeys { it.isClock }.values
 
-/** Refreshes the glance status line: what's playing, else the next event today, else charging, else nothing. */
+/** One worker for the glance line's lookups (a media-session and a calendar query), which are binder and provider calls. */
+private val glanceWorker = java.util.concurrent.Executors.newSingleThreadExecutor()
+
+/**
+ * Refreshes the glance status line: what's playing, else the next event today, else charging, else nothing. The
+ * last answer is shown at once (a clock just rendered keeps its line), and the new one is looked up off the UI thread.
+ */
 fun MainActivity.updateGlance() {
     if (clocks.isEmpty()) return
-    val (text, tap) = glanceStatus() ?: (null to null)
+    showGlance(glance)
+    val mine = ++glanceAsked
+    glanceWorker.execute {
+        if (glanceAsked != mine) return@execute // a newer update is queued behind this one
+        val s = runCatching { glanceStatus() }.getOrNull()
+        runOnUiThread { if (glanceAsked == mine && !isDestroyed) { glance = s; showGlance(s) } }
+    }
+}
+
+private fun MainActivity.showGlance(status: Pair<String, (() -> Unit)?>?) {
+    val (text, tap) = status ?: (null to null)
     for (c in clocks) {
         val line = c.findViewWithTag<TextView>("status") ?: continue
         line.text = if (text != null && c.tag == true) " · $text" else text

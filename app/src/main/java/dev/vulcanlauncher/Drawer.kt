@@ -106,7 +106,7 @@ class Drawer(private val a: MainActivity) {
         class AppE(val app: App) : Entry()
         class FolderE(val group: Group) : Entry()
         class WebE(val query: String) : Entry()
-        class ContactE(val name: String, val photo: String?, val uri: android.net.Uri) : Entry()
+        class ContactE(val name: String, val photo: android.graphics.drawable.Drawable?, val uri: android.net.Uri) : Entry()
         /** A search result that does one thing when tapped: an app shortcut, a settings page, a sum, a timer. */
         class ActionE(val label: String, val icon: android.graphics.drawable.Drawable, val run: (View?) -> Unit) : Entry()
     }
@@ -258,7 +258,7 @@ class Drawer(private val a: MainActivity) {
         val market = if (!locked && hasStore && android.os.Build.VERSION.SDK_INT >= 35) a.repo.privateUser?.let { u ->
             runCatching { a.launcherApps.getAppMarketActivityIntent(null, u) }.getOrNull() } else null
         if (market != null) privateBar.addView(a.iconButton("download", a.getString(R.string.private_install)) {
-            runCatching { a.startIntentSender(market, null, 0, 0, 0) }
+            runCatching { a.startIntentSender(market, null, 0, 0, 0) }.onFailure { android.util.Log.w("Vulcan", "can't open the app store in Private Space", it) }
         })
         privateBar.addView(a.iconButton(if (locked) "unlock" else "lock", a.getString(if (locked) R.string.private_unlock else R.string.private_lock)) {
             a.repo.setPrivateLocked(!locked)
@@ -523,6 +523,9 @@ class Drawer(private val a: MainActivity) {
     /** What every close resets, a pull down included: called from [DrawerMotion.gone]. */
     internal fun closed() {
         found.forget(); showHidden = false
+        // Here, once it's gone, not as the close starts: that rebuilt the list on the close's first frame, and the
+        // results swapped to the tab's apps while the sheet faded.
+        if (search.text.isNotEmpty()) search.text.clear()
         // The focus goes before the text does on the way out, so the focus listener leaves the bar showing.
         if (barOff) searchBar.visibility = View.GONE
     }
@@ -532,7 +535,6 @@ class Drawer(private val a: MainActivity) {
         if (!visible) return
         keyboardOnOpen = false // an open with the keyboard that's cancelled mid-way never reaches opened()
         hideKeyboard()
-        search.text.clear()
         if (animate) motion.settle(open = false)
         else { motion.stop(); if (a.overlay == null) a.setDepth(0f); motion.gone() }
     }
@@ -540,7 +542,9 @@ class Drawer(private val a: MainActivity) {
     fun groups() = groupsFromJson(a.store.data.getString("groups", "[]")!!)
 
     /** What [refresh] reads; when it's unchanged, opening the drawer reuses what's already built. */
-    private fun inputs() = listOf(a.repo.apps, a.store.data.all, a.store.usageState, a.looks.all(), a.repo.privateUser, tab, showHidden, search.text.toString())
+    private fun inputs() = listOf(a.repo.apps, a.store.data.all, usage(), a.looks.all(), a.repo.privateUser, tab, showHidden, search.text.toString())
+    /** Launch counts matter only to the most-used order and the frequent row; otherwise every launch rebuilt the drawer on its next pull. */
+    private fun usage() = if (a.looks.str("drawerSort") == "used" || a.looks.on("frequent")) a.store.usageState else null
     private var shown: List<Any?>? = null
 
     fun refresh() {
@@ -574,11 +578,20 @@ class Drawer(private val a: MainActivity) {
         }
         entries = if (q.isNotEmpty()) {
             // Best match first; sortedByDescending is stable, so equal matches keep the drawer's order.
-            found.quick(q) + ordered.filter { it.key !in unlisted }.map { it to matchScore(a.repo.label(it), q) }
-                .filter { it.second > 0 }.sortedByDescending { it.second }.map { Entry.AppE(it.first) } +
-                found.shortcutHits(q, unlisted, iconStyle.sizePx) + found.settingsHits(q) +
-                found.contacts(q) + if (a.looks.on("webSearch")) listOf(Entry.WebE(q)) else emptyList()
-        } else entriesOf(tab)
+            val apps = found.quick(q) + ordered.filter { it.key !in unlisted }.map { it to matchScore(a.repo.label(it), q) }
+                .filter { it.second > 0 }.sortedByDescending { it.second }.map { Entry.AppE(it.first) }
+            val settings = found.settingsHits(q)
+            val web = if (a.looks.on("webSearch")) listOf(Entry.WebE(q)) else emptyList()
+            // Apps show at once; shortcuts and contacts join them when the worker has them, if no key came since.
+            val shown = a.repo.apps.values.filter { it.key !in unlisted }.map { it.pkg to it.info.user }.toSet()
+            found.later(q, shown, iconStyle.sizePx) { hits, people ->
+                if (hits.isEmpty() && people.isEmpty()) return@later
+                entries = apps + hits + settings + people + web
+                empty.visibility = View.GONE
+                if (styleName == "pages") buildPages() else adapter.notifyDataSetChanged()
+            }
+            apps + settings + web
+        } else { found.cancel(); entriesOf(tab) }
         // As Nova: the row sits above the tabs and stays whichever tab is open.
         buildFrequent(if (q.isEmpty() && a.looks.on("frequent"))
             frequentApps(a.store.strings("favourites").toList(), a.repo.apps.keys.associateWith { launches.optInt(it) },
@@ -788,9 +801,7 @@ class Drawer(private val a: MainActivity) {
         }
         // Short label so the query survives the one-line ellipsis; the globe says "web".
         is Entry.WebE -> IconView(a, a.getString(R.string.search_web_for, e.query),GlyphIcon(a.m3.primaryContainer, a.m3.onPrimaryContainer, symbol = "globe"), iconStyle, a.badgeStyle(), "")
-        is Entry.ContactE -> IconView(a, e.name, e.photo?.let { p ->
-            runCatching { a.contentResolver.openInputStream(android.net.Uri.parse(p))!!.use { android.graphics.drawable.BitmapDrawable(a.resources, android.graphics.BitmapFactory.decodeStream(it)) } }.getOrNull()
-        } ?: GlyphIcon(a.m3.primaryContainer, a.m3.onPrimaryContainer, text = e.name.take(1).uppercase()), iconStyle, a.badgeStyle(), "")
+        is Entry.ContactE -> IconView(a, e.name, e.photo ?: GlyphIcon(a.m3.primaryContainer, a.m3.onPrimaryContainer, text = e.name.take(1).uppercase()), iconStyle, a.badgeStyle(), "")
         is Entry.ActionE -> IconView(a, e.label, e.icon, iconStyle, a.badgeStyle(), "")
     }
 
@@ -820,13 +831,15 @@ class Drawer(private val a: MainActivity) {
                     a.saveGroups(groups().map { if (it.name == group.name) group else it })
                     folderItems(group)
                 }, icon = (v as? IconView)?.image, more = { a.closeOverlay(); a.editGroup(group) }, reload = {
+                    // None of its apps left (all uninstalled or hidden): it closes, as a home folder does, not an empty window.
                     groups().firstOrNull { it.name == group.name && it.type == "folder" }?.let {
                         group = it; apps = folderApps(it); folderItems(it)
-                    }
+                    }?.takeIf { it.isNotEmpty() }
                 }) { i, _ -> GroupChild(group.name, apps[i]) }
             }
             is Entry.WebE -> a.webSearch(e.query)
             is Entry.ContactE -> runCatching { a.startActivity(Intent(Intent.ACTION_VIEW, e.uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                .onFailure { android.util.Log.w("Vulcan", "can't open contact", it); a.toast(R.string.cant_open, e.name) }
             is Entry.ActionE -> e.run(v)
         }
     }
@@ -892,6 +905,11 @@ class Drawer(private val a: MainActivity) {
             if (s.size < 2) return
             val step = step(s.size)
             val top = (height - step * s.size) / 2
+            // It sits on the right edge: with gesture navigation a scrub starting there was read as Back and closed the
+            // drawer. Android honours up to 200 dp of each edge; the letters' span is asked for, set again as it changes.
+            if (android.os.Build.VERSION.SDK_INT >= 29) android.graphics.Rect(0, top.toInt(), width, (top + step * s.size).toInt()).let { r ->
+                if (systemGestureExclusionRects.singleOrNull() != r) systemGestureExclusionRects = listOf(r)
+            }
             val cx = width / 2f + 3 * a.dp
             s.forEachIndexed { i, l ->
                 val cy = top + step * i + step / 2
@@ -949,7 +967,9 @@ class Drawer(private val a: MainActivity) {
             if (pos % cols == 0 && pos < entries.size) a.repo.prefetchIcons(entries.drop(pos).take(cols * rows).filterIsInstance<Entry.AppE>().map { it.app })
             return (getItem(pos)?.let { entryView(it, convert) }?.apply {
             if (styleName == "list") setPadding((8 * a.dp).toInt(), 0, 0, 0)
-        } ?: entryView(entries[0]).apply { visibility = View.INVISIBLE }).apply { // a filler as tall as a real cell, or GridView misplaces the row
+        // A filler as tall as a real cell, or GridView misplaces the row. With the cell height known, a plain view will do:
+        // a real one (a folder, a contact) resolved icons or decoded a photo just to be hidden.
+        } ?: (if (cellH > 0 && styleName != "list") View(a) else entryView(entries[0])).apply { visibility = View.INVISIBLE }).apply {
             if (styleName == "list") return@apply
             if (!search.hasFocus() && parent.height > 0) cellH = (parent.height - parent.paddingTop - parent.paddingBottom) / rows
             // Kept, not replaced: GridView marks the first cell it measures forceAdd, and new params lost that, so the

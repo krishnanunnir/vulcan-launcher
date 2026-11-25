@@ -34,9 +34,8 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 
-/** Drag payload for an item dragged out of a home-screen folder. */
 /**
- * An item inside the home folder on cell ([page], [x], [y]). The child itself and the folder's cell, not a copy of the
+ * Drag payload for an item dragged out of a home-screen folder: an item inside the home folder on cell ([page], [x], [y]). The child itself and the folder's cell, not a copy of the
  * folder and a position in it: a rename, sort or uninstall since would leave those pointing at the wrong thing.
  */
 class FolderChild(val page: Int, val x: Int, val y: Int, val child: Item)
@@ -134,6 +133,11 @@ class MainActivity : VulcanActivity() {
     /** The Now page built ahead and when, and the delayed build that makes it (see prepareNow). */
     var nowReady: Pair<Long, NowPanel>? = null
     val nowBuilder = Runnable { prebuildNow() }
+    /** The glance line's last answer, and the number of the latest lookup (see updateGlance). */
+    var glance: Pair<String, (() -> Unit)?>? = null
+    @Volatile var glanceAsked = 0
+    /** Notifications come in bursts (a busy chat): the glance line and the Now page follow once the burst settles. */
+    private val notified = Runnable { if (!isDestroyed) { updateGlance(); prepareNow() } }
     /** Where the last touch went down, in window coordinates; menus opened by a long-press appear there. */
     val lastDown = PointF()
 
@@ -174,14 +178,15 @@ class MainActivity : VulcanActivity() {
             widgetFlow.pendingWidget = null; widgetFlow.pendingSlot = null
         }
         // A widget whose ID is gone (its app uninstalled while Vulcan wasn't running) has no view, but would hold its cells.
-        runCatching { host.appWidgetIds.toSet() }.getOrNull()?.let { ids ->
+        // Read once: if it throws, a second unguarded read would too, and a launcher crashing in onCreate loops.
+        runCatching { host.appWidgetIds.toSet() }.onFailure { android.util.Log.w("Vulcan", "can't list widget IDs", it) }.getOrNull()?.let { ids ->
             val kept = keepWidgets(items) { it in ids }
             if (kept != items) { items.clear(); items += kept; save(); render() }
+            // Widget IDs no item holds (the process died mid-flow, a pin failed, an undo bar was cut short) still get
+            // updates from their providers: free them.
+            val held = items.flatMap { it.widgetIds } + nowCards().flatMap { it.widgetIds } + listOfNotNull(widgetFlow.pendingWidget?.first)
+            ids.filter { it !in held }.forEach(host::deleteAppWidgetId)
         }
-        // Widget IDs no item holds (the process died mid-flow, a pin failed, an undo bar was cut short) still get
-        // updates from their providers: free them.
-        val held = items.flatMap { it.widgetIds } + nowCards().flatMap { it.widgetIds } + listOfNotNull(widgetFlow.pendingWidget?.first)
-        host.appWidgetIds.filter { it !in held }.forEach(host::deleteAppWidgetId)
         launcherApps.registerCallback(appsCallback)
         val dateFilter = android.content.IntentFilter(Intent.ACTION_DATE_CHANGED).apply {
             addAction(Intent.ACTION_TIME_CHANGED); addAction(Intent.ACTION_TIMEZONE_CHANGED) }
@@ -195,7 +200,10 @@ class MainActivity : VulcanActivity() {
         }
         if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(profileReceiver, profileFilter, RECEIVER_NOT_EXPORTED)
         else registerReceiver(profileReceiver, profileFilter)
-        BadgeService.onChange = { pkgs -> runOnUiThread { if (pkgs.isNotEmpty()) { updateBadges(pkgs); drawer.refreshBadges() }; updateGlance(); prepareNow() } }
+        BadgeService.onChange = { pkgs -> runOnUiThread { if (pkgs.isNotEmpty()) {
+            updateBadges(pkgs); drawer.refreshBadges()
+            mainHandler.removeCallbacks(notified); mainHandler.postDelayed(notified, 500)
+        } } }
         // Rotation recreates the activity: stay on the page the user was on.
         savedInstanceState?.getInt("page", -1)?.takeIf { it in 0 until looks.pages }?.let { workspace.snapTo(it, animate = false) }
         // Just imported: put the widgets back (not when a restore was already under way and this is its restart).
@@ -215,6 +223,8 @@ class MainActivity : VulcanActivity() {
         // setDepth, not the field alone: the window's blur outlives the old views.
         overlay = null; overlayClosed = {}; overlayExit = null; refillFolder = null; setDepth(0f); homeMenus.menu = null
         drag.reset()
+        // Its open or close animator would go on writing the new home's alpha until it ended.
+        drawer.hide(animate = false)
         badgeIcons.clear(); widgetFlow.keepViews(emptySet()) // build() reloads the apps, which drops the cached icons
         build()
         workspace.snapTo(page.coerceAtMost(looks.pages - 1), animate = false)
@@ -455,7 +465,6 @@ class MainActivity : VulcanActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putInt("page", workspace.current)
-        outState.putIntArray("insets", intArrayOf(insets.left, insets.top, insets.right, insets.bottom))
     }
 
     /** Back inside an overlay: its own back handler (a view tag) if it has one, else close it. */
@@ -465,10 +474,12 @@ class MainActivity : VulcanActivity() {
         super.onDestroy()
         if (!::launcherApps.isInitialized) return // handed off to home in onCreate
         launcherApps.unregisterCallback(appsCallback)
+        appsCallback.cancel()
         unregisterReceiver(dateReceiver)
         unregisterReceiver(profileReceiver)
         // A copy left over from before Vulcan became the home app must not take the live one's badge updates away.
         if (running?.get() === this) BadgeService.onChange = {}
+        mainHandler.removeCallbacks(notified); mainHandler.removeCallbacks(listenAgain)
         homeMenus.torchWatch?.let { getSystemService(android.hardware.camera2.CameraManager::class.java).unregisterTorchCallback(it) }
     }
 
@@ -476,18 +487,26 @@ class MainActivity : VulcanActivity() {
         super.onStart()
         if (stale) { stale = false; rebuild() }
         // The system answers with every widget's waiting update at once; too big a reply throws, and home must still open.
-        runCatching { host.startListening() }
+        // Once more a moment later, or widgets would stay frozen until the next start.
+        runCatching { host.startListening() }.onFailure {
+            android.util.Log.w("Vulcan", "widget host: can't start listening, retrying", it)
+            mainHandler.postDelayed(listenAgain, 1000)
+        }
+    }
+    private val listenAgain = Runnable {
+        if (!isDestroyed && running?.get() === this) runCatching { host.startListening() }.onFailure { android.util.Log.w("Vulcan", "widget host: can't start listening", it) }
     }
 
     override fun onStop() {
         super.onStop()
         // Stops the host id for the whole process: only the live copy may (see onDestroy).
+        mainHandler.removeCallbacks(listenAgain)
         if (running?.get() === this) host.stopListening()
         if (drawer.closeOnStop) { drawer.closeOnStop = false; drawer.hide(animate = false) }
         // Daily automatic backup, kept privately on the device and offered in Backup & restore.
         // Once a day (not on every stop) so a reset or bad change can't overwrite the last good copy straight away.
         val auto = store.autoBackups[0]
-        if (!auto.exists() || System.currentTimeMillis() - auto.lastModified() > 24 * 3600_000L) runCatching { store.rotateAutoBackup() }
+        if (!auto.exists() || System.currentTimeMillis() - auto.lastModified() > 24 * 3600_000L) runCatching { store.rotateAutoBackup() }.onFailure { android.util.Log.w("Vulcan", "automatic backup failed", it) }
     }
 
     /**
@@ -602,6 +621,8 @@ class MainActivity : VulcanActivity() {
         // dialog, ran while the activity paused and resumed under them, and stuttered (#100).
         dialogs.toList().forEach { it.window?.setWindowAnimations(0); it.dismiss() }
         when {
+            // The welcome (or an import's review) covers home: a panel opened now would sit over it, and Back would step the hidden welcome.
+            welcoming -> {}
             homeMenus.menu != null -> homeMenus.closeMenu()
             overlay != null -> closeOverlay()
             drawer.visible -> drawer.hide()
@@ -628,7 +649,6 @@ class MainActivity : VulcanActivity() {
     /** Puts [item] in place of the one at [i], saves and redraws. */
     fun replace(i: Int, item: Item) { items[i] = item; save(); render() }
 
-    /** First run: the default phone, messages, browser, camera and gallery apps in the dock (as many as fit). */
     /** A fresh install's layout, as Nova sets it up: a five-app dock, mail and photos above it, settings top right. */
     fun defaultLayout(): MutableList<Item> {
         val me = repo.serial(Process.myUserHandle())
@@ -671,13 +691,30 @@ class MainActivity : VulcanActivity() {
         // Apps republish their shortcuts often (messaging apps on every message): redraw only for one pinned on home.
         override fun onShortcutsChanged(pkg: String, shortcuts: MutableList<ShortcutInfo>, user: UserHandle) {
             val s = repo.serial(user)
-            if ((items + items.flatMap { it.children }).any { it.isShortcut && it.pkg == pkg && it.user == s }) render()
+            if ((items + items.flatMap { it.children }).any { it.isShortcut && it.pkg == pkg && it.user == s }) reload(emptyList())
+        }
+        /**
+         * Changes come in storms (the Play Store updating 40 apps, an SD card mounting, a chat republishing shortcuts):
+         * the apps are listed and home is drawn once for all that came within 100 ms, not once each.
+         */
+        private val changed = HashSet<String>()
+        private var redraw = false
+        private var queued = false
+        private val reloadNow = Runnable {
+            queued = false
+            if (isDestroyed) return@Runnable
+            val pkgs = changed.toList().also { changed.clear() }
+            if (pkgs.isNotEmpty()) { repo.loadApps(pkgs); drawer.invalidate() }
+            if (redraw || (items + items.flatMap { it.children }).any { it.pkg in pkgs }) render()
+            redraw = false
         }
         private fun reload(pkgs: List<String>, homeOnly: Boolean = false) {
-            repo.loadApps(pkgs)
-            drawer.invalidate()
-            if (!homeOnly || (items + items.flatMap { it.children }).any { it.pkg in pkgs }) render()
+            changed += pkgs
+            if (!homeOnly) redraw = true
+            // Not pushed back by each new change: a steady stream still redraws every 100 ms.
+            if (!queued) { queued = true; mainHandler.postDelayed(reloadNow, 100) }
         }
+        fun cancel() { mainHandler.removeCallbacks(reloadNow); queued = false }
     }
 
     /** Midnight or a clock/time-zone change: date icons redraw with the new day. */
@@ -704,7 +741,7 @@ class MainActivity : VulcanActivity() {
 
     fun launch(a: App, v: View?) {
         runCatching { launcherApps.startMainActivity(a.info.componentName, a.info.user, bounds(v), launchOptions(v)) }
-            .onFailure { toast(R.string.cant_open, repo.label(a)) }
+            .onFailure { android.util.Log.w("Vulcan", "can't launch ${a.key}", it); toast(R.string.cant_open, repo.label(a)) }
         store.countLaunch(a.key)
         if (drawer.visible && looks.on("closeAfterLaunch")) drawer.hide()
     }
@@ -728,7 +765,7 @@ class MainActivity : VulcanActivity() {
 
     fun startShortcut(pkg: String, id: String, user: UserHandle, v: View?) {
         runCatching { launcherApps.startShortcut(pkg, id, bounds(v), launchOptions(v), user) }
-            .onFailure { toast(R.string.shortcut_unavailable) }
+            .onFailure { android.util.Log.w("Vulcan", "can't start shortcut $pkg/$id", it); toast(R.string.shortcut_unavailable) }
     }
 
     /** Gesture and home button actions, the ones settings hold. */
@@ -740,7 +777,7 @@ class MainActivity : VulcanActivity() {
         val ids = pinsByApp(items, settingActions())[pkg to user].orEmpty() + listOfNotNull(also)
         // A profile that's gone: userOf would fall back to the personal one, and pinning there unpins that app's own shortcuts.
         val u = um.getUserForSerialNumber(user) ?: return
-        runCatching { launcherApps.pinShortcuts(pkg, ids.distinct(), u) }
+        runCatching { launcherApps.pinShortcuts(pkg, ids.distinct(), u) }.onFailure { android.util.Log.w("Vulcan", "can't pin shortcuts of $pkg", it) }
     }
 
     // ---- Home screen ----
@@ -932,7 +969,8 @@ class MainActivity : VulcanActivity() {
         }
         store.data.edit().remove(REPIN_SHORTCUTS).apply()
         pinsByApp(store.load(looks.sub), settingActions()).forEach { (key, ids) ->
-            um.getUserForSerialNumber(key.second)?.let { u -> runCatching { launcherApps.pinShortcuts(key.first, ids, u) } }
+            um.getUserForSerialNumber(key.second)?.let { u -> runCatching { launcherApps.pinShortcuts(key.first, ids, u) }
+                .onFailure { android.util.Log.w("Vulcan", "can't pin shortcuts of ${key.first}", it) } }
         }
     }
 

@@ -65,10 +65,17 @@ internal class DrawerMotion(private val a: MainActivity, private val d: Drawer) 
             private set
         private var downY = 0f
         private var velocity: android.view.VelocityTracker? = null
+        /** The finger that went down last, and so owns a pull it starts. */
+        private var owner = -1
 
         fun handle(ev: MotionEvent): Boolean {
             started = false
+            // A second finger on another view sharing this pull (the bar while the row is pulled) arrives as its own DOWN:
+            // taken as a new gesture, it reset the pull, the first finger's UP then never released it, and [held] froze
+            // the drawer half-open. It's swallowed instead, and the first finger's pull carries on.
+            if (closing && ev.getPointerId(ev.actionIndex) != owner) return true
             if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
+                owner = ev.getPointerId(0)
                 // Screen coordinates: the list moves with the sheet, so its own would halve the pull.
                 closing = false; downY = ev.rawY
                 velocity?.recycle(); velocity = android.view.VelocityTracker.obtain()

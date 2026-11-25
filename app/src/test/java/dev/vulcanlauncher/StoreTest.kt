@@ -255,6 +255,9 @@ class StoreTest {
         // A tab's colour survives a save; one that isn't #RRGGBB falls back to the theme's.
         assertEquals(listOf(Group("T", "tab", listOf("k"), "#E53935")), groupsFromJson(groupsToJson(listOf(Group("T", "tab", listOf("k"), "#E53935")))))
         assertEquals(listOf(Group("T", "tab", emptyList())), groupsFromJson("""[{"name":"T","type":"tab","apps":[],"color":"red"}]"""))
+        // Reserved tab keys, blank names and repeats are numbered, so each group keeps its own identity and apps.
+        val read = groupsFromJson(groupsToJson(listOf("work", "private", "", "T", "T").map { Group(it, "tab", emptyList()) }))
+        assertEquals(listOf("work 2", "private 2", "2", "T", "T 2"), read.map { it.name })
     }
 
     @Test fun aBackupWithoutHomeItemsIsRefusedNotReadAsEmpty() {
