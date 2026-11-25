@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="action_service_description">Permite que o Vulcan bloqueie a tela, abra aplicativos recentes, configurações rápidas e o menu de energia a partir de um gesto. Ele não lê o conteúdo da tela.</string>
     <string name="set_cols">Colunas</string>
     <string name="set_rows">Linhas</string>
@@ -735,7 +735,7 @@
     <plurals name="review_folders"><item quantity="one">%1$d pasta</item><item quantity="other">%1$d pastas</item></plurals>
     <plurals name="review_widgets"><item quantity="one">%1$d widget</item><item quantity="other">%1$d widgets</item></plurals>
     <plurals name="review_pages"><item quantity="one">%1$d página</item><item quantity="other">%1$d páginas</item></plurals>
-    <plurals name="widgets_title"><item quantity="one">Restaurar seu widget</item><item quantity="other">Restaurar seus %1$d widgets</item></plurals>
+    <plurals name="widgets_title"><!-- one also covers 0 in Portuguese; that rare case reads singular in English too --><item quantity="one" tools:ignore="ImpliedQuantity">Restaurar seu widget</item><item quantity="other">Restaurar seus %1$d widgets</item></plurals>
     <string name="widgets_body">O Android pergunta uma vez antes de o Vulcan poder exibir widgets. Marque esta caixa e os demais voltarão sozinhos.</string>
     <string name="widgets_always">Permitir sempre ao Vulcan</string>
     <string name="widgets_continue">Continuar</string>
