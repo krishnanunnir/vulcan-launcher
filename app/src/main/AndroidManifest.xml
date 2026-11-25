@@ -61,6 +61,8 @@
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
         android:enableOnBackInvokedCallback="true"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault.Wallpaper.NoTitleBar">
@@ -83,6 +85,15 @@
              palette (SettingsActivity.bars). -->
         <activity
             android:name=".SettingsActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- An icon pack's icons, picked from Edit. In a task of its own for the same reason as settings (#100). -->
+        <activity
+            android:name=".IconGridActivity"
             android:exported="false"
             android:excludeFromRecents="true"
             android:autoRemoveFromRecents="true"

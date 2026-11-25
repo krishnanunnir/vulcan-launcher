@@ -120,7 +120,8 @@ class Reorder(private val a: VulcanActivity, private val rows: List<View>, priva
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                val f = from; val t = to
+                // A cancelled drag (the system took the touch) goes back to where it started.
+                val f = from; val t = if (ev.actionMasked == MotionEvent.ACTION_CANCEL) from else to
                 from = -1
                 // Settle into the slot it was dropped on, then hand the new order over (which rebuilds the rows).
                 val land = (tops[t] - tops[f] + if (t > f) heights[t] - heights[f] else 0).toFloat()

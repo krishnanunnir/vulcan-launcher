@@ -667,7 +667,8 @@ class Icons(private val context: Context, private val looks: Looks) {
     /** ADW-style theming for apps the pack doesn't list: back plate, masked and scaled icon, overlay. */
     private fun autogen(icon: Drawable, pkg: String): Drawable? {
         val p = pack ?: return null
-        val back = p.drawable(p.back[abs(pkg.hashCode()) % p.back.size]) ?: return null
+        // abs of the remainder, not of the hash: abs(Int.MIN_VALUE) stays negative; this keeps every other app's pick.
+        val back = p.drawable(p.back[abs(pkg.hashCode() % p.back.size)]) ?: return null
         val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
         back.setBounds(0, 0, size, size); back.draw(c)

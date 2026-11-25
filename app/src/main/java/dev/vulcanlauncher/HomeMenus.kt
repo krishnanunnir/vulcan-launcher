@@ -458,13 +458,13 @@ class HomeMenus(private val a: MainActivity) {
         }
     }
 
-    /** Pauses or resumes the work profile; Android lets the default home app do this (API 28+). */
+    /** Pauses or resumes every work profile; Android lets the default home app do this (API 28+). */
     private fun toggleWork() {
-        val work = a.launcherApps.profiles.firstOrNull { it != Process.myUserHandle() && it != a.repo.privateUser }
-        if (work == null || android.os.Build.VERSION.SDK_INT < 28) return a.toast(R.string.no_work_profile)
-        val pause = !a.um.isQuietModeEnabled(work)
+        val work = a.repo.workUsers
+        if (work.isEmpty() || android.os.Build.VERSION.SDK_INT < 28) return a.toast(R.string.no_work_profile)
+        val pause = work.any { !a.um.isQuietModeEnabled(it) }
         // A word on what happened, as the switch has no other sign until an app is opened (#73).
-        runCatching { a.um.requestQuietModeEnabled(pause, work) }.onSuccess { done -> if (done) a.toast(if (pause) R.string.work_paused else R.string.work_resumed) }
+        runCatching { work.map { a.um.requestQuietModeEnabled(pause, it) } }.onSuccess { done -> if (done.any { it }) a.toast(if (pause) R.string.work_paused else R.string.work_resumed) }
             .onFailure { a.toast(R.string.no_work_profile) }
     }
 

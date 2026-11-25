@@ -1,6 +1,7 @@
 #!/bin/sh
 # Release-build checks on a phone over adb: cold start, single instance, drawer frame stats.
 # Usage: tools/perf/measure.sh   (Vulcan installed as the default home, phone unlocked, portrait)
+[ -n "$ANDROID_SERIAL" ] || adb devices | awk 'NR > 1 && NF { n++ } END { exit n > 1 }' || { echo "More than one device attached: set ANDROID_SERIAL (adb devices -l)" >&2; exit 1; }
 P=dev.vulcanlauncher
 sh() { adb shell "$@"; }
 

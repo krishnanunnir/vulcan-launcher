@@ -424,18 +424,14 @@
     <string name="icon_from_app">Another app\'s icon</string>
     <string name="icon">Icon</string>
     <string name="icon_pack_unreadable">Can\'t read this icon pack</string>
-    <string name="choose_icon">Choose icon</string>
     <string name="hide_apps">Hide apps</string>
     <string name="new_tab">New tab</string>
     <string name="new_folder">New folder</string>
     <string name="group_exists">A group with that name exists</string>
     <string name="tab_color">Color</string>
-    <string name="rename">Rename</string>
     <string name="choose_apps">Choose apps</string>
     <string name="convert_to_tab">Convert to tab</string>
     <string name="convert_to_folder">Convert to folder</string>
-    <string name="move_left">Move left</string>
-    <string name="move_right">Move right</string>
     <string name="delete">Delete</string>
     <string name="add_to_group">Add to group</string>
     <string name="cat_finance">Finance</string>
@@ -448,7 +444,6 @@
     <string name="reset_confirm">Remove every setting and the whole home screen layout?</string>
     <string name="reset">Reset</string>
     <string name="import_failed">Import failed: %1$s</string>
-    <string name="import_title">Import this layout?</string>
     <string name="import_">Import</string>
     <string name="picker_restarted">Vulcan restarted while the picker was open. Please try again</string>
     <string name="no_web_search_app">No app handles web search</string>
@@ -497,13 +492,11 @@
     <string name="accessibility_text">Vulcan uses the AccessibilityService API only when you trigger a gesture or shortcut to lock the screen, open recent apps, notifications, quick settings or the power menu.\n\nThe service does not read screen content, record your interactions, or collect or share personal data. It only performs the action you request. Access is optional; the rest of the launcher works without it. You can turn it off at any time in Android Accessibility settings.\n\nTap Agree and open settings to continue, then enable Vulcan actions.</string>
     <string name="agree_open_settings">Agree and open settings</string>
     <string name="privacy_policy">Privacy policy</string>
-    <string name="open_settings">Open settings</string>
     <string name="backup_saved">Backup saved</string>
     <string name="backup_failed">Backup failed: %1$s</string>
     <string name="skipped_settings">Skipped settings with values Vulcan can\'t use: %1$s</string>
     <string name="now_media">Media</string>
     <string name="now_notification_access">Turn on notification access</string>
-    <string name="now_nothing_playing">Nothing playing</string>
     <string name="now_playing">Playing</string>
     <string name="media_previous">Previous</string>
     <string name="media_pause">Pause</string>
@@ -512,10 +505,8 @@
     <string name="now_upcoming">Upcoming</string>
     <string name="now_allow_calendar">Allow calendar access</string>
     <string name="now_all_day">%1$s all day</string>
-    <string name="now_no_events">No events in the next 7 days</string>
     <string name="now_favourites">Favourites</string>
     <string name="now_allow_contacts">Allow contacts access</string>
-    <string name="now_star_contacts">Star contacts in your contacts app to see them here</string>
     <string name="now_add_card">Add a card</string>
     <string name="now_card_apps">Apps</string>
     <string name="now_card_widget">Widget</string>
@@ -544,8 +535,6 @@
     <string name="drag_to_reorder">Drag to reorder</string>
     <string name="tab_all_hide">Hide this tab</string>
     <string name="tab_all_hide_info">Apps in no other tab are still found by search</string>
-    <string name="tab_all_shown">Shown first in the drawer</string>
-    <string name="tab_all_hidden">Hidden. Apps in no other tab are still found by search</string>
     <string name="tab_all_needs_tab">Add a tab first: the drawer needs one tab to show</string>
     <string name="move_apps_title">Move them here?</string>
     <plurals name="move_apps_message">
@@ -594,6 +583,8 @@
     <string name="page_of">Page %1$d of %2$d</string>
     <string name="not_launcher_backup">No launcher database in this file; is it a launcher backup?</string>
     <string name="not_vulcan_backup">Not a Vulcan backup</string>
+    <string name="backup_too_large">The file is too large to be a backup</string>
+    <string name="restore_not_saved">The restored setup couldn’t be saved</string>
     <string name="app_name" translatable="false">Vulcan</string>
     <string name="badge_service_label">Vulcan badges</string>
     <string name="action_service_label">Vulcan actions</string>
@@ -715,8 +706,6 @@
     <string name="perm_allow">Allow</string>
     <string name="perm_is_default">Default</string>
     <string name="perm_set_default">Set</string>
-    <string name="new_tab_info">A drawer page with only the apps you pick</string>
-    <string name="new_folder_info">Apps you pick, under one icon in the drawer</string>
     <plurals name="group_apps">
         <item quantity="one">%1$d app</item>
         <item quantity="other">%1$d apps</item>

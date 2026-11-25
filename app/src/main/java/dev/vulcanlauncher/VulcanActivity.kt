@@ -75,6 +75,15 @@ abstract class VulcanActivity : Activity() {
         }
     }
 
+    /** A full-screen page (settings, the icon grid): the window and its system bars in the surface colour. */
+    @Suppress("DEPRECATION")
+    protected fun bars() {
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(m3.surface))
+        window.statusBarColor = m3.surface
+        window.navigationBarColor = m3.surface
+        window.decorView.systemUiVisibility = if (m3.dark) 0 else View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+    }
+
     /** Night mode and the palette, from the settings now. */
     fun recolor() {
         night = computeNight()

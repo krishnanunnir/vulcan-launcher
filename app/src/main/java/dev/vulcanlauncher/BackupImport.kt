@@ -3,7 +3,11 @@ package dev.vulcanlauncher
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.zip.ZipInputStream
 import kotlin.math.roundToInt
 
@@ -107,11 +111,29 @@ fun importedPrefs(xml: String): Map<String, String> {
     }.toMap()
 }
 
+/** More than any backup holds: a picked file is read on the main thread, so a bigger one (or a zip bomb) is refused. */
+const val MAX_BACKUP_BYTES = 16L shl 20
+
+/** Copies this stream to [out], throwing [IOException] with message [tooLarge] once more than [max] bytes come. */
+fun InputStream.copyAtMost(out: OutputStream, max: Long, tooLarge: String) {
+    val buf = ByteArray(8192)
+    var total = 0L
+    while (true) {
+        val n = read(buf).takeIf { it >= 0 } ?: return
+        total += n
+        if (total > max) throw IOException(tooLarge)
+        out.write(buf, 0, n)
+    }
+}
+
+fun InputStream.readAtMost(max: Long, tooLarge: String): ByteArray = ByteArrayOutputStream().also { copyAtMost(it, max, tooLarge) }.toByteArray()
+
 /** Reads a .novabackup chosen by the user. Throws with a readable message when the file isn't one. */
 fun readLauncherBackup(context: Context, uri: Uri): Pair<ImportedLayout, Map<String, String>> {
     val dir = File(context.cacheDir, "launcher-import").apply { deleteRecursively(); mkdirs() }
     var db: File? = null
     var prefs = ""
+    val tooLarge = context.getString(R.string.backup_too_large)
     ZipInputStream(context.contentResolver.openInputStream(uri)!!).use { zip ->
         while (true) {
             val e = zip.nextEntry ?: break
@@ -119,8 +141,8 @@ fun readLauncherBackup(context: Context, uri: Uri): Pair<ImportedLayout, Map<Str
             when {
                 e.isDirectory -> {}
                 name.endsWith(".db") && (db == null || name == "backup.db" || name == "launcher.db") ->
-                    db = File(dir, "import.db").apply { outputStream().use { zip.copyTo(it) } }
-                name.endsWith("preferences.xml") -> prefs = zip.readBytes().decodeToString()
+                    db = File(dir, "import.db").apply { outputStream().use { zip.copyAtMost(it, MAX_BACKUP_BYTES, tooLarge) } }
+                name.endsWith("preferences.xml") -> prefs = zip.readAtMost(MAX_BACKUP_BYTES, tooLarge).decodeToString()
             }
         }
     }

@@ -22,18 +22,24 @@ fun scaleSpan(n: Int, portrait: Int, now: Int) = maxOf(1, Math.round(n * now / p
 
 /**
  * After a grid, page-count or dock change: keeps items that still fit and moves the rest to the first free
- * spot (own page first; dock items try the dock first). Oversized widgets shrink to the grid.
+ * spot (own page first; dock items try the dock first, then take a [sub]×[sub] home cell). Oversized widgets shrink to the grid.
  */
 // ponytail: items with no room anywhere keep their old spot and stay hidden until the grid grows back
-fun fitItems(items: List<Item>, pages: Int, cols: Int, rows: Int, dockCols: Int, dockPages: Int = 1): List<Item> {
+fun fitItems(items: List<Item>, pages: Int, cols: Int, rows: Int, dockCols: Int, dockPages: Int = 1, sub: Int = 1, overlapOk: Boolean = true): List<Item> {
     // A backup edited by hand can hold a negative cell or a size of 0: off the grid too, not a fit left out of sight.
     fun fits(i: Item) = i.x >= 0 && i.y >= 0 && i.w >= 1 && i.h >= 1 && if (isDock(i.page)) dockIndex(i.page) < dockPages && i.x + i.w <= dockCols && i.y == 0
         else i.page in 0 until pages && i.x + i.w <= cols && i.y + i.h <= rows
-    val placed = items.filter(::fits).toMutableList()
+    // An item hidden by a smaller grid keeps its cells on paper, and one moved since may sit in them: once both fit again
+    // they would stack. Unless overlap is the user's choice ([overlapOk]), the bigger one stays and the other moves.
+    val kept = ArrayList<Item>()
+    if (!overlapOk) for (i in items.filter(::fits).sortedByDescending { it.w * it.h })
+        if (kept.none { it.page == i.page && overlaps(i.x, i.y, i.w, i.h, it.x, it.y, it.w, it.h) }) kept += i
+    fun stays(i: Item) = fits(i) && (overlapOk || kept.any { it === i })
+    val placed = items.filter(::stays).toMutableList()
     fun free(i: Item) = fits(i) && placed.none { it.page == i.page && overlaps(i.x, i.y, i.w, i.h, it.x, it.y, it.w, it.h) }
-    for (item in items.filterNot(::fits)) {
-        val w = item.w.coerceIn(1, cols)
-        val h = item.h.coerceIn(1, rows)
+    for (item in items.filterNot(::stays)) {
+        val w = (if (isDock(item.page)) sub else item.w).coerceIn(1, cols)
+        val h = (if (isDock(item.page)) sub else item.h).coerceIn(1, rows)
         val dockSpots = if (isDock(item.page) && item.w == 1) (0 until dockPages).flatMap { p -> (0 until dockCols).map { item.copy(page = -1 - p, x = it, y = 0) } } else emptyList()
         val pageOrder = (listOf(item.page) + (0 until pages)).filter { it in 0 until pages }.distinct()
         val homeSpots = pageOrder.asSequence().flatMap { p ->
@@ -98,12 +104,22 @@ fun movePage(items: List<Item>, from: Int, to: Int): List<Item> = items.map {
 }
 
 /** Converts home items between normal and subgrid (half-cell) coordinates. [factor] is 2 to enable, -2 to disable. */
-fun scaleItems(items: List<Item>, factor: Int): List<Item> = items.map {
-    when {
-        isDock(it.page) -> it
-        factor > 0 -> it.copy(x = it.x * factor, y = it.y * factor, w = it.w * factor, h = it.h * factor)
-        else -> { val f = -factor; it.copy(x = it.x / f, y = it.y / f, w = maxOf(1, it.w / f), h = maxOf(1, it.h / f)) }
+fun scaleItems(items: List<Item>, factor: Int): List<Item> {
+    if (factor > 0) return items.map { if (isDock(it.page)) it else it.copy(x = it.x * factor, y = it.y * factor, w = it.w * factor, h = it.h * factor) }
+    val f = -factor
+    val out = ArrayList<Item>(items.size)
+    for (it in items) {
+        if (isDock(it.page)) { out += it; continue }
+        val (w, h) = maxOf(1, it.w / f) to maxOf(1, it.h / f)
+        // Rounding down can stack two items that shared one big cell; one that would rounds up instead. An overlap that
+        // was already there (widget overlap) stays, and a spot rounded off the grid is moved by fitItems.
+        fun clash(c: Item) = out.indices.any { j -> val o = out[j]; val was = items[j]
+            o.page == c.page && overlaps(c.x, c.y, w, h, o.x, o.y, o.w, o.h) && !overlaps(it.x, it.y, it.w, it.h, was.x, was.y, was.w, was.h) }
+        val (fx, fy, cx, cy) = listOf(it.x / f, it.y / f, (it.x + f - 1) / f, (it.y + f - 1) / f)
+        val spots = listOf(fx to fy, cx to fy, fx to cy, cx to cy).map { (x, y) -> it.copy(x = x, y = y, w = w, h = h) }
+        out += spots.firstOrNull { c -> !clash(c) } ?: spots[0]
     }
+    return out
 }
 
 /**
@@ -207,9 +223,16 @@ class CellLayout(context: Context, val cols: Int, val rows: Int, val page: Int, 
         gx.toInt().coerceIn(0, cols - 1) to gy.toInt().coerceIn(0, rows - 1)
     }
 
-    /** True when the rectangle is inside the grid and overlaps no child except [ignore]. */
+    /**
+     * Items stored but not drawn (no room after a grid shrink, an app missing for now). Their cells stay taken, so
+     * nothing lands under them and overlaps them once they come back.
+     */
+    var held: () -> List<Item> = { emptyList() }
+
+    /** True when the rectangle is inside the grid and overlaps no child except [ignore], nor a [held] item. */
     fun isFree(x: Int, y: Int, w: Int, h: Int, ignore: View? = null): Boolean {
         if (x < 0 || y < 0 || x + w > cols || y + h > rows) return false
+        if (held().any { it.page == page && overlaps(x, y, w, h, it.x, it.y, it.w, it.h) }) return false
         for (i in 0 until childCount) {
             val c = getChildAt(i)
             if (c === ignore) continue

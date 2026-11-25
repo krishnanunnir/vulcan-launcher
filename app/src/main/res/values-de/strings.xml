@@ -67,7 +67,6 @@
     <string name="charged">Geladen</string>
     <string name="charging">Wird geladen · %1$d%%</string>
     <string name="choose_apps">Apps auswählen</string>
-    <string name="choose_icon">Symbol auswählen</string>
     <string name="color_black">Schwarz</string>
     <string name="color_blue">Blau</string>
     <string name="color_charcoal">Anthrazit</string>
@@ -83,8 +82,6 @@
     <string name="color_white">Weiß</string>
     <string name="color_yellow">Gelb</string>
     <string name="convert_to_folder">In Ordner umwandeln</string>
-    <string name="move_left">Nach links verschieben</string>
-    <string name="move_right">Nach rechts verschieben</string>
     <string name="convert_to_tab">In Tab umwandeln</string>
     <string name="default_home">Standard-Start-App</string>
     <string name="default_home_info">Mache Vulcan zu deinem Startbildschirm</string>
@@ -179,7 +176,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="icon_pack_unreadable">"Dieses Symbolpaket kann nicht gelesen werden"</string>
     <string name="import_">Importieren</string>
     <string name="import_failed">Import fehlgeschlagen: %1$s</string>
-    <string name="import_title">Dieses Layout importieren?</string>
     <string name="indicator_dots">Punkte</string>
     <string name="indicator_line">Linie</string>
     <string name="indicator_none">Keine</string>
@@ -244,19 +240,15 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="now_favourites">Favoriten</string>
     <string name="now_frequent">Häufig genutzt</string>
     <string name="now_media">Medien</string>
-    <string name="now_no_events">Keine Termine in den nächsten 7 Tagen</string>
-    <string name="now_nothing_playing">Nichts wird abgespielt</string>
     <string name="now_notification_access">Benachrichtigungszugriff aktivieren</string>
     <string name="now_now">Jetzt</string>
     <string name="now_playing">Wird abgespielt</string>
-    <string name="now_star_contacts">Markiere Kontakte in deiner Kontakte-App als Favoriten, um sie hier zu sehen</string>
     <string name="now_upcoming">Anstehend</string>
     <string name="off">Aus</string>
     <string name="ok">OK</string>
     <string name="on">An</string>
     <string name="open_app">App öffnen</string>
     <string name="open_app_item">App öffnen…</string>
-    <string name="open_settings">Einstellungen öffnen</string>
     <string name="orientation_auto">Mit Telefon drehen</string>
     <string name="orientation_landscape">Querformat</string>
     <string name="orientation_portrait">Hochformat</string>
@@ -281,7 +273,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="private_install">Apps im Privaten Bereich installieren</string>
     <string name="remove">Entfernen</string>
     <string name="tab_color">Farbe</string>
-    <string name="rename">Umbenennen</string>
     <string name="reset">Zurücksetzen</string>
     <string name="reset_confirm">Alle Einstellungen und das gesamte Startbildschirm-Layout entfernen?</string>
     <string name="reset_defaults">Auf Standard zurücksetzen</string>
@@ -515,8 +506,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="perm_allow">Erlauben</string>
     <string name="perm_is_default">Standard</string>
     <string name="perm_set_default">Festlegen</string>
-    <string name="new_tab_info">Eine Seite der App-Übersicht nur mit den Apps deiner Wahl</string>
-    <string name="new_folder_info">Apps deiner Wahl unter einem Symbol in der App-Übersicht</string>
     <plurals name="group_apps">
         <item quantity="one">%1$d App</item>
         <item quantity="other">%1$d Apps</item>
@@ -718,8 +707,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="drag_to_reorder">Zum Umsortieren ziehen</string>
     <string name="tab_all_hide">Diesen Tab ausblenden</string>
     <string name="tab_all_hide_info">Apps, die in keinem anderen Tab sind, lassen sich trotzdem über die Suche finden</string>
-    <string name="tab_all_shown">Wird in der App-Übersicht an erster Stelle angezeigt</string>
-    <string name="tab_all_hidden">Ausgeblendet. Apps, die in keinem anderen Tab sind, lassen sich trotzdem über die Suche finden</string>
     <string name="tab_all_needs_tab">Füge zuerst einen Tab hinzu: Die App-Übersicht braucht mindestens einen Tab</string>
     <string name="move_apps_title">Hierher verschieben?</string>
     <string name="move_apps_move">Hierher verschieben</string>

@@ -22,14 +22,31 @@ jobs:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
 
+      # Self-healing: if the newest tag has no published release with its APK (an earlier run pushed the tag, then
+      # failed to publish), this run checks out that tag and builds and publishes it unchanged instead of skipping.
+      # New changes then go out on the next run. Covered: push done but release create failed, or the release exists
+      # without the APK/SHA256SUMS. Open: only the newest tag is healed; a tag pushed by hand is published by this run
+      # with the CI key (and its existing release notes, if any); a hand-made draft may not be found by tag, giving a
+      # second release; heal-mode contributors may include PRs merged after the tag.
       - name: Changed since last release?
         id: check
+        env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           last=$(git describe --tags --abbrev=0 --match 'v*')
-          echo "last=$last" >> "$GITHUB_OUTPUT"
-          if git diff --quiet "$last" HEAD; then
+          # Only a definite "not found" counts as missing: any other gh error stops the run rather than heal (and re-upload).
+          if ! published=$(gh release view "$last" --json isDraft,assets --jq '[.assets[] | select(.state == "uploaded") | .name] as $n
+                             | (.isDraft | not) and ($n | contains(["vulcan-launcher.apk", "SHA256SUMS"]))' 2>&1); then
+            [ "$published" = "release not found" ] || { echo "$published"; exit 1; }
+          fi
+          if [ "$published" != true ]; then
+            echo "$last has no published vulcan-launcher.apk: building and publishing $last"
+            git checkout -q --detach "$last"
+            echo "heal=$last" >> "$GITHUB_OUTPUT"
+            last=$(git describe --tags --abbrev=0 --match 'v*' "$last^")   # notes cover previous tag..healed tag
+          elif git diff --quiet "$last" HEAD; then
             echo "No changes since $last"; echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
+          echo "last=$last" >> "$GITHUB_OUTPUT"
 
       # JDK 21 matches F-Droid's build server (docs/BUILDING.md).
       - uses: actions/setup-java@v4
@@ -42,18 +59,22 @@ jobs:
         run: ./gradlew --no-daemon testDebugUnitTest
 
       # Local only: the commit and tag are pushed once the APK is built, so a failed build leaves no tag without a release.
+      # Heal mode (see above) skips the bump, commit and tag: the tag already exists and is published as it is.
       - name: Bump version, commit, tag
         if: steps.check.outputs.skip != 'true'
         id: ver
         env:
           GH_TOKEN: "${{ github.token }}"
+          HEAL: "${{ steps.check.outputs.heal }}"
           KIND: "${{ github.event_name == 'schedule' && (github.event.schedule == '0 3 * * 1' && 'major' || 'minor') || inputs.kind }}"
         run: |
           f=app/build.gradle.kts
           code=$(sed -nE 's/^ *versionCode = ([0-9]+).*/\1/p' $f)
           name=$(sed -nE 's/^ *versionName = "([^"]+)".*/\1/p' $f)
+          if [ -n "$HEAL" ]; then
+            name=${HEAL#v}
           # Already bumped by hand (version not yet tagged) → release it as-is.
-          if git rev-parse -q --verify "refs/tags/v$name" >/dev/null; then
+          elif git rev-parse -q --verify "refs/tags/v$name" >/dev/null; then
             code=$((code + 1))
             if [ "$KIND" = major ]; then
               base=$(echo "$name" | cut -d. -f1,2)          # 0.30.2 → 0.30
@@ -74,23 +95,25 @@ jobs:
           # Thank everyone but the repo owner and bots (GitHub release notes only, not F-Droid).
           # PR authors catch contributors whose commit email isn't linked to their GitHub account.
           since=$(git log -1 --format=%cI "${{ steps.check.outputs.last }}")
-          people=$( { gh api "repos/${{ github.repository }}/compare/${{ steps.check.outputs.last }}...${{ github.sha }}" \
+          people=$( { gh api "repos/${{ github.repository }}/compare/${{ steps.check.outputs.last }}...$(git rev-parse HEAD)" \
                         --jq '.commits[].author.login // empty'
                       gh pr list --state merged --search "merged:>$since" -L 200 --json author --jq '.[].author.login'
                     } | sort -u | grep -vxE "${{ github.repository_owner }}|.*\[bot\]|app/.*" | sed 's/^/@/' | paste -sd ' ' - || true)
           [ -z "$people" ] || printf '\n**Contributors:** thanks to %s\n' "$people" >> "$RUNNER_TEMP/notes.md"
           # F-Droid shows fastlane changelogs/<versionCode>.txt, max 500 bytes. A hand-written one wins.
           cl=fastlane/metadata/android/en-US/changelogs/$code.txt
-          if [ ! -f "$cl" ]; then
+          if [ -z "$HEAL" ] && [ ! -f "$cl" ]; then
             # Whole lines only, up to 500 bytes. ponytail: wording is the raw commit subjects; hand-write $cl for nicer text.
             awk '{ n += length($0) + 1; if (n > 500) exit; print }' "$RUNNER_TEMP/changes.txt" > "$cl"
           fi
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A "$f" "$cl"
-          git diff --cached --quiet || git commit -m "Release v$name"
-          git tag "v$name"
+          if [ -z "$HEAL" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A "$f" "$cl"
+            git diff --cached --quiet || git commit -m "Release v$name"
+            git tag "v$name"
+          fi
           echo "name=$name" >> "$GITHUB_OUTPUT"
 
       # Built after tagging so the embedded revision is the tag.
@@ -110,10 +133,37 @@ jobs:
           sha256sum vulcan-launcher.apk > SHA256SUMS
           rm keystore.properties "$RUNNER_TEMP/release.jks"
 
+      # A wrong key would break updates for every user (GitHub and F-Droid), and the APK must have no network access.
+      - name: Verify signing key and permissions
+        if: steps.check.outputs.skip != 'true'
+        env:
+          # = AllowedAPKSigningKeys in docs/fdroid/dev.vulcanlauncher.yml; matches the published v0.33 APK (apksigner).
+          RELEASE_CERT_SHA256: da454f94a59d15cb8b6119483d05cfb971a2c61c8695ba5f53f80b7c9fcaa555
+        run: |
+          bt=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)
+          certs=$("${bt}apksigner" verify --print-certs vulcan-launcher.apk)
+          echo "$certs"
+          got=$(sed -nE 's/^Signer #[0-9]+ certificate SHA-256 digest: //p' <<<"$certs")
+          if [ "$got" != "$RELEASE_CERT_SHA256" ]; then
+            echo "::error::Signed with $got, expected $RELEASE_CERT_SHA256"; exit 1
+          fi
+          perms=$("${bt}aapt2" dump permissions vulcan-launcher.apk)
+          echo "$perms"
+          if grep -E "name='android\.permission\.(INTERNET|ACCESS_NETWORK_STATE|CHANGE_NETWORK_STATE|ACCESS_WIFI_STATE|CHANGE_WIFI_STATE|CHANGE_WIFI_MULTICAST_STATE|NEARBY_WIFI_DEVICES)'" <<<"$perms"; then
+            echo "::error::The APK requests a network permission"; exit 1
+          fi
+
+      # --atomic: main and the tag land together or not at all. If publishing fails after the push, the next run heals it.
       - name: Publish release
         if: steps.check.outputs.skip != 'true'
-        env: { GH_TOKEN: "${{ github.token }}" }
+        env: { GH_TOKEN: "${{ github.token }}", HEAL: "${{ steps.check.outputs.heal }}" }
         run: |
           v=v${{ steps.ver.outputs.name }}
-          git push origin HEAD:main "$v"
-          gh release create "$v" vulcan-launcher.apk SHA256SUMS --title "Vulcan ${{ steps.ver.outputs.name }}" --notes-file "$RUNNER_TEMP/notes.md"
+          [ -n "$HEAL" ] || git push --atomic origin HEAD:main "refs/tags/$v"
+          if gh release view "$v" >/dev/null 2>&1; then
+            # Left by an earlier failed run, or made by hand: keep its notes, add the files, publish it.
+            gh release upload "$v" vulcan-launcher.apk SHA256SUMS --clobber
+            gh release edit "$v" --draft=false
+          else
+            gh release create "$v" vulcan-launcher.apk SHA256SUMS --title "Vulcan ${{ steps.ver.outputs.name }}" --notes-file "$RUNNER_TEMP/notes.md"
+          fi

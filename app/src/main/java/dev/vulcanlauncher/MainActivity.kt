@@ -131,6 +131,9 @@ class MainActivity : VulcanActivity() {
     /** How far home sits behind a panel (0–1), and its running animation (see setDepth, blurHome). */
     var depth = 0f
     var depthAnim: android.animation.ValueAnimator? = null
+    /** The Now page built ahead and when, and the delayed build that makes it (see prepareNow). */
+    var nowReady: Pair<Long, NowPanel>? = null
+    val nowBuilder = Runnable { prebuildNow() }
     /** Where the last touch went down, in window coordinates; menus opened by a long-press appear there. */
     val lastDown = PointF()
 
@@ -192,7 +195,7 @@ class MainActivity : VulcanActivity() {
         }
         if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(profileReceiver, profileFilter, RECEIVER_NOT_EXPORTED)
         else registerReceiver(profileReceiver, profileFilter)
-        BadgeService.onChange = { pkgs -> runOnUiThread { if (pkgs.isNotEmpty()) { updateBadges(pkgs); drawer.refreshBadges() }; updateGlance() } }
+        BadgeService.onChange = { pkgs -> runOnUiThread { if (pkgs.isNotEmpty()) { updateBadges(pkgs); drawer.refreshBadges() }; updateGlance(); prepareNow() } }
         // Rotation recreates the activity: stay on the page the user was on.
         savedInstanceState?.getInt("page", -1)?.takeIf { it in 0 until looks.pages }?.let { workspace.snapTo(it, animate = false) }
         // Just imported: put the widgets back (not when a restore was already under way and this is its restart).
@@ -442,6 +445,8 @@ class MainActivity : VulcanActivity() {
     }
 
     override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        // Before lastDown moves: a new DOWN must drop a pending drag measured from the old one.
+        drag.onTouch(ev)
         if (ev.actionMasked == android.view.MotionEvent.ACTION_DOWN) lastDown.set(ev.x, ev.y)
         return super.dispatchTouchEvent(ev)
     }
@@ -495,8 +500,13 @@ class MainActivity : VulcanActivity() {
         if (::repo.isInitialized && level >= TRIM_MEMORY_UI_HIDDEN) repo.trim(all = level >= TRIM_MEMORY_COMPLETE)
     }
 
+    /** Between onResume and onPause: home is what the user sees. */
+    var resumed = false
+        private set
+
     override fun onResume() {
         super.onResume()
+        resumed = true
         // A copy opened from another launcher before Vulcan became the default one.
         if (handOffToHome()) return
         updateLocation()
@@ -508,6 +518,8 @@ class MainActivity : VulcanActivity() {
         reloadItems()
         // Shortcuts restored before Vulcan was the default home app: pinned now that it is, and drawn with their icons.
         if (store.data.getBoolean(REPIN_SHORTCUTS, false)) { repinShortcuts(); if (!store.data.getBoolean(REPIN_SHORTCUTS, false)) render() }
+        // Calendar, media and the apps' launch counts may have changed while away; not while the page is open.
+        if (overlay !is NowPanel) prepareNow()
     }
 
     /** Takes [items] from the store, where PinActivity may have added something meanwhile. */
@@ -534,6 +546,7 @@ class MainActivity : VulcanActivity() {
 
     override fun onPause() {
         super.onPause()
+        resumed = false
         setClockHidden(false)
     }
 
@@ -608,9 +621,11 @@ class MainActivity : VulcanActivity() {
         }
     }
 
-    fun fit(list: List<Item>) = fitItems(list, looks.pages, looks.cols * sub, looks.rows * sub, looks.dockCols, looks.dockPages).toMutableList()
+    fun fit(list: List<Item>) = fitItems(list, looks.pages, looks.cols * sub, looks.rows * sub, looks.dockCols, looks.dockPages, sub, looks.on("widgetOverlap")).toMutableList()
 
     fun save() = store.save(items, sub)
+    /** Puts [item] in place of the one at [i], saves and redraws. */
+    fun replace(i: Int, item: Item) { items[i] = item; save(); render() }
 
     /** First run: the default phone, messages, browser, camera and gallery apps in the dock (as many as fit). */
     /** A fresh install's layout, as Nova sets it up: a five-app dock, mail and photos above it, settings top right. */
@@ -689,12 +704,11 @@ class MainActivity : VulcanActivity() {
     fun launch(a: App, v: View?) {
         runCatching { launcherApps.startMainActivity(a.info.componentName, a.info.user, bounds(v), launchOptions(v)) }
             .onFailure { toast(R.string.cant_open, repo.label(a)) }
-        val counts = store.obj("launches")
-        store.putObj("launches", counts.put(a.key, counts.optInt(a.key) + 1))
+        store.countLaunch(a.key)
         if (drawer.visible && looks.on("closeAfterLaunch")) drawer.hide()
     }
 
-    fun launches() = store.obj("launches")
+    fun launches() = store.launches()
 
     private fun bounds(v: View?): Rect? = v?.let {
         val loc = IntArray(2).also { l -> it.getLocationOnScreen(l) }
@@ -824,9 +838,7 @@ class MainActivity : VulcanActivity() {
             if (spot == null) { toast(R.string.no_room); return@setItems }
             val i = items.indexOf(item)
             if (i < 0) return@setItems // gone while the list was open
-            items[i] = item.copy(page = spot.page, x = spot.x, y = spot.y)
-            save()
-            render()
+            replace(i, item.copy(page = spot.page, x = spot.x, y = spot.y))
             workspace.snapTo(spot.page)
         }.show()
     }

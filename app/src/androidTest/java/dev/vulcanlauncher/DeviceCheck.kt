@@ -106,13 +106,21 @@ class DeviceCheck : Instrumentation() {
         if (mode == "readable") return readableCheck()
         if (mode == "pages") return OverviewCheck(this).run()
         val looks = targetContext.getSharedPreferences("looks", Context.MODE_PRIVATE)
-        val saved = looks.all.toMap()
-        var savedItems: List<Item>? = null
+        val layout = targetContext.getSharedPreferences("layout", Context.MODE_PRIVATE)
+        // The setup is copied to disk before the test touches it: a crash or a killed process skips the finally below,
+        // and then the next run starts by putting this copy back instead of backing up the test's leftovers.
+        val backup = targetContext.getSharedPreferences("devicecheck-backup", Context.MODE_PRIVATE)
+        fun json(p: android.content.SharedPreferences) = org.json.JSONObject(p.all.mapValues { it.value.toString() }).toString()
+        if (!backup.contains("looks")) backup.edit().putString("looks", json(looks)).putString("layout", json(layout)).commit()
+        else log.append("Restoring the setup an earlier run left behind\n")
+        fun restore(p: android.content.SharedPreferences, key: String) {
+            val o = org.json.JSONObject(backup.getString(key, "{}")!!)
+            p.edit().clear().apply { o.keys().forEach { putString(it, o.getString(it)) } }.commit()
+        }
         try {
             looks.edit().putString("pages", "3").putString("infiniteScroll", "off").putString("scrollEffect", "simple").commit()
             a = launch()
             // Gesture coordinates must not land on the first-run Launcher settings shortcut.
-            savedItems = a.items.toList()
             runOnMainSync { a.items.clear(); a.save() }
             SystemClock.sleep(1500)
             val w = a.workspace.width.toFloat()
@@ -157,13 +165,10 @@ class DeviceCheck : Instrumentation() {
             failures++
             log.append("ERROR ${e.stackTraceToString()}\n")
         } finally {
-            looks.edit().clear().apply { saved.forEach { (k, v) -> putString(k, v.toString()) } }.commit()
             // commit(), not a.save(): save() is apply(), and finish() kills the process before that write reaches the disk.
-            savedItems?.let { items ->
-                runOnMainSync { a.items = items.toMutableList() }
-                targetContext.getSharedPreferences("layout", Context.MODE_PRIVATE).edit().putString("items", itemsToJson(items)).commit()
-            }
-            if (::a.isInitialized) runOnMainSync { a.recreate() }
+            restore(looks, "looks"); restore(layout, "layout")
+            if (::a.isInitialized) runOnMainSync { a.items = a.store.load(a.looks.sub); a.recreate() }
+            backup.edit().clear().commit()
         }
         finish(if (failures == 0) Activity.RESULT_OK else Activity.RESULT_CANCELED, Bundle().apply { putString("stream", log.toString()) })
     }

@@ -70,24 +70,6 @@ class SwipedTabTest {
     }
 }
 
-class MoveGroupTest {
-    private val zulu = Group("Zulu", "tab", listOf("a"))
-    private val box = Group("Box", "folder", emptyList())
-    private val alpha = Group("Alpha", "tab", listOf("b"))
-    private val groups = listOf(zulu, box, alpha)
-
-    @org.junit.Test fun swapsWithNearestTabSkippingFolders() {
-        org.junit.Assert.assertEquals(listOf(alpha, box, zulu), moveGroup(groups, "Alpha", -1))
-        org.junit.Assert.assertEquals(listOf(alpha, box, zulu), moveGroup(groups, "Zulu", 1))
-    }
-    @org.junit.Test fun nullAtEitherEnd() {
-        org.junit.Assert.assertNull(moveGroup(groups, "Zulu", -1))
-        org.junit.Assert.assertNull(moveGroup(groups, "Alpha", 1))
-        org.junit.Assert.assertNull(moveGroup(groups, "Box", 1))
-        org.junit.Assert.assertNull(moveGroup(groups, "Nope", 1))
-    }
-}
-
 class ManualOrderTest {
     private fun eq(expected: Any?, actual: Any?) = org.junit.Assert.assertEquals(expected, actual)
 
@@ -98,9 +80,9 @@ class ManualOrderTest {
     @org.junit.Test fun tabKeepsItsOwnOrderOnlyWhenManual() {
         val groups = listOf(Group("T", "tab", listOf("c", "a", "x", "b")))
         val all = listOf("a", "b", "c")
-        eq(listOf("a", "b", "c"), tabApps(all, groups, "T", emptySet(), false, true, emptySet(), false))
-        eq(listOf("c", "a", "b"), tabApps(all, groups, "T", emptySet(), false, true, emptySet(), false, manual = true))
-        eq(listOf("c", "b"), tabApps(all, groups, "T", setOf("a"), false, true, emptySet(), false, manual = true))
+        eq(listOf("a", "b", "c"), tabApps(all, groups, "T", emptySet(), true, emptySet(), false))
+        eq(listOf("c", "a", "b"), tabApps(all, groups, "T", emptySet(), true, emptySet(), false, manual = true))
+        eq(listOf("c", "b"), tabApps(all, groups, "T", setOf("a"), true, emptySet(), false, manual = true))
     }
     @org.junit.Test fun arrangingKeepsTheRestBehind() {
         eq(listOf("c", "a", "b", "x"), arranged(listOf("a", "x", "b", "c"), listOf("c", "a", "b")))

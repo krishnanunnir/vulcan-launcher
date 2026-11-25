@@ -156,34 +156,6 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
                     shot("34-$name")
                 }
             }
-            case("#35") {
-                setup(); seedTabs(); shot("35-tabs-before")
-                val before = a.drawer.groups().map { it.name }
-                val chip = text(tabs(), "Zulu")
-                ui { chip.performLongClick() }; settle()
-                shot("35-tab-hold")
-                note("#35/chip-menu", "OBSERVED", "choices=${dialogs().flatMap { all(it.window!!.decorView) }.filterIsInstance<TextView>().map { it.text.toString() }}")
-                val members = a.drawer.groups().associate { it.name to it.apps }
-                tap(text(dialogs().last().window!!.decorView, a.getString(R.string.move_right)))
-                val moved = a.drawer.groups().map { it.name }
-                note("#35/move-right", if (moved == listOf("Alpha", "Zulu")) "PASS" else "FAIL", "before=$before; after=$moved")
-                shot("35-tabs-moved")
-                clean()
-                settings = t.startActivitySync(Intent(t.targetContext, SettingsActivity::class.java).putExtra("page", TABS_GROUP).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as SettingsActivity
-                settle(); shot("35-group-settings")
-                val s = settings!!
-                tap(text(s.root, "Zulu")); shot("35-settings-menu")
-                note("#35/settings-menu", "OBSERVED", "choices=${dialogs(s).flatMap { all(it.window!!.decorView) }.filterIsInstance<TextView>().map { it.text.toString() }}")
-                tap(text(dialogs(s).last().window!!.decorView, s.getString(R.string.move_left)))
-                clean()
-                val restored = a.drawer.groups().map { it.name }
-                note("#35/move-left", if (restored == before) "PASS" else "FAIL", "settings move restores $restored")
-                ui { a.recreate() }; settle(1500)
-                a = MainActivity.running?.get() ?: error("No recreated activity")
-                ui { a.drawer.show(false) }; settle()
-                note("#35/persistence", if (a.drawer.groups().map { it.name } == before && a.drawer.groups().associate { it.name to it.apps } == members) "PASS" else "FAIL", "Activity recreated; order and membership retained: ${a.drawer.groups().map { it.name }}")
-                shot("35-persisted")
-            }
             case("#36") {
                 for (style in listOf("grid", "housing", "glass", "list")) {
                     setup("drawerStyle" to style, "infiniteScroll" to "on"); seedTabs()

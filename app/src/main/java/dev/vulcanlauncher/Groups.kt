@@ -30,12 +30,12 @@ fun groupsToJson(groups: List<Group>) = JSONArray().apply {
 /**
  * App keys shown in a drawer tab, in [ordered] order, or a tab group's own order when [manual]. [tab] is "" (all apps),
  * "work", "private", or a tab group's name.
- * The main tab leaves out hidden apps, work apps when they have their own tab, Private Space apps (always in their
+ * [hidden]: the keys to leave out everywhere ([unlisted]). The main tab also leaves out work apps when they have their own tab, Private Space apps (always in their
  * own tab), and grouped apps unless [keepInAll].
  */
-fun tabApps(ordered: List<String>, groups: List<Group>, tab: String, hidden: Set<String>, showHidden: Boolean,
+fun tabApps(ordered: List<String>, groups: List<Group>, tab: String, hidden: Set<String>,
             keepInAll: Boolean, work: Set<String>, workTab: Boolean, private: Set<String> = emptySet(), manual: Boolean = false): List<String> {
-    val shown = ordered.filter { showHidden || it !in hidden }
+    val shown = ordered.filter { it !in hidden }
     return when (tab) {
         "" -> {
             val grouped = if (keepInAll) emptySet() else groups.flatMap { it.apps }.toSet()
@@ -59,15 +59,6 @@ fun frequentApps(pinned: List<String>, launches: Map<String, Int>, shown: (Strin
 /** For each app key, the groups it's in, leaving out [except] (the group being edited). */
 fun groupsOfApps(groups: List<Group>, except: String?): Map<String, List<String>> =
     groups.filter { it.name != except }.flatMap { g -> g.apps.map { it to g.name } }.groupBy({ it.first }, { it.second })
-
-/** [groups] with [name] swapped with the nearest group of its type [by] -1 (earlier) or 1 (later); null at that end. */
-fun moveGroup(groups: List<Group>, name: String, by: Int): List<Group>? {
-    val i = groups.indexOfFirst { it.name == name }
-    if (i < 0) return null
-    val range = if (by < 0) (i - 1 downTo 0) else (i + 1 until groups.size)
-    val j = range.firstOrNull { groups[it].type == groups[i].type } ?: return null
-    return groups.toMutableList().apply { this[i] = groups[j]; this[j] = groups[i] }
-}
 
 // ---- Smart folders ----
 

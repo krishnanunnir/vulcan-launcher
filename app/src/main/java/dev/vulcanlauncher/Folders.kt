@@ -333,7 +333,7 @@ fun MainActivity.openFolder(item: Item) {
     var folder = item
     openFolderWindow(item.label, item.children, { name ->
         val i = folderIndex(folder)
-        if (i >= 0 && name != items[i].label) { folder = items[i].copy(label = name.ifEmpty { getString(R.string.folder) }); items[i] = folder; save(); render() }
+        if (i >= 0 && name != items[i].label) { folder = items[i].copy(label = name.ifEmpty { getString(R.string.folder) }); replace(i, folder) }
     }, reorder = { from, to ->
         val i = items.indexOf(folder)
         if (i >= 0) {
@@ -363,11 +363,18 @@ fun MainActivity.folderActions(f: Item, reopen: Boolean = false) = listOf(
 private fun MainActivity.selectFolderApps(f: Item) {
     val keys = f.children.mapNotNull { c -> drag.appOf(c)?.key?.takeIf { c.isApp } }
     appSwitches(f.label, keys) { chosen ->
-        val kept = f.children.filter { c -> !c.isApp || drag.appOf(c)?.key in chosen }
+        val kept = keptFolderChildren(f.children, chosen) { drag.appOf(it)?.key }
         val added = chosen.filter { it !in keys }.mapNotNull { repo.apps[it]?.let(drag::asChild) }
         setFolderChildren(f, kept + added)
     }
 }
+
+/**
+ * A folder's [children] left after picking [chosen] apps. Apps the picker couldn't show ([keyOf] null: a locked
+ * Private Space, mid-update) stay, as do shortcuts and actions.
+ */
+fun keptFolderChildren(children: List<Item>, chosen: Collection<String>, keyOf: (Item) -> String?) =
+    children.filter { c -> !c.isApp || keyOf(c)?.let { it in chosen } ?: true }
 
 /** Replaces [f]'s children; with one left it turns back into that item, with none it goes. */
 fun MainActivity.setFolderChildren(old: Item, children: List<Item>) {

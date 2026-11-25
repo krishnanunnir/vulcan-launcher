@@ -81,14 +81,6 @@ class SettingsActivity : VulcanActivity() {
         showPage(state?.getString("page") ?: intent.getStringExtra("page").orEmpty(), state?.getInt("scroll") ?: 0)
     }
 
-    @Suppress("DEPRECATION")
-    private fun bars() {
-        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(m3.surface))
-        window.statusBarColor = m3.surface
-        window.navigationBarColor = m3.surface
-        window.decorView.systemUiVisibility = if (m3.dark) 0 else View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-    }
-
     /** A setting changed: home is built again when it shows, and this page now, in the new colours and where it was. */
     fun changed() {
         home.stale = true
@@ -370,7 +362,7 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
             listItem(null, getString(c.title), if (c.info != 0) getString(c.info) else null, trailing = toggle) {
                 toggle.checked = !toggle.checked
                 applyChoice(c, if (toggle.checked) "on" else "off")
-            }
+            }.apply { readAsSwitch(toggle) }
         }
         c.action -> listItem(null, getString(c.title), valueName(c)) { pickAction(getString(c.title)) { looks[c] = it; changed() } }
         // Settings the chosen dock background doesn't use: shown dimmed and saying so, still pickable.
@@ -799,8 +791,8 @@ private fun SettingsActivity.backupPage(list: LinearLayout) {
     panel(list, getString(R.string.backup_panel_reset), listOf(row("delete", R.string.reset_defaults, getString(R.string.reset_defaults_info)) {
         dialog().setMessage(R.string.reset_confirm)
             .setPositiveButton(R.string.reset) { _, _ ->
+                store.reset() // first: its automatic backup notes each widget's provider, which goes with the ID
                 home.items.flatMap { it.widgetIds }.forEach(home.host::deleteAppWidgetId)
-                store.reset()
                 restartHome()
             }.setNegativeButton(R.string.cancel, null).show()
     }))
@@ -814,7 +806,7 @@ fun VulcanActivity.toastMissing() {
 
 /** Restores a backup or applies an older style file, then [restart] rebuilds home. */
 fun VulcanActivity.restoreBackup(uri: android.net.Uri, restart: () -> Unit) {
-    runCatching { store.import(contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() }, home.repo::mainActivity) }
+    runCatching { store.import(contentResolver.openInputStream(uri)!!.use { it.readAtMost(MAX_BACKUP_BYTES, getString(R.string.backup_too_large)) }.decodeToString(), home.repo::mainActivity) }
         .onSuccess { result ->
             if (result.rejected.isNotEmpty()) toast(R.string.skipped_settings, result.rejected.joinToString())
             // Widget IDs belong to the install that made them; drop the ones this install doesn't own.

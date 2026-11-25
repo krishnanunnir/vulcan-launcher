@@ -45,12 +45,20 @@ class AppRepo(private val context: Context, private val store: Store, private va
     private val ui = android.os.Handler(android.os.Looper.getMainLooper())
     private lateinit var icons: Icons
 
-    /** New icon settings: [icons] draws from now on, with the disk cache that matches it. Follow with [loadApps]. */
+    /**
+     * New settings: [icons] draws from now on. Follow with [loadApps]. Only a change that shapes icons
+     * ([Icons.signature]) drops the ones held: any other setting keeps them, so home isn't drawn from disk again (#100).
+     */
     fun restyle(icons: Icons) = synchronized(this) {
+        val same = ::icons.isInitialized && this.icons.signature == icons.signature
         this.icons = icons
+        if (same) return@synchronized
         appCache = AppCache(context, icons.signature)
         generation++
+        restyled = true
     }
+    /** [restyle] changed how icons look, and [loadApps] hasn't dropped the old ones yet. */
+    private var restyled = false
     /** Counts [restyle]s: an icon the worker thread began in the old style must not land in the new style's cache. */
     private var generation = 0
 
@@ -90,12 +98,15 @@ class AppRepo(private val context: Context, private val store: Store, private va
     /** [changed]: the only packages whose icons may have changed; null drops every cached icon. */
     fun loadApps(changed: Collection<String>? = null) {
         val profiles = launcherApps.profiles
-        privateUser = if (android.os.Build.VERSION.SDK_INT >= 35)
-            profiles.firstOrNull { launcherApps.getLauncherUserInfo(it)?.userType == UserManager.USER_TYPE_PROFILE_PRIVATE } else null
+        // hashCode is the user id: UserHandle has no public getter for it.
+        kinds = profiles.associateWith { profileOf(it == Process.myUserHandle(),
+            if (android.os.Build.VERSION.SDK_INT >= 35) launcherApps.getLauncherUserInfo(it)?.userType else null, it.hashCode()) }
+        privateUser = profiles.firstOrNull { kinds[it] == Profile.PRIVATE }
         // A locked Private Space shows none of its apps, anywhere.
         pausedUsers = profiles.filter { it != Process.myUserHandle() && it != privateUser && um.isQuietModeEnabled(it) }.toSet()
-        apps = profiles.filter { it != privateUser || !privateLocked }.flatMap { user -> launcherApps.getActivityList(null, user).map { App(it, serial(user), appCache::label) } }
+        apps = profiles.filter { it != privateUser || !privateLocked }.flatMap { user -> val s = serial(user); launcherApps.getActivityList(null, user).map { App(it, s, appCache::label) } } // one binder call per profile, not per app
             .filter { it.pkg != context.packageName }.associateBy { it.key }
+        val customsWere = customs.toString()
         customs = store.obj("custom")
         // ponytail: personal profile only (PackageManager sees one user); a work-profile calendar keeps its static icon.
         dateIcons = packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), PackageManager.GET_META_DATA)
@@ -104,7 +115,12 @@ class AppRepo(private val context: Context, private val store: Store, private va
                 (ai.metaData?.getInt("${ai.packageName}.dynamic_icons")?.takeIf { it != 0 }
                     ?: 0.takeIf { ai.applicationInfo.metaData?.getBoolean("LiveIconSupport") == true })?.let { "${ai.packageName}/${ai.name}" to it } } }
             .toMap()
-        if (changed == null) { iconCache.evictAll(); appCache.keepOnly(apps.keys) }
+        if (changed == null) {
+            // Held icons stay good unless their style or a custom icon (a restored backup) changed.
+            if (restyled || customs.toString() != customsWere) iconCache.evictAll()
+            restyled = false
+            appCache.keepOnly(apps.keys)
+        }
         else { iconCache.snapshot().keys.filter { it.substringBefore('/') in changed }.forEach(iconCache::remove); appCache.forget(changed) }
     }
 
@@ -202,7 +218,11 @@ class AppRepo(private val context: Context, private val store: Store, private va
     fun appLabel(key: String): String? = shortcutAction(key)?.let { (p, id, u) ->
         pinnedShortcut(Item(0, 0, 0, pkg = p, shortcutId = id, user = u))?.shortLabel?.toString()
     } ?: apps[key]?.let(::label)
-    fun isWork(a: App) = a.info.user != Process.myUserHandle() && !isPrivate(a)
+    /** Each profile's kind, as of the last [loadApps]. */
+    private var kinds = emptyMap<UserHandle, Profile>()
+    val workUsers get() = kinds.filterValues { it == Profile.WORK }.keys
+    fun isWork(a: App) = kinds[a.info.user] == Profile.WORK
+    fun suggested(a: App, hidden: Set<String>) = suggested(a.key, hidden, isPrivate(a))
     fun isPrivate(a: App) = a.info.user == privateUser
 
     /** Locks or unlocks Private Space; unlocking asks for the screen lock first. The profile broadcast then reloads the apps. */

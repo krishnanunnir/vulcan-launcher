@@ -12,15 +12,36 @@ import kotlin.math.hypot
  * Launcher actions, used by gestures, the home button, icon swipe actions and action shortcuts.
  * Parameterised forms: "page:N" (0-based page), "app:pkg/cls/user" and "shortcut:pkg/id/user" (an app shortcut).
  */
-val ACTIONS = listOf("none", "drawer", "now", "notifications", "quicksettings", "togglebar", "recents", "defaultpage", "previews",
-    "toggledock", "search", "voice", "assistant", "lock", "power", "settings", "widgets", "wallpaper", "torch", "locklayout", "work")
-val ACTION_NAMES = listOf(
-    R.string.action_none, R.string.action_drawer, R.string.action_now, R.string.action_notifications,
-    R.string.action_quicksettings, R.string.action_togglebar, R.string.action_recents, R.string.action_defaultpage,
-    R.string.action_previews, R.string.action_toggledock, R.string.action_search, R.string.action_voice,
-    R.string.action_assistant, R.string.action_lock, R.string.action_power, R.string.action_settings,
-    R.string.action_widgets, R.string.action_wallpaper, R.string.action_torch, R.string.action_locklayout, R.string.action_work,
+/** One launcher action: the [code] that is stored, its name, and its [symbol] on an action shortcut. */
+class Action(val code: String, val name: Int, val symbol: String)
+
+/** Every action, in the order pickers list them. A new one also needs its branch in HomeMenus.perform. */
+val ACTION_LIST = listOf(
+    Action("none", R.string.action_none, "close"),
+    Action("drawer", R.string.action_drawer, "apps"),
+    Action("now", R.string.action_now, "sun"),
+    Action("notifications", R.string.action_notifications, "notifications"),
+    Action("quicksettings", R.string.action_quicksettings, "settings"),
+    Action("togglebar", R.string.action_togglebar, "notifications"),
+    Action("recents", R.string.action_recents, "recents"),
+    Action("defaultpage", R.string.action_defaultpage, "home"),
+    Action("previews", R.string.action_previews, "carousel"),
+    Action("toggledock", R.string.action_toggledock, "dock"),
+    Action("search", R.string.action_search, "search"),
+    Action("voice", R.string.action_voice, "mic"),
+    Action("assistant", R.string.action_assistant, "sparkle"),
+    Action("lock", R.string.action_lock, "lock"),
+    Action("power", R.string.action_power, "power"),
+    Action("settings", R.string.action_settings, "settings"),
+    Action("widgets", R.string.action_widgets, "widgets"),
+    Action("wallpaper", R.string.action_wallpaper, "image"),
+    Action("torch", R.string.action_torch, "flashlight"),
+    Action("locklayout", R.string.action_locklayout, "lock"),
+    Action("work", R.string.action_work, "person"),
 )
+val ACTIONS = ACTION_LIST.map { it.code }
+val ACTION_NAMES = ACTION_LIST.map { it.name }
+val ACTION_SYMBOLS = ACTION_LIST.associate { it.code to it.symbol }
 
 /** Display name for an action code; [text] reads a string resource with format arguments, [appLabel] resolves "app:" codes. */
 fun actionName(code: String, text: (Int, Array<Any>) -> String, appLabel: (String) -> String? = { null }): String = when {
