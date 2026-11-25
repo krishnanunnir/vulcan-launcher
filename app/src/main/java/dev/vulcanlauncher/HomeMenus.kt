@@ -70,8 +70,10 @@ class HomeMenus(private val a: MainActivity) {
                 if (!item.isBlock) tile("edit", a.getString(R.string.edit)) { a.editItem(item) }
                 if (item.folder) a.folderActions(item).forEach { (sym, title, click) -> tile(sym, title, click) }
                 if (item.isBlock) tile("resize", a.getString(R.string.resize)) { a.widgetFlow.resizeWidget(item) }
-                if (item.isWidget && a.awm.getAppWidgetInfo(a.widgetFlow.shownWidget(item))?.configure != null) tile("settings", a.getString(R.string.settings)) {
+                val widget = if (item.isWidget) a.awm.getAppWidgetInfo(a.widgetFlow.shownWidget(item)) else null
+                if (widget?.configure != null) tile("settings", a.getString(R.string.settings)) {
                     runCatching { a.host.startAppWidgetConfigureActivityForResult(a, a.widgetFlow.shownWidget(item), 0, MainActivity.REQ_RECONFIG, null) }
+                        .onFailure { a.toast(R.string.cant_open, widget.loadLabel(a.packageManager)) }
                 }
                 if (item.isWidget && item.children.isNotEmpty()) tile("widgets", a.getString(R.string.unstack)) { a.widgetFlow.unstack(item) }
                 if (item.isClock) {

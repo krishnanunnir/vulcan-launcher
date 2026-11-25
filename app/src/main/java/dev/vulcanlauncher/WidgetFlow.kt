@@ -305,8 +305,11 @@ class WidgetFlow(private val a: MainActivity) {
 
     fun configureWidget() {
         val (id, info) = pendingWidget ?: return
-        // A setup screen that's missing or closed to us throws: the widget is then placed without it.
-        if (info.configure == null || runCatching { a.host.startAppWidgetConfigureActivityForResult(a, id, 0, MainActivity.REQ_CONFIG, null) }.isFailure) placeWidget()
+        // A setup screen that's missing or closed to us throws: the widget is then placed without it. As Launcher3, one the
+        // widget marks optional is skipped when it can be opened later (Settings in the widget's menu).
+        val optional = android.os.Build.VERSION.SDK_INT >= 31 && info.widgetFeatures.let { f ->
+            f and AppWidgetProviderInfo.WIDGET_FEATURE_CONFIGURATION_OPTIONAL != 0 && f and AppWidgetProviderInfo.WIDGET_FEATURE_RECONFIGURABLE != 0 }
+        if (info.configure == null || optional || runCatching { a.host.startAppWidgetConfigureActivityForResult(a, id, 0, MainActivity.REQ_CONFIG, null) }.isFailure) placeWidget()
     }
 
     fun placeWidget() {
