@@ -506,7 +506,7 @@ class HomeMenus(private val a: MainActivity) {
         val ok = runCatching {
             val sbm = a.getSystemService("statusbar")
             sbm.javaClass.getMethod(method).invoke(sbm)
-        }.isSuccess
+        }.onFailure { android.util.Log.w("Vulcan", "StatusBarManager.$method blocked, using the accessibility service", it) }.isSuccess
         if (!ok) global(fallback)
     }
 
