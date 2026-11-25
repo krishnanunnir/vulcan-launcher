@@ -504,7 +504,7 @@ class MainActivity : VulcanActivity() {
         // Daily automatic backup, kept privately on the device and offered in Backup & restore.
         // Once a day (not on every stop) so a reset or bad change can't overwrite the last good copy straight away.
         val auto = store.autoBackups[0]
-        if (!auto.exists() || System.currentTimeMillis() - auto.lastModified() > 24 * 3600_000L) runCatching { store.rotateAutoBackup() }
+        if (!auto.exists() || System.currentTimeMillis() - auto.lastModified() > 24 * 3600_000L) runCatching { store.rotateAutoBackup() }.onFailure { android.util.Log.w("Vulcan", "automatic backup failed", it) }
     }
 
     /**
@@ -739,7 +739,7 @@ class MainActivity : VulcanActivity() {
 
     fun launch(a: App, v: View?) {
         runCatching { launcherApps.startMainActivity(a.info.componentName, a.info.user, bounds(v), launchOptions(v)) }
-            .onFailure { toast(R.string.cant_open, repo.label(a)) }
+            .onFailure { android.util.Log.w("Vulcan", "can't launch ${a.key}", it); toast(R.string.cant_open, repo.label(a)) }
         store.countLaunch(a.key)
         if (drawer.visible && looks.on("closeAfterLaunch")) drawer.hide()
     }
@@ -763,7 +763,7 @@ class MainActivity : VulcanActivity() {
 
     fun startShortcut(pkg: String, id: String, user: UserHandle, v: View?) {
         runCatching { launcherApps.startShortcut(pkg, id, bounds(v), launchOptions(v), user) }
-            .onFailure { toast(R.string.shortcut_unavailable) }
+            .onFailure { android.util.Log.w("Vulcan", "can't start shortcut $pkg/$id", it); toast(R.string.shortcut_unavailable) }
     }
 
     /** Gesture and home button actions, the ones settings hold. */
@@ -775,7 +775,7 @@ class MainActivity : VulcanActivity() {
         val ids = pinsByApp(items, settingActions())[pkg to user].orEmpty() + listOfNotNull(also)
         // A profile that's gone: userOf would fall back to the personal one, and pinning there unpins that app's own shortcuts.
         val u = um.getUserForSerialNumber(user) ?: return
-        runCatching { launcherApps.pinShortcuts(pkg, ids.distinct(), u) }
+        runCatching { launcherApps.pinShortcuts(pkg, ids.distinct(), u) }.onFailure { android.util.Log.w("Vulcan", "can't pin shortcuts of $pkg", it) }
     }
 
     // ---- Home screen ----
@@ -967,7 +967,8 @@ class MainActivity : VulcanActivity() {
         }
         store.data.edit().remove(REPIN_SHORTCUTS).apply()
         pinsByApp(store.load(looks.sub), settingActions()).forEach { (key, ids) ->
-            um.getUserForSerialNumber(key.second)?.let { u -> runCatching { launcherApps.pinShortcuts(key.first, ids, u) } }
+            um.getUserForSerialNumber(key.second)?.let { u -> runCatching { launcherApps.pinShortcuts(key.first, ids, u) }
+                .onFailure { android.util.Log.w("Vulcan", "can't pin shortcuts of ${key.first}", it) } }
         }
     }
 
