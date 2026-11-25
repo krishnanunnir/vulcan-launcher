@@ -136,7 +136,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
         repeat(100) { if (MainActivity.running?.get()?.hasWindowFocus() != true) SystemClock.sleep(100) }
         a = MainActivity.running?.get() ?: error("Launcher did not start")
         out = File(a.filesDir, "open-issue-audit").apply { mkdirs() }
-        val original = a.store.export(a.repo.apps.values.toList())
+        val original = auditBackup(a) { note("RESTORE", "INFO", it) }
         try {
             note("ENV", "INFO", "API=${android.os.Build.VERSION.SDK_INT}; density=${a.dp}; size=${a.resources.displayMetrics.widthPixels}x${a.resources.displayMetrics.heightPixels}; fontScale=${a.resources.configuration.fontScale}; apps=${a.repo.apps.size}; longPressTimeout=${ViewConfiguration.getLongPressTimeout()}")
             case("#34") {
@@ -364,7 +364,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
             }
         } finally {
             runCatching { clean(); ui { a.store.import(original, a.repo::mainActivity); a.items = a.store.load(a.sub); a.rebuild() } }
-                .onSuccess { note("RESTORE", "OK", "Original exported configuration restored") }
+                .onSuccess { dropAuditBackup(a); note("RESTORE", "OK", "Original exported configuration restored") }
                 .onFailure { note("RESTORE", "ERROR", it.stackTraceToString()) }
         }
         log.append(if (failures == 0) "NO ISSUE REPRODUCED\n" else "$failures FAILED\n")

@@ -128,7 +128,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
         repeat(100) { if (MainActivity.running?.get()?.hasWindowFocus() != true) SystemClock.sleep(100) }
         a = MainActivity.running?.get() ?: error("Launcher did not start")
         out = File(a.filesDir,"issue-repro").apply { mkdirs() }
-        val original = a.store.export(a.repo.apps.values.toList())
+        val original = auditBackup(a) { note("RESTORE","INFO",it) }
         try {
             note("ENV","INFO","API ${android.os.Build.VERSION.SDK_INT}; apps=${a.repo.apps.size}; privateUser=${a.repo.privateUser}; privateLocked=${a.repo.privateLocked}")
             case("#33") {
@@ -375,7 +375,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
             }
         } finally {
             runCatching { clean(); ui { a.store.import(original,a.repo::mainActivity); a.items=a.store.load(a.sub); a.rebuild() } }
-                .onFailure { note("RESTORE","ERROR",it.stackTraceToString()) }
+                .onSuccess { dropAuditBackup(a) }.onFailure { note("RESTORE","ERROR",it.stackTraceToString()) }
             for(name in listOf("layout","looks","data")) t.targetContext.getSharedPreferences(name,0).edit().commit()
             File(out,"results.txt").writeText(log.toString())
         }
