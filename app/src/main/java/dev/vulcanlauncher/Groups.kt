@@ -11,7 +11,11 @@ import org.json.JSONObject
  */
 data class Group(val name: String, val type: String, val apps: List<String>, val color: String? = null, val hidden: Boolean = false)
 
-/** The groups in [s]. A restored or hand-edited file can hold anything: what isn't a group is skipped, never thrown. */
+/**
+ * The groups in [s]. A restored or hand-edited file can hold anything: what isn't a group is skipped, never thrown.
+ * Groups are found by name, so a blank name, a reserved tab key or a repeat (only checked when one is made in the app)
+ * is numbered instead: as "work" it showed the Work apps, and a twin was edited and deleted along with the first.
+ */
 fun groupsFromJson(s: String): List<Group> = (runCatching { JSONArray(s) }.getOrNull() ?: JSONArray()).let { a ->
     (0 until a.length()).mapNotNull {
         val o = a.optJSONObject(it) ?: return@mapNotNull null
@@ -20,6 +24,11 @@ fun groupsFromJson(s: String): List<Group> = (runCatching { JSONArray(s) }.getOr
         val apps = o.optJSONArray("apps") ?: JSONArray()
         val color = (o.opt("color") as? String)?.takeIf { Regex("#[0-9a-fA-F]{6}").matches(it) }
         Group(name, type, (0 until apps.length()).mapNotNull { i -> apps.opt(i) as? String }, color, o.optBoolean("hidden"))
+    }.fold(ArrayList<Group>()) { out, g ->
+        var name = g.name
+        var n = 2
+        while (name.isBlank() || nameTaken(out, name)) name = "${g.name} ${n++}".trim()
+        out.apply { add(g.copy(name = name)) }
     }
 }
 
