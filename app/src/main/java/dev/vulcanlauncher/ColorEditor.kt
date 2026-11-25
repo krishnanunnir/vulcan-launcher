@@ -170,7 +170,8 @@ private fun SettingsActivity.partSample(key: String): Pair<View, (Int) -> Unit> 
         layoutParams = LinearLayout.LayoutParams((size * dp).toInt(), (size * dp).toInt()).apply { setMargins(pad / 3, pad / 3, pad / 3, pad / 3) }
     }
     fun row(views: List<View>) = LinearLayout(this).apply { gravity = Gravity.CENTER; views.forEach(::addView) }
-    fun ink(c: Int) = if (Color.luminance(c) > 0.5f) 0xFF1B1B1F.toInt() else 0xFFF1F0F4.toInt()
+    // onColor picks the side; these softer inks stand in for its pure black and white.
+    fun ink(c: Int) = if (onColor(c) == Color.WHITE) 0xFFF1F0F4.toInt() else 0xFF1B1B1F.toInt()
     val wall = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER

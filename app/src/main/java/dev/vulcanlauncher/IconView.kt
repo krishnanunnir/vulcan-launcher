@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
@@ -122,7 +121,7 @@ class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, v
         paint.color = badgeStyle.color
         canvas.drawPath(path, paint)
         if (badgeStyle.style != "dots") {
-            paint.color = if (Color.luminance(badgeStyle.color) > 0.5f) Color.BLACK else Color.WHITE // readable on a bright badge (#82)
+            paint.color = onColor(badgeStyle.color) // readable on a bright badge (#82), by the same contrast rule as the rest
             paint.textAlign = Paint.Align.CENTER
             paint.textSize = r * 1.2f
             paint.typeface = Typeface.DEFAULT_BOLD
