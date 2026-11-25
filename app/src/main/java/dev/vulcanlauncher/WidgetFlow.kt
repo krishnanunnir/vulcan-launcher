@@ -154,6 +154,8 @@ class WidgetFlow(private val a: MainActivity) {
 
     /** [pkg] and [user]: only that app's widgets. [toNow]: for a Now page card. */
     fun pickWidget(pkg: String? = null, toNow: Boolean = false, user: android.os.UserHandle? = null) {
+        // Here, not in each menu: a gesture or an action shortcut can ask for it too. A Now card isn't the home layout.
+        if (a.locked && !toNow) { a.toast(R.string.layout_locked); return }
         widgetToNow = toNow
         pendingSlot = null // a spot whose setup never reported back must not catch this widget
         val order = labelOrder()

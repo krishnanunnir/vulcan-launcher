@@ -100,7 +100,7 @@ class HomeMenus(private val a: MainActivity) {
         if (owner != null) {
             tile("info", a.getString(R.string.app_info)) { a.launcherApps.startAppDetailsActivity(owner.info.componentName, owner.info.user, null, null) }
             // The optional ones last, so every app's other tiles keep their places.
-            if (app != null && a.widgetFlow.hasWidgets(app)) tile("widgets", a.getString(R.string.widgets)) { a.widgetFlow.pickWidget(app.pkg, user = app.info.user) }
+            if (app != null && !a.locked && a.widgetFlow.hasWidgets(app)) tile("widgets", a.getString(R.string.widgets)) { a.widgetFlow.pickWidget(app.pkg, user = app.info.user) }
             if (app != null && !isSystemApp(app)) tile("delete", a.getString(R.string.uninstall)) { a.uninstall(app) }
         }
         if (rows.isEmpty() && tiles.isEmpty()) return
