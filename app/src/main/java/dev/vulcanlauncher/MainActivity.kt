@@ -602,6 +602,8 @@ class MainActivity : VulcanActivity() {
         // dialog, ran while the activity paused and resumed under them, and stuttered (#100).
         dialogs.toList().forEach { it.window?.setWindowAnimations(0); it.dismiss() }
         when {
+            // The welcome (or an import's review) covers home: a panel opened now would sit over it, and Back would step the hidden welcome.
+            welcoming -> {}
             homeMenus.menu != null -> homeMenus.closeMenu()
             overlay != null -> closeOverlay()
             drawer.visible -> drawer.hide()
