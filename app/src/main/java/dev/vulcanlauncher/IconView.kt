@@ -62,7 +62,7 @@ fun accessibleActions(v: View, menu: () -> Unit, move: (() -> Unit)? = null) {
 }
 
 /** The icon drawn with an optional drop shadow and notification badge. */
-class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, private val badgeStyle: BadgeStyle) : View(context) {
+class IconImage(context: Context, icon: Drawable, private val shadow: Boolean, val badgeStyle: BadgeStyle) : View(context) {
     var icon = icon
         set(v) { field = v; invalidate() }
     var badgeCount = 0
@@ -176,6 +176,15 @@ class IconView(context: Context, label: CharSequence, icon: Drawable, style: Ico
         clipChildren = false // the badge pokes past the icon's corner
         addView(image, LayoutParams(sizePx, sizePx))
         text?.let { addView(it) }
+    }
+
+    /** TalkBack reads the badge's count too, which is otherwise only pixels. */
+    override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
+        super.onInitializeAccessibilityNodeInfo(info)
+        val n = image.badgeCount
+        if (n <= 0 || image.badgeStyle.style == "off") return
+        val count = resources.getQuantityString(R.plurals.a11y_notifications, n, n)
+        if (android.os.Build.VERSION.SDK_INT >= 30) info.stateDescription = count else info.contentDescription = "$contentDescription, $count"
     }
 
     // A badge on a large icon reaches past its cell too, so the cell's container mustn't clip it either.

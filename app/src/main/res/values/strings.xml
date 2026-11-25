@@ -580,6 +580,10 @@
     <string name="launcher_settings">Launcher settings</string>
     <string name="letter_index">Letter index</string>
     <string name="a11y_menu">Menu</string>
+    <plurals name="a11y_notifications">
+        <item quantity="one">%d notification</item>
+        <item quantity="other">%d notifications</item>
+    </plurals>
     <string name="page_of">Page %1$d of %2$d</string>
     <string name="not_launcher_backup">No launcher database in this file; is it a launcher backup?</string>
     <string name="not_vulcan_backup">Not a Vulcan backup</string>

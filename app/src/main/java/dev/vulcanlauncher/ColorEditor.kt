@@ -291,8 +291,10 @@ private fun VulcanActivity.colorSheet(title: Int, start: Int, following: Boolean
             val on = !follow && hex(sc) == hex(color)
             ((v.background as android.graphics.drawable.LayerDrawable).getDrawable(0) as GradientDrawable).setStroke((2 * dp).toInt(), if (on) m3.onSurface else 0)
             (v as android.widget.ImageView).setImageDrawable(if (on) symbol("check", onColor(sc), 18f) else null)
+            v.isSelected = on // TalkBack hears the ring and check as "selected"
         }
         chip.text = (if (follow) "✓  " else "") + getString(autoName)
+        chip.isSelected = follow; chip.contentDescription = getString(autoName)
         chip.background = rounded(if (follow) m3.raised else 0, 16 * dp, if (follow) 0 else m3.outlineVariant)
         saveButton?.isEnabled = true
         updating = false
@@ -461,6 +463,7 @@ fun SettingsActivity.pickTheme(c: Choice, save: (String) -> Unit) {
             addView(picture)
             addView(text((if (chosen) "✓  " else "") + getString(title), 14f).apply { setPadding(pad / 3, pad / 2, 0, pad / 3) })
             contentDescription = getString(title)
+            isSelected = chosen
             setOnClickListener {
                 d.dismiss()
                 if (title != R.string.theme_yours) return@setOnClickListener save(value)
