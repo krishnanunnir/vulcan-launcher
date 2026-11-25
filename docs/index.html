@@ -78,13 +78,13 @@
   .chip::after { content: ""; position: absolute; inset: auto 0 0; height: 8px; background: var(--ink); transform: scaleY(0); transform-origin: bottom; transition: transform .35s var(--out); }
   .chip[style*="#111315"]::after { background: #FFFFFF; }
   .chip:hover::after, .chip:focus-visible::after { transform: none; }
-  .chip:hover img { transform: translateY(-8px); }
+  .chip:hover img, .chip:focus-visible img { transform: translateY(-8px); }
   .chip:focus-visible { outline-offset: -5px; outline-color: var(--on-chip); }
   .chart-note { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; padding-top: 16px; padding-bottom: 16px; color: var(--ink-2); font-size: 15px; }
   .chart-note a { color: var(--ink); font-weight: 600; }
 
-  .stats { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--rule); }
-  .stats div { padding: 36px 32px 40px 0; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .stats div { padding: 36px 32px 40px 0; border-top: 1px solid var(--rule); }
   .stats div + div { padding-left: 32px; border-left: 1px solid var(--rule); }
   .stats b { display: block; font-size: clamp(44px, 5.4vw, 68px); font-weight: 800; line-height: 1; letter-spacing: -.035em; margin-bottom: 12px; }
   .stats strong { display: block; font-weight: 600; }
@@ -93,7 +93,7 @@
   .bars { display: grid; gap: 28px; }
   .bars p { display: flex; justify-content: space-between; gap: 16px; margin: 0 0 10px; font-weight: 600; }
   .bars p span { font-weight: 500; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-  .bars i { display: block; height: 44px; background: var(--card-2); }
+  .bars i { display: block; height: 44px; background: var(--ink); }
   .bars .v + i { width: 1.44%; min-width: 6px; background: var(--acc); }
 
   .privacy { display: grid; grid-template-columns: .9fr 1.1fr; gap: 48px; align-items: start; }
@@ -138,7 +138,7 @@
   .close .pill.paper { background: var(--paper); color: var(--ink); box-shadow: var(--key); }
   .close .pill.paper:hover { background: var(--card); }
 
-  footer { display: flex; flex-wrap: wrap; gap: 8px 28px; justify-content: space-between; padding-top: 28px; padding-bottom: 44px; color: var(--ink-2); font-size: 15px; }
+  footer.wrap { display: flex; flex-wrap: wrap; gap: 8px 28px; justify-content: space-between; padding-top: 28px; padding-bottom: 44px; color: var(--ink-2); font-size: 15px; }
   footer a { display: inline-block; padding: 8px 0; }
 
   @media (max-width: 960px) {
@@ -167,6 +167,12 @@
     .row { grid-template-columns: 1fr; } .row .when { white-space: normal; }
     .actions .pill { flex: 1 1 100%; justify-content: center; }
     .shots img + img { margin-top: 40px; }
+  }
+  /* Short laptop screens: keep the six names inside the first screen. */
+  @media (min-width: 1001px) and (max-height: 840px) {
+    .hero { padding-top: 20px; padding-bottom: 28px; }
+    .chip { padding-top: 20px; padding-bottom: 18px; }
+    .chip img { width: min(100%, 140px); margin-bottom: 18px; }
   }
   @media (prefers-reduced-motion: no-preference) {
     /* The one entrance: the six phones settle onto their chips, left to right. */
@@ -203,13 +209,13 @@
     </div>
   </div>
 
-  <div class="chart" aria-label="Six starting looks">
-      <a class="chip" href="design/" style="--i:0;--chip:#2B50E8;--on-chip:#FFFFFF"><img src="screenshots/look-fresh-install.webp" width="540" height="1170" alt="Fresh install look: a cobalt dawn wallpaper, labelled icons and a search bar under the dock"><b>Fresh install</b><small>Vulcan defaults</small></a>
-      <a class="chip" href="design/" style="--i:1;--chip:#E3DFD6;--on-chip:#15171A"><img src="screenshots/look-appliance.webp" width="540" height="1170" alt="Appliance look: a warm stone wallpaper and a dock in a framed panel"><b>Appliance</b><small>Framed panels</small></a>
-      <a class="chip" href="design/" style="--i:2;--chip:#9CBCAE;--on-chip:#15171A"><img src="screenshots/look-calm.webp" width="540" height="1170" alt="Calm look: a sage wallpaper with round icons and no labels"><b>Calm</b><small>Unlabelled icons</small></a>
-      <a class="chip" href="design/" style="--i:3;--chip:#C7B6F2;--on-chip:#15171A"><img src="screenshots/look-samsung-like.webp" width="540" height="1170" alt="Samsung-like look: a lilac dusk wallpaper with squircle icons" loading="lazy"><b>Samsung-like</b><small>Paged app drawer</small></a>
-      <a class="chip" href="design/" style="--i:4;--chip:#111315;--on-chip:#FFFFFF"><img src="screenshots/look-amoled.webp" width="540" height="1170" alt="AMOLED look: a black wallpaper with a crescent moon and monochrome icons" loading="lazy"><b>AMOLED</b><small>Black panels</small></a>
-      <a class="chip" href="design/" style="--i:5;--chip:#E4572E;--on-chip:#15171A"><img src="screenshots/look-big-and-clear.webp" width="540" height="1170" alt="Big and clear look: a sunset wallpaper with large icons and large labels" loading="lazy"><b>Big and clear</b><small>Large icons and text</small></a>
+  <div class="chart" role="group" aria-label="Six starting looks">
+      <a class="chip" href="design/#look=Fresh%20install" style="--i:0;--chip:#2B50E8;--on-chip:#FFFFFF"><img src="screenshots/look-fresh-install.webp" width="540" height="1170" alt="Fresh install look: a cobalt dawn wallpaper, labelled icons and a search bar under the dock"><b>Fresh install</b><small>Vulcan defaults</small></a>
+      <a class="chip" href="design/#look=Appliance" style="--i:1;--chip:#E3DFD6;--on-chip:#15171A"><img src="screenshots/look-appliance.webp" width="540" height="1170" alt="Appliance look: a warm stone wallpaper and a dock in a framed panel"><b>Appliance</b><small>Framed panels</small></a>
+      <a class="chip" href="design/#look=Calm" style="--i:2;--chip:#9CBCAE;--on-chip:#15171A"><img src="screenshots/look-calm.webp" width="540" height="1170" alt="Calm look: a sage wallpaper with round icons and no labels"><b>Calm</b><small>Unlabelled icons</small></a>
+      <a class="chip" href="design/#look=Samsung-like" style="--i:3;--chip:#C7B6F2;--on-chip:#15171A"><img src="screenshots/look-samsung-like.webp" width="540" height="1170" alt="Samsung-like look: a lilac dusk wallpaper with squircle icons"><b>Samsung-like</b><small>Paged app drawer</small></a>
+      <a class="chip" href="design/#look=AMOLED" style="--i:4;--chip:#111315;--on-chip:#FFFFFF"><img src="screenshots/look-amoled.webp" width="540" height="1170" alt="AMOLED look: a black wallpaper with a crescent moon and monochrome icons"><b>AMOLED</b><small>Black panels</small></a>
+      <a class="chip" href="design/#look=Big%20and%20clear" style="--i:5;--chip:#E4572E;--on-chip:#15171A"><img src="screenshots/look-big-and-clear.webp" width="540" height="1170" alt="Big and clear look: a sunset wallpaper with large icons and large labels"><b>Big and clear</b><small>Large icons and text</small></a>
   </div>
   <div class="wrap chart-note">
     <span>Six starting looks, drawn by the designer. App icons are approximations.</span>

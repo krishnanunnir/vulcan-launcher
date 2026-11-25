@@ -1110,6 +1110,14 @@ function restoreDraft(storageName) {
 }
 function encodeHash(o) { return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
 function decodeHash(s) { return JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g, "+").replace(/_/g, "/"))))); }
+/** Opens on a named look: the landing page's chips link here as #look=<name>. */
+function loadLinkedLook() {
+  const match = location.hash.match(/^#look=(.+)$/);
+  if (!match) return;
+  let name = ""; try { name = decodeURIComponent(match[1]); } catch {}
+  history.replaceState(null, "", location.pathname + location.search);
+  if (PRESETS[name]) applyPreset(name);
+}
 function loadSharedStyle() {
   const match = location.hash.match(/^#s=(.+)$/);
   if (!match) return false;
@@ -1159,8 +1167,8 @@ fetch(SCHEMA_URL).then(r => { if (!r.ok) throw new Error(r.status); return r.jso
   restoreDraft("localStorage");
   restoreDraft("sessionStorage");
   loadSharedStyle();
-  window.addEventListener("hashchange", () => { if (loadSharedStyle()) refresh(); });
-  buildLooks(); refresh();
+  window.addEventListener("hashchange", () => { if (loadSharedStyle()) refresh(); loadLinkedLook(); });
+  buildLooks(); refresh(); loadLinkedLook();
 }).catch(e => { $("#status").innerHTML = `<span class="err">Couldn't load the settings list (${esc(e.message)}). Open this page from a web server, not as a file.</span>`; });
 
 $("#open").onchange = e => { if (e.target.files[0]) openFile(e.target.files[0]); e.target.value = ""; };
