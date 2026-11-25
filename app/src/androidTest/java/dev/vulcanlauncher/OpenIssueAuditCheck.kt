@@ -36,18 +36,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
         log.append("$id | $status | $detail\n")
         File(out, "results.txt").writeText(log.toString())
     }
-    private fun all(v: View): List<View> = listOf(v) + if (v is ViewGroup)
-        (0 until v.childCount).flatMap { all(v.getChildAt(it)) } else emptyList()
-    private fun field(o: Any, name: String): Any? {
-        var c: Class<*>? = o.javaClass
-        while (c != null) {
-            try { return c.getDeclaredField(name).apply { isAccessible = true }.get(o) }
-            catch (_: NoSuchFieldException) { c = c.superclass }
-        }
-        error("No field $name")
-    }
-    @Suppress("UNCHECKED_CAST")
-    private fun dialogs(v: VulcanActivity = a) = (field(v, "dialogs") as Set<AlertDialog>).filter { it.isShowing }
+    private fun dialogs(v: VulcanActivity = a) = showingDialogs(v)
     private fun bounds(v: View): Rect = Rect().also { r -> ui { require(v.getGlobalVisibleRect(r)) { "Not visible: ${v.contentDescription}" } } }
     private fun point(x: Int, y: Int) = Rect(x, y, x + 1, y + 1)
     private fun event(time: Long, action: Int, x: Float, y: Float) {

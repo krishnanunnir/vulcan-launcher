@@ -39,16 +39,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
         log.append("$id | $result | $detail\n")
     }
     private fun check(id: String, ok: Boolean, detail: String) = note(id, if (ok) "EXPECTED" else "REPRODUCED", detail)
-    private fun all(v: View): List<View> = listOf(v) + if (v is ViewGroup) (0 until v.childCount).flatMap { all(v.getChildAt(it)) } else emptyList()
-    private fun field(o: Any, name: String): Any? {
-        var c: Class<*>? = o.javaClass
-        while (c != null) {
-            try { return c.getDeclaredField(name).apply { isAccessible = true }.get(o) } catch (_: NoSuchFieldException) { c = c.superclass }
-        }
-        error("Missing field $name")
-    }
-    @Suppress("UNCHECKED_CAST")
-    private fun dialogs(v: VulcanActivity = a) = (field(v, "dialogs") as Set<AlertDialog>).filter { it.isShowing }
+    private fun dialogs(v: VulcanActivity = a) = showingDialogs(v)
     private fun rect(v: View): Rect = Rect().also { r ->
         var visible=false
         ui { visible=v.getGlobalVisibleRect(r); val p=IntArray(2); v.getLocationOnScreen(p); r.set(p[0],p[1],p[0]+v.width,p[1]+v.height) }
