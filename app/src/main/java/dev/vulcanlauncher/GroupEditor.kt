@@ -90,6 +90,8 @@ fun VulcanActivity.arrangeApps(title: String, keys: List<String>, onSave: (List<
     val rows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, (8 * dp).toInt(), 0, 0) }
     fun build() {
         rows.removeAllViews()
+        // Again on each build: an app removed while the sheet is open (uninstalled, its profile locked) has no row.
+        order = order.filter { it in home.repo.apps }
         val views = order.map { k ->
             val app = home.repo.apps.getValue(k)
             listItem(home.repo.icon(app), home.repo.label(app), appIcon = true, onClick = null)

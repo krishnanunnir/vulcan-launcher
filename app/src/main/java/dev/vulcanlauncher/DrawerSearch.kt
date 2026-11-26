@@ -55,7 +55,7 @@ internal class DrawerSearch(private val a: MainActivity) {
     }
 
     private fun photo(uri: String?) = uri?.let { p -> runCatching {
-        a.contentResolver.openInputStream(android.net.Uri.parse(p))!!.use { android.graphics.drawable.BitmapDrawable(a.resources, android.graphics.BitmapFactory.decodeStream(it)) }
+        a.contentResolver.openInputStream(android.net.Uri.parse(p))!!.use { android.graphics.BitmapFactory.decodeStream(it)?.let { b -> android.graphics.drawable.BitmapDrawable(a.resources, b) } }
     }.getOrNull() }
 
     private fun glyph(symbol: String? = null, text: String? = null) = GlyphIcon(a.m3.primaryContainer, a.m3.onPrimaryContainer, text, symbol)

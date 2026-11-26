@@ -684,7 +684,8 @@ class Icons(private val context: Context, private val looks: Looks) {
         context.contentResolver.openInputStream(uri)!!.use { android.graphics.BitmapFactory.decodeStream(it, null, opts) }
         opts.inSampleSize = sampleSize(minOf(opts.outWidth, opts.outHeight), size); opts.inJustDecodeBounds = false
         context.contentResolver.openInputStream(uri)!!.use {
-            BitmapDrawable(context.resources, android.graphics.BitmapFactory.decodeStream(it, null, opts))
+            // Null for a file that isn't a readable image: the default icon shows, not an empty one.
+            android.graphics.BitmapFactory.decodeStream(it, null, opts)?.let { b -> BitmapDrawable(context.resources, b) }
         }
     }.getOrNull()
 

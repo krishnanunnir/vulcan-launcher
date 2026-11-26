@@ -317,7 +317,10 @@ class MainActivity : VulcanActivity() {
 
     /** The dock's pages and the box around them, with its background and its search bar. */
     private fun buildDock(gesture: (String) -> Unit, search: String) {
-        dockPages = List(looks.dockPages) { CellLayout(this, looks.dockCols, 1, -1 - it, landscape).apply { setOnDragListener(drag.dropListener(this)) } }
+        dockPages = List(looks.dockPages) { CellLayout(this, looks.dockCols, 1, -1 - it, landscape).apply {
+            setOnDragListener(drag.dropListener(this))
+            held = { items.filter { it !in views } } // as home pages: an app that's missing for now keeps its cell
+        } }
         dock = Workspace(this).apply { dockPages.forEach { addView(it) }; onGesture = gesture }
         dockBox = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -604,7 +607,8 @@ class MainActivity : VulcanActivity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQ_PERMISSION) rebuild()
+        // The Now page asked: fill its card in place. rebuild() would close the page and reload every home widget.
+        if (requestCode == REQ_PERMISSION) { if (overlay is NowPanel) reopenNow() else rebuild() }
     }
 
     /** Sends a query to the chosen search engine (in the browser) or to the default web search app. */

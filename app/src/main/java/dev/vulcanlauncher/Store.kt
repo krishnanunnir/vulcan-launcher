@@ -334,10 +334,10 @@ val BACKUP_HOW_TO = listOf(
  * string resource: setting titles and value names are in the phone's language.
  */
 /** data keys that say where a welcome or a widget's setup stands: true of the moment, so they stay out of backups. */
-val PASSING_STATE = setOf("welcome", "welcomeStep", "welcomeImport", "pendingWidget", "pendingSlot", RESTORING_WIDGETS)
+val PASSING_STATE = setOf("welcome", "welcomeStep", "welcomeImport", "pendingWidget", "pendingSlot", "widgetToNow", RESTORING_WIDGETS)
 
 /** data keys read with getBoolean, which throws on text: on every start, for a hand-edited "hideWorkTab": "on". */
-val DATA_FLAGS = setOf(WELCOME, WELCOME_IMPORT, RESTORING_WIDGETS, REPIN_SHORTCUTS, ALL_HIDDEN, WORK_HIDDEN)
+val DATA_FLAGS = setOf(WELCOME, WELCOME_IMPORT, RESTORING_WIDGETS, REPIN_SHORTCUTS, ALL_HIDDEN, WORK_HIDDEN, "widgetToNow")
 
 /** Whether a restore stores [key] of preference file [file] as a boolean: a flag always, whatever the backup says. */
 fun restoredAsFlag(file: String, key: String) = file == "data" && key in DATA_FLAGS
@@ -406,7 +406,8 @@ fun backupLayout(root: JSONObject): Map<String, String> {
  */
 fun legacyBackupFiles(root: JSONObject): Pair<Map<String, Map<String, String>>, List<String>> {
     val rejected = ArrayList<String>()
-    val files = Store.FILES.associateWith { name ->
+    // Without a layout it's settings to merge: only the files it has, or import() would clear the ones it lacks.
+    val files = Store.FILES.filter { root.has("layout") || root.has(it) }.associateWith { name ->
         val o = root.optJSONObject(name) ?: JSONObject()
         o.keys().asSequence().associateWith { o.getString(it) }.filter { (k, v) ->
             (name != "looks" || LOOKS.firstOrNull { it.key == k }?.accepts(v) != false).also { if (!it) rejected += "$k=$v" }

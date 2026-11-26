@@ -294,4 +294,10 @@ class StoreTest {
         assertEquals(listOf("pages=100000"), rejected)
         assertEquals(mapOf("hidden" to "[]"), files["data"])
     }
+
+    @Test fun aFormatOneBackupWithoutALayoutReplacesNoLayout() {
+        // import() clears every file when "layout" is among them: settings alone must not wipe home.
+        val (files, _) = legacyBackupFiles(org.json.JSONObject("""{"format":"vulcan-backup-1","looks":{"cols":"6"}}"""))
+        assertEquals(mapOf("looks" to mapOf("cols" to "6")), files)
+    }
 }

@@ -135,8 +135,10 @@ class WidgetFlow(private val a: MainActivity) {
     }
 
     /** The widget being added goes on a Now page card, not home. */
-    // ponytail: in memory only, so a widget whose setup outlives the process lands on home instead
-    private var widgetToNow = false
+    // Stored, like pendingWidget: home is recreated under a setup screen by a rotation or a dark mode change.
+    private var widgetToNow: Boolean
+        get() = a.store.data.getBoolean("widgetToNow", false)
+        set(v) { a.store.data.edit().putBoolean("widgetToNow", v).apply() }
 
     /** Every profile's widget providers: installedProviders lists only this user's, which leaves work-profile widgets out. */
     private fun providers(): List<AppWidgetProviderInfo> =
