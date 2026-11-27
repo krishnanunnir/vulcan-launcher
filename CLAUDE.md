@@ -28,7 +28,10 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
 ## Conventions
 
 - Plain Views, built in Kotlin code (no XML layouts). Match the existing style: small files, `apply {}` builders, sizes in dp via `dp`.
-- `items: MutableList<Item>` in `MainActivity` is the single source of truth: mutate it, then `store.save(items)`, then `render()`.
+- `pageLayout` in `MainActivity` is the single source of truth, changed only through `editLayout { … }` (see docs/ARCHITECTURE.md, Data flow).
+- Anything shown over home is an `Overlay`, opened with `showOverlay` and closed with `closeOverlay` or its own `close()`; don't keep your own "is open" field. A panel that shows model data gives a `refresh`.
+- Deferred work against home's views goes through `later`, `afterLayout` or a `lifetime.token()` check, never a bare `post`/`postDelayed`, so a rebuild drops it. Keep an `onDetachedFromWindow` cancel only for a view that is re-parented without a rebuild (a widget frame).
+- A new setting declares its `reload` level only when it's lower than `REBUILD` and home provably reads it at use time; pin it in `LooksTest.onlyUseTimeSettingsSkipTheRebuild`.
 - User-facing text goes in `res/values/strings.xml` (English) and is read with `getString(R.string.…)`; counts use `<plurals>`. Settings keep English keys and values in `LOOKS` (stored, backed up) and take their titles and names from resources. Debug builds have the `en-XA` pseudo-locale (`adb shell cmd locale set-app-locales dev.vulcanlauncher --locales en-XA`): text that isn't accented is hardcoded.
 - Mark deliberate shortcuts with a `// ponytail:` comment that names the limit and the upgrade path.
 - Pure logic (geometry, parsing, settings mapping) goes in top-level functions with a JUnit test in `app/src/test`. View code isn't unit-tested.

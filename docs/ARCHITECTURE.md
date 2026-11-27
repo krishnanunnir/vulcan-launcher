@@ -12,7 +12,7 @@ MainActivity root (FrameLayout, handles window insets itself)
 │   └── search bar (optional, bottom)
 ├── Drawer.root                                overlay, GONE until opened
 ├── dropBar (Remove | App info | Uninstall)    shown only while dragging
-└── overlay (folder window, desktop previews or widget resize frame), added on demand
+└── overlay (folder, overview, widget resize frame, Now page, menu), added on demand by `showOverlay`
 ```
 
 ## Where things live
@@ -40,7 +40,14 @@ Settings are declared once, as `Choice` entries in `LOOKS` (`Looks.kt`): stored 
 4. Items that no longer fit a smaller grid, dock or page count stay stored and come back when it grows.
 5. The layout file records its own format version and subgrid factor, so it reads correctly whatever the settings say. If it can't be read, the launcher falls back to the newest readable automatic backup; a single bad item is dropped on its own. A layout from a newer build is kept in `files/layout-v<N>.json`, never read as this build's.
 6. Anything read from outside this build (stored preferences, a backup, another launcher's backup, an icon pack) goes through one decoder per source, which returns typed, range-checked values and reports what it dropped or repaired: `decodeLayout` and `wellFormed` (items), `dataValue` (data types), `decodeBackup` (backup files), `importToItems` (`.novabackup` rows), `readAppfilter` (icon packs), `groupsFromJson`. Code after them doesn't check again; `CorruptionTest` feeds them corrupted backups. Files are written with `writeAtomically` (temp file, sync, rename), and a failure is thrown to the caller.
-7. Settings is its own screen (`SettingsActivity`), and so is an icon pack's grid (`IconGridActivity`). Each opens in a task of its own: in home's task, the Home gesture animated them away and back together with home (#100). Changing a setting only marks home stale; home builds itself again once, in `onStart`, before it shows. Both activities extend `VulcanActivity` (settings, palette, dialogs). Every colour comes from one palette built at startup from the theme setting and night mode.
+7. Settings is its own screen (`SettingsActivity`), and so is an icon pack's grid (`IconGridActivity`). Each opens in a task of its own: in home's task, the Home gesture animated them away and back together with home (#100). Changing a setting marks home stale only if its `Choice.reload` is `REBUILD` (the default); home builds itself again once, in `onStart`, before it shows. A `LIVE` setting (a gesture's action) is read when it's used. Both activities extend `VulcanActivity` (settings, palette, dialogs). Every colour comes from one palette built at startup from the theme setting and night mode.
+
+## Home's state and lifetime
+
+- What is open over home is one `Overlay` (`Overlays.kt`): its kind, its view, an optional exit animation, an optional `refresh` and a `closed` callback. `OverlayHost` (`overlays`) holds two slots, a panel (folder, overview, resize frame, Now page) and a menu, which can sit over a panel. Only `showOverlay` and `closeOverlay` (through the host) change them. Back asks the overlay (`onBack`), the status-bar rule reads its kind, and an overlay whose view leaves the root is closed.
+- After every model change `render()` calls `refreshOverlay()`: an open folder refills from its data, or closes once the folder is gone. Nothing refills a panel by hand.
+- `rebuild()` starts with one `teardown()`: it closes every overlay (their `closed` callbacks run, so a pending rename is kept), resets drag and depth, hides the drawer and ends home's `Lifetime`.
+- Work deferred against home goes through the lifetime, so a rebuild drops it: `later(ms) {}` for a posted runnable or timer (cancel with `cancelLater`), `lifetime.token()` checked in an animator's update and end or in an async result, and `afterLayout(view) {}` for work that needs a view measured (#70, #111, #117). Long-press timers also check the view still has a parent and window focus. Three waits are left unbound on purpose: a widget being placed (it survives a rebuild), the undo bar's timeout (it finishes a removal) and the Now page's background build (it touches no old views).
 
 ## Apps and profiles
 
