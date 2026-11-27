@@ -31,10 +31,11 @@ class StoreTest {
     fun restoredFlagsAreBooleansWhateverTheFileSays() {
         // getBoolean throws on text, and these are read on every start.
         for (k in listOf("welcome", "welcomeImport", "restoringWidgets", "repinShortcuts", "hideAllTab", "hideWorkTab"))
-            assertEquals(k, true, restoredAsFlag("data", k))
+            assertEquals(k, true, dataValue(k, "true"))
         // Any other key stays text, even "false": a hand-edited "groups": false stored as a boolean made getString throw.
-        assertEquals(false, restoredAsFlag("data", "groups"))
-        assertEquals(false, restoredAsFlag("looks", "hideWorkTab"))
+        assertEquals("false", dataValue("groups", "false"))
+        // The Work tab's place is an int, as GroupEditor stores it; a backup has it as text.
+        assertEquals(listOf(3, null, 3), listOf("3", "x", 3).map { dataValue(WORK_AT, it) })
         // What such a restore left behind is put right on the next start; text and real flags are left alone.
         assertEquals(mapOf("groups" to "false", "welcome" to true, "hideWorkTab" to false),
             dataTypeFixes(mapOf("groups" to false, "welcome" to "true", "hideWorkTab" to "false", "repinShortcuts" to true, "hidden" to "[]", "custom" to "true")))

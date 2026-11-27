@@ -216,7 +216,7 @@ class Store(private val context: Context) {
     private val prefs = context.getSharedPreferences("layout", Context.MODE_PRIVATE)
     val data = context.getSharedPreferences("data", Context.MODE_PRIVATE)!!.apply {
         val fix = dataTypeFixes(all)
-        if (fix.isNotEmpty()) edit().apply { fix.forEach { (k, v) -> if (v is Boolean) putBoolean(k, v) else putString(k, v.toString()) } }.commit()
+        if (fix.isNotEmpty()) { android.util.Log.w("Vulcan", "data: retyped ${fix.keys}"); edit().apply { fix.forEach { (k, v) -> putData(k, v) } }.commit() }
     }
 
     private val usage = context.getSharedPreferences("usage", Context.MODE_PRIVATE)
@@ -343,7 +343,7 @@ class Store(private val context: Context) {
         for ((name, values) in files) context.getSharedPreferences(name, Context.MODE_PRIVATE).edit().apply {
             if (replacedLayout) clear()
             // data keeps its flags as booleans; the backup has them as "true"/"false"
-            values.forEach { (k, v) -> if (restoredKey(name, k)) { if (restoredAsFlag(name, k)) putBoolean(k, v == "true") else putString(k, v) } }
+            values.forEach { (k, v) -> if (restoredKey(name, k)) { if (name == "data") putData(k, dataValue(k, v)) else putString(k, v) } }
         }.commit().let { ok -> check(ok) { context.getString(R.string.restore_not_saved) } }
         if (replacedLayout) usage.edit().clear().commit()
         adoptLaunches()
@@ -394,8 +394,25 @@ val PASSING_STATE = setOf("welcome", "welcomeStep", "welcomeImport", "pendingWid
 /** data keys read with getBoolean, which throws on text: on every start, for a hand-edited "hideWorkTab": "on". */
 val DATA_FLAGS = setOf(WELCOME, WELCOME_IMPORT, RESTORING_WIDGETS, REPIN_SHORTCUTS, ALL_HIDDEN, WORK_HIDDEN, "widgetToNow")
 
-/** Whether a restore stores [key] of preference file [file] as a boolean: a flag always, whatever the backup says. */
-fun restoredAsFlag(file: String, key: String) = file == "data" && key in DATA_FLAGS
+/** data keys read with getInt, which throws on text too. */
+val DATA_INTS = setOf(WORK_AT)
+
+/**
+ * Value [v] of data key [key], as stored or as a backup has it (always text), in the type its reader takes: a flag
+ * ([DATA_FLAGS]) is a boolean, true only for true or "true"; an int ([DATA_INTS]) an int, null (the key goes) when it isn't
+ * a number; anything else text. The one decoder for data's types, used on every start and by every restore.
+ */
+fun dataValue(key: String, v: Any?): Any? = when {
+    v == null -> null
+    key in DATA_FLAGS -> v == true || v == "true"
+    key in DATA_INTS -> v as? Int ?: v.toString().toIntOrNull()
+    else -> v as? String ?: v.toString()
+}
+
+/** Stores [v], typed by [dataValue]; null removes [key]. */
+fun android.content.SharedPreferences.Editor.putData(key: String, v: Any?) {
+    when (v) { null -> remove(key); is Boolean -> putBoolean(key, v); is Int -> putInt(key, v); else -> putString(key, v.toString()) }
+}
 
 /**
  * looks keys that belong to this phone: its last known location (sunset night mode, looked up again after a restore) and
@@ -410,17 +427,11 @@ val DEVICE_KEYS = setOf("lat", "lon", "clockHiddenByUs")
 fun restoredKey(file: String, key: String) = !(file == "data" && key in PASSING_STATE) && !(file == "looks" && key in DEVICE_KEYS)
 
 /**
- * data's values ([all]) stored as the wrong type, each as it should be: a flag kept as "true"/"false" text (a restore
- * before 0.31) makes getBoolean throw, and any other key kept as a boolean (a restore before 0.35 of a hand-edited
- * "groups": false) makes getString throw, on every start.
+ * data's values ([all]) stored as the wrong type, each as [dataValue] types it (null: removed). A flag kept as text (a
+ * restore before 0.31) made getBoolean throw, any other key kept as a boolean (a restore before 0.35 of a hand-edited
+ * "groups": false) made getString throw, on every start.
  */
-fun dataTypeFixes(all: Map<String, Any?>): Map<String, Any> = all.mapNotNull { (k, v) ->
-    when {
-        k in DATA_FLAGS -> if (v == "true" || v == "false") v == "true" else null
-        v is Boolean -> v.toString()
-        else -> null
-    }?.let { k to it }
-}.toMap()
+fun dataTypeFixes(all: Map<String, Any?>): Map<String, Any?> = all.filter { (k, v) -> dataValue(k, v) != v }.mapValues { (k, v) -> dataValue(k, v) }
 
 /**
  * Writes [text] to this file whole or not at all: into "<name>.tmp", synced to disk, then renamed over this file. Throws

@@ -66,8 +66,11 @@ class BoundaryTest {
 
     @Test fun aRestoredFlagOrStringOfTheWrongTypeIsPutRight() { // ef6086b, ef94dd8
         assertEquals(mapOf("welcome" to false, "groups" to "true"), dataTypeFixes(mapOf("welcome" to "false", "groups" to true, "hidden" to "[]")))
-        // A value a flag can't be is left for the reader, which takes it as false.
-        assertTrue(dataTypeFixes(mapOf("welcome" to "on")).isEmpty())
+        // A value a flag can't be is false, as a restore has always written it: left as text, getBoolean threw on every start.
+        assertEquals(mapOf("welcome" to false), dataTypeFixes(mapOf("welcome" to "on")))
+        // The Work tab's place restored as text is an int again (getInt threw on it), and one that isn't a number goes.
+        assertEquals(mapOf(WORK_AT to 2, "x" to "1.5"), dataTypeFixes(mapOf(WORK_AT to "2", "x" to 1.5)))
+        assertEquals(mapOf(WORK_AT to null), dataTypeFixes(mapOf(WORK_AT to "two")))
     }
 
     @Test fun aBackupsSubgridOtherThanOneOrTwoIsLeftForHomeToIgnore() { // 68dc274
