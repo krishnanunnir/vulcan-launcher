@@ -118,16 +118,10 @@ class HomeMenus(private val a: MainActivity) {
     }
 
     /** The open long-press or home menu, an overlay inside this window. */
-    var menu: View? = null
+    val menu get() = a.overlays.menu
 
-    fun closeMenu() {
-        val m = menu ?: return
-        menu = null
-        if (a.drag.homeState == HomeState.OVERVIEW) a.drag.setHomeState(HomeState.NORMAL)
-        // Let touches through at once; it only fades out.
-        m.setOnClickListener(null); m.setOnTouchListener(null); m.isClickable = false
-        m.animate().alpha(0f).setDuration(120).withEndAction { a.root.removeView(m) }.start()
-    }
+    /** Touches go through at once; it only fades out. */
+    fun closeMenu() = a.overlays.close(menu)
 
     /** [v]'s bounds in this window. */
     fun screenRect(v: View): Rect {
@@ -155,7 +149,6 @@ class HomeMenus(private val a: MainActivity) {
             setPadding(0, p, 0, p)
             build()
         }
-        closeMenu()
         box.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED)
         val x = menuX(anchor.left, anchor.right, w, a.root.width, margin)
         // As Launcher3: above the anchor if there's room, else below.
@@ -195,8 +188,9 @@ class HomeMenus(private val a: MainActivity) {
                 leftMargin = ax; topMargin = if (up) y - ah else y + box.measuredHeight - seam
             })
         }
-        a.root.addView(shade)
-        menu = shade
+        a.showOverlay(Overlay(OverlayKind.MENU, shade, exit = { done -> shade.animate().alpha(0f).setDuration(120).withEndAction(done).start() }) {
+            if (a.drag.homeState == HomeState.OVERVIEW) a.drag.setHomeState(HomeState.NORMAL)
+        })
         // As Nova: the panel reveals out of the anchor, then its contents fade in.
         // ponytail: a circular reveal; Launcher3 reveals a growing rounded rectangle.
         box.visibility = View.INVISIBLE
@@ -295,8 +289,9 @@ class HomeMenus(private val a: MainActivity) {
                 setMargins(p, 0, p, a.insets.bottom + (24 * a.dp).toInt())
             })
         }
-        a.root.addView(shade)
-        menu = shade
+        a.showOverlay(Overlay(OverlayKind.MENU, shade, exit = { done -> shade.animate().alpha(0f).setDuration(120).withEndAction(done).start() }) {
+            if (a.drag.homeState == HomeState.OVERVIEW) a.drag.setHomeState(HomeState.NORMAL)
+        })
         row.measure(View.MeasureSpec.makeMeasureSpec(a.root.width - (32 * a.dp).toInt(), View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED)
         a.drag.springBottom = row.measuredHeight + a.insets.bottom + (24 * a.dp).toInt()
         a.root.tick()

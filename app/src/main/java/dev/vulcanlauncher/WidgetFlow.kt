@@ -333,7 +333,7 @@ class WidgetFlow(private val a: MainActivity) {
         if (widgetToNow) {
             widgetToNow = false
             a.saveNowCards(a.nowCards() + Item(0, 0, 0, widgetId = id))
-            if (a.overlay is NowPanel) a.reopenNow()
+            if (a.overlay?.kind == OverlayKind.NOW) a.reopenNow()
             return
         }
         pendingSlot?.let { slot ->

@@ -618,11 +618,11 @@ class Drawer(private val a: MainActivity) {
         a.repo.prefetchIcons(entries.filterIsInstance<Entry.AppE>().map { it.app }.take(cols * rows * 2))
         if (styleName == "pages") buildPages() else adapter.notifyDataSetChanged()
         index.invalidate() // its letters are the new list's
-        a.refillFolder?.invoke() // an open drawer folder shows what the drawer now has
+        a.refreshOverlay() // an open drawer folder shows what the drawer now has
     }
 
     /** Something it shows changed: rebuilt now if open, else on the next open. */
-    fun invalidate() { if (visible) refresh() else { shown = null; a.refillFolder?.invoke() } }
+    fun invalidate() { if (visible) refresh() else { shown = null; a.refreshOverlay() } }
 
     fun refreshBadges() { if (visible) grid.invalidateViews() }
 

@@ -104,7 +104,7 @@ fun MainActivity.prepareNow() {
 
 /** [prepareNow]'s delayed build; not while the page is open (a widget's frame can only be in one page). */
 fun MainActivity.prebuildNow() {
-    if (overlay is NowPanel || isFinishing || isDestroyed || !looks.on("nowPage")) return
+    if (overlay?.kind == OverlayKind.NOW || isFinishing || isDestroyed || !looks.on("nowPage")) return
     nowReady = android.os.SystemClock.uptimeMillis() to buildNow()
 }
 
@@ -113,9 +113,8 @@ fun MainActivity.showNow(slide: Boolean = true) {
     val panel = nowReady?.takeIf { android.os.SystemClock.uptimeMillis() - it.first < NOW_FRESH_MS }?.second ?: buildNow()
     nowReady = null
     // No depth blur: home fades out behind the nearly opaque page anyway (NowPanel.progress).
-    showOverlay(panel, depth = false) { content.translationX = 0f; content.alpha = 1f; prepareNow() }
     // Back slides it out the way it came.
-    overlayExit = { done -> panel.settle(false, done) }
+    showOverlay(Overlay(OverlayKind.NOW, panel, exit = { done -> panel.settle(false, done) }) { content.translationX = 0f; content.alpha = 1f; prepareNow() })
     // Slides in from the left, the way the swipe right that opened it points; a live pull (pullNow) moves it itself.
     panel.progress = 0f
     if (slide) panel.settle(true)
@@ -362,8 +361,8 @@ private fun MainActivity.buildNow(): NowPanel {
 
 /** Builds the open Now page again in place (after play/pause or a card moved), keeping it open. */
 fun MainActivity.reopenNow() {
-    overlayExit = null; closeOverlay(); showNow(slide = false)
-    (overlay as? NowPanel)?.progress = 1f
+    closeOverlay(animate = false); showNow(slide = false)
+    (overlay?.view as? NowPanel)?.progress = 1f
 }
 
 /** Tags a widget card's resize handle, so Resize again puts it away instead of adding another. */
@@ -423,7 +422,7 @@ private fun MainActivity.resizeNowCard(c: Item, info: android.appwidget.AppWidge
  */
 fun MainActivity.pullNow(px: Float, vx: Float, end: Boolean): Boolean {
     if (!looks.on("nowPage")) return false
-    val panel = overlay as? NowPanel ?: if (end) return true else { showNow(slide = false); overlay as NowPanel }
+    val panel = overlay?.view as? NowPanel ?: if (end) return true else { showNow(slide = false); overlay!!.view as NowPanel }
     val w = maxOf(1, root.width).toFloat()
     val fling = 500 * dp
     if (!end) panel.progress = minOf(1f, px / w)
@@ -464,7 +463,7 @@ class NowPanel(private val a: MainActivity) : FrameLayout(a) {
                 override fun onAnimationCancel(animation: android.animation.Animator) { cancelled = true }
                 override fun onAnimationEnd(animation: android.animation.Animator) {
                     if (cancelled) return
-                    if (done != null) done() else if (a.overlay === this@NowPanel) { a.overlayExit = null; a.closeOverlay() }
+                    if (done != null) done() else if (a.overlay?.view === this@NowPanel) a.closeOverlay(animate = false)
                 }
             })
             start()

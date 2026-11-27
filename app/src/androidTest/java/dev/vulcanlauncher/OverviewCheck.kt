@@ -30,10 +30,10 @@ class OverviewCheck(private val test: Instrumentation) {
     }
     private fun views(v: View): List<View> = listOf(v) +
         if (v is ViewGroup) (0 until v.childCount).flatMap { views(v.getChildAt(it)) } else emptyList()
-    private fun text(value: String): View = views(a.overlay ?: error("Overview closed")).first {
+    private fun text(value: String): View = views(a.overlay?.view ?: error("Overview closed")).first {
         it is TextView && it.text.toString() == value
     }
-    private fun addTile(): View? = a.overlay?.let { root -> views(root).firstOrNull { it.contentDescription == a.getString(R.string.page_add) } }
+    private fun addTile(): View? = a.overlay?.let { o -> views(o.view).firstOrNull { it.contentDescription == a.getString(R.string.page_add) } }
     private fun tile(page: Int): View = text(a.getString(R.string.page_n, page + 1)).parent as View
     private fun center(v: View): Pair<Float, Float> {
         val r = Rect()
@@ -184,7 +184,7 @@ class OverviewCheck(private val test: Instrumentation) {
             expect("new thumbnail opens its page", a.overlay == null && a.workspace.current == 2)
 
             setup(9)
-            expect("nine-page limit hides Add", addTile() == null && (1..9).all { n -> views(a.overlay!!).any { it is TextView && it.text.toString() == a.getString(R.string.page_n, n) } })
+            expect("nine-page limit hides Add", addTile() == null && (1..9).all { n -> views(a.overlay!!.view).any { it is TextView && it.text.toString() == a.getString(R.string.page_n, n) } })
 
             setup()
             ui { a.looks["lockLayout"] = "on"; a.showOverview() }

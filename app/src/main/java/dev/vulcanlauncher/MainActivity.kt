@@ -104,13 +104,9 @@ class MainActivity : VulcanActivity() {
     lateinit var dockBox: LinearLayout
     lateinit var indicator: Indicator
     lateinit var drawer: Drawer
-    /** The open folder window, desktop previews or resize frame, and what to do when it closes. */
-    var overlay: View? = null
-    var overlayClosed: () -> Unit = {}
-    /** Plays the open overlay's exit animation, then calls its argument; null: the overlay just goes. */
-    var overlayExit: ((done: () -> Unit) -> Unit)? = null
-    /** Shows the open folder window's current apps after one is taken out; null when no folder is open. */
-    var refillFolder: (() -> Unit)? = null
+    /** What is open over home: the folder window, desktop previews, resize frame or Now page, and a menu. */
+    val overlays = OverlayHost(this)
+    val overlay get() = overlays.panel
     val views = HashMap<Item, View>()
     val viewItems = HashMap<View, Item>()
     val folderFx = FolderFx(this)
@@ -230,7 +226,7 @@ class MainActivity : VulcanActivity() {
         depthAnim?.cancel()
         // Everything below belongs to the old views; none of it is shown again.
         // setDepth, not the field alone: the window's blur outlives the old views.
-        overlay = null; overlayClosed = {}; overlayExit = null; refillFolder = null; setDepth(0f); homeMenus.menu = null
+        overlays.closeAll(); setDepth(0f)
         drag.reset()
         // Its open or close animator would go on writing the new home's alpha until it ended.
         drawer.hide(animate = false)
@@ -432,7 +428,10 @@ class MainActivity : VulcanActivity() {
     /** Home, the drawer and the drop bar stacked, each kept clear of the system bars. */
     @Suppress("DEPRECATION")
     private fun homeRoot(): FrameLayout {
-        return FrameLayout(this).apply {
+        return object : FrameLayout(this) {
+            // A view gone while the state says open: closed, so nothing acts on it later.
+            override fun onViewRemoved(child: View) { super.onViewRemoved(child); overlays.removed(child) }
+        }.apply {
             addView(content)
             addView(drawer.root)
             addView(drag.dropBar, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
@@ -478,9 +477,6 @@ class MainActivity : VulcanActivity() {
         super.onSaveInstanceState(outState)
         outState.putInt("page", workspace.current)
     }
-
-    /** Back inside an overlay: its own back handler (a view tag) if it has one, else close it. */
-    private fun backInOverlay() = (overlay?.tag as? Runnable)?.run() ?: closeOverlay()
 
     override fun onDestroy() {
         super.onDestroy()
@@ -551,7 +547,7 @@ class MainActivity : VulcanActivity() {
         // Shortcuts restored before Vulcan was the default home app: pinned now that it is, and drawn with their icons.
         if (store.data.getBoolean(REPIN_SHORTCUTS, false)) { repinShortcuts(); if (!store.data.getBoolean(REPIN_SHORTCUTS, false)) render() }
         // Calendar, media and the apps' launch counts may have changed while away; not while the page is open.
-        if (overlay !is NowPanel) prepareNow()
+        if (overlay?.kind != OverlayKind.NOW) prepareNow()
     }
 
     /** Takes [items] from the store, where PinActivity may have added something meanwhile. */
@@ -613,7 +609,7 @@ class MainActivity : VulcanActivity() {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         // The Now page asked: fill its card in place. rebuild() would close the page and reload every home widget.
-        if (requestCode == REQ_PERMISSION) { if (overlay is NowPanel) reopenNow() else rebuild() }
+        if (requestCode == REQ_PERMISSION) { if (overlay?.kind == OverlayKind.NOW) reopenNow() else rebuild() }
     }
 
     /** Sends a query to the chosen search engine (in the browser) or to the default web search app. */
@@ -650,7 +646,7 @@ class MainActivity : VulcanActivity() {
         when {
             welcoming -> welcomeBack()
             homeMenus.menu != null -> homeMenus.closeMenu()
-            overlay != null -> backInOverlay()
+            overlay != null -> overlay?.onBack()
             else -> drawer.hide()
         }
     }
@@ -841,7 +837,7 @@ class MainActivity : VulcanActivity() {
         updateBadges()
         updateGlance()
         folderFx.settle()
-        refillFolder?.invoke() // an open folder shows what home now has
+        refreshOverlay()
     }
 
     /** Label and icon for any non-widget item, or null when its app is gone. */

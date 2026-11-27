@@ -168,29 +168,81 @@ private fun MainActivity.pagesHint(): CharSequence {
     }
 }
 
-/** Tag of an overlay on a dark scrim, which keeps light status bar icons over it. */
-const val DARK_SCRIM = "darkScrim"
+/**
+ * What can be open over home. Panels (all but [MENU]) take one slot, a menu its own slot above them, so a folder's ⋮
+ * menu opens over its folder. [depth]: home recedes (blur, scale) behind it; folders keep home as it is, as in Launcher3.
+ * [darkScrim]: it sits on a dark scrim, which keeps light status bar icons over it.
+ */
+enum class OverlayKind(val depth: Boolean = false, val darkScrim: Boolean = false) { FOLDER, OVERVIEW(depth = true, darkScrim = true), RESIZE, NOW, MENU }
 
-/** [depth]: home recedes (blur, scale) behind it; folders keep home as it is, as in Launcher3. */
-fun MainActivity.showOverlay(v: View, depth: Boolean = true, onClose: () -> Unit = {}) {
-    closeOverlay()
-    root.addView(v)
-    overlay = v
-    if (depth) blurHome(true)
-    overlayClosed = onClose
+/**
+ * One thing open over home: its [view] in the root, and its one way to close ([close]): [exit] plays its exit animation
+ * (null: it just goes), then [closed] runs. [refresh] shows home's data again after it changed (see refreshOverlay);
+ * false means what it showed is gone, and it closes. Opened and closed only through [OverlayHost].
+ */
+class Overlay(
+    val kind: OverlayKind,
+    val view: View,
+    private val exit: ((done: () -> Unit) -> Unit)? = null,
+    val refresh: (() -> Boolean)? = null,
+    val closed: () -> Unit = {},
+) {
+    internal var host: OverlayHost? = null
+    fun close(animate: Boolean = true) { host?.close(this, animate) }
+    /** Back inside it closes it, with its exit animation. */
+    fun onBack() = close()
+    internal fun playExit(done: () -> Unit) = exit?.let { it(done); true } ?: false
 }
 
-fun MainActivity.closeOverlay() {
-    val v = overlay ?: return
-    overlay = null
-    root.removeView(v)
-    // An exit animation plays in the root's overlay layer: drawn, but already gone for touch, drags and Back.
-    overlayExit?.let { exit -> root.overlay.add(v); exit { root.overlay.remove(v) } }
-    overlayExit = null
-    refillFolder = null
-    if (!drawer.visible) blurHome(false)
-    overlayClosed().also { overlayClosed = {} }
+/** Home's open panel and menu: the only code that sets or clears them. */
+class OverlayHost(private val a: MainActivity) {
+    var panel: Overlay? = null
+        private set
+    var menu: Overlay? = null
+        private set
+
+    /** Opens [o], closing the panel (or menu) it replaces. */
+    fun show(o: Overlay) {
+        if (o.kind == OverlayKind.MENU) close(menu) else close(panel)
+        a.root.addView(o.view)
+        o.host = this
+        if (o.kind == OverlayKind.MENU) menu = o else panel = o
+        if (o.kind.depth) a.blurHome(true)
+    }
+
+    /** [animate] false: it goes at once (a reopen in place, a rebuild, its view already removed). */
+    fun close(o: Overlay?, animate: Boolean = true) {
+        when {
+            o == null -> return
+            o === panel -> panel = null
+            o === menu -> menu = null
+            else -> return // closed already
+        }
+        // Cleared first, so the root's onViewRemoved doesn't close it a second time.
+        a.root.removeView(o.view)
+        // An exit animation plays in the root's overlay layer: drawn, but already gone for touch, drags and Back.
+        if (animate) { a.root.overlay.add(o.view); if (!o.playExit { a.root.overlay.remove(o.view) }) a.root.overlay.remove(o.view) }
+        if (o.kind != OverlayKind.MENU && !a.drawer.visible) a.blurHome(false)
+        o.closed()
+    }
+
+    /** Everything open, without animation: home is about to be built again. */
+    fun closeAll() { close(menu, animate = false); close(panel, animate = false) }
+
+    /** The root lost [v]: an overlay whose view it was is closed, so the state never says open for a view that's gone. */
+    fun removed(v: View) { listOfNotNull(menu, panel).firstOrNull { it.view === v }?.let { close(it, animate = false) } }
 }
+
+fun MainActivity.showOverlay(o: Overlay) = overlays.show(o)
+
+/** Closes the open panel (not a menu over it). */
+fun MainActivity.closeOverlay(animate: Boolean = true) = overlays.close(overlay, animate)
+
+/**
+ * Home's data changed (items, apps, labels, icons): the open panel shows it again, or closes when what it showed is
+ * gone. The one call after a change; render() and the app callbacks make it.
+ */
+fun MainActivity.refreshOverlay() { overlay?.let { o -> if (o.refresh?.invoke() == false) o.close() } }
 
 /** A stable snapshot of the held page; hovering Remove tints the drag shadow without fading it with its source. */
 private class PageDrag(val index: Int, private val source: View, color: Int) : View.DragShadowBuilder(source) {
@@ -219,7 +271,7 @@ private class PageDrag(val index: Int, private val source: View, color: Int) : V
 fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
     drawer.hide()
     // A reopen replaces it at once; only leaving fades it out.
-    if (!enter) overlayExit = null
+    if (!enter) closeOverlay(animate = false)
     // Three tiles per row, each with 6 dp margins on both sides.
     val w = maxOf(1, ((workspace.width - 48 * dp) / 3).toInt())
     val h = maxOf(1, w * workspace.height / maxOf(1, workspace.width))
@@ -339,10 +391,9 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
         }
     })
     val tiles = (0 until grid.childCount).flatMap { r -> (grid.getChildAt(r) as ViewGroup).let { row -> (0 until row.childCount).map(row::getChildAt) } }
-    showOverlay(FrameLayout(this).apply {
+    val panelView = FrameLayout(this).apply {
         // The wallpaper under a dark scrim, as an open folder's: the overview stays on home, not on a grey sheet.
         setBackgroundColor(0xB3000000.toInt())
-        tag = DARK_SCRIM
         setOnClickListener { closeOverlay() }
         // Takes every page drag and its stray drops, so they never reach the home screen's drop targets underneath.
         setOnDragListener { _, e ->
@@ -364,13 +415,13 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
             addView(ScrollView(context).apply { addView(grid) }, LinearLayout.LayoutParams(-1, -2))
         // At the top, not centred: a second row of pages would move every tile up.
         }, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { topMargin = (40 * dp).toInt() })
-    }) { content.alpha = 1f }
-    val panel = overlay!!
+    }
+    val panel = panelView
     // Leaving (a page tapped, a tap outside, Back): it fades out over home, its tiles growing a little, as they settle.
-    overlayExit = { done ->
+    showOverlay(Overlay(OverlayKind.OVERVIEW, panel, exit = { done ->
         tiles.forEach { it.animate().scaleX(1.04f).scaleY(1.04f).setStartDelay(0).setDuration(180).start() }
         panel.animate().alpha(0f).setDuration(180).withEndAction(done).start()
-    }
+    }) { content.alpha = 1f })
     if (enter) {
         panel.alpha = 0f
         panel.animate().alpha(1f).setDuration(180).start()
@@ -420,12 +471,12 @@ fun MainActivity.removePageAt(i: Int, then: () -> Unit = { reopenOverview() }) {
 /** Drag handles on a widget's edges: the widget follows them, and tapping outside keeps the new size. Home stays as it is behind (#121). */
 fun MainActivity.showResize(cell: CellLayout, item: Item, v: View, minW: Int, minH: Int, canW: Boolean, canH: Boolean) {
     val frame = ResizeFrame(this, cell, item, v, minW, minH, canW, canH)
-    showOverlay(frame, depth = false) {
+    showOverlay(Overlay(OverlayKind.RESIZE, frame) {
         val n = frame.result()
         val i = items.indexOf(item)
         if (n != item && i >= 0) replace(i, n)
         else v.layoutParams = CellLayout.CellParams(item.x, item.y, item.w, item.h) // the live preview, undone
-    }
+    })
 }
 
 @SuppressLint("ViewConstructor")

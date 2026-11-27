@@ -607,28 +607,30 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
             override fun onViewDetachedFromWindow(v: View) = v.viewTreeObserver.removeOnGlobalLayoutListener(lift)
         })
     }
-    // A pending shuffle or leave dies with the window: Back during a drag out once left [leave] to hide the drawer 400 ms later.
-    showOverlay(dim, depth = false) { root.removeCallbacks(leave); root.removeCallbacks(shuffle); onRename?.invoke(name.text.toString().trim()) }
+    val corner = looks.int("folderRadius") * dp
+    val iconCorner = anchor?.let { minOf(it.width(), it.height()) * if (looks.str("folderBg") == "square") 0.2f else 0.5f } ?: 0f
+    // The spots the first icons hold in the folder icon's preview, so each flies out of (and back into) its own.
+    val slots = folderPreview(looks.str("folderPreview"), children.take(6).count { resolve(it) != null }, looks.on("folderFirstBig"))
+    // As Launcher3: the whole folder icon hides while open, its label too (it showed under the window).
+    val tile = icon?.parent as? IconView ?: icon
+    // Kept, so a close during the open stops it first: two animators on the same views fought, and the open's end
+    // dropped the shrinking card's outline.
+    var opening: ValueAnimator? = null
+    // Dragging an icon out, Back, or a tap outside: the window shrinks back into its folder.
+    val exit = if (spot == null || anchor == null) null else { done: () -> Unit ->
+        val at = opening?.takeIf { it.isRunning }?.let { it.cancel(); it.animatedValue as Float } ?: 1f
+        reveal(card, cell, footer, anchor, slots, iconCorner, corner, open = false, at = at) { tile?.alpha = 1f; done() }
+    }
     // A folder that's gone (or became a single app) closes; the grid keeps its size, so the last slots stay empty.
     // ponytail: not while an icon is being dragged in here (the rebuild would lose the gap); the drop refills it.
-    if (reload != null) refillFolder = { if (gap < 0) reload()?.let(::fill) ?: closeOverlay() }
+    val refresh = reload?.let { { gap >= 0 || it()?.also(::fill) != null } }
+    // A pending shuffle or leave dies with the window: Back during a drag out once left [leave] to hide the drawer 400 ms later.
+    showOverlay(Overlay(OverlayKind.FOLDER, dim, exit, refresh) {
+        root.removeCallbacks(leave); root.removeCallbacks(shuffle); onRename?.invoke(name.text.toString().trim())
+    })
     if (spot != null && anchor != null) {
-        val corner = looks.int("folderRadius") * dp
-        val iconCorner = minOf(anchor.width(), anchor.height()) * if (looks.str("folderBg") == "square") 0.2f else 0.5f
-        // The spots the first icons hold in the folder icon's preview, so each flies out of (and back into) its own.
-        val slots = folderPreview(looks.str("folderPreview"), children.take(6).count { resolve(it) != null }, looks.on("folderFirstBig"))
-        // As Launcher3: the whole folder icon hides while open, its label too (it showed under the window).
-        val tile = icon?.parent as? IconView ?: icon
         tile?.alpha = 0f
-        // Kept, so a close during the open stops it first: two animators on the same views fought, and the open's end
-        // dropped the shrinking card's outline.
-        var opening: ValueAnimator? = null
         reveal(card, cell, footer, anchor, slots, iconCorner, corner, open = true, started = { opening = it })
-        // Dragging an icon out, Back, or a tap outside: the window shrinks back into its folder.
-        overlayExit = { done ->
-            val at = opening?.takeIf { it.isRunning }?.let { it.cancel(); it.animatedValue as Float } ?: 1f
-            reveal(card, cell, footer, anchor, slots, iconCorner, corner, open = false, at = at) { tile?.alpha = 1f; done() }
-        }
     } else if (!full) {
         card.scaleX = 0.9f; card.scaleY = 0.9f; card.alpha = 0f
         card.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(150).setInterpolator(DecelerateInterpolator()).start()

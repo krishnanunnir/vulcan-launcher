@@ -139,7 +139,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
                     val r = bounds(a.workspace)
                     val p = point(r.centerX(), r.top + r.height() / 3)
                     drag(p, p, ViewConfiguration.getLongPressTimeout() + 250L)
-                    val menu = a.homeMenus.menu ?: error("Hold did not open menu")
+                    val menu = a.homeMenus.menu?.view ?: error("Hold did not open menu")
                     val row = (menu as ViewGroup).getChildAt(0)
                     val card = bounds(a.pages[a.workspace.current]); val buttons = bounds(row)
                     val gap = buttons.top - card.bottom
@@ -333,7 +333,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
             }
             case("#39") {
                 setup(); ui { a.showOverview() }; settle(700)
-                val panel = a.overlay ?: error("No page editor")
+                val panel = a.overlay?.view ?: error("No page editor")
                 val title = text(panel, a.getString(R.string.pages))
                 val tile = all(panel).first { it.contentDescription == a.getString(R.string.page_n, 1) }
                 val r = bounds(tile)

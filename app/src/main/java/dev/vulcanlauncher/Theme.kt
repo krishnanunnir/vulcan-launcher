@@ -496,6 +496,13 @@ fun View.semBlur(radius: Int, tint: Int, corner: Float) {
 }
 
 /**
+ * Dark status bar icons while a light panel ([over], or the drawer when it's null) covers home past halfway ([depth]).
+ * The housing drawer stops below the status bar, over a dimmed home, and a dark scrim stays dark: light icons stay.
+ */
+fun lightStatusIcons(depth: Float, darkTheme: Boolean, over: OverlayKind?, housingDrawer: Boolean, forceDark: Boolean) =
+    depth > 0.5f && !darkTheme && over?.darkScrim != true && (over != null || !housingDrawer) || forceDark
+
+/**
  * How far the home screen sits behind a panel: 0 at rest, 1 under an open panel. It sinks back slightly and blurs:
  * the icons through a RenderEffect, the wallpaper (drawn by the system behind this window) through window blur.
  */
@@ -503,9 +510,7 @@ fun MainActivity.setDepth(p: Float, blur: Boolean = true) {
     depth = p
     // Dark status bar icons while a light panel covers home.
     @Suppress("DEPRECATION") window.decorView.apply {
-        // The housing drawer stops below the status bar, over a dimmed home: light icons stay. So does a dark scrim (Pages).
-        val o = this@setDepth.overlay
-        val light = p > 0.5f && !m3.dark && o?.tag != DARK_SCRIM && (o != null || looks.str("drawerStyle") != "housing") || looks.on("darkStatusIcons")
+        val light = lightStatusIcons(p, m3.dark, this@setDepth.overlay?.kind, looks.str("drawerStyle") == "housing", looks.on("darkStatusIcons"))
         val f = if (light) systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR else systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
         if (f != systemUiVisibility) systemUiVisibility = f
     }
