@@ -41,8 +41,6 @@ class DragController(private val a: MainActivity) {
         private set
 
     fun startDrag(v: View, payload: Any) {
-        // The long-press owns this touch from here: moving on is the drag, not also a swipe gesture or a drawer pull (#129).
-        a.workspace.yieldTouch(); a.dock.yieldTouch()
         if (a.locked) { a.homeMenus.showPopup(v, payload); return }
         dragSource = v
         dragPayload = payload
@@ -67,15 +65,18 @@ class DragController(private val a: MainActivity) {
 
     /** A long-press whose drag starts once the finger moves ([startDrag]); null otherwise. */
     private var pending: (() -> Unit)? = null
-    private val slop by lazy { android.view.ViewConfiguration.get(a).scaledTouchSlop } // lazy: made before the activity has a context
 
-    /** The activity's touch stream: a pending drag starts when the finger moves past the slop, and goes on release. */
+    /** A long-press waits for the finger to move: home's root ([HomeTouch]) then gives the drag the touch and calls [lift]. */
+    val waiting get() = pending != null
+
+    /** Starts the system drag of the waiting long-press. */
+    fun lift() { val p = pending ?: return; pending = null; p() }
+
+    /** The activity's touch stream: a waiting drag goes on release. A new DOWN: an accessibility long-press, which has no touch stream of its own. */
     fun onTouch(ev: MotionEvent) {
-        val p = pending ?: return
+        if (pending == null) return
         when (ev.actionMasked) {
-            MotionEvent.ACTION_MOVE -> if (hypot(ev.x - a.lastDown.x, ev.y - a.lastDown.y) > slop) { pending = null; p() }
-            // Released in place: the menu stays, as a drag that never moved. A new DOWN: an accessibility long-press,
-            // which has no touch stream of its own.
+            // Released in place: the menu stays, as a drag that never moved.
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_DOWN -> { pending = null; dragSource = null }
         }
     }

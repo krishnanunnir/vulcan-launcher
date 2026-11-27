@@ -17,7 +17,6 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction
 import android.widget.LinearLayout
 import android.widget.TextView
-import kotlin.math.abs
 
 /** How an icon looks on one surface (home, dock, drawer, folder). */
 class IconStyle(val sizePx: Int, val labels: Boolean, val labelSize: Float, val labelColor: Int, val shadow: Boolean,
@@ -147,9 +146,6 @@ class IconView(context: Context, label: CharSequence, icon: Drawable, style: Ico
         private set
     val image = IconImage(context, icon, style.iconShadow, badge)
     var onSwipe: (() -> Unit)? = null
-    private val slop = ViewConfiguration.get(context).scaledTouchSlop
-    private var downY = 0f
-    private var downX = 0f
     private val sizePx = style.sizePx
     private val text: TextView? = if (!style.labels) null else TextView(context).apply {
             text = label
@@ -235,23 +231,4 @@ class IconView(context: Context, label: CharSequence, icon: Drawable, style: Ico
     }
 
     override fun onInterceptTouchEvent(ev: MotionEvent) = false
-
-    override fun onTouchEvent(ev: MotionEvent): Boolean {
-        val swipe = onSwipe
-        if (swipe != null) when (ev.actionMasked) {
-            MotionEvent.ACTION_DOWN -> { downX = ev.x; downY = ev.y }
-            MotionEvent.ACTION_MOVE -> {
-                // Claim upward drags before the pager takes them as a home swipe.
-                if (downY - ev.y > slop / 6 && abs(ev.x - downX) < downY - ev.y) parent?.requestDisallowInterceptTouchEvent(true)
-                if (downY - ev.y > slop && abs(ev.x - downX) < downY - ev.y) {
-                cancelLongPress()
-                swipe()
-                ev.action = MotionEvent.ACTION_CANCEL
-                downY = Float.MAX_VALUE.unaryMinus() // ignore the rest of this gesture
-                return super.onTouchEvent(ev)
-                }
-            }
-        }
-        return super.onTouchEvent(ev)
-    }
 }

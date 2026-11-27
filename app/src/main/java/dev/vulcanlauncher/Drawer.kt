@@ -221,7 +221,7 @@ class Drawer(private val a: MainActivity) {
     private lateinit var searchBar: View
 
     /** Focuses search with the keyboard up, showing the bar first when it's turned off. */
-    private fun focusSearch() {
+    internal fun focusSearch() {
         searchBar.visibility = View.VISIBLE
         search.requestFocus()
         a.getSystemService(InputMethodManager::class.java).showSoftInput(search, 0)
@@ -342,6 +342,19 @@ class Drawer(private val a: MainActivity) {
     }
 
     val visible get() = root.visibility == View.VISIBLE
+
+    /** What home's touch arbiter ([HomeTouch]) sees: home (the drawer gone or closing), the drawer open, or moving under a finger or an animation. */
+    internal val touchState: HomeShows get() = when {
+        !visible || motion.anim != null && !motion.settlingOpen -> HomeShows.HOME
+        motion.progress < 1f || motion.held -> HomeShows.DRAWER_MOVING
+        else -> HomeShows.DRAWER
+    }
+
+    // ponytail: the drawer still handles its own pull-down and tabs until its claimants land; then these answer for real.
+    internal fun pullFrom(root: View, x: Float, y: Float) = PullFrom.NONE
+    internal fun tabsAt(root: View, x: Float, y: Float) = false
+    internal fun followClose(down: Float, vy: Float, end: Boolean) {}
+    internal fun followTabs(dx: Float, end: Boolean, vx: Float, cancelled: Boolean) {}
 
     /** The list's pull down (see [PullDown]), only from its top, and pull-to-search when that's on. */
     private val listPull = motion.PullDown(start = { !grid.canScrollVertically(-1) }, search = ::focusSearch)

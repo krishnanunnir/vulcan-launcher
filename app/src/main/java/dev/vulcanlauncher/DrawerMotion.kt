@@ -178,8 +178,6 @@ internal class DrawerMotion(private val a: MainActivity, private val d: Drawer) 
      * if flung up ([vy] px/s, upward positive) or pulled past 30% of [travel]. Returns false for a pull that starts downward.
      */
     fun pull(up: Float, vy: Float, end: Boolean): Boolean {
-        // A menu or overlay held open by this same finger: the swipe is swallowed, not opening the drawer over it.
-        if (!d.visible && (a.homeMenus.menu != null || a.overlay != null)) return true
         if (!end && !d.visible && up <= 0f) return false
         // Once per gesture: a close still animating (held is false until this pull moves) is forgotten too.
         if (!d.visible || !held) d.prepare()

@@ -103,6 +103,8 @@ class MainActivity : VulcanActivity() {
     lateinit var dockPages: List<CellLayout>
     lateinit var dockBox: LinearLayout
     lateinit var indicator: Indicator
+    /** Where a tap or double tap is home's (not an item's): the pages, the dock and the strips between them. */
+    var homeTaps = listOf<View>()
     lateinit var drawer: Drawer
     /** What is open over home: the folder window, desktop previews, resize frame or Now page, and a menu. */
     val overlays = OverlayHost(this)
@@ -297,6 +299,7 @@ class MainActivity : VulcanActivity() {
         val search = looks.str("searchBar")
         buildDock(gesture, search)
         val pagesBox = pagesBox(search)
+        homeTaps = listOfNotNull(workspace, dock, indicator, arrowStrip)
         content = if (!landscape) pagesBox else LinearLayout(this).apply {
             addView(pagesBox, LinearLayout.LayoutParams(0, -1, 1f))
             addView(dockBox, LinearLayout.LayoutParams(-2, -1).apply {
@@ -305,8 +308,6 @@ class MainActivity : VulcanActivity() {
         }
         content.forceHasOverlappingRendering(false) // faded as the drawer opens: no full-screen offscreen buffer (see Drawer.root)
         drawer = Drawer(this)
-        // Swipe up opens the drawer under the finger instead of after the gesture ends.
-        if (looks.str("g_swipeUp") == "drawer") { workspace.onPull = drawer::pull; dock.onPull = drawer::pull }
         // Likewise swipe right on the first page pulls the Now page in under the finger.
         if (looks.str("g_swipeRight") == "now") workspace.onEdgePull = ::pullNow
         drag.dropBar = dropBar()
@@ -399,6 +400,7 @@ class MainActivity : VulcanActivity() {
     }
 
     /** The pages with what sits under them: indicator, swipe arrow, and in portrait the dock. */
+    private var arrowStrip: View? = null
     private fun pagesBox(search: String): LinearLayout {
         val dockHeight = ((looks.int("dockIconSize") + 28 + (if (looks.on("dockLabels")) 22 else 0)) * dp).toInt()
         return LinearLayout(this).apply {
@@ -416,7 +418,9 @@ class MainActivity : VulcanActivity() {
                 workspace.dispatchTouchEvent(ev).also { ev.recycle() }
             }
             if (looks.str("indicator") != "none") addView(indicator.apply { setOnTouchListener(toPages) }, LinearLayout.LayoutParams(-1, (14 * dp).toInt()))
+            arrowStrip = null
             if (looks.on("swipeIndicator")) addView(FrameLayout(context).apply {
+                arrowStrip = this
                 setOnTouchListener(toPages)
                 // Only the arrow itself opens the drawer; it passes its touches on as well, so a swipe can start on it.
                 addView(TextView(context).apply {
@@ -464,10 +468,7 @@ class MainActivity : VulcanActivity() {
     /** Home, the drawer and the drop bar stacked, each kept clear of the system bars. */
     @Suppress("DEPRECATION")
     private fun homeRoot(): FrameLayout {
-        return object : FrameLayout(this) {
-            // A view gone while the state says open: closed, so nothing acts on it later.
-            override fun onViewRemoved(child: View) { super.onViewRemoved(child); overlays.removed(child) }
-        }.apply {
+        return HomeRoot(this).apply {
             addView(content)
             addView(drawer.root)
             addView(drag.dropBar, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
