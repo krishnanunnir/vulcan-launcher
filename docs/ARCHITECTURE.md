@@ -49,6 +49,18 @@ Settings are declared once, as `Choice` entries in `LOOKS` (`Looks.kt`): stored 
 - `rebuild()` starts with one `teardown()`: it closes every overlay (their `closed` callbacks run, so a pending rename is kept), resets drag and depth, hides the drawer and ends home's `Lifetime`.
 - Work deferred against home goes through the lifetime, so a rebuild drops it: `later(ms) {}` for a posted runnable or timer (cancel with `cancelLater`), `lifetime.token()` checked in an animator's update and end or in an async result, and `afterLayout(view) {}` for work that needs a view measured (#70, #111, #117). Long-press timers also check the view still has a parent and window focus. Three waits are left unbound on purpose: a widget being placed (it survives a rebuild), the undo bar's timeout (it finishes a removal) and the Now page's background build (it touches no old views).
 
+## Who owns a touch
+
+Every touch on home has exactly one owner, fixed by the first claim (`Touch.kt`, `HomeRoot`). Home's root sees each event first and feeds it to `HomeTouch`, a pure state machine with ordered claimants: overlay, drag, drawer moving, drawer close, drawer tabs, icon swipe, drawer pull, home gestures. Each claimant is two lambdas, `may` (asked at DOWN) and `claims` (asked on each event until one says yes). Once a claimant has it, the root intercepts and Android cancels every child that had the touch.
+
+- A child claims the touch with `requestDisallowInterceptTouchEvent(true)`: the pager turning a page, a widget stack flipping, a scrolling list, the letter index, the Now page's sideways close, a reorder. After that no root claimant takes it.
+- A second finger is never a new owner mid-stream. It may end a pull where it is; when the followed finger lifts, tracking moves to the one left without a jump (`PointerTrack`).
+- The system drag (`startDragAndDrop`) cancels the touch: that cancel means the drag owns it, and is no gesture (#129).
+- Whatever must happen when a touch ends, even unseen by the view that started it (a widget frame's long-press, the Now page's hold menu), goes through `whenTouchEnds`, which runs once on UP or CANCEL (#60, #105). Timers also check the view still has a parent and window focus.
+- While home shows with nothing open the root excludes itself from the back gesture (all of it as the default home, a 200 dp band otherwise); the resize frame excludes its handles. A DOWN in the mandatory gesture strips (API 30+) gets no claimant (#127).
+
+**A new gesture is a new claimant or a child claim, never a flag.** No synthesised CANCELs, no "ignore the rest of this touch" fields, no second handler for the same swipe: if two places can start the same gesture, the claimant asks where the DOWN was. Each claimant's touches are replayed in `TouchTest`, named by the issue or commit they broke in.
+
 ## Apps and profiles
 
 Apps come from `LauncherApps` for every profile, so work-profile and Private Space apps are included. An app's key is package, class and user serial. A package callback reloads the list when apps change.
