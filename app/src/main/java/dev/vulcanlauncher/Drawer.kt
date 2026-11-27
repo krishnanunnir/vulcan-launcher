@@ -473,6 +473,13 @@ class Drawer(private val a: MainActivity) {
         motion.settle(open = true)
     }
 
+    /** Opens with [text] searched: what a speech-to-text app heard for the mic (#128). */
+    fun searchFor(text: String) {
+        show(false)
+        search.setText(text)
+        search.setSelection(text.length)
+    }
+
     /** Puts the keyboard away and takes the focus off search, as Launcher3's ExtendedEditText.hideKeyboard. */
     internal fun hideKeyboard() {
         a.getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(search.windowToken, 0)

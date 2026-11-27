@@ -444,7 +444,7 @@ class HomeMenus(private val a: MainActivity) {
                     a.dockBox.visibility = if (a.dockBox.visibility != View.VISIBLE) View.VISIBLE else if (a.looks.dockOn) View.INVISIBLE else View.GONE
                     a.coverDock()
                 }
-                "voice" -> startAny(Intent(RecognizerIntent.ACTION_WEB_SEARCH), Intent(Intent.ACTION_VOICE_COMMAND))
+                "voice" -> voice()
                 "assistant" -> startAny(Intent(Intent.ACTION_ASSIST), Intent(Intent.ACTION_VOICE_COMMAND))
                 "settings" -> a.showSettings()
                 "widgets" -> a.widgetFlow.pickWidget()
@@ -493,8 +493,26 @@ class HomeMenus(private val a: MainActivity) {
     }
 
     private fun startAny(vararg intents: Intent) {
-        for (i in intents) try { a.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return } catch (_: ActivityNotFoundException) {}
-        a.toast(R.string.no_app_handles)
+        if (!started(*intents)) a.toast(R.string.no_app_handles)
+    }
+
+    private fun started(vararg intents: Intent): Boolean {
+        for (i in intents) try { a.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return true } catch (_: ActivityNotFoundException) {}
+        return false
+    }
+
+    /**
+     * Voice search, else a speech-to-text app (FUTO Voice Input, Whisper+ on a phone without Google) whose words are searched
+     * here, else the assistant, as Nova tries them (#128).
+     */
+    private fun voice() {
+        if (started(Intent(RecognizerIntent.ACTION_WEB_SEARCH), Intent(Intent.ACTION_VOICE_COMMAND))) return
+        try {
+            a.startActivityForResult(Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM), MainActivity.REQ_VOICE)
+            return
+        } catch (_: ActivityNotFoundException) {}
+        if (!started(Intent("android.intent.action.VOICE_ASSIST"), Intent(Intent.ACTION_ASSIST))) a.toast(R.string.no_voice_app)
     }
 
     /** Hidden StatusBarManager API (needs EXPAND_STATUS_BAR); falls back to the accessibility service. */

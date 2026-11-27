@@ -71,6 +71,7 @@ class MainActivity : VulcanActivity() {
         const val REQ_PERMISSION = 9
         const val REQ_HOME = 10
         const val REQ_ACTION_SHORTCUT = 11
+        const val REQ_VOICE = 12
         /** The live launcher activity, for the on-device check (androidTest/DeviceCheck). */
         var running: java.lang.ref.WeakReference<MainActivity>? = null
     }
@@ -1071,6 +1072,8 @@ class MainActivity : VulcanActivity() {
             REQ_DOC -> data?.data?.takeIf { ok }?.let { uri ->
                 if (pickingDocument?.let { welcome?.picked(it, uri) } != true) restarted()
             }.also { pickingDocument = null }
+            REQ_VOICE -> data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+                ?.takeIf { ok && it.isNotBlank() }?.let(drawer::searchFor)
             REQ_ICON -> data?.data?.takeIf { ok }?.let { uri ->
                 runCatching { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
                 onPickedImage?.invoke(uri) ?: restarted()
