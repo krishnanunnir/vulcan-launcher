@@ -130,6 +130,12 @@ class LooksTest {
         assertEquals(Item(0, MAX_CELL, MAX_CELL, w = MAX_CELL, h = 1), itemsFromJson(itemsToJson(listOf(Item(0, 1, 2, w = Int.MAX_VALUE, h = Int.MIN_VALUE)))).single())
     }
 
+    /** Only settings home reads when used skip the rebuild; a new one is rebuilt for until it's proven otherwise. */
+    @Test fun onlyUseTimeSettingsSkipTheRebuild() {
+        val live = LOOKS.filter { it.reload == Reload.LIVE }.map { it.key }.toSet()
+        assertEquals(GESTURE_KEYS.toSet() - setOf("g_swipeUp", "g_swipeRight") + setOf("homeButton", "homeFirst"), live)
+    }
+
     private companion object {
         const val SETTINGS_BUDGET = 118 // 120 for Widget padding (#121), the owner's yes 2026-11-24; 118 since Pages and Default page are the layout's (2026-11-27)
         const val MAX_SECTION_ROWS = 8

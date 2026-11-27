@@ -81,9 +81,12 @@ class SettingsActivity : VulcanActivity() {
         showPage(state?.getString("page") ?: intent.getStringExtra("page").orEmpty(), state?.getInt("scroll") ?: 0)
     }
 
-    /** A setting changed: home is built again when it shows, and this page now, in the new colours and where it was. */
-    fun changed() {
-        home.stale = true
+    /**
+     * A setting changed: home is built again when it shows unless [reload] says it reads the setting when used, and this
+     * page now, in the new colours and where it was.
+     */
+    fun changed(reload: Reload = Reload.REBUILD) {
+        if (reload == Reload.REBUILD) home.stale = true
         applyOrientation()
         recolor()
         bars()
@@ -340,7 +343,7 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
     fun pickNamed(c: Choice) {
         val names = c.values.indices.map { choiceName(c, it) }
         val checked = c.values.indexOf(looks[c])
-        val onPick = android.content.DialogInterface.OnClickListener { d, j -> d.dismiss(); applyChoice(c, c.values[j]); changed() }
+        val onPick = android.content.DialogInterface.OnClickListener { d, j -> d.dismiss(); applyChoice(c, c.values[j]); changed(c.reload) }
         val d = sheet().setTitle(c.title).setSingleChoiceItems(names.toTypedArray(), checked, onPick)
             .setNegativeButton(R.string.cancel, null).create()
         // Badge and icon shapes are easier to pick from a sample than from a name (#82): wrap the sheet's own rows to keep their style.
@@ -379,7 +382,7 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
                 applyChoice(c, if (toggle.checked) "on" else "off")
             }.apply { readAsSwitch(toggle) }
         }
-        c.action -> listItem(null, getString(c.title), valueName(c)) { pickAction(getString(c.title)) { looks[c] = it; changed() } }
+        c.action -> listItem(null, getString(c.title), valueName(c)) { pickAction(getString(c.title)) { looks[c] = it; changed(c.reload) } }
         // Settings the chosen dock background doesn't use: shown dimmed and saying so, still pickable.
         c.key == "dockAlpha" && looks.str("dockBg") in listOf("housing", "glass", "none") || c.key == "dockColor" && looks.str("dockBg") == "none" ->
             listItem(null, getString(c.title), if (looks.str("dockBg") == "none") getString(R.string.dock_shadow_no_bg)
@@ -762,7 +765,7 @@ private fun SettingsActivity.valueName(c: Choice) = when {
     else -> valueOf(c).let { v -> c.values.indexOf(v).let { i -> if (i >= 0) choiceName(c, i) else v.ifEmpty { getString(R.string.none) } } }
 }
 
-/** Saves a setting, asking for a permission it needs first; home is built again when it shows. */
+/** Saves a setting, asking for a permission it needs first; home is built again when it shows if [Choice.reload] needs it. */
 private fun SettingsActivity.applyChoice(c: Choice, value: String) {
     if (value == valueOf(c)) return
     // Pages and the default page are part of home's layout, stored with it; home is built again when it shows.
@@ -771,7 +774,7 @@ private fun SettingsActivity.applyChoice(c: Choice, value: String) {
         DEFAULT_PAGE_CHOICE -> home.editLayout(redraw = false) { it.withDefault(value.toInt()) }
         else -> looks[c] = value
     }
-    home.stale = true
+    if (c.reload == Reload.REBUILD) home.stale = true
     val perm = when {
         value == "on" && c.key in listOf("contactSearch", "nowContacts") -> android.Manifest.permission.READ_CONTACTS
         value == "on" && c.key == "nowCalendar" -> android.Manifest.permission.READ_CALENDAR

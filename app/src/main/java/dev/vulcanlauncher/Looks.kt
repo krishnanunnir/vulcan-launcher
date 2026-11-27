@@ -11,7 +11,17 @@ class Choice(
     val group: String, val key: String, val title: Int, val default: String,
     val values: List<String>, val names: List<Int> = emptyList(), val shown: List<String> = values, val action: Boolean = false,
     val info: Int = 0, // a toggle's summary line
+    val reload: Reload = Reload.REBUILD,
 )
+
+/**
+ * What a changed setting needs from home. [LIVE]: home reads it each time it's used (a gesture's action), so nothing.
+ * [REBUILD]: home read it while building its views, so it's built again when it next shows. The safe default.
+ */
+enum class Reload { LIVE, REBUILD }
+
+/** Read at build time: the swipe-up drawer pull and the swipe-right Now page pull are wired only when chosen. */
+private val GESTURES_BUILT = setOf("g_swipeUp", "g_swipeRight")
 
 /**
  * Stored value [v] of this setting as a number: its default when unset or not a number, and held within the setting's
@@ -44,8 +54,8 @@ fun paddingOf(v: String): Triple<Int, Int, Int> {
     val n = v.split('x').map { it.toIntOrNull()?.coerceIn(0, PADDING_STEPS.last()) ?: return Triple(0, 0, 0) }
     return when (n.size) { 2 -> Triple(n[0], n[1], n[1]); 3 -> Triple(n[0], n[1], n[2]); else -> Triple(0, 0, 0) }
 }
-private fun onOff(group: String, key: String, title: Int, default: Boolean, info: Int = 0) =
-    Choice(group, key, title, if (default) "on" else "off", listOf("on", "off"), listOf(R.string.on, R.string.off), info = info)
+private fun onOff(group: String, key: String, title: Int, default: Boolean, info: Int = 0, reload: Reload = Reload.REBUILD) =
+    Choice(group, key, title, if (default) "on" else "off", listOf("on", "off"), listOf(R.string.on, R.string.off), info = info, reload = reload)
 private fun sizes(group: String, key: String, title: Int, default: String = "48") =
     Choice(group, key, title, default, range(32, 72, 4), shown = range(32, 72, 4).map { "$it dp" })
 /** As Nova, each icon layout has its own label size; "home" follows the home screen's. */
@@ -219,9 +229,10 @@ val LOOKS = listOf(
     onOff(NOW, "nowCalendar", R.string.set_nowCalendar, false, R.string.set_nowCalendar_info),
     onOff(NOW, "nowContacts", R.string.set_nowContacts, false, R.string.set_nowContacts_info),
     onOff(NOW, "nowApps", R.string.set_nowApps, true),
-) + GESTURE_KEYS.indices.map { Choice(GESTURES, GESTURE_KEYS[it], GESTURE_NAMES[it], GESTURE_DEFAULTS[it], ACTIONS, ACTION_NAMES, action = true) } + listOf(
-    Choice(GESTURES, "homeButton", R.string.set_homeButton, "defaultpage", ACTIONS, ACTION_NAMES, action = true),
-    onOff(GESTURES, "homeFirst", R.string.set_homeFirst, true),
+) + GESTURE_KEYS.indices.map { Choice(GESTURES, GESTURE_KEYS[it], GESTURE_NAMES[it], GESTURE_DEFAULTS[it], ACTIONS, ACTION_NAMES, action = true,
+    reload = if (GESTURE_KEYS[it] in GESTURES_BUILT) Reload.REBUILD else Reload.LIVE) } + listOf(
+    Choice(GESTURES, "homeButton", R.string.set_homeButton, "defaultpage", ACTIONS, ACTION_NAMES, action = true, reload = Reload.LIVE),
+    onOff(GESTURES, "homeFirst", R.string.set_homeFirst, true, reload = Reload.LIVE),
 )
 
 /**
