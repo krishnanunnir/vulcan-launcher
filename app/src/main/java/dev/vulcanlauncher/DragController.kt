@@ -41,6 +41,8 @@ class DragController(private val a: MainActivity) {
         private set
 
     fun startDrag(v: View, payload: Any) {
+        // The long-press owns this touch from here: moving on is the drag, not also a swipe gesture or a drawer pull (#129).
+        a.workspace.yieldTouch(); a.dock.yieldTouch()
         if (a.locked) { a.homeMenus.showPopup(v, payload); return }
         dragSource = v
         dragPayload = payload

@@ -131,7 +131,7 @@ class DeviceCheck : Instrumentation() {
             val h = a.workspace.height.toFloat()
             val cx = w / 2
             val cy = top + h * 0.45f
-            fun check(g: String, startPage: Int, target: Int, gesture: () -> Unit) {
+            fun check(g: String, startPage: Int, target: Int, expect: Int = target, gesture: () -> Unit) {
                 GESTURE_KEYS.forEach { looks.edit().putString(it, "none").commit() }
                 looks.edit().putString("g_$g", "page:$target").commit()
                 // Rebuild installs live drawer/Now pull callbacks from the gesture settings, just as Settings does.
@@ -143,9 +143,9 @@ class DeviceCheck : Instrumentation() {
                 waitForIdleSync(); SystemClock.sleep(600)
                 var page = -1
                 runOnMainSync { page = a.workspace.current }
-                val ok = page == target
+                val ok = page == expect
                 if (!ok) failures++
-                log.append("${if (ok) "PASS" else "FAIL"} $g (page $startPage → $page, expected $target)\n")
+                log.append("${if (ok) "PASS" else "FAIL"} $g (page $startPage → $page, expected $expect)\n")
             }
             val ex = w * 0.9f       // right column: empty on most layouts, so taps don't hit icons
             val ey = top + h * 0.12f
@@ -162,6 +162,15 @@ class DeviceCheck : Instrumentation() {
             check("doubleTapDown", 0, 2) { tap(ex, ey); SystemClock.sleep(80); drag(ex, ey, ex, ey + 600, hold = 0) }
             check("swipeRight", 0, 2) { drag(w * 0.15f, cy, w * 0.85f, cy) }
             check("swipeLeft", 2, 0) { drag(w * 0.85f, cy, w * 0.15f, cy) }
+            // #129: a long-press on an icon owns the touch; moving on from it must not also run the swipe gesture.
+            val icon = Item(0, 1, 1, action = "drawer", label = "Hold")
+            runOnMainSync { a.items.add(icon); a.save() }
+            check("swipeDown", 0, 2, expect = 0) {
+                val at = IntArray(2); var iw = 0; var ih = 0
+                runOnMainSync { a.views[icon]!!.let { it.getLocationOnScreen(at); iw = it.width; ih = it.height } }
+                drag(at[0] + iw / 2f, at[1] + ih / 2f, at[0] + iw / 2f, at[1] + ih / 2f + h * 0.4f, hold = 900)
+            }
+            runOnMainSync { a.items.remove(icon); a.save() }
             log.append(if (failures == 0) "ALL GESTURES PASSED\n" else "$failures FAILED\n")
         } catch (e: Throwable) {
             failures++

@@ -24,7 +24,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 Press Home on the phone and pick **Vulcan**.
 
-On-device gesture check (13 gestures with real multi-touch events) and Nova-import check:
+On-device gesture check (13 gestures with real multi-touch events, and an icon long-press that must not fire one) and Nova-import check:
 
 ```sh
 ./gradlew assembleDebugAndroidTest

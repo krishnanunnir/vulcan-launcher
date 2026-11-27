@@ -313,6 +313,13 @@ class Workspace(context: Context) : ViewGroup(context) {
         return mode != NONE && mode != CHILD
     }
 
+    /**
+     * A long-press took the touch in progress (a drag, an icon's menu): what is left of it is no page swipe, drawer pull
+     * or gesture here (#129). One owner per touch: the pager stands down until the next DOWN.
+     */
+    // A long-press only fires while the touch is still undecided (NONE): once the pager has it, the child was cancelled.
+    fun yieldTouch() { if (mode == NONE) mode = CHILD }
+
     private fun finish(ev: MotionEvent) {
         val tracker = velocity
         tracker?.computeCurrentVelocity(1000)
@@ -321,6 +328,8 @@ class Workspace(context: Context) : ViewGroup(context) {
         val dx = ev.x - downX
         val dy = ev.y - downY
         val last = childCount - 1
+        // A touch taken away (CANCEL: the system drag starting, a parent stepping in) settles the page but is no gesture (#129).
+        val up = ev.actionMasked == MotionEvent.ACTION_UP
         removeCallbacks(hold)
         if (onPageTap != null) when {
             mode == HORIZONTAL -> snapTo(releasePage(fromPage, scrollX / maxOf(1, width).toFloat(), vx, flingV), velocity = vx)
@@ -328,12 +337,12 @@ class Workspace(context: Context) : ViewGroup(context) {
         }
         else when {
             mode == HORIZONTAL && edgePulling -> { snapTo(0); onEdgePull?.invoke(if (ev.actionMasked == MotionEvent.ACTION_UP) edgePx else 0f, vx, true) }
-            mode == HORIZONTAL && current == 0 && dx > slop * 6 && !infinite && scrollX <= 0 -> { snapTo(0); onGesture("swipeRight") }
-            mode == HORIZONTAL && current == last && dx < -slop * 6 && !infinite && scrollX >= last * width -> { snapTo(last); onGesture("swipeLeft") }
+            mode == HORIZONTAL && up && current == 0 && dx > slop * 6 && !infinite && scrollX <= 0 -> { snapTo(0); onGesture("swipeRight") }
+            mode == HORIZONTAL && up && current == last && dx < -slop * 6 && !infinite && scrollX >= last * width -> { snapTo(last); onGesture("swipeLeft") }
             mode == HORIZONTAL -> snapTo(releasePage(fromPage, scrollX / maxOf(1, width).toFloat(), vx, flingV), velocity = vx)
             mode == VERTICAL && pulling -> onPull?.invoke(-dy - slop, -vy, true)
-            mode == VERTICAL && dy < -slop * 3 -> onGesture(if (doubleTapDown) "doubleTapUp" else "swipeUp")
-            mode == VERTICAL && dy > slop * 3 -> onGesture(if (doubleTapDown) "doubleTapDown" else "swipeDown")
+            mode == VERTICAL && up && dy < -slop * 3 -> onGesture(if (doubleTapDown) "doubleTapUp" else "swipeUp")
+            mode == VERTICAL && up && dy > slop * 3 -> onGesture(if (doubleTapDown) "doubleTapDown" else "swipeDown")
         }
         if (mode != NONE) lastTapUp = 0
         velocity?.recycle(); velocity = null; mode = NONE; doubleTapDown = false; pulling = false; edgePulling = false
