@@ -448,11 +448,13 @@ private fun readPackXml(res: Resources, pkg: String, name: String, read: (XmlPul
 /**
  * Packs already parsed, by package and that package's [android.content.pm.PackageInfo.lastUpdateTime], so picking an
  * icon from a pack that isn't the active one costs no XML parse (#100). Concurrent: icons are also made on the prefetch thread.
+ * And by the system colours: a pack's resources keep the ones they were loaded with, and its icons can be drawn in them (#133).
  */
-private val parsedPacks = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, IconPack>>()
+private val parsedPacks = java.util.concurrent.ConcurrentHashMap<String, Pair<String, IconPack>>()
 
 fun loadIconPack(context: Context, pkg: String): IconPack? = runCatching {
-    val version = context.packageManager.getPackageInfo(pkg, 0).lastUpdateTime
+    val version = "${context.packageManager.getPackageInfo(pkg, 0).lastUpdateTime}|" +
+        (if (android.os.Build.VERSION.SDK_INT >= 31) context.getColor(android.R.color.system_accent1_500) else 0)
     parsedPacks[pkg]?.takeIf { it.first == version }?.let { return it.second }
     val res = context.packageManager.getResourcesForApplication(pkg)
     val filter = Appfilter()
@@ -585,12 +587,14 @@ class Icons(private val context: Context, private val looks: Looks) {
 
     /**
      * Everything that shapes an icon here, for [AppCache]: the pack and its version, the options, the size, the themed
-     * colours and the system's adaptive-icon mask, which a theme can change. Dark mode only through the themed colours:
+     * colours, the system's own colours and its adaptive-icon mask, which a theme can change. Dark mode only through the themed colours:
      * with it in, every day/night flip redrew every icon.
      * ponytail: an app's own night icon variant (rare) shows after its next update; key the cache per mode if one matters.
      */
     val signature: String = listOf(looks.iconPack, pack?.let { runCatching { context.packageManager.getPackageInfo(it.pkg, 0).lastUpdateTime }.getOrNull() },
         looks.str("shape"), looks.str("reshape"), looks.on("normalize"), looks.on("autogen"), size, themeColors,
+        // The system colours, which a pack's icons (Lawnicons) can be drawn in, even with themed icons off (#133).
+        if (android.os.Build.VERSION.SDK_INT >= 31) context.getColor(android.R.color.system_accent1_500) else null,
         context.resources.getIdentifier("config_icon_mask", "string", "android").takeIf { it != 0 }?.let { context.resources.getString(it) },
     ).joinToString("|")
 
