@@ -232,6 +232,7 @@ class Workspace(context: Context) : ViewGroup(context) {
                     hold = home.later(ViewConfiguration.getLongPressTimeout().toLong()) {
                         if (mode == NONE && parent != null && hasWindowFocus()) { mode = DONE; onPageHold?.invoke(pageAt(downX, downY)) }
                     }
+                    home.whenTouchEnds { home.cancelLater(hold) }
                 }
             }
             MotionEvent.ACTION_MOVE -> if (mode == NONE) {

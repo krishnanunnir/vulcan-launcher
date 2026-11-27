@@ -122,22 +122,27 @@ class Reorder(private val a: VulcanActivity, private val rows: List<View>, priva
                     if (r.translationY != shift.toFloat()) r.animate().translationY(shift.toFloat()).setDuration(150).start()
                 }
             }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                // A cancelled drag (the system took the touch) goes back to where it started.
-                val f = from; val t = if (ev.actionMasked == MotionEvent.ACTION_CANCEL) from else to
-                from = -1
-                settling = true
-                // Settle into the slot it was dropped on, then hand the new order over (which rebuilds the rows).
-                val land = (tops[t] - tops[f] + if (t > f) heights[t] - heights[f] else 0).toFloat()
-                row.animate().translationY(land).scaleX(1f).scaleY(1f).translationZ(0f).setDuration(150).withEndAction {
-                    settling = false
-                    rows.forEach { it.translationY = 0f }
-                    if (lifted === row) { row.background = null; lifted = null }
-                    if (t != f) onDrop(f, t)
-                }.start()
-            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> release(ev.actionMasked == MotionEvent.ACTION_UP)
         }
         return true
+    }
+
+    /** The touch ended ([up]: let go, else taken away): the row settles, once however often this is called. */
+    fun release(up: Boolean) {
+        if (from < 0) return
+        val row = rows[from]
+        // A cancelled drag (the system took the touch) goes back to where it started.
+        val f = from; val t = if (up) to else from
+        from = -1
+        settling = true
+        // Settle into the slot it was dropped on, then hand the new order over (which rebuilds the rows).
+        val land = (tops[t] - tops[f] + if (t > f) heights[t] - heights[f] else 0).toFloat()
+        row.animate().translationY(land).scaleX(1f).scaleY(1f).translationZ(0f).setDuration(150).withEndAction {
+            settling = false
+            rows.forEach { it.translationY = 0f }
+            if (lifted === row) { row.background = null; lifted = null }
+            if (t != f) onDrop(f, t)
+        }.start()
     }
 
     /** A drag handle for [row]: touching it starts the drag at once. */
