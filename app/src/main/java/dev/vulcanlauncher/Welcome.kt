@@ -43,7 +43,7 @@ fun MainActivity.markWelcome() {
     if (store.isNew && !store.data.contains(WELCOME)) store.data.edit().putBoolean(WELCOME, true).apply()
 }
 
-private val MainActivity.welcome get() = root.findViewWithTag<WelcomeView>(WELCOME)
+val MainActivity.welcome get() = root.findViewWithTag<WelcomeView>(WELCOME)
 val MainActivity.welcoming get() = welcome != null
 
 fun MainActivity.isDefaultHome() = packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME),
@@ -246,7 +246,7 @@ class WelcomeView(private val a: MainActivity, import: Pair<ImportedLayout, Map<
             }
             else -> {
                 addView(primary(R.string.welcome_nova) { pickNova() }, keyParams())
-                addView(secondary(R.string.welcome_restore) { pick { a.restoreBackup(it, ::begin) } }, keyParams(gap = 12f))
+                addView(secondary(R.string.welcome_restore) { pick("restore") }, keyParams(gap = 12f))
                 addView(quiet(R.string.welcome_fresh) { finish() }, keyParams(gap = 8f, h = 48f))
             }
         }
@@ -295,12 +295,24 @@ class WelcomeView(private val a: MainActivity, import: Pair<ImportedLayout, Map<
     }
 
     /** A Nova backup from the file picker: read now, so a file that isn't one is said at once, then the review. */
-    private fun pickNova() = pick { uri ->
-        a.readForReview(uri)?.let {
-            picked = it
-            if ("review" !in steps) steps += "review"
-            go(steps.indexOf("review"), again = true)
+    private fun pickNova() = pick("nova")
+
+    /**
+     * The document picker's answer for [key] (see [pick]). By key, not a callback: a launcher restarted while the
+     * picker was open (rotation, the system reclaiming it) builds the welcome again, and the answer still lands.
+     */
+    fun picked(key: String, uri: android.net.Uri): Boolean {
+        when (key) {
+            "restore" -> a.restoreBackup(uri, ::begin)
+            // A Nova backup: read now, so a file that isn't one is said at once, then the review.
+            "nova" -> a.readForReview(uri)?.let {
+                picked = it
+                if ("review" !in steps) steps += "review"
+                go(steps.indexOf("review"), again = true)
+            }
+            else -> return false
         }
+        return true
     }
 
     private fun keyParams(gap: Float = 0f, h: Float = 56f) = LinearLayout.LayoutParams(-1, px(h)).apply { topMargin = px(gap) }
@@ -389,8 +401,8 @@ class WelcomeView(private val a: MainActivity, import: Pair<ImportedLayout, Map<
         runCatching { a.startActivity(Intent(android.provider.Settings.ACTION_HOME_SETTINGS)) }
     }
 
-    private fun pick(onPicked: (android.net.Uri) -> Unit) {
-        a.onDocument = onPicked
+    private fun pick(key: String) {
+        a.pickingDocument = key
         a.startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"), MainActivity.REQ_DOC)
     }
 

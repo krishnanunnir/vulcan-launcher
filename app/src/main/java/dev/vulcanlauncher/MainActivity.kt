@@ -115,8 +115,10 @@ class MainActivity : VulcanActivity() {
     var barHidden = false
     val widgetFlow = WidgetFlow(this)
     val iconViews = ArrayList<IconView>()
+    /** Gets the gallery picker's image for the open edit dialog, which a restart closes (see [restarted]). */
     var onPickedImage: ((Uri) -> Unit)? = null
-    var onDocument: ((Uri) -> Unit)? = null
+    /** What the open document picker is for, as a key the welcome knows: kept across a restart (onSaveInstanceState). */
+    var pickingDocument: String? = null
 
     /** Subgrid factor of the grid, set when home is built (onCreate, [rebuild]). */
     var sub = 1
@@ -147,6 +149,7 @@ class MainActivity : VulcanActivity() {
     @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pickingDocument = savedInstanceState?.getString("pickingDocument")
         if (handOffToHome()) return
         if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0) {
             // Debug builds only: log main-thread disk and network access, and leaked activities and registrations.
@@ -509,6 +512,7 @@ class MainActivity : VulcanActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putInt("page", workspace.current)
+        outState.putString("pickingDocument", pickingDocument)
     }
 
     override fun onDestroy() {
@@ -1046,7 +1050,9 @@ class MainActivity : VulcanActivity() {
                 }
                 if (added) reloadItems()
             }
-            REQ_DOC -> data?.data?.takeIf { ok }?.let { onDocument?.invoke(it) ?: restarted() }.also { onDocument = null }
+            REQ_DOC -> data?.data?.takeIf { ok }?.let { uri ->
+                if (pickingDocument?.let { welcome?.picked(it, uri) } != true) restarted()
+            }.also { pickingDocument = null }
             REQ_ICON -> data?.data?.takeIf { ok }?.let { uri ->
                 runCatching { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
                 onPickedImage?.invoke(uri) ?: restarted()
