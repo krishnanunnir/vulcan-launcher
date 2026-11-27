@@ -88,19 +88,23 @@ fun importToItems(rows: List<ImportRow>, screenRank: Map<Long, Int>, dockCols: I
             else -> leaf(r)
         }
         if (base == null) { skipped++; continue }
-        out += if (r.container == -101L) {
+        val item = if (r.container == -101L) {
             // Never below 0: a negative position would land on a home page.
-            val pos = (if (r.cellX >= 0) r.cellX else r.screen.toDouble()).roundToInt().coerceAtLeast(0)
+            val pos = cell(if (r.cellX >= 0) r.cellX else r.screen.toDouble()).coerceAtLeast(0)
             base.copy(page = -1 - pos / dockCols, x = pos % dockCols, y = 0)
         } else {
             // An unlisted screen is taken as a page number; a negative one (or one past Int) must not become a dock page.
             val page = screenRank[r.screen] ?: r.screen.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
-            base.copy(page = page, x = (r.cellX * f).roundToInt(), y = (r.cellY * f).roundToInt(),
-                w = maxOf(1, (r.spanX * f).roundToInt()), h = maxOf(1, (r.spanY * f).roundToInt()))
+            base.copy(page = page, x = cell(r.cellX * f), y = cell(r.cellY * f), w = cell(r.spanX * f), h = cell(r.spanY * f))
         }
+        // Held to what home can place, as a stored layout is (an off-grid cell moves to the first free one).
+        wellFormed(item)?.let { out += it } ?: skipped++
     }
     return ImportedLayout(out, subgrid, skipped)
 }
+
+/** A cell or span from a backup row, in whole cells: NaN (which roundToInt throws on) is -1, off the grid. */
+private fun cell(d: Double) = if (d.isNaN()) -1 else d.roundToInt()
 
 /** Vulcan settings from the backup's preferences XML (only the grid and page settings carry over). */
 fun importedPrefs(xml: String): Map<String, String> {
@@ -110,7 +114,7 @@ fun importedPrefs(xml: String): Map<String, String> {
         "dock_grid_cols" to "dockCols", "dock_pages_count" to "dockPages", "drawer_app_grid_cols" to "drawerCols", "drawer_app_grid_rows" to "drawerRows")
     // Kept within what the setting allows: a value outside it shows wrong in settings and is refused by a later restore.
     return map.mapNotNull { (theirs, ours) ->
-        val allowed = LOOKS.first { it.key == ours }.values
+        val allowed = choiceOf(ours)!!.values
         values[theirs]?.toIntOrNull()?.let { ours to it.coerceIn(allowed.first().toInt(), allowed.last().toInt()).toString() }
     }.toMap()
 }

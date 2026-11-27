@@ -11,7 +11,17 @@ class Choice(
     val group: String, val key: String, val title: Int, val default: String,
     val values: List<String>, val names: List<Int> = emptyList(), val shown: List<String> = values, val action: Boolean = false,
     val info: Int = 0, // a toggle's summary line
+    val reload: Reload = Reload.REBUILD,
 )
+
+/**
+ * What a changed setting needs from home. [LIVE]: home reads it each time it's used (a gesture's action), so nothing.
+ * [REBUILD]: home read it while building its views, so it's built again when it next shows. The safe default.
+ */
+enum class Reload { LIVE, REBUILD }
+
+/** Read at build time: the swipe-up drawer pull and the swipe-right Now page pull are wired only when chosen. */
+private val GESTURES_BUILT = setOf("g_swipeUp", "g_swipeRight")
 
 /**
  * Stored value [v] of this setting as a number: its default when unset or not a number, and held within the setting's
@@ -44,8 +54,8 @@ fun paddingOf(v: String): Triple<Int, Int, Int> {
     val n = v.split('x').map { it.toIntOrNull()?.coerceIn(0, PADDING_STEPS.last()) ?: return Triple(0, 0, 0) }
     return when (n.size) { 2 -> Triple(n[0], n[1], n[1]); 3 -> Triple(n[0], n[1], n[2]); else -> Triple(0, 0, 0) }
 }
-private fun onOff(group: String, key: String, title: Int, default: Boolean, info: Int = 0) =
-    Choice(group, key, title, if (default) "on" else "off", listOf("on", "off"), listOf(R.string.on, R.string.off), info = info)
+private fun onOff(group: String, key: String, title: Int, default: Boolean, info: Int = 0, reload: Reload = Reload.REBUILD) =
+    Choice(group, key, title, if (default) "on" else "off", listOf("on", "off"), listOf(R.string.on, R.string.off), info = info, reload = reload)
 private fun sizes(group: String, key: String, title: Int, default: String = "48") =
     Choice(group, key, title, default, range(32, 72, 4), shown = range(32, 72, 4).map { "$it dp" })
 /** As Nova, each icon layout has its own label size; "home" follows the home screen's. */
@@ -89,11 +99,17 @@ val GROUP_TITLES = mapOf(HOME to R.string.group_home, DOCK_GROUP to R.string.gro
     GESTURES to R.string.group_gestures, NOW to R.string.group_now, SEARCH_GROUP to R.string.group_search,
     TABS_GROUP to R.string.group_tabs, DRAWER_FOLDERS to R.string.group_drawer_folders)
 
+/**
+ * Pages and Default page: rows in Settings, but stored with the layout (Store, layout version 3) so they change in the
+ * same write as the items. Not in [LOOKS]; [SECTIONS] lists them as "@pages" and "@defaultPage".
+ */
+val PAGES_CHOICE = Choice(HOME, "pages", R.string.set_pages, "1", range(1, MAX_PAGES))
+val DEFAULT_PAGE_CHOICE = Choice(HOME, "defaultPage", R.string.set_defaultPage, "0", range(0, MAX_PAGES - 1), shown = range(1, MAX_PAGES))
+val PAGE_CHOICES = listOf(PAGES_CHOICE, DEFAULT_PAGE_CHOICE)
+
 val LOOKS = listOf(
     Choice(HOME, "cols", R.string.set_cols, "5", range(3, 12)),
     Choice(HOME, "rows", R.string.set_rows, "6", range(3, 12)),
-    Choice(HOME, "pages", R.string.set_pages, "1", range(1, 9)),
-    Choice(HOME, "defaultPage", R.string.set_defaultPage, "0", range(0, 8), shown = range(1, 9)),
     onOff(HOME, "subgrid", R.string.set_subgrid, false, R.string.set_subgrid_info),
     sizes(HOME, "iconSize", R.string.set_iconSize, "64"),
     // As Nova's Padding: one row holding both, left and right x top and bottom (#96). SettingsUi.paddingRow edits it.
@@ -213,9 +229,10 @@ val LOOKS = listOf(
     onOff(NOW, "nowCalendar", R.string.set_nowCalendar, false, R.string.set_nowCalendar_info),
     onOff(NOW, "nowContacts", R.string.set_nowContacts, false, R.string.set_nowContacts_info),
     onOff(NOW, "nowApps", R.string.set_nowApps, true),
-) + GESTURE_KEYS.indices.map { Choice(GESTURES, GESTURE_KEYS[it], GESTURE_NAMES[it], GESTURE_DEFAULTS[it], ACTIONS, ACTION_NAMES, action = true) } + listOf(
-    Choice(GESTURES, "homeButton", R.string.set_homeButton, "defaultpage", ACTIONS, ACTION_NAMES, action = true),
-    onOff(GESTURES, "homeFirst", R.string.set_homeFirst, true),
+) + GESTURE_KEYS.indices.map { Choice(GESTURES, GESTURE_KEYS[it], GESTURE_NAMES[it], GESTURE_DEFAULTS[it], ACTIONS, ACTION_NAMES, action = true,
+    reload = if (GESTURE_KEYS[it] in GESTURES_BUILT) Reload.REBUILD else Reload.LIVE) } + listOf(
+    Choice(GESTURES, "homeButton", R.string.set_homeButton, "defaultpage", ACTIONS, ACTION_NAMES, action = true, reload = Reload.LIVE),
+    onOff(GESTURES, "homeFirst", R.string.set_homeFirst, true, reload = Reload.LIVE),
 )
 
 /**
@@ -224,7 +241,7 @@ val LOOKS = listOf(
  */
 val SECTIONS: Map<String, List<Pair<Int, List<String>>>> = mapOf(
     HOME to listOf(
-        R.string.sec_layout to listOf("cols", "rows", "pages", "defaultPage", "subgrid", "iconSize", "pageMargin", "@dock"),
+        R.string.sec_layout to listOf("cols", "rows", "@pages", "@defaultPage", "subgrid", "iconSize", "pageMargin", "@dock"),
         R.string.sec_labels to listOf("labels", "labelSize", "labelColor", "labelFont", "labelLines", "labelShadow"),
         R.string.sec_search to listOf("searchBar"),
         R.string.sec_scroll to listOf("wallpaperScroll", "scrollEffect", "infiniteScroll", "indicator"),
@@ -279,6 +296,8 @@ val PRE_NOVA_DEFAULTS = mapOf("cols" to "4", "pages" to "3", "searchBar" to "off
 
 /** Settings in their own SharedPreferences. Changing one rebuilds home (MainActivity.rebuild). */
 class Looks(context: Context) {
+    /** Where the page settings live since layout version 3 ([Store.adoptPages]). */
+    private val layout = context.getSharedPreferences("layout", Context.MODE_PRIVATE)
     private val prefs = context.getSharedPreferences("looks", Context.MODE_PRIVATE).apply {
         // Before 0.16 the home button had its own values; "default" is now the "defaultpage" action.
         if (getString("homeButton", null) == "default") edit().putString("homeButton", "defaultpage").apply()
@@ -292,7 +311,7 @@ class Looks(context: Context) {
         val e = prefs.edit()
         if (!prefs.contains("defaults")) {
             e.putString("defaults", "nova")
-            if (upgrade) PRE_NOVA_DEFAULTS.forEach { (k, v) -> if (!prefs.contains(k)) e.putString(k, v) }
+            if (upgrade) PRE_NOVA_DEFAULTS.forEach { (k, v) -> if (!prefs.contains(k) && !layout.contains(k)) e.putString(k, v) }
         }
         // 0.32: folder icons follow the icon shape; an install from before keeps the square it had.
         if (!prefs.contains("defaults032")) {
@@ -326,7 +345,6 @@ class Looks(context: Context) {
 
     val cols get() = int("cols")
     val rows get() = int("rows")
-    val pages get() = int("pages")
     val dockOn get() = on("dock")
     val dockCols get() = int("dockCols")
     val dockPages get() = int("dockPages")

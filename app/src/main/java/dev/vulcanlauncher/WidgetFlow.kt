@@ -122,15 +122,12 @@ class WidgetFlow(private val a: MainActivity) {
     /** Takes the shown widget out of its stack to the first free spot (this page first), as a widget of its own. */
     fun unstack(item: Item) {
         val id = shownWidget(item)
-        val spot = firstFreeSpot(a.items.filter { !isDock(it.page) }, a.looks.pages, a.looks.cols * a.sub, a.looks.rows * a.sub, item.w, item.h, item.page)
+        val spot = firstFreeSpot(a.items.filter { !isDock(it.page) }, a.pageLayout.pages, a.looks.cols * a.sub, a.looks.rows * a.sub, item.w, item.h, item.page)
         if (spot == null) { a.toast(R.string.no_room); return }
         val i = a.items.indexOf(item)
         if (i < 0) return // a second tap while the menu fades: the first already took it out
-        a.items[i] = item.withWidgets(item.widgetIds - id)!!
-        a.items += Item(spot.page, spot.x, spot.y, item.w, item.h, widgetId = id)
         stackShown.remove(item.widgetId)
-        a.save()
-        a.render()
+        a.editItems { it[i] = item.withWidgets(item.widgetIds - id)!!; it += Item(spot.page, spot.x, spot.y, item.w, item.h, widgetId = id) }
         a.workspace.snapTo(spot.page)
     }
 
@@ -336,7 +333,7 @@ class WidgetFlow(private val a: MainActivity) {
         if (widgetToNow) {
             widgetToNow = false
             a.saveNowCards(a.nowCards() + Item(0, 0, 0, widgetId = id))
-            if (a.overlay is NowPanel) a.reopenNow()
+            if (a.overlay?.kind == OverlayKind.NOW) a.reopenNow()
             return
         }
         pendingSlot?.let { slot ->
@@ -396,8 +393,8 @@ class WidgetFlow(private val a: MainActivity) {
      */
     fun dropForeignWidgets() {
         val s = a.looks.sub // the restored setting; load converts the restored layout to it
-        a.store.save(restoredWidgets(a.store.load(s), { a.awm.getAppWidgetInfo(it)?.provider?.let { p -> "${p.packageName}/${p.className}" } },
-            { slotProvider(it) != null }), s)
+        a.store.editLayout(s) { l -> l.copy(items = restoredWidgets(l.items, { a.awm.getAppWidgetInfo(it)?.provider?.let { p -> "${p.packageName}/${p.className}" } },
+            { slotProvider(it) != null })) }
     }
 }
 

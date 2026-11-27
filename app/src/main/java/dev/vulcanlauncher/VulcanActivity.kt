@@ -156,7 +156,7 @@ abstract class VulcanActivity : Activity() {
     fun pickAction(title: String, folder: Boolean = false, shortcut: Boolean = true, onPicked: (String) -> Unit) {
         val extra = listOfNotNull<Triple<String, Int, () -> Unit>>(
             Triple("carousel", R.string.jump_to_page_item) {
-                sheet().setTitle(R.string.page).setItems(Array(looks.pages) { getString(R.string.page_n, it + 1) }) { _, p -> onPicked("page:$p") }.show()
+                sheet().setTitle(R.string.page).setItems(Array(home.pageLayout.pages) { getString(R.string.page_n, it + 1) }) { _, p -> onPicked("page:$p") }.show()
             },
             Triple("apps", R.string.open_app_item) { pickApp(getString(R.string.open_app)) { onPicked("app:${it.key}") } },
             if (shortcut) Triple("link", R.string.app_shortcut_item) { pickShortcut(onPicked) } else null,

@@ -92,11 +92,11 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
         ui {
             t.targetContext.getSharedPreferences("looks", 0).edit().clear().commit()
             t.targetContext.getSharedPreferences("data", 0).edit().clear().commit()
-            mapOf("pages" to "3", "nowPage" to "off", "searchBar" to "off", "drawerStyle" to "grid").plus(prefs).forEach { (k,v) -> a.looks[k] = v }
-            a.items = mutableListOf(Item(0, 1, 2, action = "drawer", label = "Repro swipe", swipe = "page:2"),
+            mapOf("nowPage" to "off", "searchBar" to "off", "drawerStyle" to "grid").plus(prefs).forEach { (k,v) -> a.looks[k] = v }
+            a.editLayout(redraw = false) { PageLayout(listOf(Item(0, 1, 2, action = "drawer", label = "Repro swipe", swipe = "page:2"),
                 Item(0, 0, 4, folder = true, label = "Repro folder", children = children()),
-                Item(DOCK, 0, 0, action = "drawer", label = "Dock"))
-            a.save(); a.rebuild(); a.workspace.snapTo(0, false)
+                Item(DOCK, 0, 0, action = "drawer", label = "Dock")), 3, 0) }
+            a.rebuild(); a.workspace.snapTo(0, false)
         }; settle()
     }
     private fun children() = a.repo.apps.values.filter { !a.repo.spaces.isPrivate(it) }.take(6).map { Item(0,0,0,pkg=it.pkg,cls=it.cls,user=it.serial) }
@@ -170,23 +170,23 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 check("#21",field(a.drawer,"tab") == next,"left swipe selected=${field(a.drawer,"tab")}, expected=$next"); shot("21-tab-swipe")
                 setup("folderWindow" to "fullscreen")
                 val folder=a.items.first { it.folder }; tap(a.views[folder]!!); shot("23-fullscreen-folder")
-                val cells=all(a.overlay!!).filterIsInstance<CellLayout>().single(); val cr=rect(cells)
+                val cells=all(a.overlay!!.view).filterIsInstance<CellLayout>().single(); val cr=rect(cells)
                 check("#23",abs(cr.centerY()-a.root.height/2) < a.root.height/4,"folder grid=$cr screenHeight=${a.root.height}")
                 setup("folderWindow" to "popup", "folderCols" to "3", "folderRows" to "1")
                 val f25=a.items.first { it.folder }; tap(a.views[f25]!!); shot("25-folder-3x1")
-                val g25=all(a.overlay!!).filterIsInstance<CellLayout>().single(); val sv25=g25.parent as View
+                val g25=all(a.overlay!!.view).filterIsInstance<CellLayout>().single(); val sv25=g25.parent as View
                 check("#25/grid",g25.cols==3 && g25.rows==2 && sv25.height*2 <= g25.height+2,"6 apps, Columns 3, Rows 1: cols=${g25.cols} rows=${g25.rows} shown=${sv25.height}px of ${g25.height}px")
                 clean(); val s=settings(FOLDERS); shot("25-folder-settings")
                 check("#25",LOOKS.any { it.group==FOLDERS && it.key.contains("Cols") } && LOOKS.any { it.group==FOLDERS && it.key.contains("Rows") },"folder settings keys=${LOOKS.filter { it.group==FOLDERS }.map { it.key }}")
             }
             case("#1") {
                 setup(); val folder=a.items.first { it.folder }; tap(a.views[folder]!!)
-                val c=all(a.overlay!!).filterIsInstance<CellLayout>().single(); val icons=all(c).filterIsInstance<IconView>()
+                val c=all(a.overlay!!.view).filterIsInstance<CellLayout>().single(); val icons=all(c).filterIsInstance<IconView>()
                 val before=folder.children.map { it.appKey }; drag(rect(icons[0]),rect(icons[2]),500,ViewConfiguration.getLongPressTimeout()+200L)
                 val after=a.items.first { it.folder }.children.map { it.appKey }
                 check("#1/reorder",before!=after && after[2]==before[0],"folder reorder before=$before after=$after"); shot("01-folder-reordered")
                 setup(); val controlFolder=a.items.first { it.folder }; tap(a.views[controlFolder]!!)
-                val controlIcons=all(a.overlay!!).filterIsInstance<IconView>()
+                val controlIcons=all(a.overlay!!.view).filterIsInstance<IconView>()
                 drag(rect(controlIcons[0]),rect(controlIcons[2]),500,ViewConfiguration.getLongPressTimeout()+200L) { ui { a.homeMenus.closeMenu() } }
                 val controlled=a.items.first { it.folder }.children.map { it.appKey }
                 note("#1/reorder-control","DIAGNOSTIC","same drag with long-press menu suppressed: children=$controlled; expected target=${before[0]} at index2")
@@ -194,7 +194,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 val r=rect(a.workspace); drag(Rect(150,r.centerY(),150,r.centerY()),Rect(900,r.centerY(),900,r.centerY()))
                 check("#1/now",a.overlay==null && a.workspace.current==0,"Now page disabled: overlay=${a.overlay!=null}, page=${a.workspace.current}")
                 setup(); val f=a.items.first { it.folder }; tap(a.views[f]!!)
-                val card=(a.overlay as ViewGroup).getChildAt(0); val cardR=rect(card); val dockR=rect(a.dockBox)
+                val card=(a.overlay!!.view as ViewGroup).getChildAt(0); val cardR=rect(card); val dockR=rect(a.dockBox)
                 check("#1/dock",cardR.bottom<=dockR.top,"popup=$cardR dock=$dockR"); shot("01-popup-dock")
                 note("#1/smoothness","LIMITED","Swipe executed; subjective smoothness and reporter device frame rate not established by emulator")
             }
@@ -288,7 +288,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 val homeLabel=all(a.views[a.items.first()]!!).filterIsInstance<TextView>().first()
                 check("#11/home",abs(homeLabel.textSize/a.resources.displayMetrics.scaledDensity-8)<0.1,"home label measured ${homeLabel.textSize/a.resources.displayMetrics.scaledDensity}sp")
                 tap(a.views[a.items.first { it.folder }]!!)
-                val folderLabel=all(a.overlay!!).filterIsInstance<IconView>().first().let { all(it).filterIsInstance<TextView>().first() }
+                val folderLabel=all(a.overlay!!.view).filterIsInstance<IconView>().first().let { all(it).filterIsInstance<TextView>().first() }
                 check("#11/folder",abs(folderLabel.textSize/a.resources.displayMetrics.scaledDensity-20)<0.1,"folder label measured ${folderLabel.textSize/a.resources.displayMetrics.scaledDensity}sp"); shot("11-folder-label-size")
                 clean()
                 val cm=a.getSystemService(android.hardware.camera2.CameraManager::class.java)
@@ -365,7 +365,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 note("#19","NOT_A_BUG","Thank-you message; no reproduction steps")
             }
         } finally {
-            runCatching { clean(); ui { a.store.import(original,a.repo::mainActivity); a.items=a.store.load(a.sub); a.rebuild() } }
+            runCatching { clean(); ui { a.store.import(original,a.repo::mainActivity); a.editLayout(redraw = false) { a.store.load(a.sub) }; a.rebuild() } }
                 .onSuccess { dropAuditBackup(a) }.onFailure { note("RESTORE","ERROR",it.stackTraceToString()) }
             for(name in listOf("layout","looks","data")) t.targetContext.getSharedPreferences(name,0).edit().commit()
             File(out,"results.txt").writeText(log.toString())

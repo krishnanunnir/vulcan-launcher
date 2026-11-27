@@ -16,7 +16,7 @@ import kotlin.math.sin
  * On-device check of the home gestures with real multi-touch MotionEvents (which `adb input` can't send), dispatched into the launcher window.
  * Each gesture is mapped to "jump to page N" and the resulting page is checked. Settings are restored afterwards.
  * Run: adb shell am instrument -w dev.vulcanlauncher.test/dev.vulcanlauncher.DeviceCheck  (add -e check import for the import check,
- * -e check readable for the readable backup, -e check pages for the page overview)
+ * -e check readable for the readable backup, -e check pages for the page overview, -e check homestate for overlays across rebuilds, -e check touch for who owns each touch)
  * Disposable emulator only: -e check issues / openissues [-e cases '#33,#34'] (issue audits), -e check persona.
  */
 class DeviceCheck : Instrumentation() {
@@ -106,7 +106,9 @@ class DeviceCheck : Instrumentation() {
         if (mode == "import") return importCheck()
         if (mode == "readable") return readableCheck()
         if (mode == "pages") return OverviewCheck(this).run()
+        if (mode == "homestate") return HomeStateCheck(this).run()
         if (mode == "pull") return PullCheck(this).run()
+        if (mode == "touch") return TouchCheck(this).run()
         val looks = targetContext.getSharedPreferences("looks", Context.MODE_PRIVATE)
         val layout = targetContext.getSharedPreferences("layout", Context.MODE_PRIVATE)
         // The setup is copied to disk before the test touches it: a crash or a killed process skips the finally below,
@@ -120,10 +122,11 @@ class DeviceCheck : Instrumentation() {
             p.edit().clear().apply { o.keys().forEach { putString(it, o.getString(it)) } }.commit()
         }
         try {
-            looks.edit().putString("pages", "3").putString("infiniteScroll", "off").putString("scrollEffect", "simple").commit()
+            layout.edit().putString("pages", "3").commit()
+            looks.edit().putString("infiniteScroll", "off").putString("scrollEffect", "simple").commit()
             a = launch()
             // Gesture coordinates must not land on the first-run Launcher settings shortcut.
-            runOnMainSync { a.items.clear(); a.save() }
+            runOnMainSync { a.editItems { it.clear() } }
             SystemClock.sleep(1500)
             val w = a.workspace.width.toFloat()
             val loc = IntArray(2).also { runOnMainSync { a.workspace.getLocationOnScreen(it) } }
@@ -164,21 +167,21 @@ class DeviceCheck : Instrumentation() {
             check("swipeLeft", 2, 0) { drag(w * 0.85f, cy, w * 0.15f, cy) }
             // #129: a long-press on an icon owns the touch; moving on from it must not also run the swipe gesture.
             val icon = Item(0, 1, 1, action = "drawer", label = "Hold")
-            runOnMainSync { a.items.add(icon); a.save() }
+            runOnMainSync { a.editItems { it.add(icon) } }
             check("swipeDown", 0, 2, expect = 0) {
                 val at = IntArray(2); var iw = 0; var ih = 0
                 runOnMainSync { a.views[icon]!!.let { it.getLocationOnScreen(at); iw = it.width; ih = it.height } }
                 drag(at[0] + iw / 2f, at[1] + ih / 2f, at[0] + iw / 2f, at[1] + ih / 2f + h * 0.4f, hold = 900)
             }
-            runOnMainSync { a.items.remove(icon); a.save() }
+            runOnMainSync { a.editItems { it.remove(icon) } }
             log.append(if (failures == 0) "ALL GESTURES PASSED\n" else "$failures FAILED\n")
         } catch (e: Throwable) {
             failures++
             log.append("ERROR ${e.stackTraceToString()}\n")
         } finally {
-            // commit(), not a.save(): save() is apply(), and finish() kills the process before that write reaches the disk.
+            // commit(), not editLayout: Store.save is apply(), and finish() kills the process before that write reaches the disk.
             restore(looks, "looks"); restore(layout, "layout")
-            if (::a.isInitialized) runOnMainSync { a.items = a.store.load(a.looks.sub); a.recreate() }
+            if (::a.isInitialized) runOnMainSync { a.editLayout(redraw = false) { a.store.load(a.looks.sub) }; a.recreate() }
             backup.edit().clear().commit()
         }
         finish(if (failures == 0) Activity.RESULT_OK else Activity.RESULT_CANCELED, Bundle().apply { putString("stream", log.toString()) })

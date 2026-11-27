@@ -221,7 +221,7 @@ class Drawer(private val a: MainActivity) {
     private lateinit var searchBar: View
 
     /** Focuses search with the keyboard up, showing the bar first when it's turned off. */
-    private fun focusSearch() {
+    internal fun focusSearch() {
         searchBar.visibility = View.VISIBLE
         search.requestFocus()
         a.getSystemService(InputMethodManager::class.java).showSoftInput(search, 0)
@@ -240,12 +240,7 @@ class Drawer(private val a: MainActivity) {
         addView(a.tonalButton(a.getString(R.string.unlock)) { a.repo.spaces.setPrivateLocked(false) }, LinearLayout.LayoutParams(-2, -2))
     }
     /** As Nova: the most-launched apps in their own row above the list, in every style; they stay in the list too. */
-    private val frequentRow = object : LinearLayout(a) {
-        // A pull down from the row's apps: their own touch would keep the drag, so take it over once it's a pull.
-        override fun onInterceptTouchEvent(ev: MotionEvent) = pullDown.handle(ev) || super.onInterceptTouchEvent(ev)
-        // The row is the touch's target on the gaps between its apps; claim those too, so a pull can start anywhere on it.
-        override fun onTouchEvent(ev: MotionEvent): Boolean { pullDown.handle(ev); return true }
-    }.apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
+    private val frequentRow = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
 
     private fun buildPrivateBar() {
         privateBar.removeAllViews()
@@ -267,28 +262,17 @@ class Drawer(private val a: MainActivity) {
 
     private val motion = DrawerMotion(a, this)
 
-    /** The bar, the field and the frequent row: one pull, all of it closing. */
-    private val pullDown = motion.PullDown()
-    /** Also cancels the view's own touch (a tap, a cursor) once the pull owns the gesture. */
-    private val pullTouch = View.OnTouchListener { v, ev ->
-        val handled = pullDown.handle(ev)
-        if (pullDown.started) MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; v.onTouchEvent(it); it.recycle() }
-        handled
-    }
-
     val root = object : LinearLayout(a) {
-        private var ignoring = false
-        // Only a drawer that's fully open and at rest takes a new touch, so no app opens or lifts mid-animation. While it
-        // closes the touch goes to home underneath; while it opens or follows a finger (even pulled all the way), it's dropped.
+        // Only a drawer that's fully open and at rest takes a new touch: home's root swallows one while it opens or follows
+        // a finger ([touchState]). While it closes the touch goes to home underneath.
         override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
             if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
-                ignoring = motion.progress < 1f || motion.held
-                if (ignoring && motion.anim != null && !motion.settlingOpen) return false
+                if (touchState == HomeShows.HOME) return false
                 // Land the previous swipe before hit testing a touch on the moving grids. Not elsewhere: landing rebuilds the
                 // chips and frequent row, and the new views aren't laid out yet, so a tap on them would hit nothing.
-                if (!ignoring) (grid.parent as? View)?.takeIf { ev.y >= it.top && ev.y < it.bottom }?.let { tabAnim?.end() }
+                (grid.parent as? View)?.takeIf { ev.y >= it.top && ev.y < it.bottom }?.let { tabAnim?.end() }
             }
-            return ignoring || super.dispatchTouchEvent(ev)
+            return super.dispatchTouchEvent(ev)
         }
     }.apply {
         orientation = LinearLayout.VERTICAL
@@ -316,9 +300,6 @@ class Drawer(private val a: MainActivity) {
             if (barOff) visibility = View.GONE
         }
         searchBar = bar
-        // A pull down on the search bar closes the drawer, wherever the list is scrolled (#56). Taps still reach the field.
-        bar.setOnTouchListener(pullTouch)
-        search.setOnTouchListener(pullTouch)
         val barParams = LinearLayout.LayoutParams(-1, ((if (bottomBar) 48 else 56) * a.dp).toInt()).apply { setMargins(pad, pad / 2, pad, pad / 2) }
         if (!bottomBar) addView(bar, barParams)
         tabs.setPaddingRelative(pad + (4 * a.dp).toInt(), if (bottomBar || fromBottom) pad / 2 else 0, pad, (8 * a.dp).toInt())
@@ -343,8 +324,31 @@ class Drawer(private val a: MainActivity) {
 
     val visible get() = root.visibility == View.VISIBLE
 
-    /** The list's pull down (see [PullDown]), only from its top, and pull-to-search when that's on. */
-    private val listPull = motion.PullDown(start = { !grid.canScrollVertically(-1) }, search = ::focusSearch)
+    /** What home's touch arbiter ([HomeTouch]) sees: home (the drawer gone or closing), the drawer open, or moving under a finger or an animation. */
+    internal val touchState: HomeShows get() = when {
+        !visible || motion.anim != null && !motion.settlingOpen -> HomeShows.HOME
+        motion.progress < 1f || motion.held -> HomeShows.DRAWER_MOVING
+        else -> HomeShows.DRAWER
+    }
+
+    /**
+     * Where a pull down closes the drawer: the bar, the field and the frequent row wherever the list is scrolled (#56),
+     * the list once it's at its top. Points in home's root's coordinates.
+     */
+    internal fun pullFrom(root: HomeRoot, x: Float, y: Float) = when {
+        root.hits(searchBar, x, y) || root.hits(frequentRow, x, y) -> PullFrom.BAR
+        styleName == "pages" && root.hits(pager, x, y) -> PullFrom.LIST
+        root.hits(grid, x, y) && !grid.canScrollVertically(-1) -> PullFrom.LIST
+        else -> PullFrom.NONE
+    }
+
+    /** Sideways on the list moves the tabs: the list follows the finger with the next or previous tab beside it, as pages do. */
+    internal fun tabsAt(root: HomeRoot, x: Float, y: Float) = styleName != "pages" && root.hits(grid, x, y)
+    internal fun followClose(down: Float, vy: Float, end: Boolean) = motion.followClose(down, vy, end)
+    internal fun followTabs(dx: Float, end: Boolean, vx: Float, cancelled: Boolean) {
+        if (!cancelled) dragTabs(dx)
+        if (end) releaseTabs(dx, vx, cancelled)
+    }
 
     /** Where the housing sheet's top edge sits below the status bar, and the grip area under it. */
     private val sheetGap = 12 * a.dp
@@ -417,61 +421,16 @@ class Drawer(private val a: MainActivity) {
                     index.current = this@Drawer.adapter.getSectionForPosition(first)
                 }
             })
-            // The reset from [forgetPosition], once the rows are laid out (and posted: a selection during layout warns).
-            addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            // The reset from [forgetPosition], once the rows are laid out (and after that pass: a selection during layout warns).
+            addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
                 if (forgetScroll) {
                     forgetScroll = false
-                    post { setSelection(if (fromBottom) this@Drawer.adapter.count - 1 else 0) }
+                    a.afterLayout(v) { setSelection(if (fromBottom) this@Drawer.adapter.count - 1 else 0) }
                 }
             }
             setOnItemClickListener { _, v, pos, _ -> this@Drawer.adapter.getItem(pos)?.let { open(it, v) } }
             setOnItemLongClickListener { _, v, pos, _ -> this@Drawer.adapter.getItem(pos)?.let { longPress(it, v) }; true }
-            val touchSlop = android.view.ViewConfiguration.get(a).scaledTouchSlop
-            var startX = 0f
-            var startY = 0f
-            var sideways = false
-            var sideStart = 0f
-            var sideVelocity: android.view.VelocityTracker? = null
-            setOnTouchListener { _, ev ->
-                // GridView keeps a tap alive until the finger leaves the whole list, so a sideways swipe that started on
-                // an icon would open it on release. Sideways is no tap: cancel it, and the rest of that touch moves the tabs:
-                // the list follows the finger with the next or previous tab beside it, as pages do.
-                if (ev.actionMasked == MotionEvent.ACTION_DOWN) { sideways = false; startX = ev.x; startY = ev.y }
-                else if (sideways) {
-                    motion.track(sideVelocity, ev)
-                    val dx = ev.rawX - sideStart
-                    when (ev.actionMasked) {
-                        MotionEvent.ACTION_MOVE -> dragTabs(dx)
-                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                            sideVelocity?.computeCurrentVelocity(1000)
-                            val cancelled = ev.actionMasked == MotionEvent.ACTION_CANCEL
-                            val vx = sideVelocity?.xVelocity ?: 0f
-                            sideVelocity?.recycle(); sideVelocity = null
-                            sideways = false
-                            if (!cancelled) dragTabs(dx)
-                            releaseTabs(dx, vx, cancelled)
-                        }
-                    }
-                    return@setOnTouchListener true
-                }
-                if (ev.actionMasked == MotionEvent.ACTION_MOVE && !listPull.closing && abs(ev.x - startX) > touchSlop && abs(ev.x - startX) > abs(ev.y - startY)) {
-                    sideways = true
-                    val dx = ev.x - startX
-                    sideStart = ev.rawX - dx + if (dx > 0) touchSlop else -touchSlop
-                    sideVelocity?.recycle()
-                    sideVelocity = android.view.VelocityTracker.obtain().also { motion.track(it, ev) }
-                    MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; onTouchEvent(it); it.recycle() }
-                    dragTabs(ev.rawX - sideStart)
-                    return@setOnTouchListener true
-                }
-                // Pull down from the top of the list: the drawer follows the finger and closes on release (or searches).
-                val handled = listPull.handle(ev)
-                // The list sees no more of this touch: cancel it, or its pending long press lifts an app.
-                if (listPull.started) MotionEvent.obtain(ev).also { it.action = MotionEvent.ACTION_CANCEL; onTouchEvent(it); it.recycle() }
-                handled
-            }
         }
-        pager.onGesture = { if (it == "swipeDown") hide() }
     }
 
     /** [forgetPosition] waits for the list's next layout to send it to the top. */
@@ -585,8 +544,9 @@ class Drawer(private val a: MainActivity) {
             val web = if (a.looks.on("webSearch")) listOf(Entry.WebE(q)) else emptyList()
             // Apps show at once; shortcuts and contacts join them when the worker has them, if no key came since.
             val shown = a.repo.apps.values.filter { spaces.shows(it, Surface.SEARCH, hidden, showHidden) }.map { it.pkg to it.info.user }.toSet()
+            val alive = a.lifetime.token()
             found.later(q, shown, iconStyle.sizePx) { hits, people ->
-                if (hits.isEmpty() && people.isEmpty()) return@later
+                if (hits.isEmpty() && people.isEmpty() || !alive()) return@later
                 entries = apps + hits + settings + people + web
                 empty.visibility = View.GONE
                 if (styleName == "pages") buildPages() else adapter.notifyDataSetChanged()
@@ -618,11 +578,11 @@ class Drawer(private val a: MainActivity) {
         a.repo.prefetchIcons(entries.filterIsInstance<Entry.AppE>().map { it.app }.take(cols * rows * 2))
         if (styleName == "pages") buildPages() else adapter.notifyDataSetChanged()
         index.invalidate() // its letters are the new list's
-        a.refillFolder?.invoke() // an open drawer folder shows what the drawer now has
+        a.refreshOverlay() // an open drawer folder shows what the drawer now has
     }
 
     /** Something it shows changed: rebuilt now if open, else on the next open. */
-    fun invalidate() { if (visible) refresh() else { shown = null; a.refillFolder?.invoke() } }
+    fun invalidate() { if (visible) refresh() else { shown = null; a.refreshOverlay() } }
 
     fun refreshBadges() { if (visible) grid.invalidateViews() }
 
@@ -668,6 +628,7 @@ class Drawer(private val a: MainActivity) {
         val peekOffset = peek.translationX - grid.translationX
         // The chip and the tick come as the finger lets go, not after the slide: switching fast felt laggy (#97).
         if (landed != null) { tab = landed; rebuildTabs(); grid.tick() }
+        val alive = a.lifetime.token()
         val animation = android.animation.ValueAnimator.ofFloat(grid.translationX, to).apply {
             duration = (120 + 160 * abs(to - grid.translationX) / maxOf(1f, w)).toLong()
             interpolator = EASE
@@ -679,6 +640,7 @@ class Drawer(private val a: MainActivity) {
             addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(x: android.animation.Animator) {
                     tabAnim = null
+                    if (!alive()) return
                     if (landed != null) {
                         refresh()
                         grid.setSelection(if (fromBottom) adapter.count - 1 else 0)

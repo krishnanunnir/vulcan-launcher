@@ -165,5 +165,5 @@ fun nameTaken(groups: List<Group>, name: String) = name == "work" || name == "pr
 /** [WORK_AT] ([at]: how many tabs come before Work) after the tabs changed from [old] to [new]: tabs taken out before Work pull it forward. */
 fun workAtAfter(old: List<String>, new: List<String>, at: Int) =
     if (new.size >= old.size) at else at - old.take(at.coerceAtLeast(0)).count { it !in new }
-/** [WORK_AT]'s value. Stored as an int, but a restored backup brings every value back as text, and getInt throws on text. */
-fun android.content.SharedPreferences.workAt() = runCatching { getInt(WORK_AT, 0) }.getOrElse { getString(WORK_AT, null)?.toIntOrNull() ?: 0 }
+/** [WORK_AT]'s value: an int, as Store's [dataValue] keeps it whatever a backup held. */
+fun android.content.SharedPreferences.workAt() = getInt(WORK_AT, 0)

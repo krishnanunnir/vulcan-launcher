@@ -405,6 +405,34 @@ class IconPack(val pkg: String, val res: Resources, val map: Map<String, String>
     }
 }
 
+/** What an icon pack's appfilter.xml says: component → drawable name, and how to theme the apps it doesn't list. */
+class Appfilter(val map: MutableMap<String, String> = HashMap(), val back: MutableList<String> = ArrayList(),
+                var mask: String? = null, var upon: String? = null, var scale: Float = 1f)
+
+/**
+ * Reads appfilter.xml from [p] into [into], the one decoder for it: a pack is someone else's file. An entry without a
+ * readable component or a drawable is skipped, the first entry for a component wins, and a scale that isn't a positive
+ * number is 1.
+ * A malformed tag throws, with what was read before it kept in [into]: [readPackXml] stops there.
+ */
+fun readAppfilter(p: XmlPullParser, into: Appfilter = Appfilter()): Appfilter = into.apply {
+    while (p.next() != XmlPullParser.END_DOCUMENT) {
+        if (p.eventType != XmlPullParser.START_TAG) continue
+        fun attrs() = (0 until p.attributeCount).map { p.getAttributeValue(it) }
+        when (p.name) {
+            "item" -> {
+                val c = parseComponent(p.getAttributeValue(null, "component") ?: continue) ?: continue
+                map.putIfAbsent(c, p.getAttributeValue(null, "drawable") ?: continue)
+            }
+            "iconback" -> back += attrs()
+            "iconmask" -> mask = attrs().firstOrNull()
+            "iconupon" -> upon = attrs().firstOrNull()
+            // NaN, 0 or less turned the theming pad inside out.
+            "scale" -> scale = p.getAttributeValue(null, "factor")?.toFloatOrNull()?.takeIf { it > 0f && it.isFinite() } ?: 1f
+        }
+    }
+}
+
 /**
  * Runs [read] over an icon pack's res/xml/[name].xml, or assets/[name].xml for packs that ship it there, and closes
  * it. A malformed tag ends the read but keeps what [read] took before it: one bad entry mustn't drop a whole pack.
@@ -427,28 +455,9 @@ fun loadIconPack(context: Context, pkg: String): IconPack? = runCatching {
     val version = context.packageManager.getPackageInfo(pkg, 0).lastUpdateTime
     parsedPacks[pkg]?.takeIf { it.first == version }?.let { return it.second }
     val res = context.packageManager.getResourcesForApplication(pkg)
-    val map = HashMap<String, String>()
-    val back = ArrayList<String>()
-    var mask: String? = null
-    var upon: String? = null
-    var scale = 1f
-    readPackXml(res, pkg, "appfilter") { parser ->
-        while (parser.next() != XmlPullParser.END_DOCUMENT) {
-            if (parser.eventType != XmlPullParser.START_TAG) continue
-            fun attrs() = (0 until parser.attributeCount).map { parser.getAttributeValue(it) }
-            when (parser.name) {
-                "item" -> {
-                    val c = parseComponent(parser.getAttributeValue(null, "component") ?: continue) ?: continue
-                    map.putIfAbsent(c, parser.getAttributeValue(null, "drawable") ?: continue)
-                }
-                "iconback" -> back += attrs()
-                "iconmask" -> mask = attrs().firstOrNull()
-                "iconupon" -> upon = attrs().firstOrNull()
-                "scale" -> scale = parser.getAttributeValue(null, "factor")?.toFloatOrNull() ?: 1f
-            }
-        }
-    }
-    IconPack(pkg, res, map, back, mask, upon, scale).also { parsedPacks[pkg] = version to it }
+    val filter = Appfilter()
+    readPackXml(res, pkg, "appfilter") { readAppfilter(it, filter) }
+    IconPack(pkg, res, filter.map, filter.back, filter.mask, filter.upon, filter.scale).also { parsedPacks[pkg] = version to it }
 }.getOrNull()
 
 /**

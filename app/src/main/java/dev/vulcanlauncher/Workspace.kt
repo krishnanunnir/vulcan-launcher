@@ -59,19 +59,15 @@ val SCROLL = Interpolator { t -> val u = t - 1; u * u * u * u * u + 1 }
 fun rubberBand(over: Float, limit: Float) = if (limit <= 0f) 0f else Math.copySign(limit * (1 - 1 / (abs(over) * 0.55f / limit + 1)), over)
 
 /**
- * Horizontally paged screens (home pages, dock pages, drawer pages).
- * Reports gestures by name ("swipeUp", "doubleTap", "pinchIn", …; see [GESTURE_KEYS]) through [onGesture].
+ * Horizontally paged screens (home pages, dock pages, drawer pages). Turning pages is a child's claim on home's touch
+ * ([HomeTouch]): past its slop sideways it calls requestDisallowInterceptTouchEvent. Swipes up and down, double taps and
+ * two-finger gestures are home's root's. Reports the swipes past the first and last page ("swipeRight", "swipeLeft")
+ * through [onGesture].
  */
 class Workspace(context: Context) : ViewGroup(context) {
     var onGesture: (String) -> Unit = {}
     /** Scroll position in pages (0 = first page), for the page indicator and wallpaper. */
     var onScroll: (Float) -> Unit = {}
-    /**
-     * Optional live swipe up: called with px pulled up so far while the finger moves, then once more with [end] and the
-     * upward velocity (px/s). Returning true takes the gesture over, so "swipeUp" isn't reported.
-     */
-    var onPull: ((up: Float, vy: Float, end: Boolean) -> Boolean)? = null
-    private var pulling = false
     /**
      * Optional live swipe right past the first page: called with px pulled so far while the finger moves, then once
      * more with [end] and the release velocity (px/s). Returning true takes the gesture over (no stretch, no "swipeRight").
@@ -95,9 +91,9 @@ class Workspace(context: Context) : ViewGroup(context) {
      */
     var onPageTap: ((Int) -> Unit)? = null
     var onPageHold: ((Int) -> Unit)? = null
-    private val hold = Runnable { if (mode == NONE) { mode = DONE; onPageHold?.invoke(pageAt(downX, downY)) } }
-    // A rebuild mid-hold replaces this workspace: its hold must not lift a page of the new one.
-    override fun onDetachedFromWindow() { removeCallbacks(hold); super.onDetachedFromWindow() }
+    // Bound to home's lifetime: a rebuild mid-hold replaces this workspace, and its hold must not lift a page of the new one.
+    private var hold: Runnable? = null
+    private val home get() = context as MainActivity
     /** The touch began in the overview: the hold that opens it ends with a lift that must not count as a tap. */
     private var overviewTouch = false
 
@@ -127,20 +123,14 @@ class Workspace(context: Context) : ViewGroup(context) {
     private val edgeRight = EdgeEffect(context)
     private var pulledLeft = 0f
     private var pulledRight = 0f
-    private val doubleTapTimeout = ViewConfiguration.getDoubleTapTimeout()
     private var downX = 0f
     private var downY = 0f
-    private var downTime = 0L
     private var startScroll = 0
     private var mode = NONE
     private var velocity: VelocityTracker? = null
-    private var lastTapUp = 0L
-    private var lastTapX = 0f
-    private var lastTapY = 0f
-    private var doubleTapDown = false
     private var handledDown = -1L
-    private val start = FloatArray(4)
-    private val end = FloatArray(4)
+    // The finger the page follows: when it lifts and another stays, the page goes on from where it was.
+    private val pointer = PointerTrack()
     private var anim: ValueAnimator? = null
 
     /** Space (px) between each page's grid and the edges of its slot, left and right, top, and bottom: Page padding (#96). */
@@ -201,151 +191,88 @@ class Workspace(context: Context) : ViewGroup(context) {
         onScroll(l / width.toFloat())
     }
 
-    /** True when the point (in this view's coordinates) is on an icon or widget of the current page. */
-    private fun onItem(wx: Float, wy: Float): Boolean {
-        val page = getChildAt(current) as? ViewGroup ?: return false
+    /** The item of the current page under ([wx], [wy]) in this view's coordinates, and the point in the item's own. */
+    private fun itemAt(wx: Float, wy: Float): Pair<View, FloatArray>? {
+        val page = getChildAt(current) as? ViewGroup ?: return null
         // Into the page's own coordinates: Page margins inset it in its slot (#96).
         val x = wx - page.left + scrollX; val y = wy - page.top
-        for (i in 0 until page.childCount) {
+        for (i in page.childCount - 1 downTo 0) {
             val c = page.getChildAt(i)
-            if (c.visibility == View.VISIBLE && x >= c.left && x < c.right && y >= c.top && y < c.bottom) return true
+            if (c.visibility == View.VISIBLE && x >= c.left && x < c.right && y >= c.top && y < c.bottom) return c to floatArrayOf(x - c.left, y - c.top)
         }
-        return false
+        return null
     }
 
-    /** True when the point is on an icon of the current page that takes its own swipe up (icon swipe actions). */
-    private fun swipesItself(wx: Float, wy: Float): Boolean {
-        val page = getChildAt(current) as? ViewGroup ?: return false
-        // Into the page's own coordinates: Page margins inset it in its slot (#96).
-        val x = wx - page.left + scrollX; val y = wy - page.top
-        for (i in 0 until page.childCount) {
-            val c = page.getChildAt(i)
-            if (c is IconView && c.onSwipe != null && c.visibility == View.VISIBLE && x >= c.left && x < c.right && y >= c.top && y < c.bottom) return true
-        }
-        return false
-    }
-
-    /** True when the point is on a widget stack of the current page. */
-    private fun onStack(wx: Float, wy: Float): Boolean {
-        val page = getChildAt(current) as? ViewGroup ?: return false
-        // Into the page's own coordinates: Page margins inset it in its slot (#96).
-        val x = wx - page.left + scrollX; val y = wy - page.top
-        return (0 until page.childCount).map(page::getChildAt).any { it is WidgetStack && it.visibility == View.VISIBLE && x >= it.left && x < it.right && y >= it.top && y < it.bottom }
-    }
-
-    /** True when the point is on a widget of the current page holding a list that can still scroll [dir] (1: down). */
-    private fun widgetScrolls(wx: Float, wy: Float, dir: Int): Boolean {
-        val page = getChildAt(current) as? ViewGroup ?: return false
-        // Into the page's own coordinates: Page margins inset it in its slot (#96).
-        val x = wx - page.left + scrollX; val y = wy - page.top
-        for (i in 0 until page.childCount) {
-            val c = page.getChildAt(i)
-            if (c is WidgetFrame && c.visibility == View.VISIBLE && x >= c.left && x < c.right && y >= c.top && y < c.bottom)
-                return scrollsAt(c, x - c.left, y - c.top, dir)
-        }
-        return false
-    }
-
-    private fun scrollsAt(v: View, x: Float, y: Float, dir: Int): Boolean {
-        if (v.canScrollVertically(dir)) return true
-        if (v !is ViewGroup) return false
-        val px = x + v.scrollX
-        val py = y + v.scrollY
-        for (i in v.childCount - 1 downTo 0) {
-            val c = v.getChildAt(i)
-            if (c.visibility == View.VISIBLE && px >= c.left && px < c.right && py >= c.top && py < c.bottom && scrollsAt(c, px - c.left, py - c.top, dir)) return true
-        }
-        return false
+    private val at = IntArray(2)
+    private val origin = IntArray(2)
+    /** [itemAt] for a point in [root]'s coordinates, while this view is showing. */
+    fun itemAt(root: View, rx: Float, ry: Float): Pair<View, FloatArray>? {
+        if (!isShown) return null
+        getLocationInWindow(at); root.getLocationInWindow(origin)
+        val x = rx - (at[0] - origin[0]); val y = ry - (at[1] - origin[1])
+        return if (x < 0 || y < 0 || x >= width || y >= height) null else itemAt(x, y)
     }
 
     /** Shared by intercept and touch handling; returns true once the gesture belongs to the pager. */
     private fun track(ev: MotionEvent): Boolean {
         if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
-            if (handledDown == ev.downTime) return mode != NONE
+            if (handledDown == ev.downTime) return mode == HORIZONTAL
             handledDown = ev.downTime
         }
         velocity?.addMovement(ev)
+        pointer.onEvent(ev)
+        val x = pointer.x; val y = pointer.y
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 anim?.cancel()
-                downX = ev.x; downY = ev.y; downTime = ev.eventTime; startScroll = scrollX; mode = NONE
+                downX = x; downY = y; startScroll = scrollX; mode = NONE
                 velocity?.recycle(); velocity = VelocityTracker.obtain().apply { addMovement(ev) }
-                doubleTapDown = ev.eventTime - lastTapUp < doubleTapTimeout && hypot(ev.x - lastTapX, ev.y - lastTapY) < slop * 6 && !onItem(ev.x, ev.y)
                 overviewTouch = onPageTap != null
-                if (overviewTouch) { doubleTapDown = false; postDelayed(hold, ViewConfiguration.getLongPressTimeout().toLong()) }
+                if (overviewTouch) {
+                    hold = home.later(ViewConfiguration.getLongPressTimeout().toLong()) {
+                        if (mode == NONE && parent != null && hasWindowFocus()) { mode = DONE; onPageHold?.invoke(pageAt(downX, downY)) }
+                    }
+                    home.whenTouchEnds { home.cancelLater(hold) }
+                }
             }
-            MotionEvent.ACTION_POINTER_DOWN -> if (ev.pointerCount == 2 && mode != HORIZONTAL) {
-                // A second finger ends the drawer's pull here: release only ends it in VERTICAL, and a pull left open swallows every touch.
-                if (pulling) { onPull?.invoke(downY - ev.y - slop, 0f, true); pulling = false }
-                mode = MULTI
-                for (i in 0..1) { start[i * 2] = ev.getX(i); start[i * 2 + 1] = ev.getY(i) }
-                start.copyInto(end)
-            }
-            MotionEvent.ACTION_MOVE -> when (mode) {
-                NONE -> {
-                    val dx = abs(ev.x - downX)
-                    val dy = abs(ev.y - downY)
+            MotionEvent.ACTION_MOVE -> if (mode == NONE) {
+                val dx = abs(x - downX)
+                val dy = abs(y - downY)
+                // Sideways on a widget stack: left to the stack, which flips its widgets.
+                if (dx > pageSlop && dx > dy && itemAt(downX, downY)?.first is WidgetStack) mode = CHILD
+                else if (dx > pageSlop && dx > dy) {
                     // The page starts moving from where the finger is now, not jumping the slop it took to decide.
-                    // Sideways on a widget stack: left to the stack, which flips its widgets.
-                    if (dx > pageSlop && dx > dy && onStack(downX, downY)) mode = CHILD
-                    else if (dx > pageSlop && dx > dy) { mode = HORIZONTAL; fromPage = current; startScroll += (ev.x - downX).toInt() }
-                    // Up from an icon with its own swipe action: left to the icon, even when the first move is a long one.
-                    // On a widget list that can still scroll that way (calendar, inbox): left to the widget (#50).
-                    else if (dy > slop && dy > dx) mode = if (ev.y < downY && swipesItself(downX, downY) ||
-                        widgetScrolls(downX, downY, if (ev.y < downY) 1 else -1)) CHILD else VERTICAL
+                    mode = HORIZONTAL; fromPage = current; startScroll += (x - downX).toInt()
+                    parent?.requestDisallowInterceptTouchEvent(true)
                 }
-                MULTI -> if (ev.pointerCount >= 2) for (i in 0..1) { end[i * 2] = ev.getX(i); end[i * 2 + 1] = ev.getY(i) }
-                VERTICAL -> if (!doubleTapDown && onPageTap == null) pulling = onPull?.invoke(downY - ev.y - slop, 0f, false) == true || pulling
+                // Up or down first: not a page turn, whoever takes it.
+                else if (dy > slop && dy > dx) mode = CHILD
             }
-            MotionEvent.ACTION_POINTER_UP -> if (mode == MULTI) {
-                twoFingerGesture(start[0], start[1], start[2], start[3], end[0], end[1], end[2], end[3], slop * 4f)?.let(onGesture)
-                mode = DONE
-            }
-            MotionEvent.ACTION_UP -> {
-                if (mode == NONE && !onItem(ev.x, ev.y) && ev.eventTime - downTime < ViewConfiguration.getLongPressTimeout()) {
-                    if (doubleTapDown) { onGesture("doubleTap"); lastTapUp = 0 }
-                    else { lastTapUp = ev.eventTime; lastTapX = ev.x; lastTapY = ev.y }
-                }
-                finish(ev)
-            }
-            MotionEvent.ACTION_CANCEL -> finish(ev)
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> finish(ev)
         }
-        return mode != NONE && mode != CHILD
+        return mode == HORIZONTAL
     }
-
-    /**
-     * A long-press took the touch in progress (a drag, an icon's menu): what is left of it is no page swipe, drawer pull
-     * or gesture here (#129). One owner per touch: the pager stands down until the next DOWN.
-     */
-    // A long-press only fires while the touch is still undecided (NONE): once the pager has it, the child was cancelled.
-    fun yieldTouch() { if (mode == NONE) mode = CHILD }
 
     private fun finish(ev: MotionEvent) {
         val tracker = velocity
         tracker?.computeCurrentVelocity(1000)
         val vx = tracker?.xVelocity ?: 0f
-        val vy = tracker?.yVelocity ?: 0f
-        val dx = ev.x - downX
-        val dy = ev.y - downY
+        val dx = pointer.x - downX
         val last = childCount - 1
         // A touch taken away (CANCEL: the system drag starting, a parent stepping in) settles the page but is no gesture (#129).
         val up = ev.actionMasked == MotionEvent.ACTION_UP
-        removeCallbacks(hold)
+        home.cancelLater(hold)
         if (onPageTap != null) when {
             mode == HORIZONTAL -> snapTo(releasePage(fromPage, scrollX / maxOf(1, width).toFloat(), vx, flingV), velocity = vx)
-            mode == NONE && ev.actionMasked == MotionEvent.ACTION_UP && overviewTouch -> onPageTap?.invoke(pageAt(ev.x, ev.y))
+            mode == NONE && ev.actionMasked == MotionEvent.ACTION_UP && overviewTouch -> onPageTap?.invoke(pageAt(pointer.x, pointer.y))
         }
         else when {
             mode == HORIZONTAL && edgePulling -> { snapTo(0); onEdgePull?.invoke(if (ev.actionMasked == MotionEvent.ACTION_UP) edgePx else 0f, vx, true) }
             mode == HORIZONTAL && up && current == 0 && dx > slop * 6 && !infinite && scrollX <= 0 -> { snapTo(0); onGesture("swipeRight") }
             mode == HORIZONTAL && up && current == last && dx < -slop * 6 && !infinite && scrollX >= last * width -> { snapTo(last); onGesture("swipeLeft") }
             mode == HORIZONTAL -> snapTo(releasePage(fromPage, scrollX / maxOf(1, width).toFloat(), vx, flingV), velocity = vx)
-            mode == VERTICAL && pulling -> onPull?.invoke(-dy - slop, -vy, true)
-            mode == VERTICAL && up && dy < -slop * 3 -> onGesture(if (doubleTapDown) "doubleTapUp" else "swipeUp")
-            mode == VERTICAL && up && dy > slop * 3 -> onGesture(if (doubleTapDown) "doubleTapDown" else "swipeDown")
         }
-        if (mode != NONE) lastTapUp = 0
-        velocity?.recycle(); velocity = null; mode = NONE; doubleTapDown = false; pulling = false; edgePulling = false
+        velocity?.recycle(); velocity = null; mode = NONE; edgePulling = false
         if (pulledLeft != 0f || pulledRight != 0f) { edgeLeft.onRelease(); edgeRight.onRelease(); pulledLeft = 0f; pulledRight = 0f; postInvalidateOnAnimation() }
     }
 
@@ -386,13 +313,13 @@ class Workspace(context: Context) : ViewGroup(context) {
         track(ev)
         if (mode == HORIZONTAL && ev.actionMasked == MotionEvent.ACTION_MOVE) {
             val max = (childCount - 1) * width
-            val x = (startScroll - (ev.x - downX)).toInt()
+            val x = (startScroll - (pointer.x - downX)).toInt()
             val inside = x.coerceIn(0, max)
             edgePx = maxOf(0, -x).toFloat()
             if (!infinite && onPageTap == null && (edgePulling || edgePx > 0) && onEdgePull?.invoke(edgePx, 0f, false) == true) { edgePulling = true; scrollTo(0, 0) }
             else when {
                 infinite -> scrollTo(inside, 0)
-                stretch -> { scrollTo(inside, 0); pull((x - inside).toFloat(), ev.y) }
+                stretch -> { scrollTo(inside, 0); pull((x - inside).toFloat(), pointer.y) }
                 else -> scrollTo(inside + rubberBand((x - inside).toFloat(), width / 8f).toInt(), 0)
             }
         }
@@ -421,5 +348,5 @@ class Workspace(context: Context) : ViewGroup(context) {
         return true
     }
 
-    private companion object { const val NONE = 0; const val HORIZONTAL = 1; const val VERTICAL = 2; const val MULTI = 3; const val DONE = 4; const val CHILD = 5 }
+    private companion object { const val NONE = 0; const val HORIZONTAL = 1; const val DONE = 4; const val CHILD = 5 }
 }

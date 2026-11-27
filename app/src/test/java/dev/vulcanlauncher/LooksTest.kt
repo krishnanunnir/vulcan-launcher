@@ -26,7 +26,8 @@ class LooksTest {
     @Test
     fun fitItemsMovesNegativeCellsAndEmptySizes() {
         val keep = Item(0, 0, 0, pkg = "a")
-        val out = fitItems(listOf(keep, Item(0, -1, 0, pkg = "b"), Item(0, 2, 2, w = 0, h = -3, pkg = "c")), pages = 1, cols = 4, rows = 4, dockCols = 4)
+        // As read from outside: wellFormed puts a bad cell off the grid, and fitItems moves it.
+        val out = fitItems(listOf(keep, Item(0, -1, 0, pkg = "b"), Item(0, 2, 2, w = 0, h = -3, pkg = "c")).mapNotNull(::wellFormed), pages = 1, cols = 4, rows = 4, dockCols = 4)
         assertEquals(listOf(keep, Item(0, 1, 0, pkg = "b"), Item(0, 2, 0, pkg = "c")), out)
     }
 
@@ -73,7 +74,7 @@ class LooksTest {
     fun preNovaDefaultsAreChangedValidChoices() {
         // "glance" is no longer a setting: it turns into a clock item.
         for ((k, v) in PRE_NOVA_DEFAULTS - "glance") {
-            val c = LOOKS.first { it.key == k }
+            val c = choiceOf(k)!!
             assertTrue(k, v in c.values && v != c.default)
         }
     }
@@ -114,7 +115,7 @@ class LooksTest {
     }
 
     @Test fun gridNumbersStayWithinTheirSetting() {
-        fun c(key: String) = LOOKS.first { it.key == key }
+        fun c(key: String) = choiceOf(key)!!
         assertEquals(9, c("pages").intOf("100000"))
         assertEquals(3, c("cols").intOf("-4"))
         assertEquals(5, c("dockCols").intOf("five"))
@@ -124,13 +125,19 @@ class LooksTest {
 
     @Test fun aHugeSizeDoesNotOverflowIntoAFit() {
         val huge = Item(0, 1, 0, w = Int.MAX_VALUE, h = 1, pkg = "a")
-        val moved = fitItems(listOf(huge), 1, 5, 5, 5).single()
+        val moved = fitItems(listOfNotNull(wellFormed(huge)), 1, 5, 5, 5).single()
         assertEquals(5, moved.w)
-        assertEquals(Item(0, 1, 2, w = 1000, h = -1000), itemFromJson(Item(0, 1, 2, w = Int.MAX_VALUE, h = Int.MIN_VALUE).toJson()))
+        assertEquals(Item(0, MAX_CELL, MAX_CELL, w = MAX_CELL, h = 1), itemsFromJson(itemsToJson(listOf(Item(0, 1, 2, w = Int.MAX_VALUE, h = Int.MIN_VALUE)))).single())
+    }
+
+    /** Only settings home reads when used skip the rebuild; a new one is rebuilt for until it's proven otherwise. */
+    @Test fun onlyUseTimeSettingsSkipTheRebuild() {
+        val live = LOOKS.filter { it.reload == Reload.LIVE }.map { it.key }.toSet()
+        assertEquals(GESTURE_KEYS.toSet() - setOf("g_swipeUp", "g_swipeRight") + setOf("homeButton", "homeFirst"), live)
     }
 
     private companion object {
-        const val SETTINGS_BUDGET = 120 // 120 for Widget padding (#121), the owner's yes 2026-11-24
+        const val SETTINGS_BUDGET = 118 // 120 for Widget padding (#121), the owner's yes 2026-11-24; 118 since Pages and Default page are the layout's (2026-11-27)
         const val MAX_SECTION_ROWS = 8
     }
 }

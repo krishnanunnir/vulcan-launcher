@@ -19,8 +19,7 @@ open class WidgetFrame(context: Context) : FrameLayout(context) {
     private var downX = 0f
     private var downY = 0f
     private var fired = false
-    private var stolen = false
-    private val longPress = Runnable { fired = true; performLongClick() }
+    private var longPress: Runnable? = null
     /** Where the touch that may become a long-press went down, on screen: the widget takes the DOWN, not us. */
     var downRawY = 0f
         private set
@@ -31,23 +30,32 @@ open class WidgetFrame(context: Context) : FrameLayout(context) {
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 fired = false; downX = ev.x; downY = ev.y; downRawY = ev.rawY
-                postDelayed(longPress, ViewConfiguration.getLongPressTimeout().toLong())
+                (context as MainActivity).let { home ->
+                    home.cancelLater(longPress)
+                    // Bound to home's lifetime, and only for a frame still on home in a window that has the touch.
+                    longPress = home.later(ViewConfiguration.getLongPressTimeout().toLong()) {
+                        if (parent != null && isAttachedToWindow && hasWindowFocus()) { fired = true; performLongClick() }
+                    }
+                    // However this touch ends, even unseen here (taken by home's root, or the frame moved away), no long-press after it.
+                    home.whenTouchEnds { cancelPress() }
+                }
             }
             MotionEvent.ACTION_MOVE ->
-                if (abs(ev.x - downX) > slop || abs(ev.y - downY) > slop) removeCallbacks(longPress)
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> removeCallbacks(longPress)
+                if (abs(ev.x - downX) > slop || abs(ev.y - downY) > slop) cancelPress()
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> cancelPress()
         }
-        // The event that intercepting takes only cancels the widget; sent again, it reaches our own touch listener, so a
-        // hold let go without moving still gets its UP (the Now page's Remove, #105).
-        if (fired && !stolen && ev.actionMasked != MotionEvent.ACTION_DOWN) { stolen = true; super.dispatchTouchEvent(ev) }
-        if (ev.actionMasked == MotionEvent.ACTION_DOWN) stolen = false
+        // The event that intercepting takes only cancels the widget and never reaches our touch listener: what must happen
+        // when a hold is let go goes through whenTouchEnds instead (the Now page's Remove, #105).
         return super.dispatchTouchEvent(ev)
     }
 
     override fun onInterceptTouchEvent(ev: MotionEvent) = fired
 
-    // Taken off home mid-press (a render): the long-press must not fire on a frame that isn't shown.
-    override fun onDetachedFromWindow() { removeCallbacks(longPress); super.onDetachedFromWindow() }
+    private fun cancelPress() { (context as MainActivity).cancelLater(longPress); longPress = null }
+
+    // Taken off home mid-press by a render, which moves the frame without a rebuild: its touch ends unseen, so the
+    // long-press must not fire when the frame is put back.
+    override fun onDetachedFromWindow() { cancelPress(); super.onDetachedFromWindow() }
 }
 
 /**

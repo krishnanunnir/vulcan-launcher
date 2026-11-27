@@ -19,8 +19,9 @@ class SchemaTest {
 
     @Test
     fun everySettingIsListedWithItsDefaultValuesAndGroup() {
-        assertEquals(LOOKS.map { it.key }.toSet(), settings.keys().asSequence().toSet())
-        for (c in LOOKS) {
+        // The page settings too: a backup still lists them in settings for older builds (Store.readableBackup).
+        assertEquals((LOOKS + PAGE_CHOICES).map { it.key }.toSet(), settings.keys().asSequence().toSet())
+        for (c in LOOKS + PAGE_CHOICES) {
             val p = settings.getJSONObject(c.key)
             assertEquals("${c.key} default", c.default, p.getString("default"))
             assertEquals("${c.key} group", c.group, p.getString("description").substringBefore('.'))
@@ -63,7 +64,7 @@ class SchemaTest {
             }
         }
         // A group with no SECTIONS entry shows its settings as one untitled panel, so LOOKS has every key.
-        val keysOf = LOOKS.groupBy { it.group }.mapValues { (_, choices) -> choices.map { it.key }.toSet() }
+        val keysOf = (LOOKS + PAGE_CHOICES).groupBy { it.group }.mapValues { (_, choices) -> choices.map { it.key }.toSet() }
         val absorbed = mapOf(DRAWER to listOf(TABS_GROUP, DRAWER_FOLDERS))
         val shown = keysOf.keys - absorbed.values.flatten().toSet()
         for (group in shown) {

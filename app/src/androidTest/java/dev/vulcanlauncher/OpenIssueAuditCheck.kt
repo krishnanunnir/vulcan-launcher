@@ -92,12 +92,12 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
         ui {
             t.targetContext.getSharedPreferences("looks", 0).edit().clear().commit()
             t.targetContext.getSharedPreferences("data", 0).edit().clear().commit()
-            (mapOf("pages" to "3", "nowPage" to "off", "searchBar" to "off", "frequent" to "off", "drawerStyle" to "grid", "nightMode" to "off") + prefs).forEach { (k, v) ->
+            (mapOf("nowPage" to "off", "searchBar" to "off", "frequent" to "off", "drawerStyle" to "grid", "nightMode" to "off") + prefs).forEach { (k, v) ->
                 require(LOOKS.first { it.key == k }.values.contains(v)) { "Invalid test setting $k=$v" }
                 a.looks[k] = v
             }
-            a.items = mutableListOf(Item(0, 0, 4, action = "drawer", label = "Audit"))
-            a.save(); a.rebuild(); a.workspace.snapTo(0, false)
+            a.editLayout(redraw = false) { PageLayout(listOf(Item(0, 0, 4, action = "drawer", label = "Audit")), 3, 0) }
+            a.rebuild(); a.workspace.snapTo(0, false)
         }; settle()
     }
     private fun case(id: String, f: () -> Unit) {
@@ -139,7 +139,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
                     val r = bounds(a.workspace)
                     val p = point(r.centerX(), r.top + r.height() / 3)
                     drag(p, p, ViewConfiguration.getLongPressTimeout() + 250L)
-                    val menu = a.homeMenus.menu ?: error("Hold did not open menu")
+                    val menu = a.homeMenus.menu?.view ?: error("Hold did not open menu")
                     val row = (menu as ViewGroup).getChildAt(0)
                     val card = bounds(a.pages[a.workspace.current]); val buttons = bounds(row)
                     val gap = buttons.top - card.bottom
@@ -333,7 +333,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
             }
             case("#39") {
                 setup(); ui { a.showOverview() }; settle(700)
-                val panel = a.overlay ?: error("No page editor")
+                val panel = a.overlay?.view ?: error("No page editor")
                 val title = text(panel, a.getString(R.string.pages))
                 val tile = all(panel).first { it.contentDescription == a.getString(R.string.page_n, 1) }
                 val r = bounds(tile)
@@ -352,7 +352,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
                 note("#38", "DESIGN_ONLY", "Folder picker displayed; issue requests icons and visual polish, with no broken add-to-group operation reported")
             }
         } finally {
-            runCatching { clean(); ui { a.store.import(original, a.repo::mainActivity); a.items = a.store.load(a.sub); a.rebuild() } }
+            runCatching { clean(); ui { a.store.import(original, a.repo::mainActivity); a.editLayout(redraw = false) { a.store.load(a.sub) }; a.rebuild() } }
                 .onSuccess { dropAuditBackup(a); note("RESTORE", "OK", "Original exported configuration restored") }
                 .onFailure { note("RESTORE", "ERROR", it.stackTraceToString()) }
         }

@@ -144,6 +144,9 @@ class Palette(val dark: Boolean, a1: (Int) -> Int, a2: (Int) -> Int, n1: (Int) -
 /** Black or white, whichever reads better on [bg]. */
 fun onColor(bg: Int) = if (contrast(bg, 0xFF000000.toInt()) >= contrast(bg, Color.WHITE)) 0xFF000000.toInt() else Color.WHITE
 
+/** Text on [bg] by [onColor]'s rule, in the softer near-black and near-white that stand in for pure black and white. */
+fun softInk(bg: Int) = if (onColor(bg) == Color.WHITE) 0xFFF1F0F4.toInt() else 0xFF1B1B1F.toInt()
+
 /** WCAG contrast ratio; M3 pairs text roles with their containers at 4.5:1 or more. */
 fun contrast(a: Int, b: Int) = (maxOf(luminance(a), luminance(b)) + 0.05) / (minOf(luminance(a), luminance(b)) + 0.05)
 
@@ -493,6 +496,13 @@ fun View.semBlur(radius: Int, tint: Int, corner: Float) {
 }
 
 /**
+ * Dark status bar icons while a light panel ([over], or the drawer when it's null) covers home past halfway ([depth]).
+ * The housing drawer stops below the status bar, over a dimmed home, and a dark scrim stays dark: light icons stay.
+ */
+fun lightStatusIcons(depth: Float, darkTheme: Boolean, over: OverlayKind?, housingDrawer: Boolean, forceDark: Boolean) =
+    depth > 0.5f && !darkTheme && over?.darkScrim != true && (over != null || !housingDrawer) || forceDark
+
+/**
  * How far the home screen sits behind a panel: 0 at rest, 1 under an open panel. It sinks back slightly and blurs:
  * the icons through a RenderEffect, the wallpaper (drawn by the system behind this window) through window blur.
  */
@@ -500,9 +510,7 @@ fun MainActivity.setDepth(p: Float, blur: Boolean = true) {
     depth = p
     // Dark status bar icons while a light panel covers home.
     @Suppress("DEPRECATION") window.decorView.apply {
-        // The housing drawer stops below the status bar, over a dimmed home: light icons stay. So does a dark scrim (Pages).
-        val o = this@setDepth.overlay
-        val light = p > 0.5f && !m3.dark && o?.tag != DARK_SCRIM && (o != null || looks.str("drawerStyle") != "housing") || looks.on("darkStatusIcons")
+        val light = lightStatusIcons(p, m3.dark, this@setDepth.overlay?.kind, looks.str("drawerStyle") == "housing", looks.on("darkStatusIcons"))
         val f = if (light) systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR else systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
         if (f != systemUiVisibility) systemUiVisibility = f
     }

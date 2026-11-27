@@ -85,7 +85,10 @@ class MainActivity : VulcanActivity() {
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val rebuildStale = Runnable { if (stale && !isDestroyed) { stale = false; rebuild() } }
     lateinit var icons: Icons
-    lateinit var items: MutableList<Item>
+    /** Home's layout, the single source of truth: changed only through [editLayout]. */
+    var pageLayout = PageLayout(emptyList(), 1, 0)
+        private set
+    val items: List<Item> get() = pageLayout.items
     lateinit var host: AppWidgetHost
     lateinit var awm: AppWidgetManager
     lateinit var launcherApps: LauncherApps
@@ -100,14 +103,12 @@ class MainActivity : VulcanActivity() {
     lateinit var dockPages: List<CellLayout>
     lateinit var dockBox: LinearLayout
     lateinit var indicator: Indicator
+    /** Where a tap or double tap is home's (not an item's): the pages, the dock and the strips between them. */
+    var homeTaps = listOf<View>()
     lateinit var drawer: Drawer
-    /** The open folder window, desktop previews or resize frame, and what to do when it closes. */
-    var overlay: View? = null
-    var overlayClosed: () -> Unit = {}
-    /** Plays the open overlay's exit animation, then calls its argument; null: the overlay just goes. */
-    var overlayExit: ((done: () -> Unit) -> Unit)? = null
-    /** Shows the open folder window's current apps after one is taken out; null when no folder is open. */
-    var refillFolder: (() -> Unit)? = null
+    /** What is open over home: the folder window, desktop previews, resize frame or Now page, and a menu. */
+    val overlays = OverlayHost(this)
+    val overlay get() = overlays.panel
     val views = HashMap<Item, View>()
     val viewItems = HashMap<View, Item>()
     val folderFx = FolderFx(this)
@@ -116,8 +117,10 @@ class MainActivity : VulcanActivity() {
     var barHidden = false
     val widgetFlow = WidgetFlow(this)
     val iconViews = ArrayList<IconView>()
+    /** Gets the gallery picker's image for the open edit dialog, which a restart closes (see [restarted]). */
     var onPickedImage: ((Uri) -> Unit)? = null
-    var onDocument: ((Uri) -> Unit)? = null
+    /** What the open document picker is for, as a key the welcome knows: kept across a restart (onSaveInstanceState). */
+    var pickingDocument: String? = null
 
     /** Subgrid factor of the grid, set when home is built (onCreate, [rebuild]). */
     var sub = 1
@@ -148,6 +151,7 @@ class MainActivity : VulcanActivity() {
     @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pickingDocument = savedInstanceState?.getString("pickingDocument")
         if (handOffToHome()) return
         if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0) {
             // Debug builds only: log main-thread disk and network access, and leaked activities and registrations.
@@ -159,6 +163,7 @@ class MainActivity : VulcanActivity() {
         store = Store(this)
         looks = Looks(this)
         looks.adoptDefaults(upgrade = !store.isNew)
+        store.adoptPages() // an install from before 0.16 has just had its page count written to looks
         markWelcome()
         awm = AppWidgetManager.getInstance(this)
         host = AppWidgetHost(this, HOST_ID)
@@ -168,6 +173,8 @@ class MainActivity : VulcanActivity() {
         um = getSystemService(UserManager::class.java)
         repo = AppRepo(this, store, launcherApps, um)
         build()
+        // On the window, once: it outlives every root a rebuild puts in it, and coverDock reads the current views.
+        window.decorView.viewTreeObserver.addOnGlobalLayoutListener(coverDockListener)
         store.data.getString("pendingWidget", "")!!.split(" ").takeIf { it.size == 2 }?.let { (id, provider) ->
             val c = ComponentName.unflattenFromString(provider)
             awm.installedProviders.firstOrNull { it.provider == c }?.let { widgetFlow.pendingWidget = id.toInt() to it }
@@ -180,9 +187,8 @@ class MainActivity : VulcanActivity() {
         }
         // A widget whose ID is gone (its app uninstalled while Vulcan wasn't running) has no view, but would hold its cells.
         // Read once: if it throws, a second unguarded read would too, and a launcher crashing in onCreate loops.
-        runCatching { host.appWidgetIds.toSet() }.onFailure { android.util.Log.w("Vulcan", "can't list widget IDs", it) }.getOrNull()?.let { ids ->
-            val kept = keepWidgets(items) { it in ids }
-            if (kept != items) { items.clear(); items += kept; save(); render() }
+        if (store.layoutReadable) runCatching { host.appWidgetIds.toSet() }.onFailure { android.util.Log.w("Vulcan", "can't list widget IDs", it) }.getOrNull()?.let { ids ->
+            editLayout(automatic = true) { l -> l.copy(items = keepWidgets(l.items) { it in ids }) }
             // Widget IDs no item holds (the process died mid-flow, a pin failed, an undo bar was cut short) still get
             // updates from their providers: free them.
             val held = items.flatMap { it.widgetIds } + nowCards().flatMap { it.widgetIds } + listOfNotNull(widgetFlow.pendingWidget?.first)
@@ -211,7 +217,7 @@ class MainActivity : VulcanActivity() {
             if (!notifyQueued) { notifyQueued = true; mainHandler.postDelayed(notified, 500) }
         } }
         // Rotation recreates the activity: stay on the page the user was on.
-        savedInstanceState?.getInt("page", -1)?.takeIf { it in 0 until looks.pages }?.let { workspace.snapTo(it, animate = false) }
+        savedInstanceState?.getInt("page", -1)?.takeIf { it in 0 until pageLayout.pages }?.let { workspace.snapTo(it, animate = false) }
         // Just imported: put the widgets back (not when a restore was already under way and this is its restart).
         // While the welcome shows, its widgets step starts this instead, after saying what Android will ask.
         if (widgetFlow.pendingWidget == null && !welcoming) root.post { widgetFlow.restoreNextWidget() }
@@ -224,17 +230,52 @@ class MainActivity : VulcanActivity() {
      */
     fun rebuild() {
         val page = workspace.current
-        depthAnim?.cancel()
-        // Everything below belongs to the old views; none of it is shown again.
-        // setDepth, not the field alone: the window's blur outlives the old views.
-        overlay = null; overlayClosed = {}; overlayExit = null; refillFolder = null; setDepth(0f); homeMenus.menu = null
+        teardown()
+        build()
+        workspace.snapTo(page.coerceAtMost(pageLayout.pages - 1), animate = false)
+        if (dialogs.any { it.isShowing }) dialogScrim(true)
+    }
+
+    /** Home's lifetime: [rebuild] ends one. See [later] and [afterLayout]. */
+    val lifetime = Lifetime()
+
+    /**
+     * Ends this home before it's built again. Everything below belongs to the old views, and none of it is shown
+     * again: what's open closes (its closed callback runs), the drag and depth stop, and work scheduled against it
+     * ([later], [afterLayout], bound animators) does nothing from here on.
+     */
+    private fun teardown() {
+        overlays.closeAll()
         drag.reset()
+        // setDepth, not the field alone: the window's blur outlives the old views.
+        depthAnim?.cancel(); setDepth(0f)
         // Its open or close animator would go on writing the new home's alpha until it ended.
         drawer.hide(animate = false)
         badgeIcons.clear(); widgetFlow.keepViews(emptySet()) // build() reloads the apps, which drops the cached icons
-        build()
-        workspace.snapTo(page.coerceAtMost(looks.pages - 1), animate = false)
-        if (dialogs.any { it.isShowing }) dialogScrim(true)
+        lifetime.end()
+    }
+
+    /** [block] after [delayMs], unless home is rebuilt first; cancel with [cancelLater]. */
+    fun later(delayMs: Long = 0, block: () -> Unit): Runnable =
+        lifetime.bind(block).let { Runnable(it) }.also { mainHandler.postDelayed(it, delayMs) }
+
+    fun cancelLater(r: Runnable?) { r?.let(mainHandler::removeCallbacks) }
+
+    /**
+     * [block] once [v] is laid out: now if it is and nothing asked for a new layout, else after the next layout pass,
+     * before its first frame. Unless home is rebuilt first: then its listener goes too.
+     */
+    fun afterLayout(v: View, block: () -> Unit) {
+        if (v.isLaidOut && !v.isLayoutRequested) { block(); return }
+        val alive = lifetime.token()
+        // The window's observer once attached, which outlives the view: the listener must remove itself.
+        val observer = v.viewTreeObserver
+        observer.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                (if (observer.isAlive) observer else v.viewTreeObserver).removeOnGlobalLayoutListener(this)
+                if (alive() && !isDestroyed) block()
+            }
+        })
     }
 
     /** Everything the settings shape: palette, icons, layout and the views. At creation, and again in [rebuild]. */
@@ -244,8 +285,8 @@ class MainActivity : VulcanActivity() {
         styleWindow()
 
         val gesture = { g: String -> homeMenus.perform(looks.str("g_$g")) }
-        pages = List(looks.pages) { drag.newPage(it) }
-        indicator = Indicator(this, looks.pages, looks.str("indicator"), looks.color("labelColor"), m3.signal)
+        pages = List(pageLayout.pages) { drag.newPage(it) }
+        indicator = Indicator(this, pageLayout.pages, looks.str("indicator"), looks.color("labelColor"), m3.signal)
         workspace = Workspace(this).apply {
             paddingOf(looks.str("pageMargin")).let { (x, t, b) -> marginX = (x * dp).toInt(); marginTop = (t * dp).toInt(); marginBottom = (b * dp).toInt() }
             pages.forEach { addView(it) }
@@ -253,11 +294,12 @@ class MainActivity : VulcanActivity() {
             effect = looks.str("scrollEffect")
             infinite = looks.on("infiniteScroll")
             onScroll = { indicator.position = it; wallpaperScroll(it) }
-            snapTo(looks.int("defaultPage").coerceAtMost(looks.pages - 1), animate = false)
+            snapTo(pageLayout.defaultPage.coerceAtMost(pageLayout.pages - 1), animate = false)
         }
         val search = looks.str("searchBar")
         buildDock(gesture, search)
         val pagesBox = pagesBox(search)
+        homeTaps = listOfNotNull(workspace, dock, indicator, arrowStrip)
         content = if (!landscape) pagesBox else LinearLayout(this).apply {
             addView(pagesBox, LinearLayout.LayoutParams(0, -1, 1f))
             addView(dockBox, LinearLayout.LayoutParams(-2, -1).apply {
@@ -266,17 +308,11 @@ class MainActivity : VulcanActivity() {
         }
         content.forceHasOverlappingRendering(false) // faded as the drawer opens: no full-screen offscreen buffer (see Drawer.root)
         drawer = Drawer(this)
-        // Swipe up opens the drawer under the finger instead of after the gesture ends.
-        if (looks.str("g_swipeUp") == "drawer") { workspace.onPull = drawer::pull; dock.onPull = drawer::pull }
         // Likewise swipe right on the first page pulls the Now page in under the finger.
         if (looks.str("g_swipeRight") == "now") workspace.onEdgePull = ::pullNow
         drag.dropBar = dropBar()
-        // The window keeps a root's listener after the root is replaced: without this each rebuild added one more.
-        listening?.viewTreeObserver?.removeOnGlobalLayoutListener(coverDockListener)
         root = homeRoot()
-        listening = root
         setContentView(root)
-        root.viewTreeObserver.addOnGlobalLayoutListener(coverDockListener)
         render()
         showWelcome()
     }
@@ -290,14 +326,14 @@ class MainActivity : VulcanActivity() {
         applyOrientation()
         repo.loadApps()
         // Items of apps uninstalled while the launcher wasn't running (no callback came) would hold their cells unseen.
-        items = fit(if (store.isNew) defaultLayout() else removeApps(store.load(sub), repo::uninstalled))
+        var next = fit(if (store.isNew) PageLayout(defaultLayout(), 1, 0) else store.load(sub).let { it.copy(items = removeApps(it.items, repo::uninstalled)) })
         // Before 0.24 the clock was a strip fixed above the first page ("glance"); now it's an item on the first free row.
         if (looks.raw("glance") == "on") {
             looks["glance"] = "item"
-            firstFreeSpot(items.filter { !isDock(it.page) }, looks.pages, looks.cols * sub, looks.rows * sub, looks.cols * sub, sub)
-                ?.let { items += it.copy(action = "clock") }
+            firstFreeSpot(next.items.filter { !isDock(it.page) }, next.pages, looks.cols * sub, looks.rows * sub, looks.cols * sub, sub)
+                ?.let { next = next.copy(items = next.items + it.copy(action = "clock")) }
         }
-        save()
+        editLayout(redraw = false, automatic = true) { next }
     }
 
     /** Transparent system bars, home drawn behind them and into the notch. */
@@ -364,6 +400,7 @@ class MainActivity : VulcanActivity() {
     }
 
     /** The pages with what sits under them: indicator, swipe arrow, and in portrait the dock. */
+    private var arrowStrip: View? = null
     private fun pagesBox(search: String): LinearLayout {
         val dockHeight = ((looks.int("dockIconSize") + 28 + (if (looks.on("dockLabels")) 22 else 0)) * dp).toInt()
         return LinearLayout(this).apply {
@@ -381,7 +418,9 @@ class MainActivity : VulcanActivity() {
                 workspace.dispatchTouchEvent(ev).also { ev.recycle() }
             }
             if (looks.str("indicator") != "none") addView(indicator.apply { setOnTouchListener(toPages) }, LinearLayout.LayoutParams(-1, (14 * dp).toInt()))
+            arrowStrip = null
             if (looks.on("swipeIndicator")) addView(FrameLayout(context).apply {
+                arrowStrip = this
                 setOnTouchListener(toPages)
                 // Only the arrow itself opens the drawer; it passes its touches on as well, so a swipe can start on it.
                 addView(TextView(context).apply {
@@ -429,7 +468,7 @@ class MainActivity : VulcanActivity() {
     /** Home, the drawer and the drop bar stacked, each kept clear of the system bars. */
     @Suppress("DEPRECATION")
     private fun homeRoot(): FrameLayout {
-        return FrameLayout(this).apply {
+        return HomeRoot(this).apply {
             addView(content)
             addView(drawer.root)
             addView(drag.dropBar, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
@@ -474,10 +513,8 @@ class MainActivity : VulcanActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putInt("page", workspace.current)
+        outState.putString("pickingDocument", pickingDocument)
     }
-
-    /** Back inside an overlay: its own back handler (a view tag) if it has one, else close it. */
-    private fun backInOverlay() = (overlay?.tag as? Runnable)?.run() ?: closeOverlay()
 
     override fun onDestroy() {
         super.onDestroy()
@@ -538,6 +575,7 @@ class MainActivity : VulcanActivity() {
         resumed = true
         // A copy opened from another launcher before Vulcan became the default one.
         if (handOffToHome()) return
+        (root as? HomeRoot)?.checkDefaultHome()
         updateLocation()
         if (nightChanged()) rebuild()
         refreshWelcome()
@@ -548,13 +586,12 @@ class MainActivity : VulcanActivity() {
         // Shortcuts restored before Vulcan was the default home app: pinned now that it is, and drawn with their icons.
         if (store.data.getBoolean(REPIN_SHORTCUTS, false)) { repinShortcuts(); if (!store.data.getBoolean(REPIN_SHORTCUTS, false)) render() }
         // Calendar, media and the apps' launch counts may have changed while away; not while the page is open.
-        if (overlay !is NowPanel) prepareNow()
+        if (overlay?.kind != OverlayKind.NOW) prepareNow()
     }
 
     /** Takes [items] from the store, where PinActivity may have added something meanwhile. */
     private fun reloadItems() {
-        val stored = fit(store.load(sub))
-        if (stored != items) { items = stored; render() }
+        editLayout(automatic = true) { fit(store.load(sub)) }
     }
 
     /**
@@ -611,7 +648,7 @@ class MainActivity : VulcanActivity() {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         // The Now page asked: fill its card in place. rebuild() would close the page and reload every home widget.
-        if (requestCode == REQ_PERMISSION) { if (overlay is NowPanel) reopenNow() else rebuild() }
+        if (requestCode == REQ_PERMISSION) { if (overlay?.kind == OverlayKind.NOW) reopenNow() else rebuild() }
     }
 
     /** Sends a query to the chosen search engine (in the browser) or to the default web search app. */
@@ -638,7 +675,7 @@ class MainActivity : VulcanActivity() {
             drawer.visible -> drawer.hide()
             onHome -> {
                 val action = looks.str("homeButton")
-                val main = looks.int("defaultPage").coerceAtMost(looks.pages - 1)
+                val main = pageLayout.defaultPage.coerceAtMost(pageLayout.pages - 1)
                 if (looks.on("homeFirst") && workspace.current != main) workspace.snapTo(main) else homeMenus.perform(action)
             }
         }
@@ -648,16 +685,37 @@ class MainActivity : VulcanActivity() {
         when {
             welcoming -> welcomeBack()
             homeMenus.menu != null -> homeMenus.closeMenu()
-            overlay != null -> backInOverlay()
+            overlay != null -> overlay?.onBack()
             else -> drawer.hide()
         }
     }
 
-    fun fit(list: List<Item>) = fitItems(list, looks.pages, looks.cols * sub, looks.rows * sub, looks.dockCols, looks.dockPages, sub, looks.on("widgetOverlap")).toMutableList()
+    fun fit(l: PageLayout) = l.copy(items = fitItems(l.items, l.pages, looks.cols * sub, looks.rows * sub, looks.dockCols, looks.dockPages, sub, looks.on("widgetOverlap")))
 
-    fun save() = store.save(items, sub)
+    /**
+     * The one way home's layout changes: [edit] turns it into the next, which is checked ([checked]), stored in one
+     * write, then home is built again if the page count changed or redrawn if only the items did. [redraw] false: the
+     * caller puts the views right itself. Returns the layout now.
+     *
+     * [automatic]: a tidy nobody asked for (the load on start, a package change). While home shows a stand-in for a
+     * stored layout it can't read ([Store.layoutReadable]), that changes home only; the first edit the user makes is
+     * the one that saves the stand-in over the stored text.
+     */
+    fun editLayout(redraw: Boolean = true, automatic: Boolean = false, edit: (PageLayout) -> PageLayout): PageLayout {
+        val was = pageLayout
+        val next = edit(was).checked()
+        if (next == was) return was
+        pageLayout = next
+        if (savesNow(automatic, store::layoutReadable)) store.save(next, sub)
+        if (redraw) { if (next.pages != was.pages) rebuild() else if (next.items != was.items) render() }
+        return next
+    }
+
+    /** [editLayout] of the items alone. */
+    fun editItems(redraw: Boolean = true, edit: (MutableList<Item>) -> Unit) = editLayout(redraw) { it.copy(items = it.items.toMutableList().apply(edit)) }
+
     /** Puts [item] in place of the one at [i], saves and redraws. */
-    fun replace(i: Int, item: Item) { items[i] = item; save(); render() }
+    fun replace(i: Int, item: Item) = editItems { it[i] = item }
 
     /** A fresh install's layout, as Nova sets it up: a five-app dock, mail and photos above it, settings top right. */
     fun defaultLayout(): MutableList<Item> {
@@ -682,7 +740,7 @@ class MainActivity : VulcanActivity() {
             reloadItems()
             reload(listOf(pkg))
             // Not twice: a second MainActivity, or an app that was removed and came back, already has its icon.
-            if (looks.on("autoAdd")) repo.activities(pkg, user)
+            if (looks.on("autoAdd") && store.layoutReadable) repo.activities(pkg, user)
                 .filter { app -> items.none { i -> (i.children + i).any { it.pkg == app.pkg && it.cls == app.cls && it.user == app.serial } } }
                 .forEach { addToHome(it, quiet = true) }
         }
@@ -690,8 +748,7 @@ class MainActivity : VulcanActivity() {
         // system has already deleted its widgets.
         override fun onPackageRemoved(pkg: String, user: UserHandle) {
             reloadItems()
-            items = keepWidgets(removePackage(items, pkg, repo.serial(user))) { awm.getAppWidgetInfo(it) != null }.toMutableList()
-            save()
+            editLayout(redraw = false, automatic = true) { l -> l.copy(items = keepWidgets(removePackage(l.items, pkg, repo.serial(user))) { awm.getAppWidgetInfo(it) != null }) }
             reload(listOf(pkg))
         }
         // An update or a component switched on or off: home redraws only if it shows one of the package's apps.
@@ -738,8 +795,6 @@ class MainActivity : VulcanActivity() {
 
     /** Private Space (or a work profile) locked, unlocked, paused or resumed. */
     private val coverDockListener = android.view.ViewTreeObserver.OnGlobalLayoutListener { coverDock() }
-    /** The root [coverDockListener] is on. */
-    private var listening: View? = null
 
     private val profileReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(c: android.content.Context, i: Intent) {
@@ -823,7 +878,7 @@ class MainActivity : VulcanActivity() {
         updateBadges()
         updateGlance()
         folderFx.settle()
-        refillFolder?.invoke() // an open folder shows what home now has
+        refreshOverlay()
     }
 
     /** Label and icon for any non-widget item, or null when its app is gone. */
@@ -880,7 +935,7 @@ class MainActivity : VulcanActivity() {
     /** Moves a home item to the first free spot on a page picked from a list: the TalkBack way to move it. */
     fun moveToPage(item: Item) {
         sheet().setTitle(R.string.move_to_page).setItems(Array(pages.size) { getString(R.string.page_n, it + 1) }) { _, p ->
-            val spot = firstFreeSpot(items.filter { it != item && !isDock(it.page) }, looks.pages, looks.cols * sub, looks.rows * sub, item.w, item.h, p)
+            val spot = firstFreeSpot(items.filter { it != item && !isDock(it.page) }, pageLayout.pages, looks.cols * sub, looks.rows * sub, item.w, item.h, p)
             if (spot == null) { toast(R.string.no_room); return@setItems }
             val i = items.indexOf(item)
             if (i < 0) return@setItems // gone while the list was open
@@ -906,11 +961,11 @@ class MainActivity : VulcanActivity() {
     }
 
     // ---- Drag and drop ----
-    /** Takes a dragged item out of where it came from. False when it's no longer there: the drop must then do nothing. */
-    fun detach(p: Any?): Boolean = when (p) {
-        is Item -> items.remove(p)
-        is FolderChild -> removeFromFolder(p)
-        else -> true // from the drawer: a copy, with nothing to take out
+    /** [list] with a dragged item taken out of where it came from. Null when it's no longer there: the drop must then do nothing. */
+    fun detached(list: List<Item>, p: Any?): List<Item>? = when (p) {
+        is Item -> list.toMutableList().takeIf { it.remove(p) }
+        is FolderChild -> withoutFolderChild(list, p)
+        else -> list // from the drawer: a copy, with nothing to take out
     }
 
     /** Takes an app out of its drawer folder (from its menu: a drag only copies it to home); a folder left empty goes. */
@@ -919,8 +974,8 @@ class MainActivity : VulcanActivity() {
     })
 
     fun removeItem(item: Item) {
-        if (!items.remove(item)) return // a second tap on Remove while the menu fades
-        save()
+        if (item !in items) return // a second tap on Remove while the menu fades
+        editItems(redraw = false) { it.remove(item) }
         showUndo(item) {
             item.widgetIds.forEach(host::deleteAppWidgetId)
             if (item.isShortcut) syncPins(item.pkg, item.user)
@@ -934,11 +989,9 @@ class MainActivity : VulcanActivity() {
     /** Puts an item on the first free spot, starting at the current page. */
     fun addItem(item: Item, quiet: Boolean = false): Boolean {
         val home = items.filter { !isDock(it.page) }
-        val spot = firstFreeSpot(home, looks.pages, looks.cols * sub, looks.rows * sub, item.w, item.h, workspace.current)
+        val spot = firstFreeSpot(home, pageLayout.pages, looks.cols * sub, looks.rows * sub, item.w, item.h, workspace.current)
         if (spot == null) { if (!quiet) toast(R.string.no_room); return false }
-        items += item.copy(page = spot.page, x = spot.x, y = spot.y)
-        save()
-        render()
+        editItems { it += item.copy(page = spot.page, x = spot.x, y = spot.y) }
         if (!quiet) toast(R.string.added_to_home)
         return true
     }
@@ -956,7 +1009,7 @@ class MainActivity : VulcanActivity() {
     private var wallpaperPages = -1
 
     private fun wallpaperScroll(pos: Float) {
-        val n = looks.pages
+        val n = pageLayout.pages
         val token = window.decorView.windowToken ?: return
         val f = if (n > 1) (pos / (n - 1)).coerceIn(0f, 1f) else 0.5f
         val x = when (looks.str("wallpaperScroll")) { "off" -> 0.5f; "reverse" -> 1 - f; else -> f }
@@ -976,7 +1029,7 @@ class MainActivity : VulcanActivity() {
             return
         }
         store.data.edit().remove(REPIN_SHORTCUTS).apply()
-        pinsByApp(store.load(looks.sub), settingActions()).forEach { (key, ids) ->
+        pinsByApp(store.load(looks.sub).items, settingActions()).forEach { (key, ids) ->
             um.getUserForSerialNumber(key.second)?.let { u -> runCatching { launcherApps.pinShortcuts(key.first, ids, u) }
                 .onFailure { android.util.Log.w("Vulcan", "can't pin shortcuts of ${key.first}", it) } }
         }
@@ -1003,7 +1056,9 @@ class MainActivity : VulcanActivity() {
                 }
                 if (added) reloadItems()
             }
-            REQ_DOC -> data?.data?.takeIf { ok }?.let { onDocument?.invoke(it) ?: restarted() }.also { onDocument = null }
+            REQ_DOC -> data?.data?.takeIf { ok }?.let { uri ->
+                if (pickingDocument?.let { welcome?.picked(it, uri) } != true) restarted()
+            }.also { pickingDocument = null }
             REQ_ICON -> data?.data?.takeIf { ok }?.let { uri ->
                 runCatching { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
                 onPickedImage?.invoke(uri) ?: restarted()

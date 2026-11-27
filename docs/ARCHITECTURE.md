@@ -12,7 +12,7 @@ MainActivity root (FrameLayout, handles window insets itself)
 │   └── search bar (optional, bottom)
 ├── Drawer.root                                overlay, GONE until opened
 ├── dropBar (Remove | App info | Uninstall)    shown only while dragging
-└── overlay (folder window, desktop previews or widget resize frame), added on demand
+└── overlay (folder, overview, widget resize frame, Now page, menu), added on demand by `showOverlay`
 ```
 
 ## Where things live
@@ -34,12 +34,32 @@ Settings are declared once, as `Choice` entries in `LOOKS` (`Looks.kt`): stored 
 
 ## Data flow
 
-1. `items` in `MainActivity` is the single source of truth. Every change edits it, saves it, then re-renders. Only one activity edits it: a second one started outside the home task hands off to the home one and finishes.
+1. `pageLayout` in `MainActivity` (a `PageLayout`: the items, the page count and the default page) is the single source of truth, and `editLayout { layout -> layout' }` is the only way to change it: the edit is a pure function, its result is held to the stored layout's rules (`checked`), saved in one write with the three together (layout version 3), then home is rebuilt if the page count changed or redrawn if only the items did. `items` is read-only outside it. Code outside home (PinActivity, a widget restore, an import) uses `Store.editLayout`. Only one activity edits the layout: a second one started outside the home task hands off to the home one and finishes. While home shows a stand-in for a stored layout it can't read, an edit marked `automatic` (the load on start, package sweeps) changes home only; the user's first edit saves over the stored text. The page count and default page were settings in `looks` before version 3; `Store.adoptPages` moves them once a readable layout is stored (`pageAdoption`).
 2. Rendering rebuilds the views from `items`; widget views are kept and re-attached so widgets don't reload.
 3. Apps that are missing for now (mid-update, disabled, on an unmounted SD card) are skipped, never deleted. Items are removed only when Android says the package or profile is gone for good.
 4. Items that no longer fit a smaller grid, dock or page count stay stored and come back when it grows.
-5. The layout file records its own format version and subgrid factor, so it reads correctly whatever the settings say. If it can't be read, the launcher falls back to the newest readable automatic backup; a single bad item is dropped on its own.
-6. Settings is its own screen (`SettingsActivity`), and so is an icon pack's grid (`IconGridActivity`). Each opens in a task of its own: in home's task, the Home gesture animated them away and back together with home (#100). Changing a setting only marks home stale; home builds itself again once, in `onStart`, before it shows. Both activities extend `VulcanActivity` (settings, palette, dialogs). Every colour comes from one palette built at startup from the theme setting and night mode.
+5. The layout file records its own format version and subgrid factor, so it reads correctly whatever the settings say. If it can't be read, the launcher falls back to the newest readable automatic backup; a single bad item is dropped on its own. A layout from a newer build is kept in `files/layout-v<N>.json`, never read as this build's.
+6. Anything read from outside this build (stored preferences, a backup, another launcher's backup, an icon pack) goes through one decoder per source, which returns typed, range-checked values and reports what it dropped or repaired: `decodeLayout` and `wellFormed` (items), `dataValue` (data types), `decodeBackup` (backup files), `importToItems` (`.novabackup` rows), `readAppfilter` (icon packs), `groupsFromJson`. Code after them doesn't check again; `CorruptionTest` feeds them corrupted backups. Files are written with `writeAtomically` (temp file, sync, rename), and a failure is thrown to the caller.
+7. Settings is its own screen (`SettingsActivity`), and so is an icon pack's grid (`IconGridActivity`). Each opens in a task of its own: in home's task, the Home gesture animated them away and back together with home (#100). Changing a setting marks home stale only if its `Choice.reload` is `REBUILD` (the default); home builds itself again once, in `onStart`, before it shows. A `LIVE` setting (a gesture's action) is read when it's used. Both activities extend `VulcanActivity` (settings, palette, dialogs). Every colour comes from one palette built at startup from the theme setting and night mode.
+
+## Home's state and lifetime
+
+- What is open over home is one `Overlay` (`Overlays.kt`): its kind, its view, an optional exit animation, an optional `refresh` and a `closed` callback. `OverlayHost` (`overlays`) holds two slots, a panel (folder, overview, resize frame, Now page) and a menu, which can sit over a panel. Only `showOverlay` and `closeOverlay` (through the host) change them. Back asks the overlay (`onBack`), the status-bar rule reads its kind, and an overlay whose view leaves the root is closed.
+- After every model change `render()` calls `refreshOverlay()`: an open folder refills from its data, or closes once the folder is gone. Nothing refills a panel by hand.
+- `rebuild()` starts with one `teardown()`: it closes every overlay (their `closed` callbacks run, so a pending rename is kept), resets drag and depth, hides the drawer and ends home's `Lifetime`.
+- Work deferred against home goes through the lifetime, so a rebuild drops it: `later(ms) {}` for a posted runnable or timer (cancel with `cancelLater`), `lifetime.token()` checked in an animator's update and end or in an async result, and `afterLayout(view) {}` for work that needs a view measured (#70, #111, #117). Long-press timers also check the view still has a parent and window focus. Three waits are left unbound on purpose: a widget being placed (it survives a rebuild), the undo bar's timeout (it finishes a removal) and the Now page's background build (it touches no old views).
+
+## Who owns a touch
+
+Every touch on home has exactly one owner, fixed by the first claim (`Touch.kt`, `HomeRoot`). Home's root sees each event first and feeds it to `HomeTouch`, a pure state machine with ordered claimants: overlay, drag, drawer moving, drawer close, drawer tabs, icon swipe, drawer pull, home gestures. Each claimant is two lambdas, `may` (asked at DOWN) and `claims` (asked on each event until one says yes). Once a claimant has it, the root intercepts and Android cancels every child that had the touch.
+
+- A child claims the touch with `requestDisallowInterceptTouchEvent(true)`: the pager turning a page, a widget stack flipping, a scrolling list, the letter index, the Now page's sideways close, a reorder. After that no root claimant takes it.
+- A second finger is never a new owner mid-stream. It may end a pull where it is; when the followed finger lifts, tracking moves to the one left without a jump (`PointerTrack`).
+- The system drag (`startDragAndDrop`) cancels the touch: that cancel means the drag owns it, and is no gesture (#129).
+- Whatever must happen when a touch ends, even unseen by the view that started it (a widget frame's long-press, the Now page's hold menu), goes through `whenTouchEnds`, which runs once on UP or CANCEL (#60, #105). Timers also check the view still has a parent and window focus.
+- While home shows with nothing open the root excludes itself from the back gesture (all of it as the default home, a 200 dp band otherwise); the resize frame excludes its handles. A DOWN in the mandatory gesture strips (API 30+) gets no claimant (#127).
+
+**A new gesture is a new claimant or a child claim, never a flag.** No synthesised CANCELs, no "ignore the rest of this touch" fields, no second handler for the same swipe: if two places can start the same gesture, the claimant asks where the DOWN was. Each claimant's touches are replayed in `TouchTest`, named by the issue or commit they broke in.
 
 ## Apps and profiles
 

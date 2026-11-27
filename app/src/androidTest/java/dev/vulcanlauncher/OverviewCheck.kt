@@ -30,10 +30,10 @@ class OverviewCheck(private val test: Instrumentation) {
     }
     private fun views(v: View): List<View> = listOf(v) +
         if (v is ViewGroup) (0 until v.childCount).flatMap { views(v.getChildAt(it)) } else emptyList()
-    private fun text(value: String): View = views(a.overlay ?: error("Overview closed")).first {
+    private fun text(value: String): View = views(a.overlay?.view ?: error("Overview closed")).first {
         it is TextView && it.text.toString() == value
     }
-    private fun addTile(): View? = a.overlay?.let { root -> views(root).firstOrNull { it.contentDescription == a.getString(R.string.page_add) } }
+    private fun addTile(): View? = a.overlay?.let { o -> views(o.view).firstOrNull { it.contentDescription == a.getString(R.string.page_add) } }
     private fun tile(page: Int): View = text(a.getString(R.string.page_n, page + 1)).parent as View
     private fun center(v: View): Pair<Float, Float> {
         val r = Rect()
@@ -102,11 +102,9 @@ class OverviewCheck(private val test: Instrumentation) {
     private fun setup(count: Int = 3, current: Int = 0) {
         ui {
             a.closeOverlay()
-            a.looks["pages"] = count.toString()
-            a.looks["defaultPage"] = "0"
             a.looks["lockLayout"] = "off"
-            a.items = sample.filter { it.page < count }.toMutableList()
-            a.save(); a.rebuild()
+            a.editLayout(redraw = false) { PageLayout(sample.filter { it.page < count }, count, 0) }
+            a.rebuild()
             a.workspace.snapTo(current, animate = false)
         }
         settle()
@@ -133,67 +131,67 @@ class OverviewCheck(private val test: Instrumentation) {
         a = MainActivity.running?.get() ?: error("Launcher did not start")
         val prefs = test.targetContext.getSharedPreferences("looks", Context.MODE_PRIVATE)
         val savedLooks = prefs.all.toMap()
-        val savedItems = a.items.toList()
+        val savedLayout = a.pageLayout
         try {
-            check(savedItems.none { it.isWidget }) { "Run this check on a disposable emulator without widgets" }
+            check(savedLayout.items.none { it.isWidget }) { "Run this check on a disposable emulator without widgets" }
             setup()
             remove(1)
             screenshot("pages-after-remove.png")
-            expect("empty page drop removes it", a.looks.pages == 2)
+            expect("empty page drop removes it", a.pageLayout.pages == 2)
             expect("later page contents shift left", a.items.any { it.label == "Third" && it.page == 1 })
             expect("dock survives removal", a.items.any { it.label == "Dock" && it.page == DOCK })
             ui { a.recreate() }
             settle()
             a = MainActivity.running?.get() ?: error("Launcher did not restart")
-            expect("removal survives activity restart", a.looks.pages == 2 && a.items.any { it.label == "Third" && it.page == 1 })
+            expect("removal survives activity restart", a.pageLayout.pages == 2 && a.items.any { it.label == "Third" && it.page == 1 })
 
             setup()
             remove(0)
             expect("populated page asks for confirmation", dialogButton("button2"))
-            expect("cancel preserves pages and items", a.looks.pages == 3 && a.items == sample)
+            expect("cancel preserves pages and items", a.pageLayout.pages == 3 && a.items == sample)
             remove(0)
             expect("confirm button appears", dialogButton("button1"))
-            expect("confirm deletes only the chosen page", a.looks.pages == 2 && a.items.none { it.label == "First" } && a.items.any { it.label == "Third" && it.page == 1 })
+            expect("confirm deletes only the chosen page", a.pageLayout.pages == 2 && a.items.none { it.label == "First" } && a.items.any { it.label == "Third" && it.page == 1 })
 
             setup(1)
             remove(0)
-            expect("last page cannot be removed", a.looks.pages == 1 && a.items.any { it.label == "First" })
+            expect("last page cannot be removed", a.pageLayout.pages == 1 && a.items.any { it.label == "First" })
 
             setup()
             tap(text(a.getString(R.string.page_n, 3)))
-            expect("page label selects default", a.looks.int("defaultPage") == 2 && a.overlay != null)
+            expect("page label selects default", a.pageLayout.defaultPage == 2 && a.overlay != null)
             drag(2) { tile(0) }
             expect("drag reorders pages", a.items.any { it.label == "Third" && it.page == 0 } && a.items.any { it.label == "First" && it.page == 1 })
-            expect("default follows reordered contents", a.looks.int("defaultPage") == 0)
+            expect("default follows reordered contents", a.pageLayout.defaultPage == 0)
             remove(2)
-            expect("default remains valid after removal", a.looks.pages == 2 && a.looks.int("defaultPage") in 0 until a.looks.pages)
+            expect("default remains valid after removal", a.pageLayout.pages == 2 && a.pageLayout.defaultPage in 0 until a.pageLayout.pages)
 
             setup()
             // Dropping on the title must leave both the overview and the home layout alone.
             drag(1, viaRemove = true) { text(a.getString(R.string.pages)) }
-            expect("stray drop leaves pages intact", a.looks.pages == 3 && a.items == sample && a.overlay != null)
+            expect("stray drop leaves pages intact", a.pageLayout.pages == 3 && a.items == sample && a.overlay != null)
             tap(tile(2))
             expect("thumbnail opens selected page", a.overlay == null && a.workspace.current == 2)
 
             setup(1)
             tap(addTile() ?: error("Add page has no accessible label"))
-            expect("add creates exactly one page", a.looks.pages == 2 && a.pages.size == 2)
+            expect("add creates exactly one page", a.pageLayout.pages == 2 && a.pages.size == 2)
             expect("adding stays in Pages with a measured new thumbnail", a.overlay != null && center(tile(1)).first > 0f && tile(1).width > 1 && tile(1).height > 1)
             tap(addTile() ?: error("Add disappeared after creating a page"))
-            expect("another page can be added without reopening Pages", a.looks.pages == 3 && a.overlay != null)
+            expect("another page can be added without reopening Pages", a.pageLayout.pages == 3 && a.overlay != null)
             screenshot("pages-after-add.png")
             tap(tile(2))
             expect("new thumbnail opens its page", a.overlay == null && a.workspace.current == 2)
 
             setup(9)
-            expect("nine-page limit hides Add", addTile() == null && (1..9).all { n -> views(a.overlay!!).any { it is TextView && it.text.toString() == a.getString(R.string.page_n, n) } })
+            expect("nine-page limit hides Add", addTile() == null && (1..9).all { n -> views(a.overlay!!.view).any { it is TextView && it.text.toString() == a.getString(R.string.page_n, n) } })
 
             setup()
             ui { a.looks["lockLayout"] = "on"; a.showOverview() }
             settle()
             expect("locked layout hides Add", addTile() == null)
             drag(1) { tile(0) }
-            expect("locked layout prevents page dragging", !tile(1).isLongClickable && a.items == sample && a.looks.pages == 3)
+            expect("locked layout prevents page dragging", !tile(1).isLongClickable && a.items == sample && a.pageLayout.pages == 3)
             tap(tile(2))
             expect("locked layout still allows page navigation", a.overlay == null && a.workspace.current == 2)
         } catch (e: Throwable) {
@@ -205,7 +203,7 @@ class OverviewCheck(private val test: Instrumentation) {
             ui {
                 a.closeOverlay()
                 prefs.edit().clear().apply { savedLooks.forEach { (key, value) -> putString(key, value.toString()) } }.commit()
-                a.items = savedItems.toMutableList(); a.save(); a.rebuild()
+                a.editLayout(redraw = false) { savedLayout }; a.rebuild()
             }
             // Instrumentation can kill the process before SharedPreferences.apply() reaches disk.
             // An empty commit waits for pending writes, including save() calls made by rebuild().
