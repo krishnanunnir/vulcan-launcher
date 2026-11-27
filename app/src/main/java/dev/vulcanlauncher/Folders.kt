@@ -425,7 +425,7 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
     // Folder background color paints the window as well as the icon (#87); its text turns dark on a light colour.
     val tinted = looks.str("folderColor") != "system"
     val windowColor = looks.color("folderColor") or 0xFF000000.toInt()
-    val ink = if (!tinted) panelText else if (android.graphics.Color.luminance(windowColor) > 0.5f) 0xFF1B1B1F.toInt() else 0xFFF1F0F4.toInt()
+    val ink = if (!tinted) panelText else softInk(windowColor)
     // Label size "off" hides the names under a folder's icons (#94).
     val style = IconStyle(base.sizePx, looks.str("folderLabelSize") != "off", looks.labelSize("folderLabelSize"), ink, false, base.iconShadow, font = base.font, lines = base.lines)
     // Within the screen, less the window's margins and padding (16 dp each side).

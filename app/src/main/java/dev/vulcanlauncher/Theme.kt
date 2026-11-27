@@ -144,6 +144,9 @@ class Palette(val dark: Boolean, a1: (Int) -> Int, a2: (Int) -> Int, n1: (Int) -
 /** Black or white, whichever reads better on [bg]. */
 fun onColor(bg: Int) = if (contrast(bg, 0xFF000000.toInt()) >= contrast(bg, Color.WHITE)) 0xFF000000.toInt() else Color.WHITE
 
+/** Text on [bg] by [onColor]'s rule, in the softer near-black and near-white that stand in for pure black and white. */
+fun softInk(bg: Int) = if (onColor(bg) == Color.WHITE) 0xFFF1F0F4.toInt() else 0xFF1B1B1F.toInt()
+
 /** WCAG contrast ratio; M3 pairs text roles with their containers at 4.5:1 or more. */
 fun contrast(a: Int, b: Int) = (maxOf(luminance(a), luminance(b)) + 0.05) / (minOf(luminance(a), luminance(b)) + 0.05)
 

@@ -77,4 +77,13 @@ class ThemeTest {
         val steps = listOf(p.surface, p.surfaceLow, p.surfaceContainer, p.surfaceHigh, p.surfaceHighest).map(::lum)
         assertEquals(steps, if (dark) steps.sorted() else steps.sortedDescending())
     }
+
+    @Test
+    fun softInkByContrast() {
+        // Mid grey: luminance 0.22 reads as dark, but black text has more contrast on it (5.3:1 against 3.9:1). The
+        // folder window and the colour sheet both take the contrast rule (d870fd3), not a luminance cut at 0.5.
+        assertEquals(0xFF1B1B1F.toInt(), softInk(0xFF808080.toInt()))
+        assertEquals(0xFF1B1B1F.toInt(), softInk(0xFFFFFFFF.toInt()))
+        assertEquals(0xFFF1F0F4.toInt(), softInk(0xFF000000.toInt()))
+    }
 }
