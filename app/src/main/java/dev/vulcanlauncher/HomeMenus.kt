@@ -61,7 +61,7 @@ class HomeMenus(private val a: MainActivity) {
             app != null && (payload is App || payload is GroupChild) -> {
                 if (!a.locked) tile("add", a.getString(R.string.menu_add)) { a.addToHome(app) }
                 tile("edit", a.getString(R.string.edit)) { a.editApp(app) }
-                val hidden = app.key in a.store.strings("hidden")
+                val hidden = app.key in a.repo.spaces.hidden
                 tile(if (hidden) "show" else "hide", a.getString(if (hidden) R.string.unhide else R.string.hide)) { toggleHidden(app.key) }
                 tile("tabs", a.getString(R.string.menu_group)) { a.addToGroup(app.key) }
                 if (payload is GroupChild) tile("close", a.getString(R.string.remove)) { a.removeFromGroup(payload) }
@@ -270,9 +270,9 @@ class HomeMenus(private val a: MainActivity) {
     private fun isSystemApp(a: App) = a.info.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
 
     private fun toggleHidden(key: String) {
-        val hidden = a.store.strings("hidden")
+        val hidden = a.repo.spaces.hidden
         if (!hidden.remove(key)) hidden += key
-        a.store.putStrings("hidden", hidden)
+        a.repo.spaces.setHidden(hidden)
         a.drawer.refresh()
     }
 
@@ -461,14 +461,15 @@ class HomeMenus(private val a: MainActivity) {
         }
     }
 
-    /** Pauses or resumes every work profile; Android lets the default home app do this (API 28+). */
+    /** Pauses or resumes every work profile, with a word on what happened: the switch has no other sign until an app is opened (#73). */
     private fun toggleWork() {
-        val work = a.repo.workUsers
-        if (work.isEmpty() || android.os.Build.VERSION.SDK_INT < 28) return a.toast(R.string.no_work_profile)
-        val pause = work.any { !a.um.isQuietModeEnabled(it) }
-        // A word on what happened, as the switch has no other sign until an app is opened (#73).
-        runCatching { work.map { a.um.requestQuietModeEnabled(pause, it) } }.onSuccess { done -> if (done.any { it }) a.toast(if (pause) R.string.work_paused else R.string.work_resumed) }
-            .onFailure { a.toast(R.string.no_work_profile) }
+        val (pause, outcome) = a.repo.spaces.toggleWork() ?: return a.toast(R.string.no_work_profile)
+        when (outcome) {
+            Outcome.DONE -> a.toast(if (pause) R.string.work_paused else R.string.work_resumed)
+            Outcome.NOT_HOME -> a.toast(R.string.work_needs_home)
+            Outcome.FAILED -> a.toast(R.string.work_refused)
+            Outcome.ASKED -> {} // Android's own unlock prompt is on screen
+        }
     }
 
     private var torchOn = false

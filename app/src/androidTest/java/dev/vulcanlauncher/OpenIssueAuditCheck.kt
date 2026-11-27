@@ -109,7 +109,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
     private fun selected() = field(a.drawer, "tab").toString()
     private fun grid() = field(a.drawer, "grid") as GridView
     private fun seedTabs() {
-        val keys = a.repo.apps.values.filter { !a.repo.isPrivate(it) }.map { it.key }
+        val keys = a.repo.apps.values.filter { !a.repo.spaces.isPrivate(it) }.map { it.key }
         require(keys.size >= 4)
         ui { a.saveGroups(listOf(Group("Zulu", "tab", keys.take(4)), Group("Alpha", "tab", keys.takeLast(4)))) }
         ui { a.drawer.show(false) }; settle()
@@ -164,7 +164,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
             }
             case("forum-tabs") {
                 setup()
-                val apps = a.repo.apps.values.filterNot(a.repo::isPrivate).take(12).map { it.key }
+                val apps = a.repo.apps.values.filterNot(a.repo.spaces::isPrivate).take(12).map { it.key }
                 ui {
                     a.saveGroups((1..9).map { Group("Drawer regression tab $it", "tab", apps.drop(it - 1)) })
                     a.drawer.show(false)
@@ -275,7 +275,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
                         "accent" to if (bottom) "system" else "appliance",
                         "nightMode" to if (bottom) "on" else "off")
                     if (bottom) {
-                        val keys = a.repo.apps.values.filter { !a.repo.isPrivate(it) }.take(2).map { it.key }
+                        val keys = a.repo.apps.values.filter { !a.repo.spaces.isPrivate(it) }.take(2).map { it.key }
                         ui { a.saveGroups(listOf(Group("Pair", "tab", keys))); a.drawer.show(false) }; settle()
                         tap(text(tabs(), "Pair"))
                     } else { ui { a.drawer.show(false) }; settle() }
@@ -309,7 +309,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
             case("#37-control") {
                 for (transparent in listOf(false, true)) {
                     setup("drawerStyle" to "grid", "nightMode" to "on", "accent" to "system", "fillFromBottom" to "on")
-                    val keys = a.repo.apps.values.filter { !a.repo.isPrivate(it) }.take(2).map { it.key }
+                    val keys = a.repo.apps.values.filter { !a.repo.spaces.isPrivate(it) }.take(2).map { it.key }
                     ui { a.saveGroups(listOf(Group("Pair", "tab", keys))); a.drawer.show(false) }; settle()
                     tap(text(tabs(), "Pair"))
                     if (transparent) ui { grid().selector = android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT) }
@@ -346,7 +346,7 @@ class OpenIssueAuditCheck(private val t: Instrumentation, cases: String = "") {
                 shot("39-page-editor-after-release")
             }
             case("#38") {
-                setup(); val key = a.repo.apps.values.first { !a.repo.isPrivate(it) }.key
+                setup(); val key = a.repo.apps.values.first { !a.repo.spaces.isPrivate(it) }.key
                 ui { a.saveGroups(listOf(Group("Audit folder", "folder", listOf(key)))); a.addToGroup(key) }; settle()
                 shot("38-folder-picker")
                 note("#38", "DESIGN_ONLY", "Folder picker displayed; issue requests icons and visual polish, with no broken add-to-group operation reported")

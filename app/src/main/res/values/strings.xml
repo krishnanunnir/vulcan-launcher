@@ -662,6 +662,8 @@
     <string name="no_work_profile">No work profile</string>
     <string name="work_paused">Work profile paused</string>
     <string name="work_resumed">Work profile on</string>
+    <string name="work_needs_home">Make Vulcan your home app to pause work apps</string>
+    <string name="work_refused">Android didn\'t change the work profile</string>
     <string name="no_flashlight">No flashlight available right now</string>
     <string name="name">Name</string>
     <string name="backup_panel_save">Save</string>

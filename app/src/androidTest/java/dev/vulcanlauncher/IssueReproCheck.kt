@@ -99,7 +99,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
             a.save(); a.rebuild(); a.workspace.snapTo(0, false)
         }; settle()
     }
-    private fun children() = a.repo.apps.values.filter { !a.repo.isPrivate(it) }.take(6).map { Item(0,0,0,pkg=it.pkg,cls=it.cls,user=it.serial) }
+    private fun children() = a.repo.apps.values.filter { !a.repo.spaces.isPrivate(it) }.take(6).map { Item(0,0,0,pkg=it.pkg,cls=it.cls,user=it.serial) }
     private fun drawer() { ui { a.drawer.show(false) }; settle() }
     private fun grid() = field(a.drawer, "grid") as GridView
     private fun settings(page: String): SettingsActivity {
@@ -121,10 +121,10 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
         out = File(a.filesDir,"issue-repro").apply { mkdirs() }
         val original = auditBackup(a) { note("RESTORE","INFO",it) }
         try {
-            note("ENV","INFO","API ${android.os.Build.VERSION.SDK_INT}; apps=${a.repo.apps.size}; privateUser=${a.repo.privateUser}; privateLocked=${a.repo.privateLocked}")
+            note("ENV","INFO","API ${android.os.Build.VERSION.SDK_INT}; apps=${a.repo.apps.size}; privateUser=${a.repo.spaces.privateUser}; privateLocked=${a.repo.spaces.privateLocked}")
             case("#33") {
                 setup("fillFromBottom" to "on", "frequent" to "off", "drawerCols" to "4", "drawerRows" to "6")
-                val selected = a.repo.apps.values.filter { !a.repo.isPrivate(it) }.take(18).let { if (it.size % 4 == 0) it.dropLast(2) else it }
+                val selected = a.repo.apps.values.filter { !a.repo.spaces.isPrivate(it) }.take(18).let { if (it.size % 4 == 0) it.dropLast(2) else it }
                 ui { a.store.putStrings("hidden", a.repo.apps.keys - selected.map { it.key }.toSet()) }; drawer()
                 shot("33-bottom-grid")
                 val g = grid(); val real = all(g).filterIsInstance<IconView>().filter { it.isShown }
@@ -142,7 +142,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
             case("#9 #12 #13") {
                 for (style in listOf("housing","glass","grid","list","pages")) {
                     setup("drawerStyle" to style,"drawerSearch" to "off","frequent" to "on")
-                    ui { a.store.putObj("launches", JSONObject().apply { a.repo.apps.values.filter { !a.repo.isPrivate(it) }.take(4).forEachIndexed { i,app -> put(app.key,20-i) } }) }; drawer()
+                    ui { a.store.putObj("launches", JSONObject().apply { a.repo.apps.values.filter { !a.repo.spaces.isPrivate(it) }.take(4).forEachIndexed { i,app -> put(app.key,20-i) } }) }; drawer()
                     val row = field(a.drawer,"frequentRow") as LinearLayout
                     check("#9/$style",row.isShown && all(row).filterIsInstance<IconView>().size == 4,"dedicated frequent row icons=${all(row).filterIsInstance<IconView>().size}")
                     check("#12/$style", !(field(a.drawer,"searchBar") as View).isShown,"drawer search off visibility=${(field(a.drawer,"searchBar") as View).visibility}")
@@ -159,7 +159,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
             }
             case("#21 #22 #23 #25") {
                 setup("frequent" to "off")
-                val keys = a.repo.apps.values.filter { !a.repo.isPrivate(it) }.take(6).map { it.key }
+                val keys = a.repo.apps.values.filter { !a.repo.spaces.isPrivate(it) }.take(6).map { it.key }
                 ui { a.store.data.edit().putString("groups",groupsToJson(listOf(Group("Repro group","folder",keys),Group("Tab one","tab",keys.take(2)),Group("Tab two","tab",keys.takeLast(2))))).commit() }; drawer()
                 tap(all(grid()).filterIsInstance<IconView>().first { it.contentDescription == "Repro group" }); shot("22-folder-open")
                 check("#22/open",a.overlay != null && a.drawer.visible,"folder and drawer both open")
@@ -329,7 +329,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                     val ordered=names.sortedWith(labelOrder(ru))
                     check("#5",ordered==listOf("Банк","Контакт","Электричка","Catima","Organic","Yahoo"),"Android ICU Russian order=$ordered; German Ä/A=${labelOrder(Locale.GERMAN).compare("Ä","A")}")
                     clean()
-                    val apps=a.repo.apps.values.filter { !a.repo.isPrivate(it) }.take(names.size)
+                    val apps=a.repo.apps.values.filter { !a.repo.spaces.isPrivate(it) }.take(names.size)
                     ui {
                         // Starting SettingsActivity can reapply the device locale to Locale.getDefault().
                         // Reapply the case's app locale after closing it, before exercising the real drawer.
@@ -349,10 +349,10 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
             }
             case("#3 #31") {
                 setup(); drawer(); shot("03-private-tab")
-                note("#3",if(android.os.Build.VERSION.SDK_INT<35) "NOT_APPLICABLE" else "OBSERVED","privateUser=${a.repo.privateUser}; locked=${a.repo.privateLocked}; private apps=${a.repo.apps.values.count { a.repo.isPrivate(it) }}; tabKeys=${field(a.drawer,"tabKeys")}")
-                if(a.repo.privateUser!=null) {
+                note("#3",if(android.os.Build.VERSION.SDK_INT<35) "NOT_APPLICABLE" else "OBSERVED","privateUser=${a.repo.spaces.privateUser}; locked=${a.repo.spaces.privateLocked}; private apps=${a.repo.apps.values.count { a.repo.spaces.isPrivate(it) }}; tabKeys=${field(a.drawer,"tabKeys")}")
+                if(a.repo.spaces.privateUser!=null) {
                     tap(text(field(a.drawer,"tabs") as View,a.getString(R.string.tab_private))); shot("03-private-locked")
-                    check("#3/locked",a.repo.privateLocked && grid().adapter.count==0,"Private tab selected; locked profile has ${grid().adapter.count} exposed app entries")
+                    check("#3/locked",a.repo.spaces.privateLocked && grid().adapter.count==0,"Private tab selected; locked profile has ${grid().adapter.count} exposed app entries")
                 }
                 val lawn=iconPacks(a).firstOrNull { it.first.contains("lawnicons") }
                 if(lawn==null) note("#31","PREREQUISITE_MISSING","Lawnicons is not installed")

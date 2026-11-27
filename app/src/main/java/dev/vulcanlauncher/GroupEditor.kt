@@ -42,7 +42,7 @@ fun VulcanActivity.appSwitches(title: String, on: Collection<String>, others: Ma
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 buttonTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(m3.on, m3.onSurfaceVariant))
             }
-            return listItem(home.repo.icon(app), if (home.repo.isWork(app)) getString(R.string.work_app, home.repo.label(app)) else home.repo.label(app),
+            return listItem(home.repo.icon(app), if (home.repo.spaces.isWork(app)) getString(R.string.work_app, home.repo.label(app)) else home.repo.label(app),
                 others[app.key]?.let { getString(R.string.in_groups, it.joinToString()) }, trailing = box, appIcon = true) {
                 box.isChecked = !box.isChecked
                 if (box.isChecked) chosen += app.key else chosen -= app.key
@@ -133,8 +133,8 @@ fun VulcanActivity.chooseFavourites() {
     }
 }
 
-fun VulcanActivity.hideAppsMenu() = appSwitches(getString(R.string.hide_apps), store.strings("hidden")) {
-    store.putStrings("hidden", it)
+fun VulcanActivity.hideAppsMenu() = appSwitches(getString(R.string.hide_apps), home.repo.spaces.hidden) {
+    home.repo.spaces.setHidden(it)
     home.drawer.refresh()
 }
 
@@ -281,8 +281,8 @@ private fun VulcanActivity.swipeToDelete(row: View, onDelete: () -> Unit) {
 /** App drawer › Apps: Tabs and Folders, each saying what's in it. */
 fun SettingsActivity.tabsLink(): View {
     val tabs = home.drawer.groups().filter { it.type == "tab" }
-    val hasWork = home.repo.apps.values.any { home.repo.isWork(it) }
-    val names = listOfNotNull(getString(R.string.tab_all), getString(R.string.tab_private).takeIf { home.repo.privateUser != null }) + withWorkSlot(tabs.map { it.name }, store.data.workAt())
+    val hasWork = home.repo.apps.values.any { home.repo.spaces.isWork(it) }
+    val names = listOfNotNull(getString(R.string.tab_all), getString(R.string.tab_private).takeIf { home.repo.spaces.privateUser != null }) + withWorkSlot(tabs.map { it.name }, store.data.workAt())
         .filter { it != WORK_SLOT || hasWork }.map { if (it == WORK_SLOT) getString(R.string.tab_work) else it }
     val summary = if (names.size <= 3) names.joinToString() else getString(R.string.names_and_more, names.take(3).joinToString(), names.size - 3)
     return listItem(symbol("tabs", m3.onPrimaryContainer), getString(R.string.group_tabs), summary, tonalIcon = true) { showPage(TABS_GROUP) }
@@ -304,14 +304,14 @@ fun SettingsActivity.tabsPage(list: LinearLayout) {
     val tabs = groups.filter { it.type == "tab" }
     val hasVisibleTab = tabs.any { !it.hidden }
     val allShown = !store.data.getBoolean(ALL_HIDDEN, false) || !hasVisibleTab
-    val hasWork = home.repo.apps.values.any { home.repo.isWork(it) }
+    val hasWork = home.repo.apps.values.any { home.repo.spaces.isWork(it) }
     val workShown = workTabShown()
     val wrap = looks.str("tabBar") == "wrap"
     fun choice(key: String) = LOOKS.first { it.key == key }
 
     // The bar as the drawer will show it, selected tab first.
     val workAt = store.data.workAt()
-    val shownNames = listOfNotNull(getString(R.string.tab_all).takeIf { allShown }, getString(R.string.tab_private).takeIf { home.repo.privateUser != null }) +
+    val shownNames = listOfNotNull(getString(R.string.tab_all).takeIf { allShown }, getString(R.string.tab_private).takeIf { home.repo.spaces.privateUser != null }) +
         withWorkSlot(tabs.map { it.name }, workAt).filter { if (it == WORK_SLOT) hasWork && workShown else tabs.none { t -> t.name == it && t.hidden } }
             .map { if (it == WORK_SLOT) getString(R.string.tab_work) else it }
     val bar = DrawerTabs(this, (6 * dp).toInt(), (32 * dp).toInt(), wrap).apply {
@@ -377,7 +377,7 @@ fun SettingsActivity.tabsPage(list: LinearLayout) {
     val newTab = listItem(symbol("add", m3.primary), getString(R.string.new_tab)) { newGroup("tab") }
     // Keep in all only means something while All apps shows.
     // Private Space is the system's: always right after All apps, as the preview shows, and not hidden from here.
-    val privateRow = if (home.repo.privateUser != null) listItem(null, getString(R.string.tab_private), getString(R.string.tab_private_fixed), onClick = null) else null
+    val privateRow = if (home.repo.spaces.privateUser != null) listItem(null, getString(R.string.tab_private), getString(R.string.tab_private_fixed), onClick = null) else null
     panel(list, getString(R.string.tabs_in_bar), listOfNotNull(allRow, keep.takeIf { allShown }, privateRow) + movable + newTab)
     if (tabs.isNotEmpty()) list.addView(text(getString(R.string.tabs_hint), 13f, m3.onSurfaceVariant).apply {
         setPadding((32 * dp).toInt(), (12 * dp).toInt(), (32 * dp).toInt(), 0)
@@ -392,7 +392,7 @@ fun SettingsActivity.foldersPage(list: LinearLayout) {
     val folders = home.drawer.groups().filter { it.type == "folder" }
     val first = looks.on("foldersFirst")
     // A row of the drawer: a few apps and folders, in the chosen order.
-    val apps = home.repo.apps.values.filterNot { home.repo.isWork(it) }.sortedWith(compareBy(labelOrder()) { home.repo.label(it) }).take(if (folders.isEmpty()) 4 else 6)
+    val apps = home.repo.apps.values.filterNot { home.repo.spaces.isWork(it) }.sortedWith(compareBy(labelOrder()) { home.repo.label(it) }).take(if (folders.isEmpty()) 4 else 6)
     data class Cell(val name: String, val icon: Drawable)
     val folderCells = folders.take(2).map { Cell(it.name, groupIcon(it.apps)) }
     val appCells = apps.map { Cell(home.repo.label(it), home.repo.icon(it)) }
@@ -693,8 +693,8 @@ private fun SettingsActivity.smartCategories(): Map<String, List<String>> {
         ).reversed().toMap() // the first role listed wins
     val names = mapOf(CAT_FINANCE to R.string.cat_finance, CAT_SHOPPING to R.string.cat_shopping, CAT_HEALTH to R.string.cat_health, CAT_TOOLS to R.string.cat_tools)
     // Hidden and Private Space apps stay out of suggested folders, as they do out of All apps.
-    val hidden = store.strings("hidden")
-    @Suppress("DEPRECATION") val byName = home.repo.apps.values.filter { home.repo.suggested(it, hidden) }.mapNotNull { a ->
+    val hidden = home.repo.spaces.hidden
+    @Suppress("DEPRECATION") val byName = home.repo.apps.values.filter { home.repo.spaces.shows(it, Surface.SUGGEST, hidden) }.mapNotNull { a ->
         val ai = a.info.applicationInfo
         val cat = smartCategory(ai.category, ai.flags and ApplicationInfo.FLAG_IS_GAME != 0, roles[a.pkg], a.pkg, a.title,
             ai.flags and ApplicationInfo.FLAG_SYSTEM != 0) ?: return@mapNotNull null

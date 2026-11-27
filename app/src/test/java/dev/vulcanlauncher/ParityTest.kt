@@ -34,11 +34,38 @@ class ParityTest {
         assertEquals(Profile.CLONE, profileOf(false, null, 999))
         // Android's word wins over the id.
         assertEquals(Profile.WORK, profileOf(false, p + "MANAGED", 999))
-        assertEquals(setOf("b"), unlisted(setOf("b"), false))
-        assertEquals(emptySet<String>(), unlisted(setOf("b"), true))
-        assertTrue(suggested("a", setOf("b"), false))
-        assertFalse(suggested("b", setOf("b"), false))
-        assertFalse(suggested("a", emptySet(), true))
+        // A type Android names that isn't work is never work, whatever its id (#130).
+        assertEquals(Profile.CLONE, profileOf(false, p + "COMMUNAL", 10))
+        assertEquals(SpaceState.OFF, spaceState(quiet = true, unlocked = false))
+        assertEquals(SpaceState.CHANGING, spaceState(quiet = false, unlocked = false))
+        assertEquals(SpaceState.ON, spaceState(quiet = false, unlocked = true))
+    }
+
+    @Test
+    fun workSwitch() {
+        val (on, off, changing) = SpaceState.values()
+        assertEquals(null, workSwitch(emptyMap<String, SpaceState>()))
+        // Pause while any is on, and only those not paused yet.
+        assertEquals(true to listOf("a"), workSwitch(mapOf("a" to on, "b" to off)))
+        assertEquals(true to listOf("a", "b"), workSwitch(mapOf("a" to on, "b" to changing)))
+        assertEquals(false to listOf("a", "b"), workSwitch(mapOf("a" to off, "b" to off)))
+        // #130: with the profile Android refused no longer counted, the paused one resumes.
+        assertEquals(false to listOf("a"), workSwitch(mapOf("a" to off)))
+        // The best outcome of several profiles is the one reported.
+        assertEquals(Outcome.DONE, listOf(Outcome.FAILED, Outcome.DONE, Outcome.ASKED).minBy { it.ordinal })
+        assertEquals(Outcome.FAILED, listOf(Outcome.ASKED, Outcome.FAILED).minBy { it.ordinal })
+    }
+
+    /** Where hidden, work, private and clone apps show: every case, as it was before one rule decided it. */
+    @Test
+    fun visibility() {
+        for (kind in Profile.values()) for (hidden in listOf(false, true)) for (reveal in listOf(false, true)) {
+            val listed = !hidden || reveal
+            assertEquals("drawer $kind $hidden $reveal", listed, shows(Surface.DRAWER, kind, hidden, reveal))
+            assertEquals("search $kind $hidden $reveal", listed, shows(Surface.SEARCH, kind, hidden, reveal))
+            // Never offered unasked: a hidden app, even revealed, or a Private Space one.
+            assertEquals("suggest $kind $hidden $reveal", !hidden && kind != Profile.PRIVATE, shows(Surface.SUGGEST, kind, hidden, reveal))
+        }
     }
 
     @Test

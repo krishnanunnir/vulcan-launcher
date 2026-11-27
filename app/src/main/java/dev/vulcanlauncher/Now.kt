@@ -265,8 +265,8 @@ private fun MainActivity.buildNow(): NowPanel {
     fun apps(): View? {
         if (!looks.on("nowApps")) return null
         val counts = launches()
-        val hidden = store.strings("hidden")
-        val top = repo.apps.values.filter { counts.optInt(it.key) > 0 && repo.suggested(it, hidden) }.sortedByDescending { counts.optInt(it.key) }.take(8)
+        val hidden = repo.spaces.hidden
+        val top = repo.apps.values.filter { counts.optInt(it.key) > 0 && repo.spaces.shows(it, Surface.SUGGEST, hidden) }.sortedByDescending { counts.optInt(it.key) }.take(8)
         if (top.isEmpty()) return null
         return card(getString(R.string.now_frequent), LinearLayout(this).apply {
             val st = style("").let { IconStyle(it.sizePx * 3 / 4, false, it.labelSize, panelText, false, false) }

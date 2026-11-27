@@ -194,10 +194,13 @@ class MainActivity : VulcanActivity() {
         if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(dateReceiver, dateFilter, RECEIVER_NOT_EXPORTED)
         else registerReceiver(dateReceiver, dateFilter)
         // 34 and later report every kind of profile; before that only the work profile's own broadcasts exist.
-        val profileFilter = android.content.IntentFilter(Intent.ACTION_MANAGED_PROFILE_ADDED).apply {
-            addAction(Intent.ACTION_MANAGED_PROFILE_REMOVED)
-            if (android.os.Build.VERSION.SDK_INT >= 34) { addAction(Intent.ACTION_PROFILE_AVAILABLE); addAction(Intent.ACTION_PROFILE_UNAVAILABLE) }
-            else { addAction(Intent.ACTION_MANAGED_PROFILE_AVAILABLE); addAction(Intent.ACTION_MANAGED_PROFILE_UNAVAILABLE) }
+        // PROFILE_AVAILABLE and _UNAVAILABLE exist from 35, not 34: asked for from 34, Android 14 heard of no pause or
+        // resume at all. ACCESSIBLE / UNLOCKED: the profile's storage is open, so it answers shortcut queries again (#103).
+        val profileFilter = android.content.IntentFilter().apply {
+            (if (android.os.Build.VERSION.SDK_INT >= 35) listOf(Intent.ACTION_PROFILE_ADDED, Intent.ACTION_PROFILE_REMOVED,
+                Intent.ACTION_PROFILE_AVAILABLE, Intent.ACTION_PROFILE_UNAVAILABLE, Intent.ACTION_PROFILE_ACCESSIBLE)
+            else listOf(Intent.ACTION_MANAGED_PROFILE_ADDED, Intent.ACTION_MANAGED_PROFILE_REMOVED,
+                Intent.ACTION_MANAGED_PROFILE_AVAILABLE, Intent.ACTION_MANAGED_PROFILE_UNAVAILABLE, Intent.ACTION_MANAGED_PROFILE_UNLOCKED)).forEach(::addAction)
         }
         if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(profileReceiver, profileFilter, RECEIVER_NOT_EXPORTED)
         else registerReceiver(profileReceiver, profileFilter)
@@ -741,8 +744,6 @@ class MainActivity : VulcanActivity() {
     private val profileReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(c: android.content.Context, i: Intent) {
             repo.loadApps(); drawer.invalidate(); render()
-            // ponytail: a resumed profile answers shortcut queries only a moment later, with no callback; listen for user unlock if 2 s proves short.
-            if (i.action == Intent.ACTION_PROFILE_AVAILABLE || i.action == Intent.ACTION_MANAGED_PROFILE_AVAILABLE) window.decorView.postDelayed(::render, 2000)
         }
     }
 

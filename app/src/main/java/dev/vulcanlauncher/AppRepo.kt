@@ -90,21 +90,15 @@ class AppRepo(private val context: Context, private val store: Store, private va
 
     fun userOf(serial: Long): UserHandle = um.getUserForSerialNumber(serial) ?: Process.myUserHandle()
 
-    /** The Private Space profile (Android 15+), or null. Android lists it only to the home app holding ACCESS_HIDDEN_PROFILES. */
-    var privateUser: UserHandle? = null
-        private set
-    val privateLocked get() = privateUser?.let { um.isQuietModeEnabled(it) } ?: false
+    /** Profiles and hidden apps: what kind each profile is, whether it is on, and where an app may show. */
+    val spaces = Spaces(um, launcherApps, store)
 
     /** [changed]: the only packages whose icons may have changed; null drops every cached icon. */
     fun loadApps(changed: Collection<String>? = null) {
         val profiles = launcherApps.profiles
-        // hashCode is the user id: UserHandle has no public getter for it.
-        kinds = profiles.associateWith { profileOf(it == Process.myUserHandle(),
-            if (android.os.Build.VERSION.SDK_INT >= 35) launcherApps.getLauncherUserInfo(it)?.userType else null, it.hashCode()) }
-        privateUser = profiles.firstOrNull { kinds[it] == Profile.PRIVATE }
+        spaces.load(profiles)
         // A locked Private Space shows none of its apps, anywhere.
-        pausedUsers = profiles.filter { it != Process.myUserHandle() && it != privateUser && um.isQuietModeEnabled(it) }.toSet()
-        apps = profiles.filter { it != privateUser || !privateLocked }.flatMap { user -> val s = serial(user); launcherApps.getActivityList(null, user).map { App(it, s, appCache::label) } } // one binder call per profile, not per app
+        apps = profiles.filter { it != spaces.privateUser || !spaces.privateLocked }.flatMap { user -> val s = serial(user); launcherApps.getActivityList(null, user).map { App(it, s, appCache::label) } } // one binder call per profile, not per app
             .filter { it.pkg != context.packageName }.associateBy { it.key }
         val customsWere = customs.toString()
         customs = store.obj("custom")
@@ -133,7 +127,7 @@ class AppRepo(private val context: Context, private val store: Store, private va
         if (apps.values.any { it.pkg == item.pkg && it.serial == item.user }) return false
         val user = um.getUserForSerialNumber(item.user) ?: return true
         // A profile Vulcan can't ask about (Private Space while another launcher is the default home) answers "not found" for everything.
-        if (user !in launcherApps.profiles || um.isQuietModeEnabled(user) || !um.isUserUnlocked(user)) return false
+        if (user !in launcherApps.profiles || spaces.stateNow(user) != SpaceState.ON) return false
         return try {
             val info = launcherApps.getApplicationInfo(item.pkg, PackageManager.MATCH_UNINSTALLED_PACKAGES, user)
             info != null && info.flags and android.content.pm.ApplicationInfo.FLAG_INSTALLED == 0
@@ -141,10 +135,8 @@ class AppRepo(private val context: Context, private val store: Store, private va
     }
 
     fun label(a: App): String = customs.optJSONObject(a.key)?.optString("label")?.takeIf { it.isNotEmpty() } ?: a.title
-    /** Work profiles that are paused: their apps show greyed out, as in Launcher3 (#73). */
-    private var pausedUsers = emptySet<UserHandle>()
-
-    fun icon(a: App): Drawable = baseIcon(a).let { d -> if (a.info.user !in pausedUsers) d else greyed(d.constantState!!.newDrawable(resources)) }
+    /** A paused work profile's apps show greyed out, as in Launcher3 (#73). */
+    fun icon(a: App): Drawable = baseIcon(a).let { d -> if (spaces.state(a.info.user) != SpaceState.OFF) d else greyed(d.constantState!!.newDrawable(resources)) }
 
     private fun greyed(d: Drawable) = d.mutate().apply {
         colorFilter = android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply { setSaturation(0f) }); alpha = 140
@@ -160,7 +152,7 @@ class AppRepo(private val context: Context, private val store: Store, private va
         // Not seen since Vulcan started (#103): its app's icon, as Launcher3 shows it, not Android's generic one.
         val d = shortcutFaces[key]?.newDrawable(resources)
             ?: return userOf(item.user).let { u -> apps.values.firstOrNull { it.pkg == item.pkg && it.info.user == u } }?.let(::icon)
-        return if (userOf(item.user) in pausedUsers) greyed(d) else d
+        return if (spaces.state(userOf(item.user)) == SpaceState.OFF) greyed(d) else d
     }
 
     /**
@@ -218,18 +210,6 @@ class AppRepo(private val context: Context, private val store: Store, private va
     fun appLabel(key: String): String? = shortcutAction(key)?.let { (p, id, u) ->
         pinnedShortcut(Item(0, 0, 0, pkg = p, shortcutId = id, user = u))?.shortLabel?.toString()
     } ?: apps[key]?.let(::label)
-    /** Each profile's kind, as of the last [loadApps]. */
-    private var kinds = emptyMap<UserHandle, Profile>()
-    val workUsers get() = kinds.filterValues { it == Profile.WORK }.keys
-    fun isWork(a: App) = kinds[a.info.user] == Profile.WORK
-    fun suggested(a: App, hidden: Set<String>) = suggested(a.key, hidden, isPrivate(a))
-    fun isPrivate(a: App) = a.info.user == privateUser
-
-    /** Locks or unlocks Private Space; unlocking asks for the screen lock first. The profile broadcast then reloads the apps. */
-    fun setPrivateLocked(lock: Boolean) {
-        if (android.os.Build.VERSION.SDK_INT >= 35) privateUser?.let { runCatching { um.requestQuietModeEnabled(lock, it) } }
-    }
-
     fun shortcutsFor(a: App): List<ShortcutInfo> = runCatching {
         launcherApps.getShortcuts(LauncherApps.ShortcutQuery().setPackage(a.pkg).setActivity(a.info.componentName)
             .setQueryFlags(LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST), a.info.user)

@@ -149,7 +149,7 @@ abstract class VulcanActivity : Activity() {
     }
     fun pickApp(title: String, only: (App) -> Boolean = { true }, onPicked: (App) -> Unit) = home.run {
         val list = repo.apps.values.filter(only).sortedWith(compareBy(labelOrder()) { repo.label(it) })
-        this@VulcanActivity.pickList(title, list.map { repo.icon(it) to if (repo.isWork(it)) getString(R.string.work_app, repo.label(it)) else repo.label(it) }, appIcon = true) { onPicked(list[it]) }
+        this@VulcanActivity.pickList(title, list.map { repo.icon(it) to if (repo.spaces.isWork(it)) getString(R.string.work_app, repo.label(it)) else repo.label(it) }, appIcon = true) { onPicked(list[it]) }
     }
 
     /** [folder]: a folder's swipe, which may also open the folder itself (listed last, "folder"). [shortcut]: offer app shortcuts. */
