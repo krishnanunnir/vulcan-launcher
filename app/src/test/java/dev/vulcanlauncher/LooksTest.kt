@@ -26,7 +26,8 @@ class LooksTest {
     @Test
     fun fitItemsMovesNegativeCellsAndEmptySizes() {
         val keep = Item(0, 0, 0, pkg = "a")
-        val out = fitItems(listOf(keep, Item(0, -1, 0, pkg = "b"), Item(0, 2, 2, w = 0, h = -3, pkg = "c")), pages = 1, cols = 4, rows = 4, dockCols = 4)
+        // As read from outside: wellFormed puts a bad cell off the grid, and fitItems moves it.
+        val out = fitItems(listOf(keep, Item(0, -1, 0, pkg = "b"), Item(0, 2, 2, w = 0, h = -3, pkg = "c")).mapNotNull(::wellFormed), pages = 1, cols = 4, rows = 4, dockCols = 4)
         assertEquals(listOf(keep, Item(0, 1, 0, pkg = "b"), Item(0, 2, 0, pkg = "c")), out)
     }
 
@@ -124,9 +125,9 @@ class LooksTest {
 
     @Test fun aHugeSizeDoesNotOverflowIntoAFit() {
         val huge = Item(0, 1, 0, w = Int.MAX_VALUE, h = 1, pkg = "a")
-        val moved = fitItems(listOf(huge), 1, 5, 5, 5).single()
+        val moved = fitItems(listOfNotNull(wellFormed(huge)), 1, 5, 5, 5).single()
         assertEquals(5, moved.w)
-        assertEquals(Item(0, 1, 2, w = 1000, h = -1000), itemFromJson(Item(0, 1, 2, w = Int.MAX_VALUE, h = Int.MIN_VALUE).toJson()))
+        assertEquals(Item(0, MAX_CELL, MAX_CELL, w = MAX_CELL, h = 1), itemsFromJson(itemsToJson(listOf(Item(0, 1, 2, w = Int.MAX_VALUE, h = Int.MIN_VALUE)))).single())
     }
 
     private companion object {

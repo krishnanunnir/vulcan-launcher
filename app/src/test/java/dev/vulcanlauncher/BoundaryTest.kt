@@ -25,8 +25,8 @@ class BoundaryTest {
         val out = home("""[{"page":0,"x":1,"y":0,"w":2147483647,"h":1,"pkg":"a"},{"page":0,"x":2147483647,"y":0,"pkg":"b"}]""")
         assertEquals(listOf(Item(0, 0, 0, 6, 1, pkg = "a"), Item(0, 0, 1, pkg = "b")), out)
         // Read back, a cell is held within MAX_CELL, so x + w can't wrap round to a small number.
-        assertEquals(MAX_CELL, itemsFromJson("""[{"page":0,"x":2147483647,"y":-2147483648}]""")[0].x)
-        assertEquals(-MAX_CELL, itemsFromJson("""[{"page":0,"x":2147483647,"y":-2147483648}]""")[0].y)
+        val read = itemsFromJson("""[{"page":0,"x":2147483647,"y":-2147483648}]""")[0]
+        assertTrue(read.x in 0..MAX_CELL && read.y in 0..MAX_CELL)
     }
 
     @Test fun aDockItemOffTheDockMovesIntoIt() {
@@ -73,5 +73,22 @@ class BoundaryTest {
     @Test fun aBackupsSubgridOtherThanOneOrTwoIsLeftForHomeToIgnore() { // 68dc274
         val (files, _) = readableBackupFiles(org.json.JSONObject("""{"format":"vulcan-backup-2","home":{"sub":7,"items":[]}}""")) { _, _ -> null }
         assertEquals("7", files.getValue("layout")["sub"])
+    }
+
+    @Test fun aStoredLayoutIsDecodedOnceAndSaysWhatItLeftOut() { // 0cdc623, 927f199, 68dc274
+        val items = """[{"page":0,"x":0,"y":0,"pkg":"a"},{"page":"oops"},{"page":0,"x":1,"y":0,"folder":true,"children":[]}]"""
+        val d = decodeLayout(items, "2", "2")
+        assertEquals(listOf(Item(0, 0, 0, pkg = "a")), d.value!!.items)
+        assertEquals(2, d.value!!.sub)
+        // A folder left with no children is dropped with the unreadable item: home keeps the text before saving over it.
+        assertEquals(listOf("item 1", "item 2"), d.dropped)
+        // A layout from a newer build isn't read at all, however it looks: its items may mean something else.
+        assertNull(decodeLayout("[]", "3", "1").value)
+        // Neither is one that isn't a list, or a value restored as the wrong type.
+        for (bad in listOf("{", "{}", "5", null, 7)) assertNull(decodeLayout(bad, "2", "1").value)
+        // No version is version 1, whose positions are in the current subgrid factor; so is one that isn't 1 or 2.
+        assertNull(decodeLayout("[]", null, null).value!!.sub)
+        assertEquals(listOf("sub 7"), decodeLayout("[]", "2", "7").repaired)
+        assertNull(decodeLayout("[]", "2", true).value!!.sub)
     }
 }

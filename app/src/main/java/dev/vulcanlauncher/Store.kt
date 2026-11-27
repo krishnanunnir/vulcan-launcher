@@ -83,23 +83,73 @@ fun Item.toJson(): JSONObject = JSONObject().put("page", page).put("x", x).put("
     .put("action", action).put("folder", folder).put("label", label).put("icon", icon).put("swipe", swipe)
     .put("children", JSONArray().apply { children.forEach { put(it.toJson()) } })
 
-/** Far past any grid, and small enough that adding two never overflows: a hand-written cell or size is held within it. */
+/**
+ * Far past any grid, and small enough that adding two never overflows. Every item read from outside (the stored layout,
+ * a backup, another launcher's) is held within it by [wellFormed], so nothing after the read checks again.
+ */
 const val MAX_CELL = 1000
 
-fun itemFromJson(o: JSONObject): Item = Item(
-    o.getInt("page"), cell(o.getInt("x")), cell(o.getInt("y")), cell(o.optInt("w", 1)), cell(o.optInt("h", 1)),
+/**
+ * What a decoder made of data this build may not have written: [value], null when the input as a whole can't be used
+ * (not the right shape, or a newer format), and what it [dropped] or [repaired] on the way.
+ */
+class Decoded<T>(val value: T?, val dropped: List<String> = emptyList(), val repaired: List<String> = emptyList())
+
+/**
+ * [i] as home can place it: a size of 1 to [MAX_CELL] and a cell from 0 to [MAX_CELL]. An item with a cell outside that
+ * (negative, or a hand-written 2147483647) or a size below 1 is put at cell [MAX_CELL], off any grid, for fitItems to move to
+ * the first free one. A page is held within ±[MAX_CELL]. Children too, and a folder left with none is null.
+ */
+fun wellFormed(i: Item): Item? {
+    val kids = i.children.mapNotNull(::wellFormed)
+    if (i.folder && kids.isEmpty()) return null
+    val off = i.x !in 0..MAX_CELL || i.y !in 0..MAX_CELL || i.w < 1 || i.h < 1
+    return i.copy(page = i.page.coerceIn(-MAX_CELL, MAX_CELL), x = if (off) MAX_CELL else i.x, y = if (off) MAX_CELL else i.y,
+        w = i.w.coerceIn(1, MAX_CELL), h = i.h.coerceIn(1, MAX_CELL), children = kids)
+}
+
+/** The item [o] as written, unchecked; [decodeItems] is what reads one from outside. */
+private fun itemFromJson(o: JSONObject): Item = Item(
+    o.getInt("page"), o.getInt("x"), o.getInt("y"), o.optInt("w", 1), o.optInt("h", 1),
     o.optString("pkg"), o.optString("cls"), o.optInt("widgetId", -1), o.optLong("user"), o.optString("shortcutId"),
     o.optString("action"), o.optBoolean("folder"),
-    o.optJSONArray("children")?.let(::itemList) ?: emptyList(),
+    o.optJSONArray("children")?.let { a -> (0 until a.length()).mapNotNull { runCatching { itemFromJson(a.getJSONObject(it)) }.getOrNull() } } ?: emptyList(),
     o.optString("label"), o.optString("icon"), o.optString("swipe"))
 
-private fun cell(n: Int) = n.coerceIn(-MAX_CELL, MAX_CELL)
+/** The items of [a], each [wellFormed]: one that can't be read is dropped, not the whole list. */
+fun decodeItems(a: JSONArray): Decoded<List<Item>> {
+    val dropped = ArrayList<String>()
+    val repaired = ArrayList<String>()
+    val items = (0 until a.length()).mapNotNull { n ->
+        val raw = runCatching { itemFromJson(a.getJSONObject(n)) }.getOrNull()
+        val item = raw?.let(::wellFormed)
+        if (item == null) dropped += "item $n" else if (item != raw) repaired += "item $n"
+        item
+    }
+    return Decoded(items, dropped, repaired)
+}
 
 fun itemsToJson(items: List<Item>) = JSONArray().apply { items.forEach { put(it.toJson()) } }.toString()
-/** The items of [s]; an item that can't be read is dropped, not the whole layout. Throws when [s] isn't a JSON array. */
-fun itemsFromJson(s: String): MutableList<Item> = itemList(JSONArray(s))
+/** The items of [s] (see [decodeItems]). Throws when [s] isn't a JSON array. */
+fun itemsFromJson(s: String): MutableList<Item> = decodeItems(JSONArray(s)).value!!.toMutableList()
 
-private fun itemList(a: JSONArray) = (0 until a.length()).mapNotNull { runCatching { itemFromJson(a.getJSONObject(it)) }.getOrNull() }.toMutableList()
+/** A stored layout: its items, and the subgrid factor their home positions are in (null: a version 1 layout, in the current one). */
+class StoredLayout(val items: List<Item>, val sub: Int?)
+
+/**
+ * The `layout` preferences as stored ([items], [version], [sub] are whatever the file holds). Null when they aren't a
+ * layout this build can read: not a JSON list, or written by a newer build (after a downgrade), whose items may mean
+ * something else. A subgrid factor other than 1 or 2 (a hand edit) is taken as the current one.
+ */
+fun decodeLayout(items: Any?, version: Any?, sub: Any?): Decoded<StoredLayout> {
+    val v = (version as? String)?.toIntOrNull() ?: 1
+    if (v > LAYOUT_VERSION) return Decoded(null, listOf("layout version $v"))
+    val list = (items as? String)?.let { runCatching { JSONArray(it) }.getOrNull() } ?: return Decoded(null, listOf("items"))
+    val d = decodeItems(list)
+    val s = (sub as? String)?.toIntOrNull()
+    val goodSub = s?.takeIf { it == 1 || it == 2 }
+    return Decoded(StoredLayout(d.value!!, goodSub), d.dropped, d.repaired + listOfNotNull("sub $s".takeIf { s != null && goodSub == null }))
+}
 
 /** [items] without the apps and shortcuts of an uninstalled package. A folder left with one item turns back into it. */
 fun removePackage(items: List<Item>, pkg: String, user: Long) = removeApps(items) { it.pkg == pkg && it.user == user }
@@ -190,30 +240,33 @@ class Store(private val context: Context) {
     val autoBackups get() = listOf("auto-backup.json", "auto-backup-2.json", "auto-backup-3.json").map { File(context.filesDir, it) }
 
     /**
-     * The saved layout, in subgrid factor [sub]. If it can't be read at all (a bad restore, a hand edit or a newer format), the raw text
-     * is kept in `files/layout-unreadable.json` and the newest readable automatic backup is used, so the launcher never
-     * crash-loops.
+     * The saved layout, in subgrid factor [sub] (see [decodeLayout]). A layout that can't be read at all (a bad restore,
+     * a hand edit) is kept in `files/layout-unreadable.json`, one from a newer build in `files/layout-v<version>.json`,
+     * and the newest readable automatic backup is used, so the launcher never crash-loops and never saves over it unread.
      */
     fun load(sub: Int): MutableList<Item> {
-        val raw = prefs.getString("items", "[]")!!
-        // Subgrid factors are 1 and 2; any other (a hand-edited backup) is taken as the current one, not divided by.
-        val saved = prefs.getString("sub", null)?.toIntOrNull()?.takeIf { it == 1 || it == 2 }
-        val unreadable = File(context.filesDir, "layout-unreadable.json")
-        runCatching {
-            // A layout from a newer build (read after a downgrade) may mean something else: set aside like an unreadable one.
-            require((prefs.getString("version", null)?.toIntOrNull() ?: 1) <= LAYOUT_VERSION)
-            val items = itemsFromJson(raw)
+        val all = prefs.all
+        val raw = all["items"] as? String ?: "[]"
+        val stored = decodeLayout(raw, all["version"], all["sub"])
+        stored.value?.let { l ->
+            if (stored.repaired.isNotEmpty()) android.util.Log.w("Vulcan", "layout: repaired ${stored.repaired}")
             // An item this build can't read is dropped, and home saves at once: the text as it was is kept first.
-            if (items.size < JSONArray(raw).length()) runCatching { unreadable.writeText(raw) }
-            return layoutIn(items, saved, sub).toMutableList()
+            if (stored.dropped.isNotEmpty()) setAside("layout-unreadable.json", raw, stored.dropped)
+            return layoutIn(l.items, l.sub, sub).toMutableList()
         }
-        runCatching { unreadable.writeText(raw) }
+        val newer = (all["version"] as? String)?.toIntOrNull()?.takeIf { it > LAYOUT_VERSION }
+        setAside(if (newer != null) "layout-v$newer.json" else "layout-unreadable.json", raw, stored.dropped)
         // What's recovered is saved at once: export reads the stored layout, so a restore (which backs up first) would fail too.
         for (f in autoBackups) runCatching {
             val l = backupLayout(JSONObject(f.readText()))
-            return layoutIn(itemsFromJson(l.getValue("items")), l["sub"]?.toIntOrNull()?.takeIf { it == 1 || it == 2 }, sub).toMutableList().also { save(it, sub) }
+            return layoutIn(l.items, l.sub, sub).toMutableList().also { save(it, sub) }
         }
         return mutableListOf<Item>().also { save(it, sub) }
+    }
+
+    private fun setAside(name: String, raw: String, why: List<String>) {
+        android.util.Log.w("Vulcan", "layout: set aside in $name, can't read $why")
+        runCatching { File(context.filesDir, name).writeAtomically(raw) }.onFailure { android.util.Log.e("Vulcan", "layout: can't keep $name", it) }
     }
 
     /** Saves [items], whose home positions are in subgrid factor [sub]. Strings only, so backups round-trip them. */
@@ -251,11 +304,13 @@ class Store(private val context: Context) {
     fun export(apps: List<App> = emptyList()): String {
         // Sorted: the same setup always reads as the same text, which is how rotateAutoBackup spots one it already keeps.
         val looks = context.getSharedPreferences("looks", Context.MODE_PRIVATE).all.mapValues { it.value.toString() }.toSortedMap()
-        val sub = prefs.getString("sub", null)?.toIntOrNull() ?: if (looks["subgrid"] == "on") 2 else 1
+        // Through the decoder, as load reads it: a layout it would set aside isn't written into a backup as if it were this build's.
+        val stored = prefs.all.let { requireNotNull(decodeLayout(it["items"] ?: "[]", it["version"], it["sub"]).value) { "Unreadable layout" } }
+        val sub = stored.sub ?: if (looks["subgrid"] == "on") 2 else 1
         // Each widget notes its provider, so a restore can offer it again once its ID is gone (an import or reset freed it).
         val awm = android.appwidget.AppWidgetManager.getInstance(context)
         val um = context.getSystemService(android.os.UserManager::class.java)
-        val items = itemsFromJson(prefs.getString("items", "[]")!!).map { i ->
+        val items = stored.items.map { i ->
             (if (i.isWidget) awm.getAppWidgetInfo(i.widgetId) else null)?.let { w ->
                 i.copy(pkg = w.provider.packageName, cls = w.provider.className, user = um.getSerialNumberForUser(w.profile))
             } ?: i
@@ -367,6 +422,20 @@ fun dataTypeFixes(all: Map<String, Any?>): Map<String, Any> = all.mapNotNull { (
     }?.let { k to it }
 }.toMap()
 
+/**
+ * Writes [text] to this file whole or not at all: into "<name>.tmp", synced to disk, then renamed over this file. Throws
+ * when any step fails, leaving the file as it was and no temp file behind.
+ */
+fun File.writeAtomically(text: String) = File("$path.tmp").let { tmp -> tmp.writeSynced(text); tmp.moveTo(this) }
+
+/** Writes [text] to this file and syncs it to disk; a failed write deletes it and throws. */
+fun File.writeSynced(text: String) = try {
+    java.io.FileOutputStream(this).use { it.write(text.toByteArray()); it.fd.sync() }
+} catch (e: Exception) { delete(); throw e }
+
+/** Renames this file to [to], replacing it; a failure deletes this file and throws. */
+fun File.moveTo(to: File) { if (!renameTo(to)) { delete(); throw java.io.IOException("can't replace ${to.name}") } }
+
 /** The automatic backups after saving [now] in front of [kept] (newest first): one already kept moves up, not into a second slot. */
 fun rotatedBackups(now: String, kept: List<String>, slots: Int) = (listOf(now) + kept).distinct().take(slots)
 
@@ -391,13 +460,14 @@ fun readableBackup(looks: Map<String, String>, items: List<Item>, sub: Int, data
             JSONObject().put("label", a.first).put("pkg", a.second).put("cls", a.third).apply { if (user != 0L) put("user", user) }
         })))
 
-/** The `layout` preferences ("items", "sub") held in backup [root], whichever format it is in. Throws when it has no layout. */
-fun backupLayout(root: JSONObject): Map<String, String> {
+/** The layout held in backup [root], whichever format it is in. Throws when it has none this build can read. */
+fun backupLayout(root: JSONObject): StoredLayout {
     if (root.optString("format") == "vulcan-backup-2") return readableBackupFiles(root) { _, _ -> null }.first.getValue("layout")
+        .let { requireNotNull(decodeLayout(it["items"], it["version"], it["sub"]).value) }
     val layout = root.getJSONObject("layout")
     // A backup from before version 2 is in the subgrid factor of the settings saved with it.
-    val sub = layout.optString("sub").toIntOrNull() ?: if (root.optJSONObject("looks")?.optString("subgrid") == "on") 2 else 1
-    return mapOf("items" to layout.getString("items"), "sub" to sub.toString())
+    val sub = layout.optString("sub").ifEmpty { if (root.optJSONObject("looks")?.optString("subgrid") == "on") "2" else "1" }
+    return requireNotNull(decodeLayout(layout.optString("items", null), layout.optString("version", null), sub).value) { "Unreadable layout" }
 }
 
 /**
@@ -438,7 +508,7 @@ fun readableBackupFiles(root: JSONObject, cls: (pkg: String, user: Long) -> Stri
     // Restoring replaces the layout: a home section that's missing, misspelt or the wrong shape must not read as an empty one.
     val home = requireNotNull(root.optJSONObject("home")?.takeIf { it.optJSONArray("items") != null }) { "Missing home items" }
     fun fill(i: Item): Item = i.copy(cls = if (i.isApp && i.cls.isEmpty()) cls(i.pkg, i.user).orEmpty() else i.cls, children = i.children.map(::fill))
-    val items = itemList(home.getJSONArray("items")).map(::fill)
+    val items = decodeItems(home.getJSONArray("items")).value!!.map(::fill)
     val sub = home.optInt("sub", if (looks["subgrid"] == "on") 2 else 1)
     val data = root.optJSONObject("data")?.let { d -> d.keys().asSequence().associateWith { d.get(it).toString() } } ?: emptyMap()
     return mapOf("layout" to mapOf("items" to itemsToJson(items), "version" to LAYOUT_VERSION.toString(), "sub" to sub.toString()),
