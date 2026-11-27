@@ -89,6 +89,13 @@ class CorruptionTest {
         }
     }
 
+    @Test fun aFileThatIsNotJsonGivesNoParserTextAsItsReason() {
+        for (text in listOf(format2.take(format2.length / 2), "\u0000\ufffd\u0001", "[1,2,3]", "")) {
+            val d = decodeBackup(text)
+            assertTrue(text.take(20), d.value == null && d.dropped.isEmpty())
+        }
+    }
+
     @Test fun backupFilesOfEitherFormat() {
         val r = Random(1)
         var restored = 0

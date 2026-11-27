@@ -566,7 +566,8 @@ typealias BackupFiles = Pair<Map<String, Map<String, String>>, List<String>>
  */
 fun decodeBackup(text: String, cls: (pkg: String, user: Long) -> String? = { _, _ -> null }): Decoded<BackupFiles> =
     runCatching {
-        val root = JSONObject(text)
+        // Not JSON at all (cut short, binary, an array): no reason, the parser's own text is no message to show.
+        val root = runCatching { JSONObject(text) }.getOrNull() ?: return Decoded(null)
         when (root.optString("format")) {
             "vulcan-backup-2" -> Decoded(readableBackupFiles(root, cls))
             "vulcan-backup-1" -> Decoded(legacyBackupFiles(root))
