@@ -102,4 +102,20 @@ class BoundaryTest {
         assertEquals(listOf("sub 7"), decodeLayout("[]", "2", "7").repaired)
         assertNull(decodeLayout("[]", "2", true).value!!.sub)
     }
+
+    private fun appfilter(xml: String) = org.kxml2.io.KXmlParser().let { p ->
+        p.setInput(java.io.StringReader(xml))
+        Appfilter().also { f -> runCatching { readAppfilter(p, f) } }
+    }
+
+    @Test fun anIconPacksBadTagKeepsTheEntriesBeforeIt() { // 67eb179
+        val f = appfilter("""<resources><item component="ComponentInfo{a/a.A}" drawable="x"/><item component="ComponentInfo{a/a.A}" drawable="y"/>
+            <item component="nonsense" drawable="z"/><item drawable="w"/><iconback img1="b1" img2="b2"/><scale factor="NaN"/>
+            <item component="ComponentInfo{b/b.B}" drawable="b"/><broken <item component="ComponentInfo{c/c.C}" drawable="c"/></resources>""")
+        assertEquals(mapOf("a/a.A" to "x", "b/b.B" to "b"), f.map)
+        assertEquals(listOf("b1", "b2"), f.back)
+        assertEquals(1f, f.scale)
+        for ((v, want) in listOf("0.8" to 0.8f, "0" to 1f, "-2" to 1f, "Infinity" to 1f, "x" to 1f))
+            assertEquals(v, want, appfilter("""<resources><scale factor="$v"/></resources>""").scale)
+    }
 }
