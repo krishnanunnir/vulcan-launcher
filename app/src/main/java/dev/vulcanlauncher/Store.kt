@@ -141,14 +141,35 @@ class StoredLayout(val items: List<Item>, val sub: Int?)
  * layout this build can read: not a JSON list, or written by a newer build (after a downgrade), whose items may mean
  * something else. A subgrid factor other than 1 or 2 (a hand edit) is taken as the current one.
  */
-fun decodeLayout(items: Any?, version: Any?, sub: Any?): Decoded<StoredLayout> {
+fun decodeLayout(items: Any?, version: Any?, sub: Any?, readable: Int = LAYOUT_VERSION): Decoded<StoredLayout> {
     val v = (version as? String)?.toIntOrNull() ?: 1
-    if (v > LAYOUT_VERSION) return Decoded(null, listOf("layout version $v"))
+    if (v > readable) return Decoded(null, listOf("layout version $v"))
     val list = (items as? String)?.let { runCatching { JSONArray(it) }.getOrNull() } ?: return Decoded(null, listOf("items"))
     val d = decodeItems(list)
     val s = (sub as? String)?.toIntOrNull()
     val goodSub = s?.takeIf { it == 1 || it == 2 }
     return Decoded(StoredLayout(d.value!!, goodSub), d.dropped, d.repaired + listOfNotNull("sub $s".takeIf { s != null && goodSub == null }))
+}
+
+/**
+ * What home shows from the stored `layout` preferences [stored], in subgrid factor [sub]. [standIn] when they can't be
+ * read (a bad restore, a hand edit, a newer build's after a downgrade): the newest readable of [backups] (or nothing)
+ * stands in, and the stored text stays as it is until the user edits home, so a build that reads it brings it back.
+ * [setAside] names the file the stored text is also copied to, with [why].
+ */
+class LoadedLayout(val items: List<Item>, val standIn: Boolean, val setAside: String?, val why: List<String>, val repaired: List<String>)
+
+fun loadLayout(stored: Map<String, Any?>, backups: Sequence<String>, sub: Int, readable: Int = LAYOUT_VERSION): LoadedLayout {
+    // Missing is an empty layout; a value of the wrong type (a bad restore) is unreadable, not empty.
+    val d = decodeLayout(stored["items"] ?: "[]", stored["version"], stored["sub"], readable)
+    d.value?.let { l ->
+        // An item this build can't read is dropped, and the next save loses it: the text as it was is kept first.
+        return LoadedLayout(layoutIn(l.items, l.sub, sub), false, "layout-unreadable.json".takeIf { d.dropped.isNotEmpty() }, d.dropped, d.repaired)
+    }
+    val newer = (stored["version"] as? String)?.toIntOrNull()?.takeIf { it > readable }
+    val l = backups.firstNotNullOfOrNull(::backupLayout)
+    return LoadedLayout(l?.let { layoutIn(it.items, it.sub, sub) } ?: emptyList(), true,
+        if (newer != null) "layout-v$newer.json" else "layout-unreadable.json", d.dropped, emptyList())
 }
 
 /** [items] without the apps and shortcuts of an uninstalled package. A folder left with one item turns back into it. */
@@ -246,22 +267,17 @@ class Store(private val context: Context) {
      */
     fun load(sub: Int): MutableList<Item> {
         val all = prefs.all
-        val raw = all["items"] as? String ?: "[]"
-        val stored = decodeLayout(raw, all["version"], all["sub"])
-        stored.value?.let { l ->
-            if (stored.repaired.isNotEmpty()) android.util.Log.w("Vulcan", "layout: repaired ${stored.repaired}")
-            // An item this build can't read is dropped, and home saves at once: the text as it was is kept first.
-            if (stored.dropped.isNotEmpty()) setAside("layout-unreadable.json", raw, stored.dropped)
-            return layoutIn(l.items, l.sub, sub).toMutableList()
-        }
-        val newer = (all["version"] as? String)?.toIntOrNull()?.takeIf { it > LAYOUT_VERSION }
-        setAside(if (newer != null) "layout-v$newer.json" else "layout-unreadable.json", raw, stored.dropped)
-        // What's recovered is saved at once: export reads the stored layout, so a restore (which backs up first) would fail too.
-        for (f in autoBackups) backupLayout(runCatching { f.readText() }.getOrDefault(""))?.let { l ->
-            return layoutIn(l.items, l.sub, sub).toMutableList().also { save(it, sub) }
-        }
-        return mutableListOf<Item>().also { save(it, sub) }
+        val l = loadLayout(all, autoBackups.asSequence().map { f -> runCatching { f.readText() }.getOrDefault("") }, sub)
+        if (l.repaired.isNotEmpty()) android.util.Log.w("Vulcan", "layout: repaired ${l.repaired}")
+        l.setAside?.let { setAside(it, all["items"]?.toString() ?: "", l.why) }
+        return l.items.toMutableList()
     }
+
+    /**
+     * False while home shows a stand-in for a stored layout it can't read (see [loadLayout]): what only tidies the layout
+     * (a save on start, freeing widget IDs it doesn't hold, a daily backup) must wait, as the stored one may hold them.
+     */
+    val layoutReadable get() = prefs.all.let { decodeLayout(it["items"] ?: "[]", it["version"], it["sub"]).value != null }
 
     private fun setAside(name: String, raw: String, why: List<String>) {
         android.util.Log.w("Vulcan", "layout: set aside in $name, can't read $why")
@@ -277,6 +293,8 @@ class Store(private val context: Context) {
      * taking a second slot, so restoring back and forth between backups can't push out the last different one.
      */
     fun rotateAutoBackup() {
+        // A stand-in isn't backed up: the backups are what it came from, and the stored text is kept in its set-aside file.
+        if (!layoutReadable) return
         val old = autoBackups.mapNotNull { f -> runCatching { f.readText() to f.lastModified() }.getOrNull() }.toMap()
         val now = export()
         // Unchanged since the newest: it is dated now instead, or the daily check (MainActivity.onStop) would rerun on

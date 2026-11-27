@@ -132,4 +132,31 @@ class BoundaryTest {
             assertEquals(listOf("a.json", "busy"), dir.list()!!.sorted())
         } finally { dir.deleteRecursively() }
     }
+
+    @Test fun aLayoutItCantReadStaysStoredUntilTheUserEdits() { // prior-art review, section 3
+        val mine = listOf(Item(0, 0, 0, pkg = "a"), Item(DOCK, 0, 0, pkg = "d"))
+        val backup = readableBackup(emptyMap(), mine, 1, emptyMap(), emptyList()) { "s$it" }.toString()
+        // A newer build's layout, after a downgrade: the newest readable backup stands in, the stored text is set aside.
+        val newer = mapOf("items" to """[{"page":0,"x":0,"y":0,"pkg":"n","v3":1}]""", "version" to "3", "sub" to "1")
+        for (launch in 1..2) { // the next start on the same build reads it the same way: nothing saved over it in between
+            val l = loadLayout(newer, sequenceOf("not a backup", backup), 1)
+            assertTrue(l.standIn)
+            assertEquals(mine, l.items)
+            assertEquals("layout-v3.json", l.setAside)
+            // What Store.layoutReadable checks before the saves and sweeps that would act on the stand-in.
+            assertNull(decodeLayout(newer["items"], newer["version"], newer["sub"]).value)
+        }
+        // A build that reads version 3 gets the stored layout back, not the stand-in.
+        val back = loadLayout(newer, sequenceOf(backup), 1, readable = 3)
+        assertEquals(false, back.standIn)
+        assertEquals(listOf(Item(0, 0, 0, pkg = "n")), back.items)
+        // The first edit saves as usual (layoutFile is what Store.save writes), and from then on that is what loads.
+        val edited = loadLayout(layoutFile(mine + Item(0, 1, 0, pkg = "b"), 1), sequenceOf(backup), 1)
+        assertEquals(false, edited.standIn)
+        assertEquals(mine + Item(0, 1, 0, pkg = "b"), edited.items)
+        assertNull(edited.setAside)
+        // No backup to recover from: home is empty, and still a stand-in. A value of the wrong type is unreadable, not empty.
+        assertTrue(loadLayout(mapOf("items" to 7), emptySequence(), 1).let { it.standIn && it.items.isEmpty() })
+        assertEquals(false, loadLayout(emptyMap(), emptySequence(), 1).standIn)
+    }
 }
