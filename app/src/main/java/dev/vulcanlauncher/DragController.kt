@@ -317,7 +317,7 @@ class DragController(private val a: MainActivity) {
     private var plusPage: CellLayout? = null
 
     private fun addPlusPage() {
-        if (plusPage != null || a.locked || a.pages.size >= 9) return
+        if (plusPage != null || a.locked || a.pages.size >= MAX_PAGES) return
         newPage(a.pages.size).apply {
             setOnLongClickListener(null)
             isLongClickable = false
@@ -362,7 +362,7 @@ class DragController(private val a: MainActivity) {
                 start()
             }
         }
-        a.looks["pages"] = a.pages.size.toString()
+        a.editLayout(a.pageLayout.addPage(), redraw = false) // the views are right already
         a.indicator.count = a.pages.size
         page.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
         addPlusPage()
@@ -450,7 +450,7 @@ class DragController(private val a: MainActivity) {
      */
     // ponytail: the page dots don't count it until the drop; Launcher3 shows it as one more dot while dragging.
     private fun addDragPage() {
-        if (dragPage != null || a.pages.size >= 9 || a.pages.last().childCount == 0) return
+        if (dragPage != null || a.pages.size >= MAX_PAGES || a.pages.last().childCount == 0) return
         newPage(a.pages.size).also {
             it.background = pageCard().apply { alpha = (spring * 255).toInt() }
             dragPage = it; a.pages = a.pages + it; a.workspace.addView(it)
@@ -461,17 +461,14 @@ class DragController(private val a: MainActivity) {
     private fun settleDragPages() {
         val extra = dragPage
         dragPage = null
-        val (kept, n, gone) = settlePages(a.items, a.looks.pages, if (dropped) dragFrom else null)
-        if (n == a.looks.pages && gone < 0) {
+        val (next, gone) = a.pageLayout.settleDrag(if (dropped) dragFrom else null)
+        if (next.pages == a.looks.pages && gone < 0) {
             extra?.let { a.pages = a.pages - it; a.workspace.removeView(it); a.workspace.snapTo(a.workspace.current) }
             return
         }
-        a.items = kept.toMutableList()
-        val default = a.looks.int("defaultPage")
-        if (gone in 0 until default) a.looks["defaultPage"] = (default - 1).toString()
         val show = a.workspace.current - if (gone in 0 until a.workspace.current) 1 else 0
-        a.looks["pages"] = n.toString()
-        a.save()
+        // Built again even when the count comes out the same (a page added and one removed): the drag's extra page goes.
+        a.editLayout(next, redraw = false)
         a.rebuild()
         a.workspace.snapTo(show, animate = false)
     }

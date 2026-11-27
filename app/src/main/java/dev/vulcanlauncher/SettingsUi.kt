@@ -757,7 +757,12 @@ private fun SettingsActivity.valueName(c: Choice) = when {
 private fun SettingsActivity.applyChoice(c: Choice, value: String) {
     val old = looks[c]
     if (value == old) return
-    looks[c] = value
+    // Pages and the default page are part of home's layout, stored with it.
+    when (c.key) {
+        "pages" -> storeLayout(store, looks, home.pageLayout, home.pageLayout.withPages(value.toInt()), home.sub)
+        "defaultPage" -> storeLayout(store, looks, home.pageLayout, home.pageLayout.withDefault(value.toInt()), home.sub)
+        else -> looks[c] = value
+    }
     home.stale = true
     val perm = when {
         value == "on" && c.key in listOf("contactSearch", "nowContacts") -> android.Manifest.permission.READ_CONTACTS
@@ -844,12 +849,11 @@ fun VulcanActivity.applyImport(layout: ImportedLayout, settings: Map<String, Str
     // The home this replaces stays restorable from Settings; like Store.import, nothing is replaced if that can't be saved.
     runCatching { store.rotateAutoBackup() }.onFailure { toast(R.string.import_failed, it.message); return }
     home.items.flatMap { it.widgetIds }.forEach(home.host::deleteAppWidgetId)
-    settings.forEach { (k, v) -> looks[k] = v }
+    val was = home.pageLayout
+    // The page count goes with the items, below.
+    settings.forEach { (k, v) -> if (k != "pages") looks[k] = v }
     looks["subgrid"] = if (layout.subgrid) "on" else "off"
-    val pages = (layout.items.filter { !isDock(it.page) }.maxOfOrNull { it.page } ?: 0) + 1
-    // The backup's own page count when it has one, else just enough for its items: never this home's old empty pages.
-    looks["pages"] = maxOf(pages, settings["pages"]?.toIntOrNull() ?: 1).coerceAtMost(9).toString()
-    store.save(layout.items, if (layout.subgrid) 2 else 1)
+    storeLayout(store, looks, was, importedLayout(layout.items, settings["pages"]?.toIntOrNull(), was.defaultPage), if (layout.subgrid) 2 else 1)
     if (layout.widgets > 0) store.data.edit().putBoolean(RESTORING_WIDGETS, true).commit()
     // The same pins as these, from what was just stored; it waits for onResume when Vulcan isn't the default home app yet.
     home.repinShortcuts()

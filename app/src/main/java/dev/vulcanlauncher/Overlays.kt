@@ -298,7 +298,7 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
                 compoundDrawablePadding = (4 * dp).toInt()
                 setCompoundDrawablesRelative(symbol("home", if (i == default) 0xFFFFFFFF.toInt() else 0x80FFFFFF.toInt(), 14f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
                 contentDescription = "${getString(R.string.page_n, i + 1)}, ${getString(R.string.page_set_default)}"
-                setOnClickListener { looks["defaultPage"] = i.toString(); showOverview(enter = false) }
+                setOnClickListener { editLayout(pageLayout.withDefault(i)); showOverview(enter = false) }
             }, LinearLayout.LayoutParams(-2, -2).apply { gravity = Gravity.CENTER_HORIZONTAL })
             setOnClickListener { workspace.snapTo(i, animate = false); closeOverlay() }
             if (!locked) setOnLongClickListener { v ->
@@ -324,7 +324,7 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
             }
         })
     }
-    if (!locked && pages.size < 9) add(LinearLayout(this).apply {
+    if (!locked && pages.size < MAX_PAGES) add(LinearLayout(this).apply {
         contentDescription = getString(R.string.page_add)
         addView(ImageView(context).apply {
             setImageDrawable(symbol("add", 0xFFFFFFFF.toInt(), 32f))
@@ -334,8 +334,7 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
         }, LinearLayout.LayoutParams(w, h))
         setOnClickListener {
             val added = pages.size
-            looks["pages"] = (added + 1).toString()
-            rebuild()
+            editLayout(pageLayout.addPage())
             reopenOverview(pop = added)
         }
     })
@@ -397,11 +396,7 @@ private fun MainActivity.reopenOverview(pop: Int = -1) = drag.afterRebuild { sho
 /** [then]: after the move; the previews reopen by default. */
 fun MainActivity.movePageTo(from: Int, to: Int, then: () -> Unit = { reopenOverview() }) {
     if (locked) { toast(R.string.layout_locked); return }
-    val default = looks.int("defaultPage")
-    items = movePage(items, from, to).toMutableList()
-    // The default page follows its contents, like every other page.
-    looks["defaultPage"] = (0 until looks.pages).toMutableList().apply { add(to, removeAt(from)) }.indexOf(default).toString()
-    save(); render(); then()
+    editLayout(pageLayout.movePageTo(from, to)); then()
 }
 
 /** [then]: after the rebuild that removing it takes; the previews reopen by default. */
@@ -409,16 +404,12 @@ fun MainActivity.removePageAt(i: Int, then: () -> Unit = { reopenOverview() }) {
     if (locked) { toast(R.string.layout_locked); return }
     val n = looks.pages // not pages.size: in the hold-home overview that counts its "+" card
     if (n == 1) { toast(R.string.page_last); return }
-    val default = looks.int("defaultPage")
     val doRemove = {
-        val (kept, gone) = removePage(items, i)
+        val (next, gone) = pageLayout.removePageAt(i)
         gone.flatMap { it.widgetIds }.forEach(host::deleteAppWidgetId)
-        items = kept.toMutableList()
+        editLayout(next)
+        // After the edit: syncPins reads the items to keep the pins they still use.
         gone.filter { it.isShortcut }.forEach { syncPins(it.pkg, it.user) }
-        save()
-        looks["pages"] = (n - 1).toString()
-        looks["defaultPage"] = (if (default > i) default - 1 else default).coerceAtMost(n - 2).toString()
-        rebuild()
         then()
     }
     if (items.none { it.page == i }) doRemove()

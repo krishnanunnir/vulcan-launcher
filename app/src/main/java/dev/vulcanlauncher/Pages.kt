@@ -67,14 +67,14 @@ fun storeLayout(store: Store, looks: Looks, was: PageLayout, next: PageLayout, s
 }
 
 /** Home's layout now: [MainActivity.items] and the page settings. */
-val MainActivity.layout get() = PageLayout(items, looks.pages, looks.int("defaultPage"))
+val MainActivity.pageLayout get() = PageLayout(items, looks.pages, looks.int("defaultPage"))
 
 /**
  * The one way home's pages change: [next] is stored as one change, then home is built again if the page count changed,
  * or redrawn if only the items did. [redraw] false: the caller has put the views right itself.
  */
 fun MainActivity.editLayout(next: PageLayout, redraw: Boolean = true) {
-    val was = layout
+    val was = pageLayout
     items = next.items.toMutableList()
     storeLayout(store, looks, was, next, sub)
     if (!redraw) return
