@@ -512,7 +512,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="import_launcher_backup">Импорт из другого лаунчера</string>
     <string name="import_launcher_backup_info">Переносит макет главного экрана из файла .novabackup</string>
     <string name="reset_defaults_info">Удаляет все настройки и весь макет главного экрана</string>
-    <string name="perm_intro">Vulcan никогда не подключается к интернету. Эти разрешения расширяют его возможности, но каждое начинает действовать только после того, как вы предоставите его в настройках Android./string>
+    <string name="perm_intro">Vulcan никогда не подключается к интернету. Эти разрешения расширяют его возможности, но каждое начинает действовать только после того, как вы предоставите его в настройках Android.</string>
     <string name="perm_count">Разрешено: %1$d из %2$d</string>
     <string name="perm_notifications">Доступ к уведомлениям</string>
     <string name="perm_notifications_info">Значки и уведомления в меню долгого нажатия</string>
@@ -851,4 +851,25 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
         <item quantity="many">%d уведомлений</item>
         <item quantity="other">%d уведомления</item>
     </plurals>
+    <string name="no_voice_app">Не установлено приложение для распознавания речи. Установите его, чтобы искать голосом.</string>
+    <string name="search_call">Позвонить: %1$s</string>
+    <string name="search_event">%1$s, %2$s</string>
+    <string name="search_message">Написать сообщение: %1$s</string>
+    <string name="search_open">Открыть %1$s</string>
+    <string name="search_store">Искать «%2$s» в %1$s</string>
+    <string name="search_store_any">магазине приложений</string>
+    <string name="search_tab">Вкладка «%1$s»</string>
+    <string name="search_vulcan_setting">%1$s (настройка)</string>
+    <string name="set_calendarSearch">Искать в календаре</string>
+    <string name="set_calendarSearch_info">Предстоящие события. Запрашивает разрешение на доступ к календарю</string>
+    <string name="set_hiddenSearch">Включать скрытые приложения в поиск</string>
+    <string name="set_hiddenSearch_info">Скрытые приложения можно найти по названию. В алфавитном списке приложений они не отображаются.</string>
+    <string name="set_quickAnswers">Быстрые ответы</string>
+    <string name="set_quickAnswers_info">Вычисления, единицы измерения, таймеры, будильники, номера телефонов и ссылки</string>
+    <string name="set_searchSettings">Настройки Android</string>
+    <string name="set_searchSettings_info">Например, разделы «Wi-Fi» или «Батарея»</string>
+    <string name="set_searchShortcuts">Ярлыки приложений</string>
+    <string name="set_searchShortcuts_info">Например, «Новая вкладка» или «Написать»</string>
+    <string name="work_needs_home">Установите Vulcan в качестве приложения главного экрана по умолчанию, чтобы приостанавливать приложения рабочего профиля</string>
+    <string name="work_refused">Android не изменил рабочий профиль</string>
 </resources>

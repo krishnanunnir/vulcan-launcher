@@ -804,4 +804,25 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
         <item quantity="one">%d Benachrichtigung</item>
         <item quantity="other">%d Benachrichtigungen</item>
     </plurals>
+    <string name="no_voice_app">Keine Spracherkennungs-App installiert. Installiere eine, um per Sprache zu suchen.</string>
+    <string name="search_call">%1$s anrufen</string>
+    <string name="search_event">%1$s, %2$s</string>
+    <string name="search_message">Nachricht an %1$s senden</string>
+    <string name="search_open">%1$s öffnen</string>
+    <string name="search_store">In %1$s nach „%2$s“ suchen</string>
+    <string name="search_store_any">einem App-Store</string>
+    <string name="search_tab">Tab „%1$s“</string>
+    <string name="search_vulcan_setting">%1$s (Einstellung)</string>
+    <string name="set_calendarSearch">Kalender durchsuchen</string>
+    <string name="set_calendarSearch_info">Bevorstehende Termine. Fragt nach der Kalenderberechtigung</string>
+    <string name="set_hiddenSearch">Versteckte Apps einbeziehen</string>
+    <string name="set_hiddenSearch_info">Versteckte Apps lassen sich anhand ihres Namens finden. In der alphabetischen App-Liste bleiben sie ausgeblendet.</string>
+    <string name="set_quickAnswers">Schnelle Antworten</string>
+    <string name="set_quickAnswers_info">Berechnungen, Einheiten, Timer, Wecker, Telefonnummern und Links</string>
+    <string name="set_searchSettings">Android-Einstellungen</string>
+    <string name="set_searchSettings_info">Zum Beispiel die Bereiche „WLAN“ oder „Akku“</string>
+    <string name="set_searchShortcuts">App-Verknüpfungen</string>
+    <string name="set_searchShortcuts_info">Zum Beispiel „Neuer Tab“ oder „Schreiben“</string>
+    <string name="work_needs_home">Lege Vulcan als Standard-Launcher fest, um Apps im Arbeitsprofil pausieren zu können</string>
+    <string name="work_refused">Android hat das Arbeitsprofil nicht geändert</string>
 </resources>
