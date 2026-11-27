@@ -35,7 +35,7 @@ internal class DrawerSearch(private val a: MainActivity) {
         searchWorker.execute {
             if (asked != mine) return@execute // typed on meanwhile: this query's answer would be dropped anyway
             val hits = runCatching { shortcutHits(q, shown, iconPx) }.getOrDefault(emptyList())
-            val people = contacts(q)
+            val people = contacts(q) + events(q)
             a.runOnUiThread { if (asked == mine) done(hits, people) }
         }
     }
@@ -54,21 +54,70 @@ internal class DrawerSearch(private val a: MainActivity) {
         return out
     }
 
+    /** Up to three coming events (the next 60 days) whose titles match, when calendar search is on and allowed. Off the UI thread. */
+    private fun events(q: String): List<Drawer.Entry> {
+        if (q.length < 3 || !a.looks.on("calendarSearch") || !a.granted(android.Manifest.permission.READ_CALENDAR)) return emptyList()
+        val now = System.currentTimeMillis()
+        val uri = android.provider.CalendarContract.Instances.CONTENT_URI.buildUpon().also {
+            android.content.ContentUris.appendId(it, now); android.content.ContentUris.appendId(it, now + 60 * 86_400_000L)
+        }.build()
+        val fmt = java.text.SimpleDateFormat(android.text.format.DateFormat.getBestDateTimePattern(java.util.Locale.getDefault(), "EEEdMMMjmm"), java.util.Locale.getDefault())
+        val out = ArrayList<Drawer.Entry>()
+        runCatching {
+            a.contentResolver.query(uri, arrayOf(android.provider.CalendarContract.Instances.EVENT_ID, android.provider.CalendarContract.Instances.TITLE,
+                    android.provider.CalendarContract.Instances.BEGIN), "${android.provider.CalendarContract.Instances.TITLE} LIKE ?", arrayOf("%$q%"),
+                "${android.provider.CalendarContract.Instances.BEGIN} ASC")?.use { c ->
+                while (c.moveToNext() && out.size < 3) {
+                    val id = c.getLong(0)
+                    val label = a.getString(R.string.search_event, c.getString(1) ?: "", fmt.format(java.util.Date(c.getLong(2))))
+                    out += Drawer.Entry.ActionE(label, glyph("clock")) {
+                        runCatching { a.startActivity(Intent(Intent.ACTION_VIEW, android.content.ContentUris.withAppendedId(android.provider.CalendarContract.Events.CONTENT_URI, id))
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { a.toast(R.string.cant_open, label) }
+                    }
+                }
+            }
+        }
+        return out
+    }
+
+    /** "Search Play Store for …" (or F-Droid, or whichever app store is installed), for a query no app matched. */
+    fun storeHit(q: String): List<Drawer.Entry> {
+        val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("market://search?q=" + android.net.Uri.encode(q))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val stores = a.packageManager.queryIntentActivities(intent, 0)
+        if (stores.isEmpty()) return emptyList()
+        val name = stores.singleOrNull()?.loadLabel(a.packageManager)?.toString() ?: a.getString(R.string.search_store_any)
+        return listOf(Drawer.Entry.ActionE(a.getString(R.string.search_store, name, q), glyph("download")) {
+            runCatching { a.startActivity(intent) }.onFailure { a.toast(R.string.cant_open, name) }
+        })
+    }
+
     private fun photo(uri: String?) = uri?.let { p -> runCatching {
         a.contentResolver.openInputStream(android.net.Uri.parse(p))!!.use { android.graphics.BitmapFactory.decodeStream(it)?.let { b -> android.graphics.drawable.BitmapDrawable(a.resources, b) } }
     }.getOrNull() }
 
     private fun glyph(symbol: String? = null, text: String? = null) = GlyphIcon(a.m3.primaryContainer, a.m3.onPrimaryContainer, text, symbol)
 
-    /** A sum's answer (tap to copy it), or a timer or alarm to set, as the first result. */
+    /** A quick answer as the first result: a sum or a conversion (tap to copy it), a timer or alarm, a number to call, a link. */
     fun quick(q: String): List<Drawer.Entry> {
+        if (!a.looks.on("quickAnswers")) return emptyList()
+        fun copy(t: String) {
+            a.getSystemService(android.content.ClipboardManager::class.java).setPrimaryClip(android.content.ClipData.newPlainText(t, t))
+            // Android 13+ confirms a copy itself.
+            if (android.os.Build.VERSION.SDK_INT < 33) a.toast(R.string.copied)
+        }
+        fun open(label: String, symbol: String, intent: Intent) = Drawer.Entry.ActionE(label, glyph(symbol)) {
+            runCatching { a.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { a.toast(R.string.cant_open, label) }
+        }
+        convert(q)?.let { t -> return listOf(Drawer.Entry.ActionE(t, glyph(text = "=")) { copy(t.substringAfter("= ").substringBeforeLast(' ')) }) }
+        phoneNumber(q)?.let { n ->
+            val tel = n.filter { it.isDigit() || it == '+' }
+            return listOf(open(a.getString(R.string.search_call, n), "person", Intent(Intent.ACTION_DIAL, android.net.Uri.parse("tel:$tel"))),
+                open(a.getString(R.string.search_message, n), "edit", Intent(Intent.ACTION_SENDTO, android.net.Uri.parse("smsto:$tel"))))
+        }
+        webLink(q)?.let { url -> return listOf(open(a.getString(R.string.search_open, q.trim()), "link", Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))) }
         calc(q)?.let { v ->
             val t = calcText(v)
-            return listOf(Drawer.Entry.ActionE("= $t", glyph(text = "=")) {
-                a.getSystemService(android.content.ClipboardManager::class.java).setPrimaryClip(android.content.ClipData.newPlainText(t, t))
-                // Android 13+ confirms a copy itself.
-                if (android.os.Build.VERSION.SDK_INT < 33) a.toast(R.string.copied)
-            })
+            return listOf(Drawer.Entry.ActionE("= $t", glyph(text = "=")) { copy(t) })
         }
         fun clock(label: String, intent: Intent) = listOf(Drawer.Entry.ActionE(label, glyph("clock")) {
             runCatching { a.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { a.toast(R.string.no_clock_app) }
@@ -92,7 +141,7 @@ internal class DrawerSearch(private val a: MainActivity) {
 
     /** Up to four app shortcuts ("New tab", "Compose") whose names match, from the apps the drawer [shown]. Off the UI thread. */
     private fun shortcutHits(q: String, shown: Set<Pair<String, android.os.UserHandle>>, iconPx: Int): List<Drawer.Entry> {
-        if (q.length < 3) return emptyList()
+        if (q.length < 3 || !a.looks.on("searchShortcuts")) return emptyList()
         val now = opening
         val all = shortcuts ?: a.repo.allShortcuts().also { if (opening == now) shortcuts = it }
         return all.filter { (it.`package` to it.userHandle) in shown }.map { it to matchScore(it.shortLabel?.toString() ?: "", q) }
@@ -102,9 +151,19 @@ internal class DrawerSearch(private val a: MainActivity) {
             }
     }
 
+    /** Up to three of Vulcan's own settings ("Icon pack", "Dock") whose names match: a tap opens settings at that one. */
+    fun vulcanHits(q: String): List<Drawer.Entry> {
+        if (q.length < 3) return emptyList()
+        // Icon pack's row is built from the installed packs, so it isn't in LOOKS: added here by name.
+        return (LOOKS + PAGE_CHOICES + Choice(LOOK, "iconPack", R.string.set_iconPack, "", listOf(""))).filter { it.group in GROUP_TITLES }.map { it to matchScore(a.getString(it.title), q) }
+            .filter { it.second >= 4 }.sortedByDescending { it.second }.take(3).map { (c, _) ->
+                Drawer.Entry.ActionE(a.getString(R.string.search_vulcan_setting, a.getString(c.title)), glyph("settings")) { a.showSettings(c.group, c.key) }
+            }
+    }
+
     /** Up to three of Android's settings pages ("Wi-Fi settings", "Battery settings") whose names match. */
     fun settingsHits(q: String): List<Drawer.Entry> {
-        if (q.length < 3) return emptyList()
+        if (q.length < 3 || !a.looks.on("searchSettings")) return emptyList()
         return SETTINGS_PAGES.map { a.getString(it.first) to it.second }.filter { matchScore(it.first, q) >= 2 }
             .sortedByDescending { matchScore(it.first, q) }.take(3).map { (title, action) ->
                 Drawer.Entry.ActionE(title, glyph("settings")) {

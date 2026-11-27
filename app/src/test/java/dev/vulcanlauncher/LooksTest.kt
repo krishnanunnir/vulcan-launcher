@@ -137,7 +137,7 @@ class LooksTest {
     }
 
     private companion object {
-        const val SETTINGS_BUDGET = 119 // 119 for Include hidden apps (#135), the owner's yes 2026-11-27; 120 for Widget padding (#121), the owner's yes 2026-11-24; 118 since Pages and Default page are the layout's (2026-11-27)
+        const val SETTINGS_BUDGET = 123 // 123 for the search result switches (#135), the owner's yes 2026-11-27; 120 for Widget padding (#121), the owner's yes 2026-11-24; 118 since Pages and Default page are the layout's (2026-11-27)
         const val MAX_SECTION_ROWS = 8
     }
 }

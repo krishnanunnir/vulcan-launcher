@@ -549,8 +549,15 @@ class Drawer(private val a: MainActivity) {
             // Best match first; sortedByDescending is stable, so equal matches keep the drawer's order.
             val apps = found.quick(q) + ordered.filter { spaces.shows(it, Surface.SEARCH, hidden, reveal) }.map { it to matchScore(a.repo.label(it), q) }
                 .filter { it.second > 0 }.sortedByDescending { it.second }.map { Entry.AppE(it.first) }
-            val settings = found.settingsHits(q)
-            val web = if (a.looks.on("webSearch")) listOf(Entry.WebE(q)) else emptyList()
+            // The drawer's own folders and tabs by name: a folder opens, a tab shows.
+            val places = groups.filter { it.type == "folder" && matchScore(it.name, q) >= 4 }.map { Entry.FolderE(it) } +
+                groups.filter { it.type == "tab" && matchScore(it.name, q) >= 4 }.map { g ->
+                    Entry.ActionE(a.getString(R.string.search_tab, g.name), GlyphIcon(a.m3.primaryContainer, a.m3.onPrimaryContainer, symbol = "tabs")) {
+                        tab = g.name; search.setText("")
+                    }
+                }
+            val settings = places + found.settingsHits(q) + found.vulcanHits(q)
+            val web = (if (apps.isEmpty()) found.storeHit(q) else emptyList()) + if (a.looks.on("webSearch")) listOf(Entry.WebE(q)) else emptyList()
             // Apps show at once; shortcuts and contacts join them when the worker has them, if no key came since.
             val shown = a.repo.apps.values.filter { spaces.shows(it, Surface.SEARCH, hidden, reveal) }.map { it.pkg to it.info.user }.toSet()
             val alive = a.lifetime.token()

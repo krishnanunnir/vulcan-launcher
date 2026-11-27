@@ -123,3 +123,69 @@ fun command(q: String): Command? {
     }
     return null
 }
+
+/** One unit [convert] knows: its kind, and what one of it is in the kind's base (metre, gram, litre, m/s). */
+private class Unit(val kind: String, val size: Double)
+
+private val UNITS: Map<String, Unit> = buildMap {
+    fun add(kind: String, size: Double, vararg names: String) = names.forEach { put(it, Unit(kind, size)) }
+    add("length", 0.001, "mm", "millimetre", "millimetres", "millimeter", "millimeters")
+    add("length", 0.01, "cm", "centimetre", "centimetres", "centimeter", "centimeters")
+    add("length", 1.0, "m", "metre", "metres", "meter", "meters")
+    add("length", 1000.0, "km", "kilometre", "kilometres", "kilometer", "kilometers")
+    add("length", 0.0254, "in", "inch", "inches")
+    add("length", 0.3048, "ft", "foot", "feet")
+    add("length", 0.9144, "yd", "yard", "yards")
+    add("length", 1609.344, "mi", "mile", "miles")
+    add("mass", 1.0, "g", "gram", "grams")
+    add("mass", 1000.0, "kg", "kilo", "kilos", "kilogram", "kilograms")
+    add("mass", 28.349523125, "oz", "ounce", "ounces")
+    add("mass", 453.59237, "lb", "lbs", "pound", "pounds")
+    add("volume", 0.001, "ml", "millilitre", "millilitres", "milliliter", "milliliters")
+    add("volume", 1.0, "l", "litre", "litres", "liter", "liters")
+    add("volume", 0.00492892159375, "tsp", "teaspoon", "teaspoons")
+    add("volume", 0.01478676478125, "tbsp", "tablespoon", "tablespoons")
+    add("volume", 0.2365882365, "cup", "cups")
+    add("volume", 3.785411784, "gal", "gallon", "gallons")
+    add("speed", 1 / 3.6, "kmh", "km/h", "kph")
+    add("speed", 0.44704, "mph")
+    add("speed", 1.0, "m/s")
+    // Temperatures aren't a scale: size names which one (0 Celsius, 1 Fahrenheit, 2 Kelvin).
+    add("temp", 0.0, "c", "°c", "celsius")
+    add("temp", 1.0, "f", "°f", "fahrenheit")
+    add("temp", 2.0, "k", "kelvin")
+}
+private val CONVERT = Regex("^(-?\\d+(?:[.,]\\d+)?)\\s*([a-z°/]+)\\s+(?:in|to)\\s+([a-z°/]+)$")
+
+/**
+ * "5 km in mi" → "5 km = 3.107 mi": lengths, weights, volumes, speeds and temperatures. Null for anything else.
+ * ponytail: English unit names only; add translated ones if non-English users ask.
+ */
+fun convert(q: String): String? {
+    val m = CONVERT.find(q.trim().lowercase()) ?: return null
+    val (num, fromName, toName) = m.destructured
+    val from = UNITS[fromName] ?: return null
+    val to = UNITS[toName] ?: return null
+    if (from.kind != to.kind || from.size == to.size) return null
+    val v = num.replace(',', '.').toDouble()
+    val out = if (from.kind == "temp") {
+        val c = when (from.size) { 1.0 -> (v - 32) * 5 / 9; 2.0 -> v - 273.15; else -> v }
+        when (to.size) { 1.0 -> c * 9 / 5 + 32; 2.0 -> c + 273.15; else -> c }
+    } else v * from.size / to.size
+    return "${calcText(v)} $fromName = ${java.math.BigDecimal.valueOf(out).round(java.math.MathContext(4)).stripTrailingZeros().toPlainString()} $toName"
+}
+
+/** [q] when it's a phone number to call (7 to 15 digits, maybe a leading +, spaces, dashes or brackets), else null. */
+fun phoneNumber(q: String): String? {
+    val s = q.trim()
+    if (!Regex("^\\+?[0-9 ()\\-]+$").matches(s)) return null
+    return s.takeIf { it.count(Char::isDigit) in 7..15 }
+}
+
+/** The web address [q] names ("example.com", "https://x.org/a"), ready to open, or null. */
+fun webLink(q: String): String? {
+    val s = q.trim()
+    if (s.any { it.isWhitespace() }) return null
+    val m = Regex("^(https?://)?([a-z0-9-]+\\.)+([a-z]{2,24})(:\\d+)?(/\\S*)?$", RegexOption.IGNORE_CASE).find(s) ?: return null
+    return if (m.groupValues[1].isEmpty()) "https://$s" else s
+}

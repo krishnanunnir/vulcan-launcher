@@ -55,6 +55,11 @@
         <intent>
             <action android:name="android.intent.action.WEB_SEARCH" />
         </intent>
+        <!-- App stores (Play Store, F-Droid), offered by drawer search when no app matches. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="market" />
+        </intent>
     </queries>
 
     <application

@@ -83,10 +83,14 @@
         },
         {
           "keys": [
-            "webSearch",
-            "searchEngine",
+            "searchShortcuts",
+            "searchSettings",
+            "quickAnswers",
             "contactSearch",
-            "hiddenSearch"
+            "calendarSearch",
+            "hiddenSearch",
+            "webSearch",
+            "searchEngine"
           ],
           "title": "Results"
         }
@@ -839,6 +843,70 @@
           ],
           "description": "Search. Asks for contacts permission Values: on (On), off (Off).",
           "title": "Search contacts"
+        },
+        "searchShortcuts": {
+          "default": "on",
+          "x-names": {
+            "off": "Off",
+            "on": "On"
+          },
+          "anyOf": [
+            {"enum": [
+              "on",
+              "off"
+            ]},
+            {"type": "boolean"}
+          ],
+          "description": "Search. Such as New tab or Compose Values: on (On), off (Off).",
+          "title": "App shortcuts"
+        },
+        "searchSettings": {
+          "default": "on",
+          "x-names": {
+            "off": "Off",
+            "on": "On"
+          },
+          "anyOf": [
+            {"enum": [
+              "on",
+              "off"
+            ]},
+            {"type": "boolean"}
+          ],
+          "description": "Search. Such as Wi-Fi or Battery Values: on (On), off (Off).",
+          "title": "Android settings"
+        },
+        "quickAnswers": {
+          "default": "on",
+          "x-names": {
+            "off": "Off",
+            "on": "On"
+          },
+          "anyOf": [
+            {"enum": [
+              "on",
+              "off"
+            ]},
+            {"type": "boolean"}
+          ],
+          "description": "Search. Sums, units, timers, alarms, phone numbers and links Values: on (On), off (Off).",
+          "title": "Quick answers"
+        },
+        "calendarSearch": {
+          "default": "off",
+          "x-names": {
+            "off": "Off",
+            "on": "On"
+          },
+          "anyOf": [
+            {"enum": [
+              "on",
+              "off"
+            ]},
+            {"type": "boolean"}
+          ],
+          "description": "Search. Coming events. Asks for calendar permission Values: on (On), off (Off).",
+          "title": "Search calendar"
         },
         "hiddenSearch": {
           "default": "off",

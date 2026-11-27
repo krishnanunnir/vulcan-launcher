@@ -180,6 +180,10 @@ val LOOKS = listOf(
     onOff(SEARCH_GROUP, "webSearch", R.string.set_webSearch, true, R.string.set_webSearch_info),
     Choice(SEARCH_GROUP, "searchEngine", R.string.set_searchEngine, "browser", SEARCH_ENGINES, SEARCH_ENGINE_NAMES),
     onOff(SEARCH_GROUP, "contactSearch", R.string.set_contactSearch, false, R.string.set_contactSearch_info),
+    onOff(SEARCH_GROUP, "searchShortcuts", R.string.set_searchShortcuts, true, R.string.set_searchShortcuts_info),
+    onOff(SEARCH_GROUP, "searchSettings", R.string.set_searchSettings, true, R.string.set_searchSettings_info),
+    onOff(SEARCH_GROUP, "quickAnswers", R.string.set_quickAnswers, true, R.string.set_quickAnswers_info),
+    onOff(SEARCH_GROUP, "calendarSearch", R.string.set_calendarSearch, false, R.string.set_calendarSearch_info),
     onOff(SEARCH_GROUP, "hiddenSearch", R.string.set_hiddenSearch, false, R.string.set_hiddenSearch_info),
 
     Choice(FOLDERS, "folderPreview", R.string.set_folderPreview, "grid", PREVIEWS, PREVIEW_NAMES),
@@ -273,7 +277,7 @@ val SECTIONS: Map<String, List<Pair<Int, List<String>>>> = mapOf(
     ),
     SEARCH_GROUP to listOf(
         R.string.sec_search_bar to listOf("searchStyle", "searchColor"),
-        R.string.sec_results to listOf("webSearch", "searchEngine", "contactSearch", "hiddenSearch"),
+        R.string.sec_results to listOf("searchShortcuts", "searchSettings", "quickAnswers", "contactSearch", "calendarSearch", "hiddenSearch", "webSearch", "searchEngine"),
     ),
     LOOK to listOf(
         R.string.sec_icons to listOf("iconPack", "shape", "reshape", "autogen", "normalize", "themedIcons", "iconShadow"),

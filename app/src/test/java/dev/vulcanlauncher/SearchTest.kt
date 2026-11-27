@@ -69,4 +69,33 @@ class SearchTest {
         assertNull(command("timer 0"))
         assertNull(command("alarms"))
     }
+
+    @Test
+    fun conversions() {
+        assertEquals("5 km = 3.107 mi", convert("5 km in mi"))
+        assertEquals("70 f = 21.11 c", convert("70 F to C"))
+        assertEquals("100 c = 212 fahrenheit", convert("100 c in fahrenheit"))
+        assertEquals("0 k = -273.2 c", convert("0 k in c"))
+        assertEquals("2 cups = 473.2 ml", convert("2 cups in ml"))
+        assertEquals("1 lb = 453.6 g", convert("1 lb to g"))
+        assertEquals("100 kmh = 62.14 mph", convert("100 kmh in mph"))
+        assertNull(convert("5 km in kg")) // not the same kind
+        assertNull(convert("5 km in km"))
+        assertNull(convert("km in mi"))
+        assertNull(convert("timer 5m"))
+    }
+
+    @Test
+    fun numbersAndLinks() {
+        assertEquals("+91 98765 43210", phoneNumber("+91 98765 43210"))
+        assertEquals("(555) 123-4567", phoneNumber("(555) 123-4567"))
+        assertNull(phoneNumber("123456")) // too short: a search for an app with a number in its name
+        assertNull(phoneNumber("12*3"))
+        assertEquals("https://example.com", webLink("example.com"))
+        assertEquals("http://x.org/a?b=1", webLink("http://x.org/a?b=1"))
+        assertEquals("https://news.bbc.co.uk", webLink("news.bbc.co.uk"))
+        assertNull(webLink("12.5"))
+        assertNull(webLink("google maps"))
+        assertNull(webLink("wifi"))
+    }
 }

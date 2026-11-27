@@ -45,11 +45,11 @@ private fun depth(page: String) = when (page) { "" -> 0; in PARENT -> 2; else ->
 /** Where each settings page was scrolled when it was left for a deeper one, so back returns to the same spot. */
 private val leftAt = mutableMapOf<String, Int>()
 
-/** Opens settings at [page] ("" for settings home). */
-fun MainActivity.showSettings(page: String = "") {
+/** Opens settings at [page] ("" for settings home), scrolled to the setting [focus] when given. */
+fun MainActivity.showSettings(page: String = "", focus: String? = null) {
     // Its own task, as in Nova and Lawnchair: in home's task the Home gesture animated home away with it (#100).
     // Cleared each time so it opens on [page], not where it was left.
-    startActivity(Intent(this, SettingsActivity::class.java).putExtra("page", page)
+    startActivity(Intent(this, SettingsActivity::class.java).putExtra("page", page).putExtra("focus", focus)
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
 }
 
@@ -78,7 +78,8 @@ class SettingsActivity : VulcanActivity() {
         pages = android.widget.FrameLayout(this).apply { fitsSystemWindows = true }
         root = android.widget.FrameLayout(this).apply { addView(pages) }
         setContentView(root)
-        showPage(state?.getString("page") ?: intent.getStringExtra("page").orEmpty(), state?.getInt("scroll") ?: 0)
+        showPage(state?.getString("page") ?: intent.getStringExtra("page").orEmpty(), state?.getInt("scroll") ?: 0,
+            focus = if (state == null) intent.getStringExtra("focus") else null)
     }
 
     /**
@@ -777,7 +778,7 @@ private fun SettingsActivity.applyChoice(c: Choice, value: String) {
     if (c.reload == Reload.REBUILD) home.stale = true
     val perm = when {
         value == "on" && c.key in listOf("contactSearch", "nowContacts") -> android.Manifest.permission.READ_CONTACTS
-        value == "on" && c.key == "nowCalendar" -> android.Manifest.permission.READ_CALENDAR
+        value == "on" && c.key in listOf("nowCalendar", "calendarSearch") -> android.Manifest.permission.READ_CALENDAR
         c.key == "nightMode" && value == "sun" -> android.Manifest.permission.ACCESS_COARSE_LOCATION
         else -> null
     }
