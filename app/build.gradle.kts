@@ -69,6 +69,7 @@ android {
 dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303") // real org.json for JVM tests; Android supplies its own at runtime
+    testImplementation("net.sf.kxml:kxml2:2.3.0") // an XmlPullParser for JVM tests of icon-pack parsing; Android has its own
 }
 
 // SchemaTest reads the published backup schema and StringsTest reads src/main/res from disk; a change to either must

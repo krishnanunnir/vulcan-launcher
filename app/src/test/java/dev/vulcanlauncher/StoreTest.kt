@@ -31,10 +31,11 @@ class StoreTest {
     fun restoredFlagsAreBooleansWhateverTheFileSays() {
         // getBoolean throws on text, and these are read on every start.
         for (k in listOf("welcome", "welcomeImport", "restoringWidgets", "repinShortcuts", "hideAllTab", "hideWorkTab"))
-            assertEquals(k, true, restoredAsFlag("data", k))
+            assertEquals(k, true, dataValue(k, "true"))
         // Any other key stays text, even "false": a hand-edited "groups": false stored as a boolean made getString throw.
-        assertEquals(false, restoredAsFlag("data", "groups"))
-        assertEquals(false, restoredAsFlag("looks", "hideWorkTab"))
+        assertEquals("false", dataValue("groups", "false"))
+        // The Work tab's place is an int, as GroupEditor stores it; a backup has it as text.
+        assertEquals(listOf(3, null, 3), listOf("3", "x", 3).map { dataValue(WORK_AT, it) })
         // What such a restore left behind is put right on the next start; text and real flags are left alone.
         assertEquals(mapOf("groups" to "false", "welcome" to true, "hideWorkTab" to false),
             dataTypeFixes(mapOf("groups" to false, "welcome" to "true", "hideWorkTab" to "false", "repinShortcuts" to true, "hidden" to "[]", "custom" to "true")))
@@ -183,15 +184,15 @@ class StoreTest {
         val items = listOf(Item(0, 2, 4, pkg = "a", cls = "A"), Item(-1, 0, 0, pkg = "b", cls = "B"))
         // What export() writes to files/auto-backup.json today.
         val now = readableBackup(emptyMap(), items, 2, emptyMap(), emptyList()) { "s$it" }
-        val l = backupLayout(org.json.JSONObject(now.toString()))
-        assertEquals(items, itemsFromJson(l.getValue("items")))
-        assertEquals("2", l["sub"])
+        val l = backupLayout(now.toString())!!
+        assertEquals(items, l.items)
+        assertEquals(2, l.sub)
         // The format before it: the preference files as they were, the subgrid factor in the settings.
         val old = org.json.JSONObject().put("format", "vulcan-backup-1")
             .put("layout", org.json.JSONObject().put("items", itemsToJson(items))).put("looks", org.json.JSONObject().put("subgrid", "on"))
-        assertEquals(mapOf("items" to itemsToJson(items), "sub" to "2"), backupLayout(old))
+        assertEquals(items to 2, backupLayout(old.toString())!!.let { it.items to it.sub })
         // A settings-only style file holds no layout: the next backup is tried, home isn't taken as empty.
-        assertThrows(NoSuchElementException::class.java) { backupLayout(org.json.JSONObject("""{"format":"vulcan-backup-2","settings":{}}""")) }
+        assertEquals(null, backupLayout("""{"format":"vulcan-backup-2","settings":{}}"""))
     }
 
     @Test
