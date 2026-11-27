@@ -473,13 +473,12 @@ fun readableBackup(looks: Map<String, String>, items: List<Item>, sub: Int, data
 
 /** The layout held in backup [root], whichever format it is in. Throws when it has none this build can read. */
 fun backupLayout(root: JSONObject): StoredLayout {
-    if (root.optString("format") == "vulcan-backup-2") return readableBackupFiles(root) { _, _ -> null }.first.getValue("layout")
-        .let { requireNotNull(decodeLayout(it["items"], it["version"], it["sub"]).value) }
-    val layout = root.getJSONObject("layout")
-    // A backup from before version 2 is in the subgrid factor of the settings saved with it.
-    val sub = layout.optString("sub").ifEmpty { if (root.optJSONObject("looks")?.optString("subgrid") == "on") "2" else "1" }
-    return requireNotNull(decodeLayout(layout.optString("items", null), layout.optString("version", null), sub).value) { "Unreadable layout" }
+    val files = if (root.optString("format") == "vulcan-backup-2") readableBackupFiles(root) { _, _ -> null }.first else legacyBackupFiles(root).first
+    return files.getValue("layout").let { decodeLayout(it["items"], it["version"], it["sub"]).value!! }
 }
+
+/** The `layout` preferences for [items], wellFormed and in subgrid factor [sub], as this build writes them. */
+fun layoutFile(items: List<Item>, sub: Int) = mapOf("items" to itemsToJson(items), "version" to LAYOUT_VERSION.toString(), "sub" to sub.toString())
 
 /**
  * The preference files a format 1 backup restores to, and the "key=value" settings left out: its settings are held to
@@ -490,12 +489,17 @@ fun legacyBackupFiles(root: JSONObject): Pair<Map<String, Map<String, String>>, 
     // Without a layout it's settings to merge: only the files it has, or import() would clear the ones it lacks.
     val files = Store.FILES.filter { root.has("layout") || root.has(it) }.associateWith { name ->
         val o = root.optJSONObject(name) ?: JSONObject()
-        o.keys().asSequence().associateWith { o.getString(it) }.filter { (k, v) ->
+        o.keys().asSequence().associateWith { o.get(it).toString() }.filter { (k, v) ->
             (name != "looks" || LOOKS.firstOrNull { it.key == k }?.accepts(v) != false).also { if (!it) rejected += "$k=$v" }
         }
     }
-    files["layout"]?.get("items")?.let { JSONArray(it) }
-    return files to rejected
+    // Its layout is read now, as load would read it, and stored as this build writes one; a newer or unreadable one is refused.
+    val layout = files["layout"]?.let { l ->
+        // A backup from before version 2 is in the subgrid factor of the settings saved with it.
+        val stored = requireNotNull(decodeLayout(l["items"], l["version"], l["sub"]).value) { "Unreadable layout" }
+        layoutFile(stored.items, stored.sub ?: if (files["looks"]?.get("subgrid") == "on") 2 else 1)
+    }
+    return (if (layout != null) files + ("layout" to layout) else files) to rejected
 }
 
 /**
@@ -520,9 +524,10 @@ fun readableBackupFiles(root: JSONObject, cls: (pkg: String, user: Long) -> Stri
     val home = requireNotNull(root.optJSONObject("home")?.takeIf { it.optJSONArray("items") != null }) { "Missing home items" }
     fun fill(i: Item): Item = i.copy(cls = if (i.isApp && i.cls.isEmpty()) cls(i.pkg, i.user).orEmpty() else i.cls, children = i.children.map(::fill))
     val items = decodeItems(home.getJSONArray("items")).value!!.map(::fill)
-    val sub = home.optInt("sub", if (looks["subgrid"] == "on") 2 else 1)
+    // Subgrid factors are 1 and 2: any other (a hand edit) is the settings' own.
+    val sub = home.optInt("sub").takeIf { it == 1 || it == 2 } ?: if (looks["subgrid"] == "on") 2 else 1
     val data = root.optJSONObject("data")?.let { d -> d.keys().asSequence().associateWith { d.get(it).toString() } } ?: emptyMap()
-    return mapOf("layout" to mapOf("items" to itemsToJson(items), "version" to LAYOUT_VERSION.toString(), "sub" to sub.toString()),
+    return mapOf("layout" to layoutFile(items, sub),
         // A phone's own file carries these markers; one written by hand doesn't, and without them the settings it left
         // out would be filled with the defaults of an install from before 0.16 (Looks.adoptDefaults).
         "looks" to (mapOf("defaults" to "nova", "defaults032" to "on") + looks), "data" to data) to rejected

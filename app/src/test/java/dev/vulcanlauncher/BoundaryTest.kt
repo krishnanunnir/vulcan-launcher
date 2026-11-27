@@ -73,9 +73,14 @@ class BoundaryTest {
         assertEquals(mapOf(WORK_AT to null), dataTypeFixes(mapOf(WORK_AT to "two")))
     }
 
-    @Test fun aBackupsSubgridOtherThanOneOrTwoIsLeftForHomeToIgnore() { // 68dc274
+    @Test fun aBackupsSubgridOtherThanOneOrTwoIsTheSettingsOwn() { // 68dc274
         val (files, _) = readableBackupFiles(org.json.JSONObject("""{"format":"vulcan-backup-2","home":{"sub":7,"items":[]}}""")) { _, _ -> null }
-        assertEquals("7", files.getValue("layout")["sub"])
+        assertEquals("1", files.getValue("layout")["sub"])
+        // A format 1 backup's layout is read as home would read it: a newer one is refused, not restored to be set aside.
+        val old = org.json.JSONObject("""{"format":"vulcan-backup-1","layout":{"items":"[{\"page\":0,\"x\":-1,\"y\":0}]","version":"3"}}""")
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) { legacyBackupFiles(old) }
+        old.getJSONObject("layout").remove("version")
+        assertEquals(mapOf("items" to itemsToJson(listOf(Item(0, MAX_CELL, MAX_CELL))), "version" to "2", "sub" to "1"), legacyBackupFiles(old).first["layout"])
     }
 
     @Test fun aStoredLayoutIsDecodedOnceAndSaysWhatItLeftOut() { // 0cdc623, 927f199, 68dc274
