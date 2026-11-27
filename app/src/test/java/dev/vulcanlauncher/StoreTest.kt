@@ -184,15 +184,15 @@ class StoreTest {
         val items = listOf(Item(0, 2, 4, pkg = "a", cls = "A"), Item(-1, 0, 0, pkg = "b", cls = "B"))
         // What export() writes to files/auto-backup.json today.
         val now = readableBackup(emptyMap(), items, 2, emptyMap(), emptyList()) { "s$it" }
-        val l = backupLayout(org.json.JSONObject(now.toString()))
+        val l = backupLayout(now.toString())!!
         assertEquals(items, l.items)
         assertEquals(2, l.sub)
         // The format before it: the preference files as they were, the subgrid factor in the settings.
         val old = org.json.JSONObject().put("format", "vulcan-backup-1")
             .put("layout", org.json.JSONObject().put("items", itemsToJson(items))).put("looks", org.json.JSONObject().put("subgrid", "on"))
-        assertEquals(items to 2, backupLayout(old).let { it.items to it.sub })
+        assertEquals(items to 2, backupLayout(old.toString())!!.let { it.items to it.sub })
         // A settings-only style file holds no layout: the next backup is tried, home isn't taken as empty.
-        assertThrows(NoSuchElementException::class.java) { backupLayout(org.json.JSONObject("""{"format":"vulcan-backup-2","settings":{}}""")) }
+        assertEquals(null, backupLayout("""{"format":"vulcan-backup-2","settings":{}}"""))
     }
 
     @Test

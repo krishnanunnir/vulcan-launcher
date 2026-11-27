@@ -257,8 +257,7 @@ class Store(private val context: Context) {
         val newer = (all["version"] as? String)?.toIntOrNull()?.takeIf { it > LAYOUT_VERSION }
         setAside(if (newer != null) "layout-v$newer.json" else "layout-unreadable.json", raw, stored.dropped)
         // What's recovered is saved at once: export reads the stored layout, so a restore (which backs up first) would fail too.
-        for (f in autoBackups) runCatching {
-            val l = backupLayout(JSONObject(f.readText()))
+        for (f in autoBackups) backupLayout(runCatching { f.readText() }.getOrDefault(""))?.let { l ->
             return layoutIn(l.items, l.sub, sub).toMutableList().also { save(it, sub) }
         }
         return mutableListOf<Item>().also { save(it, sub) }
@@ -335,13 +334,9 @@ class Store(private val context: Context) {
      * [cls] finds the main activity for apps written without one. Throws on an unrecognised file.
      */
     fun import(json: String, cls: (pkg: String, user: Long) -> String? = { _, _ -> null }): RestoreResult {
-        val root = JSONObject(json)
         // Read the whole file before writing anything, so a bad one leaves the current setup untouched.
-        val (files, rejected) = when (root.optString("format")) {
-            "vulcan-backup-2" -> readableBackupFiles(root, cls)
-            "vulcan-backup-1" -> legacyBackupFiles(root)
-            else -> throw IllegalArgumentException(context.getString(R.string.not_vulcan_backup))
-        }
+        val backup = decodeBackup(json, cls)
+        val (files, rejected) = backup.value ?: throw IllegalArgumentException(backup.dropped.firstOrNull() ?: context.getString(R.string.not_vulcan_backup))
         // ponytail: three commits, not one transaction; an I/O failure between them can mix old and new files (each
         // failed commit throws, and the auto-backup just written restores the rest). Upgrade if a mixed restore is ever reported.
         val replacedLayout = "layout" in files
@@ -478,11 +473,27 @@ fun readableBackup(looks: Map<String, String>, items: List<Item>, sub: Int, data
             JSONObject().put("label", a.first).put("pkg", a.second).put("cls", a.third).apply { if (user != 0L) put("user", user) }
         })))
 
-/** The layout held in backup [root], whichever format it is in. Throws when it has none this build can read. */
-fun backupLayout(root: JSONObject): StoredLayout {
-    val files = if (root.optString("format") == "vulcan-backup-2") readableBackupFiles(root) { _, _ -> null }.first else legacyBackupFiles(root).first
-    return files.getValue("layout").let { decodeLayout(it["items"], it["version"], it["sub"]).value!! }
-}
+/** The preference files a backup restores to (file → key → value), and the "key=value" settings it leaves out. */
+typealias BackupFiles = Pair<Map<String, Map<String, String>>, List<String>>
+
+/**
+ * Backup [text] as the preference files it restores to and the "key=value" settings it leaves out, whichever format it
+ * is in (see [readableBackupFiles], [legacyBackupFiles]), the one decoder for backup files. Never throws: the value is
+ * null for a file this build can't restore, with why in dropped (empty: not a Vulcan backup at all).
+ */
+fun decodeBackup(text: String, cls: (pkg: String, user: Long) -> String? = { _, _ -> null }): Decoded<BackupFiles> =
+    runCatching {
+        val root = JSONObject(text)
+        when (root.optString("format")) {
+            "vulcan-backup-2" -> Decoded(readableBackupFiles(root, cls))
+            "vulcan-backup-1" -> Decoded(legacyBackupFiles(root))
+            else -> Decoded<BackupFiles>(null)
+        }
+    }.getOrElse { Decoded(null, listOf(it.message ?: it.toString())) }
+
+/** The layout held in backup [text], whichever format it is in, or null when it holds none this build can read. */
+fun backupLayout(text: String): StoredLayout? =
+    decodeBackup(text).value?.first?.get("layout")?.let { decodeLayout(it["items"], it["version"], it["sub"]).value }
 
 /** The `layout` preferences for [items], wellFormed and in subgrid factor [sub], as this build writes them. */
 fun layoutFile(items: List<Item>, sub: Int) = mapOf("items" to itemsToJson(items), "version" to LAYOUT_VERSION.toString(), "sub" to sub.toString())
@@ -491,7 +502,7 @@ fun layoutFile(items: List<Item>, sub: Int) = mapOf("items" to itemsToJson(items
  * The preference files a format 1 backup restores to, and the "key=value" settings left out: its settings are held to
  * what a format 2 one accepts, so a hand-edited "pages": "100000" can't crash home on every start.
  */
-fun legacyBackupFiles(root: JSONObject): Pair<Map<String, Map<String, String>>, List<String>> {
+fun legacyBackupFiles(root: JSONObject): BackupFiles {
     val rejected = ArrayList<String>()
     // Without a layout it's settings to merge: only the files it has, or import() would clear the ones it lacks.
     val files = Store.FILES.filter { root.has("layout") || root.has(it) }.associateWith { name ->
@@ -514,7 +525,7 @@ fun legacyBackupFiles(root: JSONObject): Pair<Map<String, Map<String, String>>, 
  * allowed. A legacy Designer style file only supplies looks. [cls] fills in the main activity for apps written with
  * only a package.
  */
-fun readableBackupFiles(root: JSONObject, cls: (pkg: String, user: Long) -> String?): Pair<Map<String, Map<String, String>>, List<String>> {
+fun readableBackupFiles(root: JSONObject, cls: (pkg: String, user: Long) -> String?): BackupFiles {
     val rejected = ArrayList<String>()
     val looks = HashMap<String, String>()
     root.optJSONObject("settings")?.let { s ->
