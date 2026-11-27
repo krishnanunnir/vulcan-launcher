@@ -403,11 +403,14 @@ private fun VulcanActivity.colorSheet(title: Int, start: Int, following: Boolean
         }
 }
 
-/** Picks a drawer tab's colour ([current] null: from the theme), over a sample of the tab bar with the tab selected. */
-fun VulcanActivity.pickTabColor(name: String, current: String?, done: (String?) -> Unit) {
+/**
+ * Picks a drawer tab's colour ([current] null: from the theme), over a sample of the tab bar with the tab selected beside
+ * [other] (none: the tab alone).
+ */
+fun VulcanActivity.pickTabColor(name: String, current: String?, other: String? = allTabName(), done: (String?) -> Unit) {
     val pad = (12 * dp).toInt()
     fun pill(label: String) = text(label, 14f).apply { gravity = Gravity.CENTER; minHeight = (40 * dp).toInt(); setPadding(pad * 3 / 2, 0, pad * 3 / 2, 0) }
-    val all = pill(getString(R.string.tab_all)).apply { setTextColor(m3.onSurfaceVariant) }
+    val all = pill(other.orEmpty()).apply { setTextColor(m3.onSurfaceVariant); if (other == null) visibility = View.GONE }
     val tab = pill(name)
     val bar = LinearLayout(this).apply {
         gravity = Gravity.CENTER_VERTICAL

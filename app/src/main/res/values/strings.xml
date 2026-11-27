@@ -757,7 +757,7 @@
     <string name="tab_bar_wrap">Wrap</string>
     <string name="names_and_more">%1$s and %2$d more</string>
     <string name="tabs_in_bar">In the tab bar</string>
-    <string name="tabs_hint">Drag a tab to move it. Slide one left to delete it.</string>
+    <string name="tabs_hint">Tap a tab to rename or recolour it. Drag one to move it; slide it left to delete it.</string>
     <string name="tab_hidden">Hidden</string>
     <string name="tab_show">Show %s</string>
     <string name="tab_hide">Hide %s</string>

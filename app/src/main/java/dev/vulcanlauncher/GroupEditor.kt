@@ -282,7 +282,7 @@ private fun VulcanActivity.swipeToDelete(row: View, onDelete: () -> Unit) {
 fun SettingsActivity.tabsLink(): View {
     val tabs = home.drawer.groups().filter { it.type == "tab" }
     val hasWork = home.repo.apps.values.any { home.repo.spaces.isWork(it) }
-    val names = listOfNotNull(getString(R.string.tab_all), getString(R.string.tab_private).takeIf { home.repo.spaces.privateUser != null }) + withWorkSlot(tabs.map { it.name }, store.data.workAt())
+    val names = listOfNotNull(allTabName(), getString(R.string.tab_private).takeIf { home.repo.spaces.privateUser != null }) + withWorkSlot(tabs.map { it.name }, store.data.workAt())
         .filter { it != WORK_SLOT || hasWork }.map { if (it == WORK_SLOT) getString(R.string.tab_work) else it }
     val summary = if (names.size <= 3) names.joinToString() else getString(R.string.names_and_more, names.take(3).joinToString(), names.size - 3)
     return listItem(symbol("tabs", m3.onPrimaryContainer), getString(R.string.group_tabs), summary, tonalIcon = true) { showPage(TABS_GROUP) }
@@ -297,7 +297,7 @@ fun SettingsActivity.foldersLink(): View {
 
 /**
  * The drawer's tabs: a preview of the tab bar with its Scroll or Wrap choice, then every tab in bar order. Each can be
- * shown or hidden; user tabs open their editor, drag to reorder and slide away to delete. All apps carries Keep in all.
+ * shown or hidden and opens its editor; user tabs drag to reorder and slide away to delete.
  */
 fun SettingsActivity.tabsPage(list: LinearLayout) {
     val groups = home.drawer.groups()
@@ -311,7 +311,7 @@ fun SettingsActivity.tabsPage(list: LinearLayout) {
 
     // The bar as the drawer will show it, selected tab first.
     val workAt = store.data.workAt()
-    val shownNames = listOfNotNull(getString(R.string.tab_all).takeIf { allShown }, getString(R.string.tab_private).takeIf { home.repo.spaces.privateUser != null }) +
+    val shownNames = listOfNotNull(allTabName().takeIf { allShown }, getString(R.string.tab_private).takeIf { home.repo.spaces.privateUser != null }) +
         withWorkSlot(tabs.map { it.name }, workAt).filter { if (it == WORK_SLOT) hasWork && workShown else tabs.none { t -> t.name == it && t.hidden } }
             .map { if (it == WORK_SLOT) getString(R.string.tab_work) else it }
     val bar = DrawerTabs(this, (6 * dp).toInt(), (32 * dp).toInt(), wrap).apply {
@@ -319,12 +319,14 @@ fun SettingsActivity.tabsPage(list: LinearLayout) {
         // On the drawer's own surface: the card's tone can match the selected chip's fill.
         background = rounded(m3.surface, 12 * dp)
         val p = (8 * dp).toInt(); setPadding(p, p, p, p)
+        // All apps' own colour when it leads; any other first tab shows the theme's fill, as before.
+        val fill = allTabColor()?.takeIf { allShown }?.let(Color::parseColor) ?: tabFill()
         shownNames.forEachIndexed { i, n ->
             val on = i == 0
-            addView(text(n, 13f, if (on) onColor(tabFill()) else m3.onSurfaceVariant, medium = true).apply {
+            addView(text(n, 13f, if (on) onColor(fill) else m3.onSurfaceVariant, medium = true).apply {
                 gravity = Gravity.CENTER; setSingleLine()
                 val p = (12 * dp).toInt(); setPadding(p, 0, p, 0)
-                background = if (on) rounded(tabFill(), 8 * dp) else null
+                background = if (on) rounded(fill, 8 * dp) else null
             })
         }
     }
@@ -344,11 +346,11 @@ fun SettingsActivity.tabsPage(list: LinearLayout) {
     fun row(title: CharSequence, summary: String?, shown: Boolean, onEye: () -> Unit, onClick: ((View) -> Unit)?) =
         listItem(null, title, if (shown) summary else getString(R.string.tab_hidden), trailing = eye(title.toString(), shown, onEye), onClick = onClick)
             .apply { if (!shown) (getChildAt(0) as? LinearLayout)?.alpha = 0.6f }
-    val allRow = row(getString(R.string.tab_all), null, allShown, {
+    // Opens its sheet (name, colour, Keep in all, #131); tagged so a search for Keep in all lands on it.
+    val allRow = row(allTabName(), null, allShown, {
         if (allShown && !hasVisibleTab) toast(getString(R.string.tab_all_needs_tab))
         else { store.data.edit().putBoolean(ALL_HIDDEN, allShown).apply(); home.drawer.refresh(); refresh() }
-    }, null)
-    val keep = checkRow(getString(R.string.set_keepInAll), looks.on("keepInAll")) { looks[choice("keepInAll")] = if (it) "on" else "off"; changed() }.apply { tag = "keepInAll" }
+    }) { editAllTab() }.apply { tag = "keepInAll" }
     // Work profile: a briefcase after its name marks it as the system's, not a tab of your own.
     val workTitle = android.text.SpannableString(getString(R.string.tab_work) + "  \u200b").apply {
         val s = (16 * dp).roundToInt()
@@ -375,10 +377,9 @@ fun SettingsActivity.tabsPage(list: LinearLayout) {
     }
     if (movable.size > 1) movable.forEach { (it as LinearLayout).addView(reorder.handle(it)) }
     val newTab = listItem(symbol("add", m3.primary), getString(R.string.new_tab)) { newGroup("tab") }
-    // Keep in all only means something while All apps shows.
     // Private Space is the system's: always right after All apps, as the preview shows, and not hidden from here.
     val privateRow = if (home.repo.spaces.privateUser != null) listItem(null, getString(R.string.tab_private), getString(R.string.tab_private_fixed), onClick = null) else null
-    panel(list, getString(R.string.tabs_in_bar), listOfNotNull(allRow, keep.takeIf { allShown }, privateRow) + movable + newTab)
+    panel(list, getString(R.string.tabs_in_bar), listOfNotNull(allRow, privateRow) + movable + newTab)
     if (tabs.isNotEmpty()) list.addView(text(getString(R.string.tabs_hint), 13f, m3.onSurfaceVariant).apply {
         setPadding((32 * dp).toInt(), (12 * dp).toInt(), (32 * dp).toInt(), 0)
     })
@@ -569,6 +570,58 @@ fun VulcanActivity.editGroup(g: Group) {
     d = sheet().setView(ScrollView(this).apply { addView(box) }).create()
     // Closing the sheet any way keeps the new name and colour.
     d.setOnDismissListener { keep() }
+    d.show()
+}
+
+/**
+ * All apps' sheet (#131): its name and colour, saved when the sheet closes (blank or the default name: unset), and Keep in
+ * all. As a tab's own sheet, without apps, Convert or Delete: All apps holds every app and can only be hidden.
+ */
+fun SettingsActivity.editAllTab() {
+    val name = field(allTabName(), getString(R.string.name))
+    var color = allTabColor()
+    lateinit var d: android.app.AlertDialog
+    val box = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding((16 * dp).toInt(), (20 * dp).toInt(), (16 * dp).toInt(), (8 * dp).toInt())
+    }
+    box.addView(LinearLayout(this).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding((8 * dp).toInt(), 0, (8 * dp).toInt(), (12 * dp).toInt())
+        addView(ImageView(context).apply {
+            setImageDrawable(symbol("apps")); scaleType = ImageView.ScaleType.CENTER; background = rounded(m3.surfaceHighest, 16 * dp)
+        }, LinearLayout.LayoutParams((52 * dp).toInt(), (52 * dp).toInt()).apply { marginEnd = (16 * dp).toInt() })
+        addView(name, LinearLayout.LayoutParams(0, -2, 1f))
+    })
+    val rows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = rounded(m3.surfaceHighest, 18 * dp); clipToOutline = true }
+    val dot = View(this).apply { layoutParams = LinearLayout.LayoutParams((24 * dp).toInt(), (24 * dp).toInt()) }
+    fun show() { dot.background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color?.let(Color::parseColor) ?: tabFill()); setStroke(dp.toInt(), m3.outlineVariant) } }
+    show()
+    rows.addView(listItem(symbol("palette"), getString(R.string.tab_color), trailing = dot) {
+        pickTabColor(name.text.toString().trim().ifEmpty { getString(R.string.tab_all) }, color, home.drawer.groups().firstOrNull { it.type == "tab" }?.name) { color = it; show() }
+    })
+    rows.addView(checkRow(getString(R.string.set_keepInAll), looks.on("keepInAll")) {
+        looks[LOOKS.first { c -> c.key == "keepInAll" }] = if (it) "on" else "off"; changed()
+    })
+    box.addView(rows)
+    box.addView(LinearLayout(this).apply {
+        gravity = Gravity.END
+        setPadding(0, (16 * dp).toInt(), 0, 0)
+        addView(text(getString(R.string.done), 14f, m3.onPrimary, medium = true).apply {
+            gravity = Gravity.CENTER
+            minHeight = (44 * dp).toInt()
+            setPadding((24 * dp).toInt(), 0, (24 * dp).toInt(), 0)
+            background = pressable(rounded(m3.primary, 22 * dp), 22 * dp, m3.onPrimary)
+            setOnClickListener { d.dismiss() }
+        })
+    })
+    d = sheet().setView(ScrollView(this).apply { addView(box) }).create()
+    // Closing the sheet any way keeps the name and colour.
+    d.setOnDismissListener {
+        val typed = name.text.toString().trim()
+        store.data.edit().also { it.putData(ALL_NAME, typed.takeIf { t -> t.isNotEmpty() && t != getString(R.string.tab_all) }); it.putData(ALL_COLOR, color) }.apply()
+        home.drawer.refresh(); refresh()
+    }
     d.show()
 }
 

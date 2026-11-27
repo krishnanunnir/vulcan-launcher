@@ -22,7 +22,7 @@ fun groupsFromJson(s: String): List<Group> = (runCatching { JSONArray(s) }.getOr
         val name = o.opt("name") as? String ?: return@mapNotNull null
         val type = o.opt("type") as? String ?: return@mapNotNull null
         val apps = o.optJSONArray("apps") ?: JSONArray()
-        val color = (o.opt("color") as? String)?.takeIf { Regex("#[0-9a-fA-F]{6}").matches(it) }
+        val color = tabColor(o.opt("color") as? String)
         Group(name, type, (0 until apps.length()).mapNotNull { i -> apps.opt(i) as? String }, color, o.optBoolean("hidden"))
     }.fold(ArrayList<Group>()) { out, g ->
         var name = g.name
@@ -152,6 +152,14 @@ fun smartGroups(groups: List<Group>, byName: Map<String, List<String>>): Triple<
 
 /** data key: All apps is left out of the drawer's tabs. */
 const val ALL_HIDDEN = "hideAllTab"
+/** data keys: All apps' own name and colour (#131); unset, R.string.tab_all and the theme's fill. */
+const val ALL_NAME = "allTabName"
+const val ALL_COLOR = "allTabColor"
+
+/** [v] when it's a tab colour ("#RRGGBB"), else null: a restored or hand-edited file can hold anything. */
+fun tabColor(v: String?) = v?.takeIf { Regex("#[0-9a-fA-F]{6}").matches(it) }
+fun VulcanActivity.allTabName() = store.data.getString(ALL_NAME, null)?.trim()?.ifEmpty { null } ?: getString(R.string.tab_all)
+fun VulcanActivity.allTabColor() = tabColor(store.data.getString(ALL_COLOR, null))
 
 /** Work apps have their own tab unless it's hidden. Before 0.32 that was the "workTab" setting; its value still counts until the eye is used. */
 fun VulcanActivity.workTabShown() = !store.data.getBoolean(WORK_HIDDEN, looks.raw("workTab") == "off")

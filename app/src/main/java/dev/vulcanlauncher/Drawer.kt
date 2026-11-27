@@ -659,7 +659,7 @@ class Drawer(private val a: MainActivity) {
     /** [order]: the tab keys after All apps and Private, "work" among the user's tab names. */
     private fun buildTabs(groups: List<Group>, order: List<String>, privateTab: Boolean, show: Boolean) {
         tabs.removeAllViews()
-        val names = (if (homeTab == "") listOf("" to a.getString(R.string.tab_all)) else emptyList()) +
+        val names = (if (homeTab == "") listOf("" to a.allTabName()) else emptyList()) +
             (if (privateTab) listOf("private" to a.getString(R.string.tab_private)) else emptyList()) +
             order.map { it to if (it == "work") a.getString(R.string.tab_work) else it }
         tabScroll.visibility = if (show && names.size > 1) View.VISIBLE else View.GONE
@@ -668,7 +668,7 @@ class Drawer(private val a: MainActivity) {
         for ((key, title) in names) {
             val on = key == tab
             // A tab's own colour (set in its editor, as Nova's) marks it while selected: the bar, or the housing key's fill.
-            val own = groups.firstOrNull { it.name == key && it.type == "tab" }?.color?.let(android.graphics.Color::parseColor)
+            val own = (if (key == "") a.allTabColor() else groups.firstOrNull { it.name == key && it.type == "tab" }?.color)?.let(android.graphics.Color::parseColor)
             val chip = !housing
             val ink = onColor(own ?: a.tabFill())
             tabs.addView(a.text(title, 14f, if (on) ink else a.m3.onSurfaceVariant, medium = true).apply {
