@@ -185,8 +185,8 @@ class MainActivity : VulcanActivity() {
         }
         // A widget whose ID is gone (its app uninstalled while Vulcan wasn't running) has no view, but would hold its cells.
         // Read once: if it throws, a second unguarded read would too, and a launcher crashing in onCreate loops.
-        runCatching { host.appWidgetIds.toSet() }.onFailure { android.util.Log.w("Vulcan", "can't list widget IDs", it) }.getOrNull()?.let { ids ->
-            editLayout { l -> l.copy(items = keepWidgets(l.items) { it in ids }) }
+        if (store.layoutReadable) runCatching { host.appWidgetIds.toSet() }.onFailure { android.util.Log.w("Vulcan", "can't list widget IDs", it) }.getOrNull()?.let { ids ->
+            editLayout(automatic = true) { l -> l.copy(items = keepWidgets(l.items) { it in ids }) }
             // Widget IDs no item holds (the process died mid-flow, a pin failed, an undo bar was cut short) still get
             // updates from their providers: free them.
             val held = items.flatMap { it.widgetIds } + nowCards().flatMap { it.widgetIds } + listOfNotNull(widgetFlow.pendingWidget?.first)
@@ -332,7 +332,7 @@ class MainActivity : VulcanActivity() {
             firstFreeSpot(next.items.filter { !isDock(it.page) }, next.pages, looks.cols * sub, looks.rows * sub, looks.cols * sub, sub)
                 ?.let { next = next.copy(items = next.items + it.copy(action = "clock")) }
         }
-        editLayout(redraw = false) { next }
+        editLayout(redraw = false, automatic = true) { next }
     }
 
     /** Transparent system bars, home drawn behind them and into the notch. */
@@ -589,7 +589,7 @@ class MainActivity : VulcanActivity() {
 
     /** Takes [items] from the store, where PinActivity may have added something meanwhile. */
     private fun reloadItems() {
-        editLayout { fit(store.load(sub)) }
+        editLayout(automatic = true) { fit(store.load(sub)) }
     }
 
     /**
@@ -694,13 +694,17 @@ class MainActivity : VulcanActivity() {
      * The one way home's layout changes: [edit] turns it into the next, which is checked ([checked]), stored in one
      * write, then home is built again if the page count changed or redrawn if only the items did. [redraw] false: the
      * caller puts the views right itself. Returns the layout now.
+     *
+     * [automatic]: a tidy nobody asked for (the load on start, a package change). While home shows a stand-in for a
+     * stored layout it can't read ([Store.layoutReadable]), that changes home only; the first edit the user makes is
+     * the one that saves the stand-in over the stored text.
      */
-    fun editLayout(redraw: Boolean = true, edit: (PageLayout) -> PageLayout): PageLayout {
+    fun editLayout(redraw: Boolean = true, automatic: Boolean = false, edit: (PageLayout) -> PageLayout): PageLayout {
         val was = pageLayout
         val next = edit(was).checked()
         if (next == was) return was
         pageLayout = next
-        store.save(next, sub)
+        if (savesNow(automatic, store::layoutReadable)) store.save(next, sub)
         if (redraw) { if (next.pages != was.pages) rebuild() else if (next.items != was.items) render() }
         return next
     }
@@ -734,7 +738,7 @@ class MainActivity : VulcanActivity() {
             reloadItems()
             reload(listOf(pkg))
             // Not twice: a second MainActivity, or an app that was removed and came back, already has its icon.
-            if (looks.on("autoAdd")) repo.activities(pkg, user)
+            if (looks.on("autoAdd") && store.layoutReadable) repo.activities(pkg, user)
                 .filter { app -> items.none { i -> (i.children + i).any { it.pkg == app.pkg && it.cls == app.cls && it.user == app.serial } } }
                 .forEach { addToHome(it, quiet = true) }
         }
@@ -742,7 +746,7 @@ class MainActivity : VulcanActivity() {
         // system has already deleted its widgets.
         override fun onPackageRemoved(pkg: String, user: UserHandle) {
             reloadItems()
-            editLayout(redraw = false) { l -> l.copy(items = keepWidgets(removePackage(l.items, pkg, repo.serial(user))) { awm.getAppWidgetInfo(it) != null }) }
+            editLayout(redraw = false, automatic = true) { l -> l.copy(items = keepWidgets(removePackage(l.items, pkg, repo.serial(user))) { awm.getAppWidgetInfo(it) != null }) }
             reload(listOf(pkg))
         }
         // An update or a component switched on or off: home redraws only if it shows one of the package's apps.
