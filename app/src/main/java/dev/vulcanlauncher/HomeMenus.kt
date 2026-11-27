@@ -96,7 +96,7 @@ class HomeMenus(private val a: MainActivity) {
                         a.folderOf(payload)?.let { f -> f.children.indexOf(child).takeIf { it >= 0 }?.let { j -> a.setFolderChildren(f, f.children.toMutableList().apply { set(j, new) }) } }
                     }
                 }
-                tile("close", a.getString(R.string.remove)) { if (a.removeFromFolder(payload)) { a.save(); a.render() } }
+                tile("close", a.getString(R.string.remove)) { a.removeFromFolder(payload) }
             }
         }
         if (owner != null) {
@@ -442,7 +442,7 @@ class HomeMenus(private val a: MainActivity) {
                 "recents" -> global(AccessibilityService.GLOBAL_ACTION_RECENTS)
                 "lock" -> if (android.os.Build.VERSION.SDK_INT >= 28) global(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN) else a.toast(R.string.lock_needs_9)
                 "power" -> global(AccessibilityService.GLOBAL_ACTION_POWER_DIALOG)
-                "defaultpage" -> a.workspace.snapTo(a.looks.int("defaultPage"))
+                "defaultpage" -> a.workspace.snapTo(a.pageLayout.defaultPage)
                 "previews" -> a.showOverview()
                 // Keep an enabled dock's space when the gesture hides it so the home grid doesn't move (#84).
                 "toggledock" -> {

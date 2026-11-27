@@ -187,10 +187,10 @@ class DragController(private val a: MainActivity) {
                 DragEvent.ACTION_DROP -> when (kind) {
                     "remove" -> when (p) {
                         is PageMove -> a.root.post {
-                            a.removePageAt(p.index) { afterRebuild { a.workspace.snapTo(minOf(p.index, a.looks.pages - 1), animate = false); a.homeMenus.homeOverview(animate = false) } }
+                            a.removePageAt(p.index) { afterRebuild { a.workspace.snapTo(minOf(p.index, a.pageLayout.pages - 1), animate = false); a.homeMenus.homeOverview(animate = false) } }
                         }
                         is Item -> a.removeItem(p)
-                        is FolderChild -> if (a.removeFromFolder(p)) a.save()
+                        is FolderChild -> a.removeFromFolder(p, redraw = false)
                     }
                     "uninstall" -> appOf(p)?.let { a.uninstall(it) }
                 }
@@ -362,7 +362,7 @@ class DragController(private val a: MainActivity) {
                 start()
             }
         }
-        a.editLayout(a.pageLayout.addPage(), redraw = false) // the views are right already
+        a.editLayout(redraw = false) { it.addPage() } // the views are right already
         a.indicator.count = a.pages.size
         page.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
         addPlusPage()
@@ -462,13 +462,13 @@ class DragController(private val a: MainActivity) {
         val extra = dragPage
         dragPage = null
         val (next, gone) = a.pageLayout.settleDrag(if (dropped) dragFrom else null)
-        if (next.pages == a.looks.pages && gone < 0) {
+        if (next.pages == a.pageLayout.pages && gone < 0) {
             extra?.let { a.pages = a.pages - it; a.workspace.removeView(it); a.workspace.snapTo(a.workspace.current) }
             return
         }
         val show = a.workspace.current - if (gone in 0 until a.workspace.current) 1 else 0
         // Built again even when the count comes out the same (a page added and one removed): the drag's extra page goes.
-        a.editLayout(next, redraw = false)
+        a.editLayout(redraw = false) { next }
         a.rebuild()
         a.workspace.snapTo(show, animate = false)
     }
@@ -540,23 +540,21 @@ class DragController(private val a: MainActivity) {
         }
         a.widgetFlow.stackTarget(cell, px, py, payload)?.let { onto ->
             val moving = payload as Item
-            if (onto !in a.items || !a.items.remove(moving)) return false
+            if (onto !in a.items || moving !in a.items) return false
             dropped = true
-            a.items[a.items.indexOf(onto)] = onto.withWidgets(onto.widgetIds + moving.widgetIds)!!
+            a.editItems(redraw = false) { it.remove(moving); it[it.indexOf(onto)] = onto.withWidgets(onto.widgetIds + moving.widgetIds)!! }
             a.root.confirm()
-            a.save()
             a.render()
             return true
         }
         val spot = landing(cell, px, py, payload) ?: return false
         val placed = (asItem(payload) ?: child ?: return false).copy(page = cell.page, x = spot.left, y = spot.top, w = spot.width(), h = spot.height())
         // Gone from where it came from (its app was removed, its folder changed) since the drag began: placing it would make a second one.
-        if (!a.detach(payload)) return false
+        val rest = a.detached(a.items, payload) ?: return false
         dropped = true
-        a.items += placed
+        a.editLayout(redraw = false) { it.copy(items = rest + placed) }
         a.root.tick()
         if (placed.isShortcut) a.syncPins(placed.pkg, placed.user)
-        a.save()
         a.render()
         return true
     }

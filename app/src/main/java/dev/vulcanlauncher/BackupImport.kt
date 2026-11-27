@@ -114,7 +114,7 @@ fun importedPrefs(xml: String): Map<String, String> {
         "dock_grid_cols" to "dockCols", "dock_pages_count" to "dockPages", "drawer_app_grid_cols" to "drawerCols", "drawer_app_grid_rows" to "drawerRows")
     // Kept within what the setting allows: a value outside it shows wrong in settings and is refused by a later restore.
     return map.mapNotNull { (theirs, ours) ->
-        val allowed = LOOKS.first { it.key == ours }.values
+        val allowed = choiceOf(ours)!!.values
         values[theirs]?.toIntOrNull()?.let { ours to it.coerceIn(allowed.first().toInt(), allowed.last().toInt()).toString() }
     }.toMap()
 }

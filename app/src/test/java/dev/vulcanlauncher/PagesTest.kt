@@ -1,8 +1,6 @@
 package dev.vulcanlauncher
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Every page edit keeps the items, the page count and the default page in step (PageLayout). */
@@ -82,8 +80,8 @@ class PagesTest {
         assertEquals(-1, none)
         assertEquals(4, grown.pages)
         assertEquals(1, grown.defaultPage)
-        // The emptied page was the last and the default: the default stays on a page that exists.
-        val (last, _) = PageLayout(listOf(a, b, c.copy(page = 0), d), 3, 2).settleDrag(2)
+        // The emptied page was the last one, after the default: it goes, the default stays.
+        val (last, _) = PageLayout(listOf(a, b, c.copy(page = 0), d), 3, 1).settleDrag(2)
         assertEquals(2, last.pages)
         assertEquals(1, last.defaultPage)
     }
@@ -100,12 +98,14 @@ class PagesTest {
     }
 
     @Test
-    fun writeOrder() {
-        // Growing: the count first, so no item is ever on a page that isn't there.
-        assertTrue(looksFirst(three, three.addPage()))
-        assertTrue(looksFirst(three, PageLayout(listOf(a, b.copy(page = 3), c, d), 3, 1).settleDrag(0).first))
-        // Shrinking or the same: the items first, so at worst an empty page is left at the end.
-        assertFalse(looksFirst(three, three.removePageAt(1).first))
-        assertFalse(looksFirst(three, three.movePageTo(0, 1)))
+    fun checked() {
+        // Held to the stored layout's rules, as the decoder reads it: the page count in range, the default on a page.
+        assertEquals(PageLayout(listOf(a), MAX_PAGES, MAX_PAGES - 1), PageLayout(listOf(a), 40, 50).checked())
+        assertEquals(PageLayout(listOf(a), 1, 0), PageLayout(listOf(a), 0, -3).checked())
+        // An empty folder is dropped, an item off the grid is parked where fitItems moves it from.
+        val folder = Item(0, 1, 0, folder = true)
+        assertEquals(listOf(a), PageLayout(listOf(a, folder), 1, 0).checked().items)
+        assertEquals(MAX_CELL, PageLayout(listOf(a.copy(x = -5)), 1, 0).checked().items.single().x)
+        assertEquals(three, three.checked())
     }
 }

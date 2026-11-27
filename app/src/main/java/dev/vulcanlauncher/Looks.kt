@@ -89,11 +89,17 @@ val GROUP_TITLES = mapOf(HOME to R.string.group_home, DOCK_GROUP to R.string.gro
     GESTURES to R.string.group_gestures, NOW to R.string.group_now, SEARCH_GROUP to R.string.group_search,
     TABS_GROUP to R.string.group_tabs, DRAWER_FOLDERS to R.string.group_drawer_folders)
 
+/**
+ * Pages and Default page: rows in Settings, but stored with the layout (Store, layout version 3) so they change in the
+ * same write as the items. Not in [LOOKS]; [SECTIONS] lists them as "@pages" and "@defaultPage".
+ */
+val PAGES_CHOICE = Choice(HOME, "pages", R.string.set_pages, "1", range(1, MAX_PAGES))
+val DEFAULT_PAGE_CHOICE = Choice(HOME, "defaultPage", R.string.set_defaultPage, "0", range(0, MAX_PAGES - 1), shown = range(1, MAX_PAGES))
+val PAGE_CHOICES = listOf(PAGES_CHOICE, DEFAULT_PAGE_CHOICE)
+
 val LOOKS = listOf(
     Choice(HOME, "cols", R.string.set_cols, "5", range(3, 12)),
     Choice(HOME, "rows", R.string.set_rows, "6", range(3, 12)),
-    Choice(HOME, "pages", R.string.set_pages, "1", range(1, 9)),
-    Choice(HOME, "defaultPage", R.string.set_defaultPage, "0", range(0, 8), shown = range(1, 9)),
     onOff(HOME, "subgrid", R.string.set_subgrid, false, R.string.set_subgrid_info),
     sizes(HOME, "iconSize", R.string.set_iconSize, "64"),
     // As Nova's Padding: one row holding both, left and right x top and bottom (#96). SettingsUi.paddingRow edits it.
@@ -224,7 +230,7 @@ val LOOKS = listOf(
  */
 val SECTIONS: Map<String, List<Pair<Int, List<String>>>> = mapOf(
     HOME to listOf(
-        R.string.sec_layout to listOf("cols", "rows", "pages", "defaultPage", "subgrid", "iconSize", "pageMargin", "@dock"),
+        R.string.sec_layout to listOf("cols", "rows", "@pages", "@defaultPage", "subgrid", "iconSize", "pageMargin", "@dock"),
         R.string.sec_labels to listOf("labels", "labelSize", "labelColor", "labelFont", "labelLines", "labelShadow"),
         R.string.sec_search to listOf("searchBar"),
         R.string.sec_scroll to listOf("wallpaperScroll", "scrollEffect", "infiniteScroll", "indicator"),
@@ -279,6 +285,8 @@ val PRE_NOVA_DEFAULTS = mapOf("cols" to "4", "pages" to "3", "searchBar" to "off
 
 /** Settings in their own SharedPreferences. Changing one rebuilds home (MainActivity.rebuild). */
 class Looks(context: Context) {
+    /** Where the page settings live since layout version 3 ([Store.adoptPages]). */
+    private val layout = context.getSharedPreferences("layout", Context.MODE_PRIVATE)
     private val prefs = context.getSharedPreferences("looks", Context.MODE_PRIVATE).apply {
         // Before 0.16 the home button had its own values; "default" is now the "defaultpage" action.
         if (getString("homeButton", null) == "default") edit().putString("homeButton", "defaultpage").apply()
@@ -292,7 +300,7 @@ class Looks(context: Context) {
         val e = prefs.edit()
         if (!prefs.contains("defaults")) {
             e.putString("defaults", "nova")
-            if (upgrade) PRE_NOVA_DEFAULTS.forEach { (k, v) -> if (!prefs.contains(k)) e.putString(k, v) }
+            if (upgrade) PRE_NOVA_DEFAULTS.forEach { (k, v) -> if (!prefs.contains(k) && !layout.contains(k)) e.putString(k, v) }
         }
         // 0.32: folder icons follow the icon shape; an install from before keeps the square it had.
         if (!prefs.contains("defaults032")) {
@@ -326,7 +334,6 @@ class Looks(context: Context) {
 
     val cols get() = int("cols")
     val rows get() = int("rows")
-    val pages get() = int("pages")
     val dockOn get() = on("dock")
     val dockCols get() = int("dockCols")
     val dockPages get() = int("dockPages")

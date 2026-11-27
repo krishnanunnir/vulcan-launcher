@@ -4,9 +4,9 @@ package dev.vulcanlauncher
 const val MAX_PAGES = 9
 
 /**
- * Home's layout as it is stored in two places: the items (Store) and the page count and default page (Looks). Every
- * page edit is a function from one of these to the next, and [editLayout] is the only place that stores one, so the
- * three can't disagree.
+ * Home's layout: its items, page count and default page, stored together in one write ([Store.save]). Every edit is a
+ * function from one of these to the next, and [MainActivity.editLayout] is the only place home stores one, so the three
+ * can't disagree.
  */
 data class PageLayout(val items: List<Item>, val pages: Int, val defaultPage: Int) {
     /** A default page left out of range (an older build, a hand edit, Pages lowered in Settings) is the last page. */
@@ -48,35 +48,11 @@ fun importedLayout(items: List<Item>, pages: Int?, defaultPage: Int): PageLayout
     return PageLayout(items, n, defaultPage.coerceIn(0, n - 1))
 }
 
-/**
- * Items and the two settings live in different files and can't be written at once. A page count that grows is written
- * before the items that use it, and one that shrinks after them: an interruption then leaves at most an empty page at
- * the end or a default page one off, never an item on a page that doesn't exist (which [fitItems] would move elsewhere).
- */
-fun looksFirst(was: PageLayout, next: PageLayout) = next.pages > was.pages
-
-/** Stores [next] in place of [was]: the items at subgrid factor [sub], and the page settings that changed. */
-fun storeLayout(store: Store, looks: Looks, was: PageLayout, next: PageLayout, sub: Int) {
-    val counts = {
-        if (next.pages != was.pages) looks["pages"] = next.pages.toString()
-        if (next.defaultPage != was.defaultPage) looks["defaultPage"] = next.defaultPage.toString()
-    }
-    if (looksFirst(was, next)) counts()
-    store.save(next.items, sub)
-    if (!looksFirst(was, next)) counts()
+/** [items] held to what the stored layout allows, as [decodeLayout] reads it: well-formed items, a page count in range, a default page on one of them. */
+fun PageLayout.checked(): PageLayout {
+    val n = pages.coerceIn(1, MAX_PAGES)
+    return PageLayout(items.mapNotNull(::wellFormed), n, defaultPage.coerceIn(0, n - 1))
 }
 
-/** Home's layout now: [MainActivity.items] and the page settings. */
-val MainActivity.pageLayout get() = PageLayout(items, looks.pages, looks.int("defaultPage"))
-
-/**
- * The one way home's pages change: [next] is stored as one change, then home is built again if the page count changed,
- * or redrawn if only the items did. [redraw] false: the caller has put the views right itself.
- */
-fun MainActivity.editLayout(next: PageLayout, redraw: Boolean = true) {
-    val was = pageLayout
-    items = next.items.toMutableList()
-    storeLayout(store, looks, was, next, sub)
-    if (!redraw) return
-    if (next.pages != was.pages) rebuild() else if (next.items != was.items) render()
-}
+/** An edit of the stored layout made outside home (PinActivity, a widget restore): load, [edit], check, save in one write. */
+fun Store.editLayout(sub: Int, edit: (PageLayout) -> PageLayout) = save(edit(load(sub)).checked(), sub)

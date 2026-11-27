@@ -251,7 +251,7 @@ private fun SettingsActivity.settingsHome(page: LinearLayout): (String) -> Unit 
         results.removeAllViews()
         list.visibility = if (q.isBlank()) View.VISIBLE else View.GONE
         if (q.isNotBlank()) {
-            val hits = LOOKS.filter { c ->
+            val hits = (LOOKS + PAGE_CHOICES).filter { c ->
                 c.group in GROUP_TITLES && shows(c) && listOf(c.title, c.info, GROUP_TITLES.getValue(c.group)).any { it != 0 && getString(it).contains(q.trim(), true) }
             }
             if (hits.isEmpty()) results.addView(text(getString(R.string.settings_no_match), 15f, m3.onSurfaceVariant).apply {
@@ -391,7 +391,7 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
         c.key == "drawerTheme" && looks.str("accent") == "amoled" ->
             listItem(null, getString(c.title), getString(R.string.panels_amoled)) { pick(c) }.apply { alpha = 0.5f }
         // One page leaves nothing to choose between.
-        c.key == "defaultPage" && looks.int("pages") <= 1 ->
+        c.key == "defaultPage" && home.pageLayout.pages <= 1 ->
             listItem(null, getString(c.title), getString(R.string.default_page_one)) {}.apply { alpha = 0.5f }
         c.key == "pageMargin" -> paddingRow(c)
         c.values.size > 2 && c.values.all { it.toIntOrNull() != null } -> slider(c)
@@ -399,6 +399,8 @@ private fun SettingsActivity.settingsCategory(group: String, list: LinearLayout)
     }.apply { tag = c.key }
     val byKey = choices.associateBy { it.key }
     fun link(key: String): View? = when (key) {
+        "@pages" -> row(PAGES_CHOICE)
+        "@defaultPage" -> row(DEFAULT_PAGE_CHOICE)
         "@dock" -> listItem(null, getString(R.string.group_dock), getString(R.string.cat_dock)) { showPage(DOCK_GROUP) }
         "@hidden" -> listItem(symbol("hide", m3.onPrimaryContainer), getString(R.string.hidden_apps), getString(R.string.hidden_apps_info), tonalIcon = true) { hideAppsMenu() }
         "@tabs" -> tabsLink()
@@ -455,8 +457,8 @@ private fun SettingsActivity.badgeSample(shape: String): Drawable {
 private fun SettingsActivity.slider(c: Choice): View {
     val value = text(valueName(c), 14f, m3.onSurfaceVariant)
     val bar = android.widget.SeekBar(this).apply {
-        max = if (c.key == "defaultPage") (looks.int("pages") - 1).coerceIn(1, c.values.size - 1) else c.values.size - 1
-        progress = c.values.indexOf(looks[c]).coerceAtLeast(0)
+        max = if (c.key == "defaultPage") (home.pageLayout.pages - 1).coerceIn(1, c.values.size - 1) else c.values.size - 1
+        progress = c.values.indexOf(valueOf(c)).coerceAtLeast(0)
         contentDescription = getString(c.title)
         val tint = android.content.res.ColorStateList.valueOf(m3.slider)
         progressTintList = tint; thumbTintList = tint; tickMarkTintList = tint
@@ -746,21 +748,27 @@ private fun SettingsActivity.iconPackChoice(): Choice {
     return Choice(LOOK, "iconPack", R.string.set_iconPack, "", listOf("") + packs.map { it.first }, shown = listOf(getString(R.string.iconPack_system)) + packs.map { it.second })
 }
 
+/** [c]'s value now: the page settings are home's layout's, the rest are in [Looks]. */
+private fun SettingsActivity.valueOf(c: Choice) = when (c) {
+    PAGES_CHOICE -> home.pageLayout.pages.toString()
+    DEFAULT_PAGE_CHOICE -> home.pageLayout.defaultPage.toString()
+    else -> looks[c]
+}
+
 private fun SettingsActivity.valueName(c: Choice) = when {
     c.action -> actionName(looks[c], home.repo::appLabel)
     // Under the Appliance look, "system" on a housing-coloured part draws in the housing colour.
     m3.housing && looks[c] == "system" && c.key in listOf("dockColor", "searchColor", "folderColor") -> getString(R.string.housing_follows_theme)
-    else -> c.values.indexOf(looks[c]).let { i -> if (i >= 0) choiceName(c, i) else looks[c].ifEmpty { getString(R.string.none) } }
+    else -> valueOf(c).let { v -> c.values.indexOf(v).let { i -> if (i >= 0) choiceName(c, i) else v.ifEmpty { getString(R.string.none) } } }
 }
 
 /** Saves a setting, asking for a permission it needs first; home is built again when it shows. */
 private fun SettingsActivity.applyChoice(c: Choice, value: String) {
-    val old = looks[c]
-    if (value == old) return
-    // Pages and the default page are part of home's layout, stored with it.
-    when (c.key) {
-        "pages" -> storeLayout(store, looks, home.pageLayout, home.pageLayout.withPages(value.toInt()), home.sub)
-        "defaultPage" -> storeLayout(store, looks, home.pageLayout, home.pageLayout.withDefault(value.toInt()), home.sub)
+    if (value == valueOf(c)) return
+    // Pages and the default page are part of home's layout, stored with it; home is built again when it shows.
+    when (c) {
+        PAGES_CHOICE -> home.editLayout(redraw = false) { it.withPages(value.toInt()) }
+        DEFAULT_PAGE_CHOICE -> home.editLayout(redraw = false) { it.withDefault(value.toInt()) }
         else -> looks[c] = value
     }
     home.stale = true
@@ -820,7 +828,7 @@ private fun SettingsActivity.backupPage(list: LinearLayout) {
 
 /** Says how many restored icons home is about to drop because their apps aren't installed; the backup file still has them. */
 fun VulcanActivity.toastMissing() {
-    val n = missingApps(store.load(looks.sub), home.repo::uninstalled)
+    val n = missingApps(store.load(looks.sub).items, home.repo::uninstalled)
     if (n > 0) toast(resources.getQuantityString(R.plurals.restore_missing, n, n))
 }
 
@@ -849,11 +857,10 @@ fun VulcanActivity.applyImport(layout: ImportedLayout, settings: Map<String, Str
     // The home this replaces stays restorable from Settings; like Store.import, nothing is replaced if that can't be saved.
     runCatching { store.rotateAutoBackup() }.onFailure { toast(R.string.import_failed, it.message); return }
     home.items.flatMap { it.widgetIds }.forEach(home.host::deleteAppWidgetId)
-    val was = home.pageLayout
     // The page count goes with the items, below.
-    settings.forEach { (k, v) -> if (k != "pages") looks[k] = v }
+    settings.forEach { (k, v) -> if (k !in PAGE_KEYS) looks[k] = v }
     looks["subgrid"] = if (layout.subgrid) "on" else "off"
-    storeLayout(store, looks, was, importedLayout(layout.items, settings["pages"]?.toIntOrNull(), was.defaultPage), if (layout.subgrid) 2 else 1)
+    store.editLayout(if (layout.subgrid) 2 else 1) { importedLayout(layout.items, settings["pages"]?.toIntOrNull(), it.defaultPage) }
     if (layout.widgets > 0) store.data.edit().putBoolean(RESTORING_WIDGETS, true).commit()
     // The same pins as these, from what was just stored; it waits for onResume when Vulcan isn't the default home app yet.
     home.repinShortcuts()

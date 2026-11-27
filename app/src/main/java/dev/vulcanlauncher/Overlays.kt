@@ -223,7 +223,7 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
     // Three tiles per row, each with 6 dp margins on both sides.
     val w = maxOf(1, ((workspace.width - 48 * dp) / 3).toInt())
     val h = maxOf(1, w * workspace.height / maxOf(1, workspace.width))
-    val default = looks.int("defaultPage")
+    val default = pageLayout.defaultPage
     val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
     var row = LinearLayout(this)
     fun add(v: View) {
@@ -298,7 +298,7 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
                 compoundDrawablePadding = (4 * dp).toInt()
                 setCompoundDrawablesRelative(symbol("home", if (i == default) 0xFFFFFFFF.toInt() else 0x80FFFFFF.toInt(), 14f).apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }, null, null, null)
                 contentDescription = "${getString(R.string.page_n, i + 1)}, ${getString(R.string.page_set_default)}"
-                setOnClickListener { editLayout(pageLayout.withDefault(i)); showOverview(enter = false) }
+                setOnClickListener { editLayout { it.withDefault(i) }; showOverview(enter = false) }
             }, LinearLayout.LayoutParams(-2, -2).apply { gravity = Gravity.CENTER_HORIZONTAL })
             setOnClickListener { workspace.snapTo(i, animate = false); closeOverlay() }
             if (!locked) setOnLongClickListener { v ->
@@ -334,7 +334,7 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
         }, LinearLayout.LayoutParams(w, h))
         setOnClickListener {
             val added = pages.size
-            editLayout(pageLayout.addPage())
+            editLayout { it.addPage() }
             reopenOverview(pop = added)
         }
     })
@@ -396,18 +396,18 @@ private fun MainActivity.reopenOverview(pop: Int = -1) = drag.afterRebuild { sho
 /** [then]: after the move; the previews reopen by default. */
 fun MainActivity.movePageTo(from: Int, to: Int, then: () -> Unit = { reopenOverview() }) {
     if (locked) { toast(R.string.layout_locked); return }
-    editLayout(pageLayout.movePageTo(from, to)); then()
+    editLayout { it.movePageTo(from, to) }; then()
 }
 
 /** [then]: after the rebuild that removing it takes; the previews reopen by default. */
 fun MainActivity.removePageAt(i: Int, then: () -> Unit = { reopenOverview() }) {
     if (locked) { toast(R.string.layout_locked); return }
-    val n = looks.pages // not pages.size: in the hold-home overview that counts its "+" card
+    val n = pageLayout.pages // not pages.size: in the hold-home overview that counts its "+" card
     if (n == 1) { toast(R.string.page_last); return }
     val doRemove = {
         val (next, gone) = pageLayout.removePageAt(i)
         gone.flatMap { it.widgetIds }.forEach(host::deleteAppWidgetId)
-        editLayout(next)
+        editLayout { next }
         // After the edit: syncPins reads the items to keep the pins they still use.
         gone.filter { it.isShortcut }.forEach { syncPins(it.pkg, it.user) }
         then()
@@ -513,7 +513,7 @@ fun MainActivity.showUndo(item: Item, finalize: () -> Unit) {
         // Its cells may have been taken in the meantime: it then goes to the first free spot.
         if (items.any { it.page == item.page && overlaps(item.x, item.y, item.w, item.h, it.x, it.y, it.w, it.h) })
             addItem(if (isDock(item.page)) item.copy(w = sub, h = sub) else item, quiet = true) // a dock cell is one home icon
-        else { items += item; save(); render() }
+        else editItems { it += item }
     }
 }
 

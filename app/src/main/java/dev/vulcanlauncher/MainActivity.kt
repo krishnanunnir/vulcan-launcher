@@ -85,7 +85,10 @@ class MainActivity : VulcanActivity() {
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val rebuildStale = Runnable { if (stale && !isDestroyed) { stale = false; rebuild() } }
     lateinit var icons: Icons
-    lateinit var items: MutableList<Item>
+    /** Home's layout, the single source of truth: changed only through [editLayout]. */
+    var pageLayout = PageLayout(emptyList(), 1, 0)
+        private set
+    val items: List<Item> get() = pageLayout.items
     lateinit var host: AppWidgetHost
     lateinit var awm: AppWidgetManager
     lateinit var launcherApps: LauncherApps
@@ -159,6 +162,7 @@ class MainActivity : VulcanActivity() {
         store = Store(this)
         looks = Looks(this)
         looks.adoptDefaults(upgrade = !store.isNew)
+        store.adoptPages() // an install from before 0.16 has just had its page count written to looks
         markWelcome()
         awm = AppWidgetManager.getInstance(this)
         host = AppWidgetHost(this, HOST_ID)
@@ -181,8 +185,7 @@ class MainActivity : VulcanActivity() {
         // A widget whose ID is gone (its app uninstalled while Vulcan wasn't running) has no view, but would hold its cells.
         // Read once: if it throws, a second unguarded read would too, and a launcher crashing in onCreate loops.
         runCatching { host.appWidgetIds.toSet() }.onFailure { android.util.Log.w("Vulcan", "can't list widget IDs", it) }.getOrNull()?.let { ids ->
-            val kept = keepWidgets(items) { it in ids }
-            if (kept != items) { items.clear(); items += kept; save(); render() }
+            editLayout { l -> l.copy(items = keepWidgets(l.items) { it in ids }) }
             // Widget IDs no item holds (the process died mid-flow, a pin failed, an undo bar was cut short) still get
             // updates from their providers: free them.
             val held = items.flatMap { it.widgetIds } + nowCards().flatMap { it.widgetIds } + listOfNotNull(widgetFlow.pendingWidget?.first)
@@ -211,7 +214,7 @@ class MainActivity : VulcanActivity() {
             if (!notifyQueued) { notifyQueued = true; mainHandler.postDelayed(notified, 500) }
         } }
         // Rotation recreates the activity: stay on the page the user was on.
-        savedInstanceState?.getInt("page", -1)?.takeIf { it in 0 until looks.pages }?.let { workspace.snapTo(it, animate = false) }
+        savedInstanceState?.getInt("page", -1)?.takeIf { it in 0 until pageLayout.pages }?.let { workspace.snapTo(it, animate = false) }
         // Just imported: put the widgets back (not when a restore was already under way and this is its restart).
         // While the welcome shows, its widgets step starts this instead, after saying what Android will ask.
         if (widgetFlow.pendingWidget == null && !welcoming) root.post { widgetFlow.restoreNextWidget() }
@@ -233,7 +236,7 @@ class MainActivity : VulcanActivity() {
         drawer.hide(animate = false)
         badgeIcons.clear(); widgetFlow.keepViews(emptySet()) // build() reloads the apps, which drops the cached icons
         build()
-        workspace.snapTo(page.coerceAtMost(looks.pages - 1), animate = false)
+        workspace.snapTo(page.coerceAtMost(pageLayout.pages - 1), animate = false)
         if (dialogs.any { it.isShowing }) dialogScrim(true)
     }
 
@@ -244,8 +247,8 @@ class MainActivity : VulcanActivity() {
         styleWindow()
 
         val gesture = { g: String -> homeMenus.perform(looks.str("g_$g")) }
-        pages = List(looks.pages) { drag.newPage(it) }
-        indicator = Indicator(this, looks.pages, looks.str("indicator"), looks.color("labelColor"), m3.signal)
+        pages = List(pageLayout.pages) { drag.newPage(it) }
+        indicator = Indicator(this, pageLayout.pages, looks.str("indicator"), looks.color("labelColor"), m3.signal)
         workspace = Workspace(this).apply {
             paddingOf(looks.str("pageMargin")).let { (x, t, b) -> marginX = (x * dp).toInt(); marginTop = (t * dp).toInt(); marginBottom = (b * dp).toInt() }
             pages.forEach { addView(it) }
@@ -253,7 +256,7 @@ class MainActivity : VulcanActivity() {
             effect = looks.str("scrollEffect")
             infinite = looks.on("infiniteScroll")
             onScroll = { indicator.position = it; wallpaperScroll(it) }
-            snapTo(looks.int("defaultPage").coerceAtMost(looks.pages - 1), animate = false)
+            snapTo(pageLayout.defaultPage.coerceAtMost(pageLayout.pages - 1), animate = false)
         }
         val search = looks.str("searchBar")
         buildDock(gesture, search)
@@ -290,14 +293,14 @@ class MainActivity : VulcanActivity() {
         applyOrientation()
         repo.loadApps()
         // Items of apps uninstalled while the launcher wasn't running (no callback came) would hold their cells unseen.
-        items = fit(if (store.isNew) defaultLayout() else removeApps(store.load(sub), repo::uninstalled))
+        var next = fit(if (store.isNew) PageLayout(defaultLayout(), 1, 0) else store.load(sub).let { it.copy(items = removeApps(it.items, repo::uninstalled)) })
         // Before 0.24 the clock was a strip fixed above the first page ("glance"); now it's an item on the first free row.
         if (looks.raw("glance") == "on") {
             looks["glance"] = "item"
-            firstFreeSpot(items.filter { !isDock(it.page) }, looks.pages, looks.cols * sub, looks.rows * sub, looks.cols * sub, sub)
-                ?.let { items += it.copy(action = "clock") }
+            firstFreeSpot(next.items.filter { !isDock(it.page) }, next.pages, looks.cols * sub, looks.rows * sub, looks.cols * sub, sub)
+                ?.let { next = next.copy(items = next.items + it.copy(action = "clock")) }
         }
-        save()
+        editLayout(redraw = false) { next }
     }
 
     /** Transparent system bars, home drawn behind them and into the notch. */
@@ -553,8 +556,7 @@ class MainActivity : VulcanActivity() {
 
     /** Takes [items] from the store, where PinActivity may have added something meanwhile. */
     private fun reloadItems() {
-        val stored = fit(store.load(sub))
-        if (stored != items) { items = stored; render() }
+        editLayout { fit(store.load(sub)) }
     }
 
     /**
@@ -638,7 +640,7 @@ class MainActivity : VulcanActivity() {
             drawer.visible -> drawer.hide()
             onHome -> {
                 val action = looks.str("homeButton")
-                val main = looks.int("defaultPage").coerceAtMost(looks.pages - 1)
+                val main = pageLayout.defaultPage.coerceAtMost(pageLayout.pages - 1)
                 if (looks.on("homeFirst") && workspace.current != main) workspace.snapTo(main) else homeMenus.perform(action)
             }
         }
@@ -653,11 +655,28 @@ class MainActivity : VulcanActivity() {
         }
     }
 
-    fun fit(list: List<Item>) = fitItems(list, looks.pages, looks.cols * sub, looks.rows * sub, looks.dockCols, looks.dockPages, sub, looks.on("widgetOverlap")).toMutableList()
+    fun fit(l: PageLayout) = l.copy(items = fitItems(l.items, l.pages, looks.cols * sub, looks.rows * sub, looks.dockCols, looks.dockPages, sub, looks.on("widgetOverlap")))
 
-    fun save() = store.save(items, sub)
+    /**
+     * The one way home's layout changes: [edit] turns it into the next, which is checked ([checked]), stored in one
+     * write, then home is built again if the page count changed or redrawn if only the items did. [redraw] false: the
+     * caller puts the views right itself. Returns the layout now.
+     */
+    fun editLayout(redraw: Boolean = true, edit: (PageLayout) -> PageLayout): PageLayout {
+        val was = pageLayout
+        val next = edit(was).checked()
+        if (next == was) return was
+        pageLayout = next
+        store.save(next, sub)
+        if (redraw) { if (next.pages != was.pages) rebuild() else if (next.items != was.items) render() }
+        return next
+    }
+
+    /** [editLayout] of the items alone. */
+    fun editItems(redraw: Boolean = true, edit: (MutableList<Item>) -> Unit) = editLayout(redraw) { it.copy(items = it.items.toMutableList().apply(edit)) }
+
     /** Puts [item] in place of the one at [i], saves and redraws. */
-    fun replace(i: Int, item: Item) { items[i] = item; save(); render() }
+    fun replace(i: Int, item: Item) = editItems { it[i] = item }
 
     /** A fresh install's layout, as Nova sets it up: a five-app dock, mail and photos above it, settings top right. */
     fun defaultLayout(): MutableList<Item> {
@@ -690,8 +709,7 @@ class MainActivity : VulcanActivity() {
         // system has already deleted its widgets.
         override fun onPackageRemoved(pkg: String, user: UserHandle) {
             reloadItems()
-            items = keepWidgets(removePackage(items, pkg, repo.serial(user))) { awm.getAppWidgetInfo(it) != null }.toMutableList()
-            save()
+            editLayout(redraw = false) { l -> l.copy(items = keepWidgets(removePackage(l.items, pkg, repo.serial(user))) { awm.getAppWidgetInfo(it) != null }) }
             reload(listOf(pkg))
         }
         // An update or a component switched on or off: home redraws only if it shows one of the package's apps.
@@ -880,7 +898,7 @@ class MainActivity : VulcanActivity() {
     /** Moves a home item to the first free spot on a page picked from a list: the TalkBack way to move it. */
     fun moveToPage(item: Item) {
         sheet().setTitle(R.string.move_to_page).setItems(Array(pages.size) { getString(R.string.page_n, it + 1) }) { _, p ->
-            val spot = firstFreeSpot(items.filter { it != item && !isDock(it.page) }, looks.pages, looks.cols * sub, looks.rows * sub, item.w, item.h, p)
+            val spot = firstFreeSpot(items.filter { it != item && !isDock(it.page) }, pageLayout.pages, looks.cols * sub, looks.rows * sub, item.w, item.h, p)
             if (spot == null) { toast(R.string.no_room); return@setItems }
             val i = items.indexOf(item)
             if (i < 0) return@setItems // gone while the list was open
@@ -906,11 +924,11 @@ class MainActivity : VulcanActivity() {
     }
 
     // ---- Drag and drop ----
-    /** Takes a dragged item out of where it came from. False when it's no longer there: the drop must then do nothing. */
-    fun detach(p: Any?): Boolean = when (p) {
-        is Item -> items.remove(p)
-        is FolderChild -> removeFromFolder(p)
-        else -> true // from the drawer: a copy, with nothing to take out
+    /** [list] with a dragged item taken out of where it came from. Null when it's no longer there: the drop must then do nothing. */
+    fun detached(list: List<Item>, p: Any?): List<Item>? = when (p) {
+        is Item -> list.toMutableList().takeIf { it.remove(p) }
+        is FolderChild -> withoutFolderChild(list, p)
+        else -> list // from the drawer: a copy, with nothing to take out
     }
 
     /** Takes an app out of its drawer folder (from its menu: a drag only copies it to home); a folder left empty goes. */
@@ -919,8 +937,8 @@ class MainActivity : VulcanActivity() {
     })
 
     fun removeItem(item: Item) {
-        if (!items.remove(item)) return // a second tap on Remove while the menu fades
-        save()
+        if (item !in items) return // a second tap on Remove while the menu fades
+        editItems(redraw = false) { it.remove(item) }
         showUndo(item) {
             item.widgetIds.forEach(host::deleteAppWidgetId)
             if (item.isShortcut) syncPins(item.pkg, item.user)
@@ -934,11 +952,9 @@ class MainActivity : VulcanActivity() {
     /** Puts an item on the first free spot, starting at the current page. */
     fun addItem(item: Item, quiet: Boolean = false): Boolean {
         val home = items.filter { !isDock(it.page) }
-        val spot = firstFreeSpot(home, looks.pages, looks.cols * sub, looks.rows * sub, item.w, item.h, workspace.current)
+        val spot = firstFreeSpot(home, pageLayout.pages, looks.cols * sub, looks.rows * sub, item.w, item.h, workspace.current)
         if (spot == null) { if (!quiet) toast(R.string.no_room); return false }
-        items += item.copy(page = spot.page, x = spot.x, y = spot.y)
-        save()
-        render()
+        editItems { it += item.copy(page = spot.page, x = spot.x, y = spot.y) }
         if (!quiet) toast(R.string.added_to_home)
         return true
     }
@@ -956,7 +972,7 @@ class MainActivity : VulcanActivity() {
     private var wallpaperPages = -1
 
     private fun wallpaperScroll(pos: Float) {
-        val n = looks.pages
+        val n = pageLayout.pages
         val token = window.decorView.windowToken ?: return
         val f = if (n > 1) (pos / (n - 1)).coerceIn(0f, 1f) else 0.5f
         val x = when (looks.str("wallpaperScroll")) { "off" -> 0.5f; "reverse" -> 1 - f; else -> f }
@@ -976,7 +992,7 @@ class MainActivity : VulcanActivity() {
             return
         }
         store.data.edit().remove(REPIN_SHORTCUTS).apply()
-        pinsByApp(store.load(looks.sub), settingActions()).forEach { (key, ids) ->
+        pinsByApp(store.load(looks.sub).items, settingActions()).forEach { (key, ids) ->
             um.getUserForSerialNumber(key.second)?.let { u -> runCatching { launcherApps.pinShortcuts(key.first, ids, u) }
                 .onFailure { android.util.Log.w("Vulcan", "can't pin shortcuts of ${key.first}", it) } }
         }

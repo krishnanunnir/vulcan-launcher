@@ -74,7 +74,7 @@ class LooksTest {
     fun preNovaDefaultsAreChangedValidChoices() {
         // "glance" is no longer a setting: it turns into a clock item.
         for ((k, v) in PRE_NOVA_DEFAULTS - "glance") {
-            val c = LOOKS.first { it.key == k }
+            val c = choiceOf(k)!!
             assertTrue(k, v in c.values && v != c.default)
         }
     }
@@ -115,7 +115,7 @@ class LooksTest {
     }
 
     @Test fun gridNumbersStayWithinTheirSetting() {
-        fun c(key: String) = LOOKS.first { it.key == key }
+        fun c(key: String) = choiceOf(key)!!
         assertEquals(9, c("pages").intOf("100000"))
         assertEquals(3, c("cols").intOf("-4"))
         assertEquals(5, c("dockCols").intOf("five"))
@@ -131,7 +131,7 @@ class LooksTest {
     }
 
     private companion object {
-        const val SETTINGS_BUDGET = 120 // 120 for Widget padding (#121), the owner's yes 2026-11-24
+        const val SETTINGS_BUDGET = 118 // 120 for Widget padding (#121), the owner's yes 2026-11-24; 118 since Pages and Default page are the layout's (2026-11-27)
         const val MAX_SECTION_ROWS = 8
     }
 }

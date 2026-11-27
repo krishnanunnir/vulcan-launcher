@@ -133,22 +133,37 @@ fun itemsToJson(items: List<Item>) = JSONArray().apply { items.forEach { put(it.
 /** The items of [s] (see [decodeItems]). Throws when [s] isn't a JSON array. */
 fun itemsFromJson(s: String): MutableList<Item> = decodeItems(JSONArray(s)).value!!.toMutableList()
 
-/** A stored layout: its items, and the subgrid factor their home positions are in (null: a version 1 layout, in the current one). */
-class StoredLayout(val items: List<Item>, val sub: Int?)
+/**
+ * A stored layout: its items, the subgrid factor their home positions are in (null: a version 1 layout, in the current
+ * one), its page count and its default page.
+ */
+class StoredLayout(val items: List<Item>, val sub: Int?, val pages: Int = 1, val defaultPage: Int = 0)
 
 /**
  * The `layout` preferences as stored ([items], [version], [sub] are whatever the file holds). Null when they aren't a
  * layout this build can read: not a JSON list, or written by a newer build (after a downgrade), whose items may mean
  * something else. A subgrid factor other than 1 or 2 (a hand edit) is taken as the current one.
  */
-fun decodeLayout(items: Any?, version: Any?, sub: Any?): Decoded<StoredLayout> {
+fun decodeLayout(items: Any?, version: Any?, sub: Any?, pages: Any? = null, defaultPage: Any? = null): Decoded<StoredLayout> {
     val v = (version as? String)?.toIntOrNull() ?: 1
     if (v > LAYOUT_VERSION) return Decoded(null, listOf("layout version $v"))
     val list = (items as? String)?.let { runCatching { JSONArray(it) }.getOrNull() } ?: return Decoded(null, listOf("items"))
     val d = decodeItems(list)
     val s = (sub as? String)?.toIntOrNull()
     val goodSub = s?.takeIf { it == 1 || it == 2 }
-    return Decoded(StoredLayout(d.value!!, goodSub), d.dropped, d.repaired + listOfNotNull("sub $s".takeIf { s != null && goodSub == null }))
+    val (n, home) = pageSettings(pages, defaultPage)
+    val repaired = listOfNotNull("sub $s".takeIf { s != null && goodSub == null }, "pages $pages".takeIf { pages != null && pages != n.toString() },
+        "defaultPage $defaultPage".takeIf { defaultPage != null && defaultPage != home.toString() })
+    return Decoded(StoredLayout(d.value!!, goodSub, n, home), d.dropped, d.repaired + repaired)
+}
+
+/**
+ * A stored or restored page count and default page, held to their ranges: a default page past the last page is the last.
+ * Missing (a fresh install, a hand-written backup) is one page, the first.
+ */
+fun pageSettings(pages: Any?, defaultPage: Any?): Pair<Int, Int> {
+    val n = PAGES_CHOICE.intOf(pages as? String)
+    return n to DEFAULT_PAGE_CHOICE.intOf(defaultPage as? String).coerceAtMost(n - 1)
 }
 
 /** [items] without the apps and shortcuts of an uninstalled package. A folder left with one item turns back into it. */
@@ -197,8 +212,13 @@ fun removeApps(items: List<Item>, gone: (Item) -> Boolean): List<Item> {
 /**
  * Layout format. 2 stores "sub", the subgrid factor its home positions are in, next to the items; 1 (no "version")
  * left it to the subgrid setting in another file, so a crash between the two writes could halve or double every position.
+ * 3 stores "pages" and "defaultPage" there too, in the same write as the items; before, they were settings in `looks`
+ * ([Store.adoptPages]). An older build refuses a version 3 layout rather than read its pages from settings that are gone.
  */
-const val LAYOUT_VERSION = 2
+const val LAYOUT_VERSION = 3
+
+/** The `looks` keys that were the page count and default page before layout version 3. */
+val PAGE_KEYS = listOf("pages", "defaultPage")
 
 /** Home positions saved in subgrid factor [saved] (null: a version 1 layout, already in [current]), converted to [current]. */
 fun layoutIn(items: List<Item>, saved: Int?, current: Int): List<Item> = when {
@@ -220,7 +240,7 @@ class Store(private val context: Context) {
     }
 
     private val usage = context.getSharedPreferences("usage", Context.MODE_PRIVATE)
-    init { adoptLaunches() }
+    init { adoptLaunches(); adoptPages() }
 
     /** The counts were data's "launches" before 0.34, and a backup still holds them there: moved to `usage`. */
     private fun adoptLaunches() {
@@ -244,23 +264,38 @@ class Store(private val context: Context) {
      * a hand edit) is kept in `files/layout-unreadable.json`, one from a newer build in `files/layout-v<version>.json`,
      * and the newest readable automatic backup is used, so the launcher never crash-loops and never saves over it unread.
      */
-    fun load(sub: Int): MutableList<Item> {
+    fun load(sub: Int): PageLayout {
         val all = prefs.all
         val raw = all["items"] as? String ?: "[]"
-        val stored = decodeLayout(raw, all["version"], all["sub"])
+        val stored = decodeLayout(raw, all["version"], all["sub"], all["pages"], all["defaultPage"])
+        fun StoredLayout.inSub() = PageLayout(layoutIn(items, this.sub, sub), pages, defaultPage)
         stored.value?.let { l ->
             if (stored.repaired.isNotEmpty()) android.util.Log.w("Vulcan", "layout: repaired ${stored.repaired}")
             // An item this build can't read is dropped, and home saves at once: the text as it was is kept first.
             if (stored.dropped.isNotEmpty()) setAside("layout-unreadable.json", raw, stored.dropped)
-            return layoutIn(l.items, l.sub, sub).toMutableList()
+            return l.inSub()
         }
         val newer = (all["version"] as? String)?.toIntOrNull()?.takeIf { it > LAYOUT_VERSION }
         setAside(if (newer != null) "layout-v$newer.json" else "layout-unreadable.json", raw, stored.dropped)
         // What's recovered is saved at once: export reads the stored layout, so a restore (which backs up first) would fail too.
         for (f in autoBackups) backupLayout(runCatching { f.readText() }.getOrDefault(""))?.let { l ->
-            return layoutIn(l.items, l.sub, sub).toMutableList().also { save(it, sub) }
+            return l.inSub().also { save(it, sub) }
         }
-        return mutableListOf<Item>().also { save(it, sub) }
+        return PageLayout(emptyList(), 1, 0).also { save(it, sub) }
+    }
+
+    /**
+     * Moves the page count and default page from `looks`, where they were before layout version 3, into the layout, and
+     * marks it version 3 so an older build won't read it without them. Runs whenever `looks` holds them: after an
+     * upgrade (and an install from before 0.16, whose defaults [Looks.adoptDefaults] writes), and after a settings-only
+     * restore. The layout is committed before `looks` lets them go, so an interruption leaves them in both, never neither.
+     */
+    fun adoptPages() {
+        val looks = context.getSharedPreferences("looks", Context.MODE_PRIVATE)
+        val old = PAGE_KEYS.associateWith { looks.getString(it, null) }.filterValues { it != null }
+        if (old.isEmpty()) return
+        prefs.edit().apply { old.forEach { (k, v) -> putString(k, v) } }.putString("version", LAYOUT_VERSION.toString()).commit()
+        looks.edit().apply { old.keys.forEach(::remove) }.commit()
     }
 
     private fun setAside(name: String, raw: String, why: List<String>) {
@@ -268,9 +303,11 @@ class Store(private val context: Context) {
         runCatching { File(context.filesDir, name).writeAtomically(raw) }.onFailure { android.util.Log.e("Vulcan", "layout: can't keep $name", it) }
     }
 
-    /** Saves [items], whose home positions are in subgrid factor [sub]. Strings only, so backups round-trip them. */
-    fun save(items: List<Item>, sub: Int) = prefs.edit().putString("items", itemsToJson(items))
-        .putString("version", LAYOUT_VERSION.toString()).putString("sub", sub.toString()).apply()
+    /**
+     * Saves [layout], its home positions in subgrid factor [sub], in one edit: the items, page count and default page
+     * can't be stored out of step. Strings only, so backups round-trip them.
+     */
+    fun save(layout: PageLayout, sub: Int) = prefs.edit().apply { layoutFile(layout.items, sub, layout.pages, layout.defaultPage).forEach { (k, v) -> putString(k, v) } }.apply()
 
     /**
      * Writes today's automatic backup, keeping the two before it. A setup already kept moves to the front instead of
@@ -311,7 +348,7 @@ class Store(private val context: Context) {
         // Sorted: the same setup always reads as the same text, which is how rotateAutoBackup spots one it already keeps.
         val looks = context.getSharedPreferences("looks", Context.MODE_PRIVATE).all.mapValues { it.value.toString() }.toSortedMap()
         // Through the decoder, as load reads it: a layout it would set aside isn't written into a backup as if it were this build's.
-        val stored = prefs.all.let { requireNotNull(decodeLayout(it["items"] ?: "[]", it["version"], it["sub"]).value) { "Unreadable layout" } }
+        val stored = prefs.all.let { requireNotNull(decodeLayout(it["items"] ?: "[]", it["version"], it["sub"], it["pages"], it["defaultPage"]).value) { "Unreadable layout" } }
         val sub = stored.sub ?: if (looks["subgrid"] == "on") 2 else 1
         // Each widget notes its provider, so a restore can offer it again once its ID is gone (an import or reset freed it).
         val awm = android.appwidget.AppWidgetManager.getInstance(context)
@@ -324,7 +361,8 @@ class Store(private val context: Context) {
         // A backup keeps the launch counts where they always were, in data.
         val data = (data.all.filterKeys { it !in PASSING_STATE }.mapValues { it.value.toString() } +
             listOfNotNull(usage.getString("launches", null)?.let { "launches" to it })).toSortedMap()
-        return readableBackup(looks, items, sub, data, apps.map { Triple(it.title, it.pkg, it.cls) to it.serial }, context::getString).toString(2)
+        return readableBackup(looks, items, sub, data, apps.map { Triple(it.title, it.pkg, it.cls) to it.serial }, stored.pages, stored.defaultPage,
+            context::getString).toString(2)
     }
 
     data class RestoreResult(val replacedLayout: Boolean, val rejected: List<String>)
@@ -349,6 +387,8 @@ class Store(private val context: Context) {
         }.commit().let { ok -> check(ok) { context.getString(R.string.restore_not_saved) } }
         if (replacedLayout) usage.edit().clear().commit()
         adoptLaunches()
+        // A settings-only file (a style file) still sets them, now on the current layout.
+        adoptPages()
         return RestoreResult(replacedLayout, rejected)
     }
 
@@ -377,7 +417,8 @@ fun Choice.accepts(v: String) = v in values ||
 val BACKUP_HOW_TO = listOf(
     "A Vulcan setup. Edit it by hand or with an AI assistant, then load it on the phone: long-press the home screen, Settings, Backup & restore, Restore from a file.",
     "settings: one value per key. reference.settings lists every key, what it does, its default and the values it takes. A colour setting also takes any #RRGGBB or #AARRGGBB. A value that isn't allowed is skipped and the setting keeps its default.",
-    "home.items: everything on the home pages and the dock. page 0 is the first home page (settings.pages says how many); the dock is page -1 (a second dock page is -2). x and y count cells from the top left; w and h are the size in cells (default 1). The grid is settings.cols by settings.rows; the dock is one row of settings.dockCols. When home.sub is 2, home positions and sizes count half cells. Don't overlap items; one that falls off the grid moves to the first free cell.",
+    "home.pages: how many home pages there are (1 to 9); home.defaultPage: the one the Home button goes to, 0 for the first. settings repeats both for older versions of Vulcan; home's win.",
+    "home.items: everything on the home pages and the dock. page 0 is the first home page; the dock is page -1 (a second dock page is -2). x and y count cells from the top left; w and h are the size in cells (default 1). The grid is settings.cols by settings.rows; the dock is one row of settings.dockCols. When home.sub is 2, home positions and sizes count half cells. Don't overlap items; one that falls off the grid moves to the first free cell.",
     "An app: {\"page\":0,\"x\":1,\"y\":3,\"pkg\":\"<package>\"} with pkg from reference.installedApps. cls picks one of its activities: leave it out for the main one, but give it when installedApps lists the package more than once (Google has search and voice search). Optional: label (replaces the name), swipe (an action code run when the icon is swiped up), user (a work profile number from installedApps).",
     "A folder: {\"page\":0,\"x\":0,\"y\":0,\"folder\":true,\"label\":\"Social\",\"children\":[apps, each with page, x and y set to 0]}. An action icon: {\"page\":0,\"x\":2,\"y\":0,\"action\":\"<action code>\",\"label\":\"Lock\"}.",
     "Action codes (gestures, swipe, action icons): see reference.actions, plus page:N (jump to page N, 0-based) and app:<pkg>/<cls>/<user> (open an app).",
@@ -453,11 +494,14 @@ fun File.moveTo(to: File) { if (!renameTo(to)) { delete(); throw java.io.IOExcep
 fun rotatedBackups(now: String, kept: List<String>, slots: Int) = (listOf(now) + kept).distinct().take(slots)
 
 fun readableBackup(looks: Map<String, String>, items: List<Item>, sub: Int, data: Map<String, String>,
-                   apps: List<Pair<Triple<String, String, String>, Long>>, text: (Int) -> String): JSONObject = JSONObject()
+                   apps: List<Pair<Triple<String, String, String>, Long>>, pages: Int = 1, defaultPage: Int = 0,
+                   text: (Int) -> String): JSONObject = JSONObject()
     .put("format", "vulcan-backup-2")
     .put("howTo", JSONArray(BACKUP_HOW_TO))
-    .put("settings", JSONObject(LOOKS.associate { it.key to it.default } + (looks - DEVICE_KEYS)))
-    .put("home", JSONObject().put("sub", sub).put("items", JSONArray(items.map { it.toReadable() })))
+    // The page settings too: a build from before layout version 3 restores them from here.
+    .put("settings", JSONObject(LOOKS.associate { it.key to it.default } + (looks - DEVICE_KEYS - PAGE_KEYS) +
+        mapOf("pages" to pages.toString(), "defaultPage" to defaultPage.toString())))
+    .put("home", JSONObject().put("sub", sub).put("pages", pages).put("defaultPage", defaultPage).put("items", JSONArray(items.map { it.toReadable() })))
     // Values the launcher keeps as JSON text (hidden apps, groups, custom edits) are written as JSON, not as strings of it.
     .put("data", JSONObject().apply { data.forEach { (k, v) -> put(k, runCatching { org.json.JSONTokener(v).nextValue() }.getOrNull()?.takeIf { it is JSONObject || it is JSONArray } ?: v) } })
     .put("reference", JSONObject()
@@ -493,10 +537,14 @@ fun decodeBackup(text: String, cls: (pkg: String, user: Long) -> String? = { _, 
 
 /** The layout held in backup [text], whichever format it is in, or null when it holds none this build can read. */
 fun backupLayout(text: String): StoredLayout? =
-    decodeBackup(text).value?.first?.get("layout")?.let { decodeLayout(it["items"], it["version"], it["sub"]).value }
+    decodeBackup(text).value?.first?.get("layout")?.let { decodeLayout(it["items"], it["version"], it["sub"], it["pages"], it["defaultPage"]).value }
 
-/** The `layout` preferences for [items], wellFormed and in subgrid factor [sub], as this build writes them. */
-fun layoutFile(items: List<Item>, sub: Int) = mapOf("items" to itemsToJson(items), "version" to LAYOUT_VERSION.toString(), "sub" to sub.toString())
+/** The `layout` preferences for [items], wellFormed and in subgrid factor [sub], with its page count and default page, as this build writes them. */
+fun layoutFile(items: List<Item>, sub: Int, pages: Int, defaultPage: Int) = mapOf("items" to itemsToJson(items), "version" to LAYOUT_VERSION.toString(),
+    "sub" to sub.toString(), "pages" to pages.toString(), "defaultPage" to defaultPage.toString())
+
+/** The setting [key] is, the page settings included (they are stored with the layout, not in `looks`). */
+fun choiceOf(key: String) = LOOKS.firstOrNull { it.key == key } ?: PAGE_CHOICES.firstOrNull { it.key == key }
 
 /**
  * The preference files a format 1 backup restores to, and the "key=value" settings left out: its settings are held to
@@ -508,16 +556,21 @@ fun legacyBackupFiles(root: JSONObject): BackupFiles {
     val files = Store.FILES.filter { root.has("layout") || root.has(it) }.associateWith { name ->
         val o = root.optJSONObject(name) ?: JSONObject()
         o.keys().asSequence().associateWith { o.get(it).toString() }.filter { (k, v) ->
-            (name != "looks" || LOOKS.firstOrNull { it.key == k }?.accepts(v) != false).also { if (!it) rejected += "$k=$v" }
+            (name != "looks" || choiceOf(k)?.accepts(v) != false).also { if (!it) rejected += "$k=$v" }
         }
     }
     // Its layout is read now, as load would read it, and stored as this build writes one; a newer or unreadable one is refused.
+    val looks = files["looks"].orEmpty()
     val layout = files["layout"]?.let { l ->
-        // A backup from before version 2 is in the subgrid factor of the settings saved with it.
-        val stored = requireNotNull(decodeLayout(l["items"], l["version"], l["sub"]).value) { "Unreadable layout" }
-        layoutFile(stored.items, stored.sub ?: if (files["looks"]?.get("subgrid") == "on") 2 else 1)
+        // A backup from before version 2 is in the subgrid factor of the settings saved with it, and one from before 3
+        // has its page count and default page in them.
+        val stored = requireNotNull(decodeLayout(l["items"], l["version"], l["sub"], l["pages"] ?: looks["pages"],
+            l["defaultPage"] ?: looks["defaultPage"]).value) { "Unreadable layout" }
+        layoutFile(stored.items, stored.sub ?: if (looks["subgrid"] == "on") 2 else 1, stored.pages, stored.defaultPage)
     }
-    return (if (layout != null) files + ("layout" to layout) else files) to rejected
+    // With a layout they went into it; without, they stay for Store.adoptPages to put on the current one.
+    if (layout == null) return files to rejected
+    return files + ("layout" to layout) + (if ("looks" in files) mapOf("looks" to looks - PAGE_KEYS) else emptyMap()) to rejected
 }
 
 /**
@@ -531,7 +584,7 @@ fun readableBackupFiles(root: JSONObject, cls: (pkg: String, user: Long) -> Stri
     root.optJSONObject("settings")?.let { s ->
         for (k in s.keys()) {
             val v = when (val raw = s.get(k)) { true -> "on"; false -> "off"; else -> raw.toString() }
-            if (LOOKS.firstOrNull { it.key == k }?.accepts(v) != false) looks[k] = v else rejected += "$k=$v"
+            if (choiceOf(k)?.accepts(v) != false) looks[k] = v else rejected += "$k=$v"
         }
     }
     if (!root.has("home") && !root.has("data")) {
@@ -545,8 +598,12 @@ fun readableBackupFiles(root: JSONObject, cls: (pkg: String, user: Long) -> Stri
     // Subgrid factors are 1 and 2: any other (a hand edit) is the settings' own.
     val sub = home.optInt("sub").takeIf { it == 1 || it == 2 } ?: if (looks["subgrid"] == "on") 2 else 1
     val data = root.optJSONObject("data")?.let { d -> d.keys().asSequence().associateWith { d.get(it).toString() } } ?: emptyMap()
-    return mapOf("layout" to layoutFile(items, sub),
+    // home's page settings win over settings' (a backup from before layout version 3 has only those), each read as the
+    // layout decoder reads them: out of range is held to it, missing is one page, the first.
+    fun page(k: String) = home.opt(k)?.takeIf { it != JSONObject.NULL }?.toString() ?: looks[k]
+    val (pages, defaultPage) = pageSettings(page("pages"), page("defaultPage"))
+    return mapOf("layout" to layoutFile(items, sub, pages, defaultPage),
         // A phone's own file carries these markers; one written by hand doesn't, and without them the settings it left
         // out would be filled with the defaults of an install from before 0.16 (Looks.adoptDefaults).
-        "looks" to (mapOf("defaults" to "nova", "defaults032" to "on") + looks), "data" to data) to rejected
+        "looks" to (mapOf("defaults" to "nova", "defaults032" to "on") + looks - PAGE_KEYS), "data" to data) to rejected
 }

@@ -222,10 +222,12 @@ fun MainActivity.mergeIntoFolder(target: Item, child: Item, payload: Any?): Bool
     val merged = if (target.folder) target.copy(children = target.children + child)
         else Item(target.page, target.x, target.y, target.w, target.h, folder = true, label = getString(R.string.folder), children = listOf(drag.asChild(target)!!, child))
     // Both still there, or nothing changes: the dragged icon then reappears where it was.
-    if (target !in items || !detach(payload)) return false
-    items[items.indexOf(target)] = merged // still there: detach only touches the dragged icon or its own folder, never the target
+    if (target !in items) return false
+    val rest = detached(items, payload)?.toMutableList() ?: return false
+    // still there: detached only touches the dragged icon or its own folder, never the target
+    rest[rest.indexOf(target).takeIf { it >= 0 } ?: return false] = merged
+    editLayout(redraw = false) { it.copy(items = rest) }
     root.confirm()
-    save()
     folderFx.settleNext(merged, 1.3f)
     render()
     return true
@@ -238,12 +240,18 @@ fun MainActivity.mergeIntoFolder(target: Item, child: Item, payload: Any?): Bool
 fun MainActivity.folderIndex(f: Item) = items.indexOf(f).takeIf { it >= 0 }
     ?: items.indexOfFirst { it.folder && it.page == f.page && it.x == f.x && it.y == f.y }
 
-/** Takes one item out of a folder; a folder left with one item turns back into that item. The rest settles in place. */
-fun MainActivity.removeFromFolder(fc: FolderChild): Boolean {
-    val now = takeFromFolder(items, fc.page, fc.x, fc.y, fc.child) ?: return false
+/** [list] with one item taken out of a folder, or null when it's gone; a folder left with one item turns back into that item. The rest settles in place. */
+fun MainActivity.withoutFolderChild(list: List<Item>, fc: FolderChild): List<Item>? {
+    val now = takeFromFolder(list, fc.page, fc.x, fc.y, fc.child) ?: return null
     // What's left on that cell (the folder, or its last icon) settles into place.
-    if (now.size == items.size) now.firstOrNull { it.page == fc.page && it.x == fc.x && it.y == fc.y }?.let { folderFx.settleNext(it, 0.82f) }
-    items = now.toMutableList()
+    if (now.size == list.size) now.firstOrNull { it.page == fc.page && it.x == fc.x && it.y == fc.y }?.let { folderFx.settleNext(it, 0.82f) }
+    return now
+}
+
+/** Takes one item out of a folder ([withoutFolderChild]) and saves; false when it was gone. */
+fun MainActivity.removeFromFolder(fc: FolderChild, redraw: Boolean = true): Boolean {
+    val now = withoutFolderChild(items, fc) ?: return false
+    editLayout(redraw) { it.copy(items = now) }
     return true
 }
 
@@ -342,8 +350,7 @@ fun MainActivity.openFolder(item: Item) {
         val i = items.indexOf(folder)
         if (i >= 0) {
             folder = folder.copy(children = folder.children.toMutableList().apply { add(to, removeAt(from)) })
-            items[i] = folder
-            save()
+            editItems(redraw = false) { it[i] = folder }
         }
         folder.children
     }, icon = (views[item] as? IconView)?.image, more = { v ->
@@ -385,13 +392,13 @@ fun MainActivity.setFolderChildren(old: Item, children: List<Item>) {
     val i = folderIndex(old)
     if (i < 0) return
     val f = items[i]
-    when (children.size) {
-        0 -> items.removeAt(i)
-        1 -> items[i] = children[0].copy(page = f.page, x = f.x, y = f.y, w = f.w, h = f.h)
-        else -> items[i] = f.copy(children = children)
+    editItems { items ->
+        when (children.size) {
+            0 -> items.removeAt(i)
+            1 -> items[i] = children[0].copy(page = f.page, x = f.x, y = f.y, w = f.w, h = f.h)
+            else -> items[i] = f.copy(children = children)
+        }
     }
-    save()
-    render()
 }
 
 /** Start of a [size] span centred on [center], kept within [min]..[max] (or at [min] if it doesn't fit). */

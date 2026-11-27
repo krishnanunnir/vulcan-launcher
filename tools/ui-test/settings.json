@@ -63,64 +63,6 @@
  },
  {
   "group": "Home screen",
-  "key": "pages",
-  "title": "Pages",
-  "default": "3",
-  "values": [
-   "1",
-   "2",
-   "3",
-   "4",
-   "5",
-   "6",
-   "7",
-   "8",
-   "9"
-  ],
-  "names": [
-   "1",
-   "2",
-   "3",
-   "4",
-   "5",
-   "6",
-   "7",
-   "8",
-   "9"
-  ],
-  "action": false
- },
- {
-  "group": "Home screen",
-  "key": "defaultPage",
-  "title": "Default page",
-  "default": "0",
-  "values": [
-   "0",
-   "1",
-   "2",
-   "3",
-   "4",
-   "5",
-   "6",
-   "7",
-   "8"
-  ],
-  "names": [
-   "1",
-   "2",
-   "3",
-   "4",
-   "5",
-   "6",
-   "7",
-   "8",
-   "9"
-  ],
-  "action": false
- },
- {
-  "group": "Home screen",
   "key": "subgrid",
   "title": "Subgrid positioning (half-cell steps)",
   "default": "off",

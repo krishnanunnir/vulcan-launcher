@@ -92,11 +92,11 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
         ui {
             t.targetContext.getSharedPreferences("looks", 0).edit().clear().commit()
             t.targetContext.getSharedPreferences("data", 0).edit().clear().commit()
-            mapOf("pages" to "3", "nowPage" to "off", "searchBar" to "off", "drawerStyle" to "grid").plus(prefs).forEach { (k,v) -> a.looks[k] = v }
-            a.items = mutableListOf(Item(0, 1, 2, action = "drawer", label = "Repro swipe", swipe = "page:2"),
+            mapOf("nowPage" to "off", "searchBar" to "off", "drawerStyle" to "grid").plus(prefs).forEach { (k,v) -> a.looks[k] = v }
+            a.editLayout(redraw = false) { PageLayout(listOf(Item(0, 1, 2, action = "drawer", label = "Repro swipe", swipe = "page:2"),
                 Item(0, 0, 4, folder = true, label = "Repro folder", children = children()),
-                Item(DOCK, 0, 0, action = "drawer", label = "Dock"))
-            a.save(); a.rebuild(); a.workspace.snapTo(0, false)
+                Item(DOCK, 0, 0, action = "drawer", label = "Dock")), 3, 0) }
+            a.rebuild(); a.workspace.snapTo(0, false)
         }; settle()
     }
     private fun children() = a.repo.apps.values.filter { !a.repo.spaces.isPrivate(it) }.take(6).map { Item(0,0,0,pkg=it.pkg,cls=it.cls,user=it.serial) }
@@ -365,7 +365,7 @@ class IssueReproCheck(private val t: Instrumentation, filter: String = "") {
                 note("#19","NOT_A_BUG","Thank-you message; no reproduction steps")
             }
         } finally {
-            runCatching { clean(); ui { a.store.import(original,a.repo::mainActivity); a.items=a.store.load(a.sub); a.rebuild() } }
+            runCatching { clean(); ui { a.store.import(original,a.repo::mainActivity); a.editLayout(redraw = false) { a.store.load(a.sub) }; a.rebuild() } }
                 .onSuccess { dropAuditBackup(a) }.onFailure { note("RESTORE","ERROR",it.stackTraceToString()) }
             for(name in listOf("layout","looks","data")) t.targetContext.getSharedPreferences(name,0).edit().commit()
             File(out,"results.txt").writeText(log.toString())

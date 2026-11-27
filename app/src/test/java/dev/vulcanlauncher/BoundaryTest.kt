@@ -45,7 +45,7 @@ class BoundaryTest {
     }
 
     @Test fun aSettingNumberIsHeldToTheSettingsRange() { // a97d0a2
-        val pages = LOOKS.first { it.key == "pages" }
+        val pages = PAGES_CHOICE
         assertEquals(listOf(9, 1, 1, 1, 3), listOf("100000", "-5", "abc", null, "3").map(pages::intOf))
     }
 
@@ -80,10 +80,10 @@ class BoundaryTest {
         val (files, _) = readableBackupFiles(org.json.JSONObject("""{"format":"vulcan-backup-2","home":{"sub":7,"items":[]}}""")) { _, _ -> null }
         assertEquals("1", files.getValue("layout")["sub"])
         // A format 1 backup's layout is read as home would read it: a newer one is refused, not restored to be set aside.
-        val old = org.json.JSONObject("""{"format":"vulcan-backup-1","layout":{"items":"[{\"page\":0,\"x\":-1,\"y\":0}]","version":"3"}}""")
+        val old = org.json.JSONObject("""{"format":"vulcan-backup-1","layout":{"items":"[{\"page\":0,\"x\":-1,\"y\":0}]","version":"4"}}""")
         org.junit.Assert.assertThrows(IllegalArgumentException::class.java) { legacyBackupFiles(old) }
         old.getJSONObject("layout").remove("version")
-        assertEquals(mapOf("items" to itemsToJson(listOf(Item(0, MAX_CELL, MAX_CELL))), "version" to "2", "sub" to "1"), legacyBackupFiles(old).first["layout"])
+        assertEquals(layoutFile(listOf(Item(0, MAX_CELL, MAX_CELL)), 1, 1, 0), legacyBackupFiles(old).first["layout"])
     }
 
     @Test fun aStoredLayoutIsDecodedOnceAndSaysWhatItLeftOut() { // 0cdc623, 927f199, 68dc274
@@ -94,7 +94,7 @@ class BoundaryTest {
         // A folder left with no children is dropped with the unreadable item: home keeps the text before saving over it.
         assertEquals(listOf("item 1", "item 2"), d.dropped)
         // A layout from a newer build isn't read at all, however it looks: its items may mean something else.
-        assertNull(decodeLayout("[]", "3", "1").value)
+        assertNull(decodeLayout("[]", "4", "1").value)
         // Neither is one that isn't a list, or a value restored as the wrong type.
         for (bad in listOf("{", "{}", "5", null, 7)) assertNull(decodeLayout(bad, "2", "1").value)
         // No version is version 1, whose positions are in the current subgrid factor; so is one that isn't 1 or 2.

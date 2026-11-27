@@ -23,7 +23,7 @@ fun addPinned(activity: Activity, req: LauncherApps.PinItemRequest): Boolean {
     val store = Store(activity)
     val looks = Looks(activity)
     val sub = looks.sub
-    val items = store.load(sub)
+    val items = store.load(sub).items
     val serial = { h: android.os.UserHandle -> activity.getSystemService(UserManager::class.java).getSerialNumberForUser(h) }
     val (w, h) = when (req.requestType) {
         LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT -> sub to sub
@@ -36,12 +36,12 @@ fun addPinned(activity: Activity, req: LauncherApps.PinItemRequest): Boolean {
         else -> return false
     }
     // Room first: accepting tells the other app it was added, and Android pins it, whether or not it then fits.
-    val spot = firstFreeSpot(items, looks.pages, looks.cols * sub, looks.rows * sub, w, h)
+    val spot = firstFreeSpot(items, store.load(sub).pages, looks.cols * sub, looks.rows * sub, w, h)
     if (spot == null) {
         Toast.makeText(activity, R.string.no_room, Toast.LENGTH_SHORT).show()
         return false
     }
-    items += if (req.requestType == LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT) {
+    val added = if (req.requestType == LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT) {
         val s = req.shortcutInfo ?: return false
         if (!req.accept()) return false
         Item(spot.page, spot.x, spot.y, w, h, pkg = s.`package`, shortcutId = s.id, user = serial(s.userHandle), label = s.shortLabel?.toString() ?: "")
@@ -51,7 +51,7 @@ fun addPinned(activity: Activity, req: LauncherApps.PinItemRequest): Boolean {
         if (!req.accept(Bundle().apply { putInt(AppWidgetManager.EXTRA_APPWIDGET_ID, id) })) { host.deleteAppWidgetId(id); return false }
         Item(spot.page, spot.x, spot.y, w, h, widgetId = id)
     }
-    store.save(items, sub)
+    store.editLayout(sub) { it.copy(items = it.items + added) }
     Toast.makeText(activity, R.string.added_to_home, Toast.LENGTH_SHORT).show()
     return true
 }
