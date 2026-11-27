@@ -27,3 +27,39 @@ class HomeStateTest {
         assertEquals(listOf(OverlayKind.OVERVIEW), OverlayKind.entries.filter { it.darkScrim })
     }
 }
+
+class LifetimeTest {
+    @Test fun boundWorkRunsWithinItsLifetime() {
+        val l = Lifetime()
+        var ran = 0
+        val work = l.bind { ran++ }
+        work(); work()
+        assertEquals(2, ran)
+    }
+
+    @Test fun aRebuildDropsWorkFromBefore() {
+        val l = Lifetime()
+        var stale = 0
+        var fresh = 0
+        val old = l.bind { stale++ }
+        val alive = l.token()
+        l.end()
+        val now = l.bind { fresh++ }
+        old(); now()
+        assertEquals(0, stale)
+        assertEquals(1, fresh)
+        assertFalse(alive())
+        assertTrue(l.token()())
+    }
+
+    @Test fun everyRebuildEndsOneLifetime() {
+        val l = Lifetime()
+        val first = l.token()
+        l.end()
+        val second = l.token()
+        l.end()
+        assertFalse(first())
+        assertFalse(second())
+        assertEquals(2, l.generation)
+    }
+}

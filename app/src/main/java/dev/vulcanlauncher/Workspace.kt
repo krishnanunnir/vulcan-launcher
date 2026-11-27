@@ -95,9 +95,9 @@ class Workspace(context: Context) : ViewGroup(context) {
      */
     var onPageTap: ((Int) -> Unit)? = null
     var onPageHold: ((Int) -> Unit)? = null
-    private val hold = Runnable { if (mode == NONE) { mode = DONE; onPageHold?.invoke(pageAt(downX, downY)) } }
-    // A rebuild mid-hold replaces this workspace: its hold must not lift a page of the new one.
-    override fun onDetachedFromWindow() { removeCallbacks(hold); super.onDetachedFromWindow() }
+    // Bound to home's lifetime: a rebuild mid-hold replaces this workspace, and its hold must not lift a page of the new one.
+    private var hold: Runnable? = null
+    private val home get() = context as MainActivity
     /** The touch began in the overview: the hold that opens it ends with a lift that must not count as a tap. */
     private var overviewTouch = false
 
@@ -272,7 +272,12 @@ class Workspace(context: Context) : ViewGroup(context) {
                 velocity?.recycle(); velocity = VelocityTracker.obtain().apply { addMovement(ev) }
                 doubleTapDown = ev.eventTime - lastTapUp < doubleTapTimeout && hypot(ev.x - lastTapX, ev.y - lastTapY) < slop * 6 && !onItem(ev.x, ev.y)
                 overviewTouch = onPageTap != null
-                if (overviewTouch) { doubleTapDown = false; postDelayed(hold, ViewConfiguration.getLongPressTimeout().toLong()) }
+                if (overviewTouch) {
+                    doubleTapDown = false
+                    hold = home.later(ViewConfiguration.getLongPressTimeout().toLong()) {
+                        if (mode == NONE && parent != null && hasWindowFocus()) { mode = DONE; onPageHold?.invoke(pageAt(downX, downY)) }
+                    }
+                }
             }
             MotionEvent.ACTION_POINTER_DOWN -> if (ev.pointerCount == 2 && mode != HORIZONTAL) {
                 // A second finger ends the drawer's pull here: release only ends it in VERTICAL, and a pull left open swallows every touch.
@@ -330,7 +335,7 @@ class Workspace(context: Context) : ViewGroup(context) {
         val last = childCount - 1
         // A touch taken away (CANCEL: the system drag starting, a parent stepping in) settles the page but is no gesture (#129).
         val up = ev.actionMasked == MotionEvent.ACTION_UP
-        removeCallbacks(hold)
+        home.cancelLater(hold)
         if (onPageTap != null) when {
             mode == HORIZONTAL -> snapTo(releasePage(fromPage, scrollX / maxOf(1, width).toFloat(), vx, flingV), velocity = vx)
             mode == NONE && ev.actionMasked == MotionEvent.ACTION_UP && overviewTouch -> onPageTap?.invoke(pageAt(ev.x, ev.y))

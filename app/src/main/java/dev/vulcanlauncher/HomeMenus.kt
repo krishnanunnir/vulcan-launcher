@@ -197,8 +197,8 @@ class HomeMenus(private val a: MainActivity) {
         arrow.alpha = 0f
         arrow.animate().alpha(1f).setDuration(100).start()
         for (i in 0 until box.childCount) box.getChildAt(i).apply { alpha = 0f; animate().alpha(1f).setStartDelay(90).setDuration(150).start() }
-        box.post {
-            if (!box.isAttachedToWindow) return@post
+        a.afterLayout(box) {
+            if (!box.isAttachedToWindow) return@afterLayout
             box.visibility = View.VISIBLE
             android.view.ViewAnimationUtils.createCircularReveal(box, ax - x + aw / 2, if (up) 0 else box.height, 0f,
                 hypot(box.width.toFloat(), box.height.toFloat())).apply { duration = 220; interpolator = EASE }.start()

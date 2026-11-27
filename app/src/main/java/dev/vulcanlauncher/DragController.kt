@@ -62,7 +62,7 @@ class DragController(private val a: MainActivity) {
         pending = { lift(v, payload, touch) }
         // The menu shows the moment the long-press registers, as on the wallpaper; moving the drag closes it (trackDrag).
         // Not for a drag out of a menu row (a shortcut): that menu stays until the drag moves.
-        if (a.homeMenus.menu == null) a.root.post { if (dragSource === v && !dragMoved && v.isAttachedToWindow) a.homeMenus.showPopup(v, payload) }
+        if (a.homeMenus.menu == null) a.later { if (dragSource === v && !dragMoved && v.isAttachedToWindow) a.homeMenus.showPopup(v, payload) }
     }
 
     /** A long-press whose drag starts once the finger moves ([startDrag]); null otherwise. */
@@ -186,8 +186,8 @@ class DragController(private val a: MainActivity) {
                 DragEvent.ACTION_DRAG_EXITED -> look(false)
                 DragEvent.ACTION_DROP -> when (kind) {
                     "remove" -> when (p) {
-                        is PageMove -> a.root.post {
-                            a.removePageAt(p.index) { afterRebuild { a.workspace.snapTo(minOf(p.index, a.pageLayout.pages - 1), animate = false); a.homeMenus.homeOverview(animate = false) } }
+                        is PageMove -> a.later {
+                            a.removePageAt(p.index) { a.afterLayout(a.workspace) { a.workspace.snapTo(minOf(p.index, a.pageLayout.pages - 1), animate = false); a.homeMenus.homeOverview(animate = false) } }
                         }
                         is Item -> a.removeItem(p)
                         is FolderChild -> a.removeFromFolder(p, redraw = false)
@@ -236,10 +236,13 @@ class DragController(private val a: MainActivity) {
         }
         if (on) a.pages.forEach { if (it.background == null) it.background = pageCard().apply { alpha = (spring * 255).toInt() } }
         springAnim?.cancel()
+        // Reads the current workspace: one running past a rebuild would shrink the new home's.
+        val alive = a.lifetime.token()
         springAnim = ValueAnimator.ofFloat(spring, if (on) 1f else 0f).apply {
             duration = 300
             interpolator = EASE
             addUpdateListener {
+                if (!alive()) return@addUpdateListener
                 spring = it.animatedValue as Float
                 val s = 1 - (1 - cardScale) * spring
                 a.workspace.scaleX = s; a.workspace.scaleY = s
@@ -250,7 +253,7 @@ class DragController(private val a: MainActivity) {
             }
             if (!on) addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(a: android.animation.Animator) {
-                    if (spring != 0f) return
+                    if (spring != 0f || !alive()) return
                     dropBar.visibility = View.GONE
                     this@DragController.a.pages.forEach { it.background = null }
                     this@DragController.a.workspace.clipChildren = true; box.clipChildren = true
@@ -290,7 +293,7 @@ class DragController(private val a: MainActivity) {
         // Posted: adding or removing views while ENDED is still being dispatched throws
         // ConcurrentModificationException in ViewGroup.dispatchDragEvent.
         // A drag that never moved already shows its menu (startDrag); it stays open.
-        a.root.post { if (!moved && src.isAttachedToWindow) { if (a.homeMenus.menu == null) a.homeMenus.showPopup(src, payload) } else { a.render(); settleDragPages() } }
+        a.later { if (!moved && src.isAttachedToWindow) { if (a.homeMenus.menu == null) a.homeMenus.showPopup(src, payload) } else { a.render(); settleDragPages() } }
     }
 
     /** Home's one state; [setHomeState] changes it. */
@@ -403,21 +406,10 @@ class DragController(private val a: MainActivity) {
         if (isDock(cell.page)) return false
         when (e.action) {
             DragEvent.ACTION_DRAG_LOCATION -> edgeFlip(a.workspace, e.x, cell.width)
-            DragEvent.ACTION_DROP -> if (cell !== plusPage && cell.page != m.index) a.root.post { a.movePageTo(m.index, cell.page) { a.workspace.snapTo(cell.page) } }
+            DragEvent.ACTION_DROP -> if (cell !== plusPage && cell.page != m.index) a.later { a.movePageTo(m.index, cell.page) { a.workspace.snapTo(cell.page) } }
             DragEvent.ACTION_DRAG_ENDED -> { dropBar.visibility = View.GONE; a.pages.forEach { it.alpha = 1f } }
         }
         return true
-    }
-
-    /** Runs [then] once the views a rebuild made are measured, before their first frame. */
-    fun afterRebuild(then: () -> Unit) {
-        val rebuilt = a.workspace
-        rebuilt.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
-            override fun onGlobalLayout() {
-                rebuilt.viewTreeObserver.removeOnGlobalLayoutListener(this)
-                if (a.workspace === rebuilt && !a.isDestroyed) then()
-            }
-        })
     }
 
     /** Gives a touch on the overview's shade to the shrunk pages, in their own coordinates. */

@@ -417,11 +417,11 @@ class Drawer(private val a: MainActivity) {
                     index.current = this@Drawer.adapter.getSectionForPosition(first)
                 }
             })
-            // The reset from [forgetPosition], once the rows are laid out (and posted: a selection during layout warns).
-            addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            // The reset from [forgetPosition], once the rows are laid out (and after that pass: a selection during layout warns).
+            addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
                 if (forgetScroll) {
                     forgetScroll = false
-                    post { setSelection(if (fromBottom) this@Drawer.adapter.count - 1 else 0) }
+                    a.afterLayout(v) { setSelection(if (fromBottom) this@Drawer.adapter.count - 1 else 0) }
                 }
             }
             setOnItemClickListener { _, v, pos, _ -> this@Drawer.adapter.getItem(pos)?.let { open(it, v) } }
@@ -585,8 +585,9 @@ class Drawer(private val a: MainActivity) {
             val web = if (a.looks.on("webSearch")) listOf(Entry.WebE(q)) else emptyList()
             // Apps show at once; shortcuts and contacts join them when the worker has them, if no key came since.
             val shown = a.repo.apps.values.filter { spaces.shows(it, Surface.SEARCH, hidden, showHidden) }.map { it.pkg to it.info.user }.toSet()
+            val alive = a.lifetime.token()
             found.later(q, shown, iconStyle.sizePx) { hits, people ->
-                if (hits.isEmpty() && people.isEmpty()) return@later
+                if (hits.isEmpty() && people.isEmpty() || !alive()) return@later
                 entries = apps + hits + settings + people + web
                 empty.visibility = View.GONE
                 if (styleName == "pages") buildPages() else adapter.notifyDataSetChanged()
@@ -668,6 +669,7 @@ class Drawer(private val a: MainActivity) {
         val peekOffset = peek.translationX - grid.translationX
         // The chip and the tick come as the finger lets go, not after the slide: switching fast felt laggy (#97).
         if (landed != null) { tab = landed; rebuildTabs(); grid.tick() }
+        val alive = a.lifetime.token()
         val animation = android.animation.ValueAnimator.ofFloat(grid.translationX, to).apply {
             duration = (120 + 160 * abs(to - grid.translationX) / maxOf(1f, w)).toLong()
             interpolator = EASE
@@ -679,6 +681,7 @@ class Drawer(private val a: MainActivity) {
             addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(x: android.animation.Animator) {
                     tabAnim = null
+                    if (!alive()) return
                     if (landed != null) {
                         refresh()
                         grid.setSelection(if (fromBottom) adapter.count - 1 else 0)

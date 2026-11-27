@@ -168,6 +168,8 @@ class MainActivity : VulcanActivity() {
         um = getSystemService(UserManager::class.java)
         repo = AppRepo(this, store, launcherApps, um)
         build()
+        // On the window, once: it outlives every root a rebuild puts in it, and coverDock reads the current views.
+        window.decorView.viewTreeObserver.addOnGlobalLayoutListener(coverDockListener)
         store.data.getString("pendingWidget", "")!!.split(" ").takeIf { it.size == 2 }?.let { (id, provider) ->
             val c = ComponentName.unflattenFromString(provider)
             awm.installedProviders.firstOrNull { it.provider == c }?.let { widgetFlow.pendingWidget = id.toInt() to it }
@@ -223,17 +225,52 @@ class MainActivity : VulcanActivity() {
      */
     fun rebuild() {
         val page = workspace.current
-        depthAnim?.cancel()
-        // Everything below belongs to the old views; none of it is shown again.
-        // setDepth, not the field alone: the window's blur outlives the old views.
-        overlays.closeAll(); setDepth(0f)
-        drag.reset()
-        // Its open or close animator would go on writing the new home's alpha until it ended.
-        drawer.hide(animate = false)
-        badgeIcons.clear(); widgetFlow.keepViews(emptySet()) // build() reloads the apps, which drops the cached icons
+        teardown()
         build()
         workspace.snapTo(page.coerceAtMost(pageLayout.pages - 1), animate = false)
         if (dialogs.any { it.isShowing }) dialogScrim(true)
+    }
+
+    /** Home's lifetime: [rebuild] ends one. See [later] and [afterLayout]. */
+    val lifetime = Lifetime()
+
+    /**
+     * Ends this home before it's built again. Everything below belongs to the old views, and none of it is shown
+     * again: what's open closes (its closed callback runs), the drag and depth stop, and work scheduled against it
+     * ([later], [afterLayout], bound animators) does nothing from here on.
+     */
+    private fun teardown() {
+        overlays.closeAll()
+        drag.reset()
+        // setDepth, not the field alone: the window's blur outlives the old views.
+        depthAnim?.cancel(); setDepth(0f)
+        // Its open or close animator would go on writing the new home's alpha until it ended.
+        drawer.hide(animate = false)
+        badgeIcons.clear(); widgetFlow.keepViews(emptySet()) // build() reloads the apps, which drops the cached icons
+        lifetime.end()
+    }
+
+    /** [block] after [delayMs], unless home is rebuilt first; cancel with [cancelLater]. */
+    fun later(delayMs: Long = 0, block: () -> Unit): Runnable =
+        lifetime.bind(block).let { Runnable(it) }.also { mainHandler.postDelayed(it, delayMs) }
+
+    fun cancelLater(r: Runnable?) { r?.let(mainHandler::removeCallbacks) }
+
+    /**
+     * [block] once [v] is laid out: now if it is and nothing asked for a new layout, else after the next layout pass,
+     * before its first frame. Unless home is rebuilt first: then its listener goes too.
+     */
+    fun afterLayout(v: View, block: () -> Unit) {
+        if (v.isLaidOut && !v.isLayoutRequested) { block(); return }
+        val alive = lifetime.token()
+        // The window's observer once attached, which outlives the view: the listener must remove itself.
+        val observer = v.viewTreeObserver
+        observer.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                (if (observer.isAlive) observer else v.viewTreeObserver).removeOnGlobalLayoutListener(this)
+                if (alive() && !isDestroyed) block()
+            }
+        })
     }
 
     /** Everything the settings shape: palette, icons, layout and the views. At creation, and again in [rebuild]. */
@@ -270,12 +307,8 @@ class MainActivity : VulcanActivity() {
         // Likewise swipe right on the first page pulls the Now page in under the finger.
         if (looks.str("g_swipeRight") == "now") workspace.onEdgePull = ::pullNow
         drag.dropBar = dropBar()
-        // The window keeps a root's listener after the root is replaced: without this each rebuild added one more.
-        listening?.viewTreeObserver?.removeOnGlobalLayoutListener(coverDockListener)
         root = homeRoot()
-        listening = root
         setContentView(root)
-        root.viewTreeObserver.addOnGlobalLayoutListener(coverDockListener)
         render()
         showWelcome()
     }
@@ -752,8 +785,6 @@ class MainActivity : VulcanActivity() {
 
     /** Private Space (or a work profile) locked, unlocked, paused or resumed. */
     private val coverDockListener = android.view.ViewTreeObserver.OnGlobalLayoutListener { coverDock() }
-    /** The root [coverDockListener] is on. */
-    private var listening: View? = null
 
     private val profileReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(c: android.content.Context, i: Intent) {

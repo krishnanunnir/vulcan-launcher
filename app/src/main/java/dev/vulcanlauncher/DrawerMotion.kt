@@ -139,12 +139,14 @@ internal class DrawerMotion(private val a: MainActivity, private val d: Drawer) 
         if (left == 0f) { setProgress(to); if (!open) gone() else d.opened(); return }
         val pxMs = (speed ?: 0f) / 1000
         settlingOpen = open
+        // It writes home's depth and alpha: one running past a rebuild would write the new home's.
+        val alive = a.lifetime.token()
         anim =android.animation.ValueAnimator.ofFloat(progress, to).apply {
             duration = if (speed != null) swipeDuration(pxMs, left) else ((if (open) 260 else 200) * maxOf(0.4f, left)).toLong()
             interpolator = if (speed == null) android.view.animation.DecelerateInterpolator(1.6f) else if (abs(pxMs) > 10) SCROLL else SCROLL_CUBIC
-            addUpdateListener { setProgress(it.animatedValue as Float) }
+            addUpdateListener { if (alive()) setProgress(it.animatedValue as Float) }
             addListener(object : android.animation.AnimatorListenerAdapter() {
-                override fun onAnimationEnd(x: android.animation.Animator) { if (anim === x) { anim = null; if (!open) gone() else d.opened() } }
+                override fun onAnimationEnd(x: android.animation.Animator) { if (anim === x) { anim = null; if (alive()) { if (!open) gone() else d.opened() } } }
             })
             start()
         }

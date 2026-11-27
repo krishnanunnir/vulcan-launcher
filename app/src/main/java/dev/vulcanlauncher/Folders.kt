@@ -366,7 +366,7 @@ fun MainActivity.folderActions(f: Item, reopen: Boolean = false) = listOf(
     Triple("sort", getString(R.string.folder_sort)) {
         val order = labelOrder()
         setFolderChildren(f, f.children.sortedWith(compareBy(order) { resolve(it)?.first?.toString() ?: "" }))
-        if (reopen) { closeOverlay(); root.postDelayed({ items.firstOrNull { it.folder && it.page == f.page && it.x == f.x && it.y == f.y }?.let(::openFolder) }, 220) }
+        if (reopen) { closeOverlay(); later(220) { items.firstOrNull { it.folder && it.page == f.page && it.x == f.x && it.y == f.y }?.let(::openFolder) } }
     },
 )
 
@@ -487,10 +487,11 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         dragged?.layoutParams = CellLayout.CellParams(to % cols, to / cols, 1, 1)
         gap = to
     }
-    val shuffle = Runnable { moveGap(target) }
-    var leaving = false
-    val leave = Runnable { leaving = false; closeOverlay(); drawer.hide(animate = false); drag.liftDrag() }
-    fun stay() { leaving = false; root.removeCallbacks(leave) }
+    // Pending moves of the gap, and the window's leaving under a drag held off it.
+    var shuffle: Runnable? = null
+    var leave: Runnable? = null
+    fun stopShuffle() { cancelLater(shuffle); shuffle = null }
+    fun stay() { cancelLater(leave); leave = null }
     if (reorder != null) cell.setOnDragListener { v, e ->
         drag.trackDrag(v, e, keepOverlay = true)
         when (e.action) {
@@ -502,21 +503,21 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
                 stay()
                 val (x, y) = cell.cellAt(e.x, e.y)
                 val t = minOf(y * cols + x, order.size - 1)
-                if (t != target) { target = t; root.removeCallbacks(shuffle); root.postDelayed(shuffle, 250) }
+                if (t != target) { target = t; stopShuffle(); shuffle = later(250) { moveGap(target) } }
             }
             DragEvent.ACTION_DROP -> {
                 if (!drag.dragMoved || gap < 0) return@setOnDragListener false
-                root.removeCallbacks(shuffle)
+                stopShuffle()
                 moveGap(target)
                 order[gap]?.alpha = 1f
                 val list = reorder(from, gap)
                 // Rebuilt (for the new positions' click handlers) once the slide has settled.
-                root.postDelayed({ if (cell.isAttachedToWindow) fill(list) }, 260)
+                later(260) { if (cell.isAttachedToWindow) fill(list) }
                 root.tick()
             }
             // Only the view that took the drop hears ENDED.
             DragEvent.ACTION_DRAG_ENDED -> {
-                root.removeCallbacks(shuffle); stay()
+                stopShuffle(); stay()
                 // Released off the grid (on the name, say): the icons shuffled on the way go back to the saved order.
                 if (!e.result && gap >= 0 && gap != from && cell.isAttachedToWindow) fill(reorder(from, from))
                 gap = -1; drag.dragEnded()
@@ -583,9 +584,9 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
         setOnDragListener { v, e ->
             if (reorder != null && drag.dragMoved && e.action == DragEvent.ACTION_DRAG_LOCATION) {
                 val at = homeMenus.screenRect(v)
-                root.removeCallbacks(shuffle)
+                stopShuffle()
                 if (homeMenus.screenRect(if (full) grid else card).contains(at.left + e.x.toInt(), at.top + e.y.toInt())) stay()
-                else if (!leaving) { leaving = true; root.postDelayed(leave, 400) }
+                else if (leave == null) leave = later(400) { leave = null; closeOverlay(); drawer.hide(animate = false); drag.liftDrag() }
             }
             drag.trackDrag(v, e, keepOverlay = reorder != null)
             e.action != DragEvent.ACTION_DROP
@@ -626,7 +627,7 @@ fun MainActivity.openFolderWindow(title: String, children: List<Item>, onRename:
     val refresh = reload?.let { { gap >= 0 || it()?.also(::fill) != null } }
     // A pending shuffle or leave dies with the window: Back during a drag out once left [leave] to hide the drawer 400 ms later.
     showOverlay(Overlay(OverlayKind.FOLDER, dim, exit, refresh) {
-        root.removeCallbacks(leave); root.removeCallbacks(shuffle); onRename?.invoke(name.text.toString().trim())
+        stay(); stopShuffle(); onRename?.invoke(name.text.toString().trim())
     })
     if (spot != null && anchor != null) {
         tile?.alpha = 0f

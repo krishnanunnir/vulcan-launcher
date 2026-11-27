@@ -307,7 +307,7 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
                     if (canRemove) performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                 }
                 DragEvent.ACTION_DRAG_EXITED -> { look(false); drag.setRemoving(false) }
-                DragEvent.ACTION_DROP -> root.post { removePageAt(drag.index) }
+                DragEvent.ACTION_DROP -> later { removePageAt(drag.index) }
                 DragEvent.ACTION_DRAG_ENDED -> look(false)
             }
             true
@@ -369,7 +369,7 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
                     DragEvent.ACTION_DRAG_STARTED -> if (from == i) v.alpha = 0.3f
                     DragEvent.ACTION_DRAG_ENTERED -> if (from != i) { outline(true); performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) }
                     DragEvent.ACTION_DRAG_EXITED -> outline(false)
-                    DragEvent.ACTION_DROP -> if (from != i) root.post { movePageTo(from, i) }
+                    DragEvent.ACTION_DROP -> if (from != i) later { movePageTo(from, i) }
                     DragEvent.ACTION_DRAG_ENDED -> { v.alpha = 1f; outline(false) }
                 }
                 true
@@ -442,7 +442,7 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
  * After a page is added or removed, the rebuilt home must be measured before its thumbnails can be drawn: the previews
  * reopen then, before its first frame, so the change stays in the previews rather than returning to home.
  */
-private fun MainActivity.reopenOverview(pop: Int = -1) = drag.afterRebuild { showOverview(enter = false, pop = pop) }
+private fun MainActivity.reopenOverview(pop: Int = -1) = afterLayout(workspace) { showOverview(enter = false, pop = pop) }
 
 /** [then]: after the move; the previews reopen by default. */
 fun MainActivity.movePageTo(from: Int, to: Int, then: () -> Unit = { reopenOverview() }) {
