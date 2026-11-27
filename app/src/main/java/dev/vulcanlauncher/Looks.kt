@@ -180,6 +180,7 @@ val LOOKS = listOf(
     onOff(SEARCH_GROUP, "webSearch", R.string.set_webSearch, true, R.string.set_webSearch_info),
     Choice(SEARCH_GROUP, "searchEngine", R.string.set_searchEngine, "browser", SEARCH_ENGINES, SEARCH_ENGINE_NAMES),
     onOff(SEARCH_GROUP, "contactSearch", R.string.set_contactSearch, false, R.string.set_contactSearch_info),
+    onOff(SEARCH_GROUP, "hiddenSearch", R.string.set_hiddenSearch, false, R.string.set_hiddenSearch_info),
 
     Choice(FOLDERS, "folderPreview", R.string.set_folderPreview, "grid", PREVIEWS, PREVIEW_NAMES),
     Choice(FOLDERS, "folderBg", R.string.set_folderBg, "icon", FOLDER_BGS, FOLDER_BG_NAMES),
@@ -272,7 +273,7 @@ val SECTIONS: Map<String, List<Pair<Int, List<String>>>> = mapOf(
     ),
     SEARCH_GROUP to listOf(
         R.string.sec_search_bar to listOf("searchStyle", "searchColor"),
-        R.string.sec_results to listOf("webSearch", "searchEngine", "contactSearch"),
+        R.string.sec_results to listOf("webSearch", "searchEngine", "contactSearch", "hiddenSearch"),
     ),
     LOOK to listOf(
         R.string.sec_icons to listOf("iconPack", "shape", "reshape", "autogen", "normalize", "themedIcons", "iconShadow"),

@@ -544,13 +544,15 @@ class Drawer(private val a: MainActivity) {
             if (foldersFirst) folders + list else list + folders
         }
         entries = if (q.isNotEmpty()) {
+            // Hidden apps can be found by name while they stay out of the list (#135).
+            val reveal = showHidden || a.looks.on("hiddenSearch")
             // Best match first; sortedByDescending is stable, so equal matches keep the drawer's order.
-            val apps = found.quick(q) + ordered.filter { spaces.shows(it, Surface.SEARCH, hidden, showHidden) }.map { it to matchScore(a.repo.label(it), q) }
+            val apps = found.quick(q) + ordered.filter { spaces.shows(it, Surface.SEARCH, hidden, reveal) }.map { it to matchScore(a.repo.label(it), q) }
                 .filter { it.second > 0 }.sortedByDescending { it.second }.map { Entry.AppE(it.first) }
             val settings = found.settingsHits(q)
             val web = if (a.looks.on("webSearch")) listOf(Entry.WebE(q)) else emptyList()
             // Apps show at once; shortcuts and contacts join them when the worker has them, if no key came since.
-            val shown = a.repo.apps.values.filter { spaces.shows(it, Surface.SEARCH, hidden, showHidden) }.map { it.pkg to it.info.user }.toSet()
+            val shown = a.repo.apps.values.filter { spaces.shows(it, Surface.SEARCH, hidden, reveal) }.map { it.pkg to it.info.user }.toSet()
             val alive = a.lifetime.token()
             found.later(q, shown, iconStyle.sizePx) { hits, people ->
                 if (hits.isEmpty() && people.isEmpty() || !alive()) return@later

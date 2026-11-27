@@ -85,7 +85,8 @@
           "keys": [
             "webSearch",
             "searchEngine",
-            "contactSearch"
+            "contactSearch",
+            "hiddenSearch"
           ],
           "title": "Results"
         }
@@ -838,6 +839,22 @@
           ],
           "description": "Search. Asks for contacts permission Values: on (On), off (Off).",
           "title": "Search contacts"
+        },
+        "hiddenSearch": {
+          "default": "off",
+          "x-names": {
+            "off": "Off",
+            "on": "On"
+          },
+          "anyOf": [
+            {"enum": [
+              "on",
+              "off"
+            ]},
+            {"type": "boolean"}
+          ],
+          "description": "Search. Find hidden apps by name. They stay out of the A to Z list. Values: on (On), off (Off).",
+          "title": "Include hidden apps"
         },
         "themedIcons": {
           "default": "off",

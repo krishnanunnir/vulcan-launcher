@@ -120,6 +120,8 @@
     <string name="set_searchEngine">Web search with</string>
     <string name="set_contactSearch">Search contacts</string>
     <string name="set_contactSearch_info">Asks for contacts permission</string>
+    <string name="set_hiddenSearch">Include hidden apps</string>
+    <string name="set_hiddenSearch_info">Find hidden apps by name. They stay out of the A to Z list.</string>
     <string name="set_folderPreview">Folder preview</string>
     <string name="set_folderBg">Folder background</string>
     <string name="set_folderColor">Folder background color</string>
