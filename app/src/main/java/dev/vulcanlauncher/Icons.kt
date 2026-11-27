@@ -484,6 +484,28 @@ fun rendered(w: Int, h: Int, draw: (Canvas) -> Unit): Bitmap =
     else Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also { draw(Canvas(it)) }
 
 /**
+ * A picture of views ([draw] is a View.draw), as a [w]×[h] bitmap: page thumbnails and a held page's drag shadow.
+ * With [HARDWARE_ICONS] it goes through the same renderer a window uses. [rendered]'s recording lost every hardware
+ * bitmap on Android 17 (a Galaxy S23): widgets drew, app icons and folder contents did not.
+ */
+fun snapshot(w: Int, h: Int, draw: (Canvas) -> Unit): Bitmap {
+    if (android.os.Build.VERSION.SDK_INT < 35) return rendered(w, h, draw) // as HARDWARE_ICONS, spelled out for lint
+    val node = android.graphics.RenderNode("snapshot").apply { setPosition(0, 0, w, h) }
+    val reader = android.media.ImageReader.newInstance(w, h, android.graphics.PixelFormat.RGBA_8888, 1,
+        android.hardware.HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE or android.hardware.HardwareBuffer.USAGE_GPU_COLOR_OUTPUT)
+    val renderer = android.graphics.HardwareRenderer()
+    try {
+        draw(node.beginRecording()); node.endRecording()
+        renderer.isOpaque = false
+        renderer.setSurface(reader.surface)
+        renderer.setContentRoot(node)
+        renderer.createRenderRequest().setWaitForPresent(true).syncAndDraw()
+        // The bitmap keeps the buffer alive after the image and the reader close.
+        return reader.acquireNextImage().use { img -> img.hardwareBuffer!!.use { Bitmap.wrapHardwareBuffer(it, null)!! } }
+    } finally { renderer.destroy(); reader.close(); node.discardDisplayList() }
+}
+
+/**
  * Each app's finished icon and label on disk, as Launcher3's IconCache keeps them. Asking the app itself opens its APK,
  * and its resource table stays mapped until a GC (Gmail's is 10 MB): with this, a start opens only apps that changed.
  * An entry holds while the app's APK, Vulcan's own and the system build match, and [looks] ([Icons.signature]) or the locale.

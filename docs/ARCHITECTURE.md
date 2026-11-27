@@ -58,8 +58,9 @@ Every touch on home has exactly one owner, fixed by the first claim (`Touch.kt`,
 - The system drag (`startDragAndDrop`) cancels the touch: that cancel means the drag owns it, and is no gesture (#129).
 - Whatever must happen when a touch ends, even unseen by the view that started it (a widget frame's long-press, the Now page's hold menu), goes through `whenTouchEnds`, which runs once on UP or CANCEL (#60, #105). Timers also check the view still has a parent and window focus.
 - While home shows with nothing open the root excludes itself from the back gesture (all of it as the default home, a 200 dp band otherwise); the resize frame excludes its handles. A DOWN in the mandatory gesture strips (API 30+) gets no claimant (#127).
+- The arbiter hears only touch events, so whatever changes home from outside a touch cuts the touch first: HOME (`onNewIntent`), BACK (`handleBack`) and a rebuild (`teardown`) call `cutTouch()` before they act. A cut gives the owner and the children a CANCEL, runs the `whenTouchEnds` callbacks, drops the rest of that touch and cancels a system drag. Without it a finger still down after HOME reopened the drawer or dropped a dragged icon on the default page. A new outside event (a broadcast that changes home, a new key) does the same.
 
-**A new gesture is a new claimant or a child claim, never a flag.** No synthesised CANCELs, no "ignore the rest of this touch" fields, no second handler for the same swipe: if two places can start the same gesture, the claimant asks where the DOWN was. Each claimant's touches are replayed in `TouchTest`, named by the issue or commit they broke in.
+**A new gesture is a new claimant or a child claim, never a flag.** Outside `cutTouch()`: no synthesised CANCELs, no "ignore the rest of this touch" fields, no second handler for the same swipe: if two places can start the same gesture, the claimant asks where the DOWN was. Each claimant's touches are replayed in `TouchTest`, named by the issue or commit they broke in.
 
 ## Apps and profiles
 

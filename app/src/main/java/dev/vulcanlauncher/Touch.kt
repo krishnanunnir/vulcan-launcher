@@ -22,6 +22,9 @@ class Claimant(val name: String, val may: (Touch) -> Boolean, val claims: (Touch
  * A claimant here claims by the root intercepting, so Android sends every child that had the touch a real CANCEL.
  * A child view claims the other way, with requestDisallowInterceptTouchEvent ([childClaimed]): then nothing here
  * gets the touch. [claimants] is read at each DOWN.
+ *
+ * A touch is also over when something outside it changes what home shows: HOME, BACK, a rebuild ([cut]). Without
+ * that the owner went on acting on a screen that had moved on (a drawer pulled back open after HOME closed it).
  */
 class TouchArbiter(private val claimants: () -> List<Claimant>) {
     var owner: Claimant? = null
@@ -29,6 +32,11 @@ class TouchArbiter(private val claimants: () -> List<Claimant>) {
     /** A child view owns this touch. */
     var childOwns = false
         private set
+    /** Cut short ([cut]): what is left of this touch reaches no one. */
+    var cut = false
+        private set
+    private var active = false
+    private var last: Touch? = null
     private var live = emptyList<Claimant>()
     private val ends = ArrayList<(Boolean) -> Unit>()
 
@@ -36,9 +44,11 @@ class TouchArbiter(private val claimants: () -> List<Claimant>) {
     fun feed(t: Touch, blocked: Boolean = false): Claimant? {
         if (t.action == MotionEvent.ACTION_DOWN) {
             ended(false) // a touch whose end never came this way
-            owner = null; childOwns = false
+            owner = null; childOwns = false; cut = false; active = true
             live = if (blocked) emptyList() else claimants().filter { it.may(t) }
         }
+        if (cut) return owner
+        last = t
         val o = owner
         if (o != null) o.claims(t) else if (!childOwns) owner = live.firstOrNull { it.claims(t) }
         return owner
@@ -52,8 +62,23 @@ class TouchArbiter(private val claimants: () -> List<Claimant>) {
      */
     fun whenEnds(f: (up: Boolean) -> Unit) { ends += f }
 
+    /**
+     * Something outside the touch changed home under it: the owner gets a CANCEL where the finger is, the [whenEnds]
+     * callbacks run, and the rest of the touch is dropped until the next DOWN. Call it before making the change, so
+     * the change is what stays. Returns false when no touch was in flight.
+     */
+    fun cut(): Boolean {
+        if (!active || cut) return false
+        val l = last
+        if (l != null) owner?.claims(l.copy(action = MotionEvent.ACTION_CANCEL))
+        cut = true
+        ended(false)
+        return true
+    }
+
     /** The touch ended: an UP ([up]) or a CANCEL. */
     fun ended(up: Boolean) {
+        active = false
         live = emptyList()
         if (ends.isEmpty()) return
         val e = ends.toList(); ends.clear(); e.forEach { it(up) }

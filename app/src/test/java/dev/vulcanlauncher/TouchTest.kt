@@ -7,6 +7,7 @@ import android.view.MotionEvent.ACTION_POINTER_DOWN
 import android.view.MotionEvent.ACTION_POINTER_UP
 import android.view.MotionEvent.ACTION_UP
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -354,5 +355,49 @@ class TouchTest {
         feed(ACTION_UP, 0, intArrayOf(1), floatArrayOf(1004f))
         assertNull(touch.owner)
         assertTrue(home.closes.isEmpty())
+    }
+
+    // --- Cut short from outside the touch: HOME, BACK, a rebuild (the S23 stress run on 0.33.1) ---
+
+    @Test fun aCutPullEndsOnceAndTheRestOfTheTouchDoesNothing() {
+        // HOME while a finger held the drawer part way: the next MOVE pulled it back open.
+        ev(ACTION_DOWN, 500f, 1500f)
+        for (i in 1..4) ev(ACTION_MOVE, 500f, 1500f - 60f * i)
+        assertEquals("drawer pull", touch.owner?.name)
+        assertTrue(touch.arbiter.cut())
+        assertTrue(home.pulls.last().second) // ended where the finger was
+        val n = home.pulls.size
+        ev(ACTION_MOVE, 500f, 1000f); ev(ACTION_UP, 500f, 900f)
+        assertEquals(n, home.pulls.size)
+        assertEquals(listOf("pullEnd"), home.did)
+    }
+
+    @Test fun aHoldThatOpenedTheOverviewThenBackPullsNoDrawer() {
+        // Hold, the overview opens, BACK closes it with the finger still down, then the finger moves up: the drawer opened.
+        ev(ACTION_DOWN, 500f, 1500f)
+        home.overlay = true
+        touch.arbiter.cut(); home.overlay = false
+        for (i in 1..6) ev(ACTION_MOVE, 500f, 1500f - 60f * i)
+        ev(ACTION_UP, 500f, 1140f)
+        assertTrue(home.pulls.isEmpty()); assertTrue(home.did.isEmpty())
+    }
+
+    @Test fun aCutRunsTheEndCallbacksOnceAndTheNextTouchIsNormal() {
+        var ends = 0; var wasUp = true
+        ev(ACTION_DOWN, 500f, 1500f)
+        touch.arbiter.whenEnds { ends++; wasUp = it }
+        assertTrue(touch.arbiter.cut())
+        assertFalse(touch.arbiter.cut()) // already cut
+        ev(ACTION_UP, 500f, 1500f)
+        assertEquals(1, ends); assertFalse(wasUp)
+        assertTrue(home.did.isEmpty()) // not a tap toward a double tap either
+        assertEquals("drawer pull", swipe(500f, 1500f, 0f, -400f))
+        assertEquals(listOf("pullEnd"), home.did)
+    }
+
+    @Test fun noTouchInFlightIsNothingToCut() {
+        assertFalse(touch.arbiter.cut())
+        tap(500f, 1500f)
+        assertFalse(touch.arbiter.cut())
     }
 }

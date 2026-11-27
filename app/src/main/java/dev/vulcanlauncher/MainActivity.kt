@@ -245,6 +245,7 @@ class MainActivity : VulcanActivity() {
      * ([later], [afterLayout], bound animators) does nothing from here on.
      */
     private fun teardown() {
+        (root as? HomeRoot)?.cutTouch()
         overlays.closeAll()
         drag.reset()
         // setDepth, not the field alone: the window's blur outlives the old views.
@@ -664,6 +665,7 @@ class MainActivity : VulcanActivity() {
         if (!::drawer.isInitialized) return // handed off to home in onCreate; Android 11 still delivers that home intent here
         // Without focus an app was in front: coming home only closes what was open, the action is for a second press.
         val onHome = hasWindowFocus()
+        cutTouch()
         // Home leaves pickers and dialogs too (#99: the icon pack grid kept it), at once: their slide-outs, one per open
         // dialog, ran while the activity paused and resumed under them, and stuttered (#100).
         dialogs.toList().forEach { it.window?.setWindowAnimations(0); it.dismiss() }
@@ -681,7 +683,17 @@ class MainActivity : VulcanActivity() {
         }
     }
 
+    /**
+     * HOME or BACK with a finger still down: that touch and any drag end first, so what they close stays closed and
+     * a dragged icon goes back instead of landing where HOME took the page. A rebuild does the same in [teardown].
+     */
+    private fun cutTouch() {
+        (root as? HomeRoot)?.cutTouch()
+        if (drag.dragSource != null) root.cancelDragAndDrop()
+    }
+
     override fun handleBack() {
+        cutTouch()
         when {
             welcoming -> welcomeBack()
             homeMenus.menu != null -> homeMenus.closeMenu()

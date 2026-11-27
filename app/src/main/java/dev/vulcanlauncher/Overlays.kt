@@ -220,7 +220,7 @@ fun MainActivity.refreshOverlay() { overlay?.let { o -> if (o.refresh?.invoke() 
 
 /** A stable snapshot of the held page; hovering Remove tints the drag shadow without fading it with its source. */
 private class PageDrag(val index: Int, private val source: View, color: Int) : View.DragShadowBuilder(source) {
-    private val preview = rendered(source.width, source.height) { source.draw(it) }
+    private val preview = snapshot(source.width, source.height) { source.draw(it) }
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val tint = PorterDuffColorFilter(color and 0xFFFFFF or 0x99000000.toInt(), PorterDuff.Mode.SRC_ATOP)
     private var removing = false
@@ -297,7 +297,7 @@ fun MainActivity.showOverview(enter: Boolean = true, pop: Int = -1) {
         val card = page.background
         page.background = null
         // Before Android 15 some widgets hold hardware bitmaps a software canvas can't draw; the thumbnail is then left blank.
-        val bmp = runCatching { rendered(w, h) { it.scale(w / maxOf(1f, page.width.toFloat()), h / maxOf(1f, page.height.toFloat())); page.draw(it) } }
+        val bmp = runCatching { snapshot(w, h) { it.scale(w / maxOf(1f, page.width.toFloat()), h / maxOf(1f, page.height.toFloat())); page.draw(it) } }
             .getOrElse { Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888) }
         page.background = card
         val current = i == workspace.current

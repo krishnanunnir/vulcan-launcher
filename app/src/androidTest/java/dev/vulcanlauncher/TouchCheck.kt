@@ -127,6 +127,34 @@ class TouchCheck(private val test: Instrumentation) {
                 closeAll()
             }
 
+            // S23 stress run, 0.33.1: HOME or BACK with the finger still down ends that touch; what they closed stays closed.
+            if (!pulls) skip("HOME / BACK mid-pull", "Swipe up isn't the drawer")
+            else for (key in listOf("HOME", "BACK")) {
+                val t = SystemClock.uptimeMillis()
+                send(t, MotionEvent.ACTION_DOWN, listOf(Triple(0, ex, ey + 100 * dp)))
+                for (i in 1..6) send(t, MotionEvent.ACTION_MOVE, listOf(Triple(0, ex, ey + 100 * dp - 200 * dp * i / 6)))
+                if (key == "HOME") ui { test.callActivityOnNewIntent(a, Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)) } else ui { a.onBackPressed() }
+                for (i in 1..4) send(t, MotionEvent.ACTION_MOVE, listOf(Triple(0, ex, ey - 100 * dp - 40 * dp * i)))
+                send(t, MotionEvent.ACTION_UP, listOf(Triple(0, ex, ey - 260 * dp)))
+                settle(1200)
+                var held = true; ui { held = drawerHeld() }
+                expect("$key mid-pull: the drawer stays closed", !a.drawer.visible && !held, "visible=${a.drawer.visible} held=$held")
+                closeAll()
+            }
+            run {
+                val t = SystemClock.uptimeMillis()
+                send(t, MotionEvent.ACTION_DOWN, listOf(Triple(0, ex, ey + 100 * dp)))
+                SystemClock.sleep(900)
+                val opened = a.overlays.panel != null || a.homeMenus.menu != null
+                ui { a.onBackPressed() }
+                for (i in 1..8) send(t, MotionEvent.ACTION_MOVE, listOf(Triple(0, ex, ey + 100 * dp - 40 * dp * i)))
+                send(t, MotionEvent.ACTION_UP, listOf(Triple(0, ex, ey - 220 * dp)))
+                settle(1200)
+                if (!opened) skip("hold, BACK, move up", "holding home opened nothing")
+                else expect("hold, BACK, move up: no drawer", !a.drawer.visible && a.overlays.panel == null, "drawer=${a.drawer.visible} panel=${a.overlays.panel != null}")
+                closeAll()
+            }
+
             // #60: a tap that lands on home's root alone (no child takes it) leaves no long-press behind.
             run {
                 val t = SystemClock.uptimeMillis()

@@ -59,12 +59,35 @@ class HomeRoot(private val a: MainActivity) : FrameLayout(a) {
         val two = ev.pointerCount >= 2
         touch.feed(Touch(action, pointer.x, pointer.y, ev.eventTime, ev.pointerCount, if (two) ev.getX(1) else 0f, if (two) ev.getY(1) else 0f),
             blocked = action == MotionEvent.ACTION_DOWN && inGestureStrip(ev))
-        val handled = super.dispatchTouchEvent(ev)
+        // A cut touch reaches no child either: they were cancelled when it was cut.
+        dispatching = true
+        val handled = touch.arbiter.cut || super.dispatchTouchEvent(ev)
+        dispatching = false
+        if (cancelOwed) { cancelOwed = false; if (action != MotionEvent.ACTION_UP && action != MotionEvent.ACTION_CANCEL) cancelChildren() }
         if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
             touch.arbiter.ended(action == MotionEvent.ACTION_UP)
             velocity?.recycle(); velocity = null
         }
         return handled
+    }
+
+    private var dispatching = false
+    private var cancelOwed = false
+
+    /**
+     * HOME, BACK or a rebuild while a finger is down: the touch ends here ([TouchArbiter.cut]), for home's claimants and
+     * for whichever child had it. Called from inside that touch's own dispatch, the children's CANCEL waits for it to return.
+     */
+    fun cutTouch() {
+        if (!touch.arbiter.cut()) return
+        if (dispatching) cancelOwed = true else cancelChildren()
+    }
+
+    private fun cancelChildren() {
+        val now = android.os.SystemClock.uptimeMillis()
+        val e = MotionEvent.obtain(now, now, MotionEvent.ACTION_CANCEL, 0f, 0f, 0)
+        super.dispatchTouchEvent(e)
+        e.recycle()
     }
 
     /** Vulcan is the default home: its exclusion rects are exempt from the system's 200 dp cap. Checked on each resume. */
