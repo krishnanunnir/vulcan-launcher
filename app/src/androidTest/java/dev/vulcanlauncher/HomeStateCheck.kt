@@ -31,8 +31,14 @@ class HomeStateCheck(private val test: Instrumentation) {
         log.append("${if (ok) "PASS" else "FAIL"} $name\n")
         if (!ok) failures++
     }
+    /** A launcher matching [which] is running and has focus. Asked on the main thread: a new one may still be making its window. */
+    private fun focused(which: (MainActivity) -> Boolean): Boolean {
+        var ok = false
+        ui { ok = MainActivity.running?.get()?.let { which(it) && it.hasWindowFocus() } == true }
+        return ok
+    }
     private fun relaunch() {
-        repeat(100) { if (MainActivity.running?.get()?.let { it !== a && it.hasWindowFocus() } != true) SystemClock.sleep(100) }
+        repeat(100) { if (!focused { it !== a }) SystemClock.sleep(100) }
         a = MainActivity.running?.get() ?: error("Launcher did not restart")
         settle()
     }
@@ -171,7 +177,7 @@ class HomeStateCheck(private val test: Instrumentation) {
 
     fun run() {
         test.targetContext.startActivity(Intent(test.targetContext, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        repeat(100) { if (MainActivity.running?.get()?.hasWindowFocus() != true) SystemClock.sleep(100) }
+        repeat(100) { if (!focused { true }) SystemClock.sleep(100) }
         a = MainActivity.running?.get() ?: error("Launcher did not start")
         val prefs = test.targetContext.getSharedPreferences("looks", Context.MODE_PRIVATE)
         val savedLooks = prefs.all.toMap()
