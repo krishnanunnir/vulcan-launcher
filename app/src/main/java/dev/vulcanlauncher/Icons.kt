@@ -604,13 +604,18 @@ class Icons(private val context: Context, private val looks: Looks) {
             icon = AdaptiveIconDrawable(ColorDrawable(themeColors.first), mono.mutate().apply { setTint(themeColors.second) })
         }
         if (themed == null && pack != null && looks.on("autogen") && pack.back.isNotEmpty()) autogen(icon, pkg)?.let { return it }
+        return finished(icon, fromPack = themed != null)
+    }
+
+    /** A legacy icon reshaped or normalized as the settings say (a pack's own icons only by "always"), then [drawn]. */
+    private fun finished(icon: Drawable, fromPack: Boolean): Drawable {
+        if (icon is AdaptiveIconDrawable) return drawn(icon)
         val reshape = looks.str("reshape")
-        if (icon !is AdaptiveIconDrawable && (reshape == "always" || reshape == "unthemed" && themed == null)) {
-            icon = reshaped(icon)
-        } else if (icon !is AdaptiveIconDrawable && looks.on("normalize")) {
-            icon = normalized(icon)
-        }
-        return drawn(icon)
+        return drawn(when {
+            reshape == "always" || reshape == "unthemed" && !fromPack -> reshaped(icon)
+            looks.on("normalize") -> normalized(icon)
+            else -> icon
+        })
     }
 
     /** The last step of every icon: flattened, and clipped to the shape when it is an adaptive one. */
@@ -691,9 +696,10 @@ class Icons(private val context: Context, private val looks: Looks) {
     }
 
     private fun customUncached(custom: String): Drawable? {
-        // A picked image is shaped like a legacy icon, unless the icon opted out (uriraw:) or the setting is off (#92).
+        // A picked image takes the icon shape unless this icon opted out (uriraw:), whatever Reshape legacy icons says,
+        // as Nova does (#92, #132).
         imageIcon(custom)?.let { (uri, reshape) ->
-            return image(Uri.parse(uri))?.let { if (reshape && looks.str("reshape") != "off") drawn(reshaped(it)) else flat(it) }
+            return image(Uri.parse(uri))?.let { if (reshape) drawn(reshaped(it)) else flat(it) }
         }
         return when {
             // Another app's icon, as this launcher draws it (pack, theming, shape). Gone app: null, so the default shows.
@@ -701,12 +707,13 @@ class Icons(private val context: Context, private val looks: Looks) {
                 runCatching { context.packageManager.getActivityIcon(android.content.ComponentName(pkg, cls)) }.getOrNull()
                     ?.let { base -> get(pkg, cls, "") { base } }
             }
+            // A pack icon picked by hand is shaped like the pack's own icons (#132).
             custom.startsWith("pack:") -> {
                 val (pkg, name) = custom.removePrefix("pack:").split(":", limit = 2).let { it[0] to it.getOrElse(1) { "" } }
-                (if (pkg == pack?.pkg) pack else loadIconPack(context, pkg))?.drawable(name)
+                (if (pkg == pack?.pkg) pack else loadIconPack(context, pkg))?.drawable(name)?.let { finished(it, fromPack = true) }
             }
             else -> null
-        }?.let(::flat)
+        }
     }
 
     private fun image(uri: Uri): Drawable? = runCatching {

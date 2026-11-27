@@ -1041,7 +1041,7 @@
           "title": "Keep grouped apps in the main tab"
         },
         "reshape": {
-          "default": "off",
+          "default": "unthemed",
           "x-names": {
             "always": "Always",
             "off": "Off",

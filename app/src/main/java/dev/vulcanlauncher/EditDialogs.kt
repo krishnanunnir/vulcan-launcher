@@ -37,12 +37,11 @@ fun MainActivity.editDialog(title: String, label: String, defaultLabel: String, 
         background = pressable(rounded(m3.surfaceHighest, 16 * dp), 16 * dp)
     } else null
     fun show() { iconView?.setImageDrawable(preview(iconV)) }
-    // A picked image is shaped like a legacy icon; this one can opt out, as Nova offers (#92).
+    // A picked image takes the icon shape; this one can opt out, as Nova offers (#92, #132).
     val reshapeBox = android.widget.FrameLayout(this)
     fun reshapeRow() {
         reshapeBox.removeAllViews()
         val (uri, reshape) = imageIcon(iconV) ?: return
-        if (looks.str("reshape") == "off") return
         reshapeBox.addView(checkRow(getString(R.string.reshape_icon), reshape) { on ->
             iconV = if (on) "uri:$uri" else "uriraw:$uri"; show()
         })

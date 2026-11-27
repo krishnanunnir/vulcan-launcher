@@ -198,7 +198,7 @@ val LOOKS = listOf(
     Choice(FOLDERS, "folderRows", R.string.set_folderRows, "auto", listOf("auto") + range(1, 6), listOf(R.string.folderGrid_auto), shown = listOf("") + range(1, 6)),
 
     Choice(LOOK, "shape", R.string.set_shape, "system", SHAPES, SHAPE_NAMES),
-    Choice(LOOK, "reshape", R.string.set_reshape, "off", listOf("off", "unthemed", "always"), listOf(R.string.reshape_off, R.string.reshape_unthemed, R.string.reshape_always)),
+    Choice(LOOK, "reshape", R.string.set_reshape, "unthemed", listOf("off", "unthemed", "always"), listOf(R.string.reshape_off, R.string.reshape_unthemed, R.string.reshape_always)),
     onOff(LOOK, "autogen", R.string.set_autogen, true),
     onOff(LOOK, "normalize", R.string.set_normalize, false),
     onOff(LOOK, "themedIcons", R.string.set_themedIcons, false, R.string.set_themedIcons_info),
