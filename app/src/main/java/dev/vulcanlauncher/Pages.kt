@@ -57,3 +57,6 @@ fun PageLayout.checked(): PageLayout {
 
 /** An edit of the stored layout made outside home (PinActivity, a widget restore): load, [edit], check, save in one write. */
 fun Store.editLayout(sub: Int, edit: (PageLayout) -> PageLayout) = save(edit(load(sub)).checked(), sub)
+
+/** Whether an [MainActivity.editLayout] stores its result: a user's edit always; an [automatic] one only over a layout this build reads. */
+fun savesNow(automatic: Boolean, readable: () -> Boolean) = !automatic || readable()

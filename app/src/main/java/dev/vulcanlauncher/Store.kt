@@ -144,9 +144,9 @@ class StoredLayout(val items: List<Item>, val sub: Int?, val pages: Int = 1, val
  * layout this build can read: not a JSON list, or written by a newer build (after a downgrade), whose items may mean
  * something else. A subgrid factor other than 1 or 2 (a hand edit) is taken as the current one.
  */
-fun decodeLayout(items: Any?, version: Any?, sub: Any?, pages: Any? = null, defaultPage: Any? = null): Decoded<StoredLayout> {
+fun decodeLayout(items: Any?, version: Any?, sub: Any?, pages: Any? = null, defaultPage: Any? = null, readable: Int = LAYOUT_VERSION): Decoded<StoredLayout> {
     val v = (version as? String)?.toIntOrNull() ?: 1
-    if (v > LAYOUT_VERSION) return Decoded(null, listOf("layout version $v"))
+    if (v > readable) return Decoded(null, listOf("layout version $v"))
     val list = (items as? String)?.let { runCatching { JSONArray(it) }.getOrNull() } ?: return Decoded(null, listOf("items"))
     val d = decodeItems(list)
     val s = (sub as? String)?.toIntOrNull()
@@ -164,6 +164,45 @@ fun decodeLayout(items: Any?, version: Any?, sub: Any?, pages: Any? = null, defa
 fun pageSettings(pages: Any?, defaultPage: Any?): Pair<Int, Int> {
     val n = PAGES_CHOICE.intOf(pages as? String)
     return n to DEFAULT_PAGE_CHOICE.intOf(defaultPage as? String).coerceAtMost(n - 1)
+}
+
+/**
+ * What home shows from the stored `layout` preferences [stored], in subgrid factor [sub]. [standIn] when they can't be
+ * read (a bad restore, a hand edit, a newer build's after a downgrade): the newest readable of [backups] (or nothing)
+ * stands in, and the stored text stays as it is until the user edits home, so a build that reads it brings it back.
+ * [setAside] names the file the stored text is also copied to, with [why].
+ */
+class LoadedLayout(val layout: PageLayout, val standIn: Boolean, val setAside: String?, val why: List<String>, val repaired: List<String>) {
+    val items get() = layout.items
+}
+
+fun loadLayout(stored: Map<String, Any?>, backups: Sequence<String>, sub: Int, readable: Int = LAYOUT_VERSION): LoadedLayout {
+    fun StoredLayout.inSub() = PageLayout(layoutIn(items, this.sub, sub), pages, defaultPage)
+    // Missing is an empty layout; a value of the wrong type (a bad restore) is unreadable, not empty.
+    val d = decodeLayout(stored["items"] ?: "[]", stored["version"], stored["sub"], stored["pages"], stored["defaultPage"], readable)
+    d.value?.let { l ->
+        // An item this build can't read is dropped, and the next save loses it: the text as it was is kept first.
+        return LoadedLayout(l.inSub(), false, "layout-unreadable.json".takeIf { d.dropped.isNotEmpty() }, d.dropped, d.repaired)
+    }
+    val newer = (stored["version"] as? String)?.toIntOrNull()?.takeIf { it > readable }
+    // The backup's own page count and default page come with it.
+    val l = backups.firstNotNullOfOrNull(::backupLayout)
+    return LoadedLayout(l?.inSub() ?: PageLayout(emptyList(), 1, 0), true,
+        if (newer != null) "layout-v$newer.json" else "layout-unreadable.json", d.dropped, emptyList())
+}
+
+enum class PageAdoption { MOVE, DROP, WAIT }
+
+/**
+ * What [Store.adoptPages] does with page keys found in `looks`, for a layout of stored [version]. Before version 3 they
+ * are its page count and default page: MOVE. A version 3 layout has its own, and keys left in `looks` are stale (an
+ * older build's, after a downgrade and back): DROP, unless a settings-only restore ([restored]) just put them there.
+ * A layout this build can't read is a stand-in, and nothing automatic writes over it: WAIT until one it reads is stored.
+ */
+fun pageAdoption(version: Any?, readable: Boolean, restored: Boolean): PageAdoption = when {
+    !readable -> PageAdoption.WAIT
+    restored || ((version as? String)?.toIntOrNull() ?: 1) < 3 -> PageAdoption.MOVE
+    else -> PageAdoption.DROP
 }
 
 /** [items] without the apps and shortcuts of an uninstalled package. A folder left with one item turns back into it. */
@@ -266,37 +305,35 @@ class Store(private val context: Context) {
      */
     fun load(sub: Int): PageLayout {
         val all = prefs.all
-        val raw = all["items"] as? String ?: "[]"
-        val stored = decodeLayout(raw, all["version"], all["sub"], all["pages"], all["defaultPage"])
-        fun StoredLayout.inSub() = PageLayout(layoutIn(items, this.sub, sub), pages, defaultPage)
-        stored.value?.let { l ->
-            if (stored.repaired.isNotEmpty()) android.util.Log.w("Vulcan", "layout: repaired ${stored.repaired}")
-            // An item this build can't read is dropped, and home saves at once: the text as it was is kept first.
-            if (stored.dropped.isNotEmpty()) setAside("layout-unreadable.json", raw, stored.dropped)
-            return l.inSub()
-        }
-        val newer = (all["version"] as? String)?.toIntOrNull()?.takeIf { it > LAYOUT_VERSION }
-        setAside(if (newer != null) "layout-v$newer.json" else "layout-unreadable.json", raw, stored.dropped)
-        // What's recovered is saved at once: export reads the stored layout, so a restore (which backs up first) would fail too.
-        for (f in autoBackups) backupLayout(runCatching { f.readText() }.getOrDefault(""))?.let { l ->
-            return l.inSub().also { save(it, sub) }
-        }
-        return PageLayout(emptyList(), 1, 0).also { save(it, sub) }
+        val l = loadLayout(all, autoBackups.asSequence().map { f -> runCatching { f.readText() }.getOrDefault("") }, sub)
+        if (l.repaired.isNotEmpty()) android.util.Log.w("Vulcan", "layout: repaired ${l.repaired}")
+        l.setAside?.let { setAside(it, all["items"]?.toString() ?: "", l.why) }
+        return l.layout
     }
 
     /**
-     * Moves the page count and default page from `looks`, where they were before layout version 3, into the layout, and
-     * marks it version 3 so an older build won't read it without them. Runs whenever `looks` holds them: after an
-     * upgrade (and an install from before 0.16, whose defaults [Looks.adoptDefaults] writes), and after a settings-only
-     * restore. The layout is committed before `looks` lets them go, so an interruption leaves them in both, never neither.
+     * Moves the page count and default page from `looks`, where they were before layout version 3, into the layout
+     * ([pageAdoption]). The layout is committed before `looks` lets them go, so an interruption leaves them in both,
+     * never neither. [restored]: a settings-only restore just put them in `looks`, and they replace the layout's.
      */
-    fun adoptPages() {
+    fun adoptPages(restored: Boolean = false) {
         val looks = context.getSharedPreferences("looks", Context.MODE_PRIVATE)
         val old = PAGE_KEYS.associateWith { looks.getString(it, null) }.filterValues { it != null }
         if (old.isEmpty()) return
-        prefs.edit().apply { old.forEach { (k, v) -> putString(k, v) } }.putString("version", LAYOUT_VERSION.toString()).commit()
+        val all = prefs.all
+        when (pageAdoption(all["version"], layoutReadable, restored)) {
+            PageAdoption.WAIT -> return
+            PageAdoption.MOVE -> prefs.edit().apply { old.forEach { (k, v) -> putString(k, v) } }.putString("version", LAYOUT_VERSION.toString()).commit()
+            PageAdoption.DROP -> {}
+        }
         looks.edit().apply { old.keys.forEach(::remove) }.commit()
     }
+
+    /**
+     * False while home shows a stand-in for a stored layout it can't read (see [loadLayout]): what only tidies the layout
+     * (a save on start, freeing widget IDs it doesn't hold, a daily backup) must wait, as the stored one may hold them.
+     */
+    val layoutReadable get() = prefs.all.let { decodeLayout(it["items"] ?: "[]", it["version"], it["sub"]).value != null }
 
     private fun setAside(name: String, raw: String, why: List<String>) {
         android.util.Log.w("Vulcan", "layout: set aside in $name, can't read $why")
@@ -314,6 +351,8 @@ class Store(private val context: Context) {
      * taking a second slot, so restoring back and forth between backups can't push out the last different one.
      */
     fun rotateAutoBackup() {
+        // A stand-in isn't backed up: the backups are what it came from, and the stored text is kept in its set-aside file.
+        if (!layoutReadable) return
         val old = autoBackups.mapNotNull { f -> runCatching { f.readText() to f.lastModified() }.getOrNull() }.toMap()
         val now = export()
         // Unchanged since the newest: it is dated now instead, or the daily check (MainActivity.onStop) would rerun on
@@ -388,7 +427,7 @@ class Store(private val context: Context) {
         if (replacedLayout) usage.edit().clear().commit()
         adoptLaunches()
         // A settings-only file (a style file) still sets them, now on the current layout.
-        adoptPages()
+        adoptPages(restored = true)
         return RestoreResult(replacedLayout, rejected)
     }
 

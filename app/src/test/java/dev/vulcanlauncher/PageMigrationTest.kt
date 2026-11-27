@@ -79,4 +79,33 @@ class PageMigrationTest {
         assertEquals(mapOf("looks" to mapOf("pages" to "3", "cols" to "6")), files)
         assertEquals(mapOf("looks" to mapOf("pages" to "2")), legacyBackupFiles(JSONObject("""{"format":"vulcan-backup-1","looks":{"pages":"2"}}""")).first)
     }
+
+    @Test fun aNewerLayoutWithOldPageKeysWaitsForTheUsersFirstEdit() {
+        // A downgrade: the stored layout is a newer build's, and looks still has page keys from before version 3.
+        val newer = mapOf("items" to """[{"page":0,"x":0,"y":0,"pkg":"n"}]""", "version" to "4", "sub" to "1")
+        val backup = readableBackup(emptyMap(), items, 1, emptyMap(), emptyList(), 4, 2) { "s$it" }.toString()
+        for (launch in 1..2) {
+            val l = loadLayout(newer, sequenceOf(backup), 1)
+            // The backup stands in, with its own page count and default page.
+            assertTrue(l.standIn)
+            assertEquals(PageLayout(items, 4, 2), l.layout)
+            // Nothing automatic writes: the looks keys wait, and the load on start and the sweeps change home only.
+            assertEquals(PageAdoption.WAIT, pageAdoption(newer["version"], readable = false, restored = false))
+            assertEquals(false, savesNow(automatic = true) { false })
+        }
+        // The user's first edit saves the stand-in over the stored text, pages and default page inside it.
+        assertTrue(savesNow(automatic = false) { false })
+        val edited = loadLayout(newer, sequenceOf(backup), 1).layout.addPage()
+        val f = layoutFile(edited.items, 1, edited.pages, edited.defaultPage)
+        val now = loadLayout(f, emptySequence(), 1)
+        assertEquals(false, now.standIn)
+        assertEquals(PageLayout(items, 5, 2), now.layout)
+        // From then on the old looks keys are stale: dropped, not moved over the layout's own.
+        assertEquals(PageAdoption.DROP, pageAdoption(f["version"], readable = true, restored = false))
+        // Before version 3 they are the layout's: moved. A style file's replace the layout's.
+        assertEquals(PageAdoption.MOVE, pageAdoption("2", readable = true, restored = false))
+        assertEquals(PageAdoption.MOVE, pageAdoption(null, readable = true, restored = false))
+        assertEquals(PageAdoption.MOVE, pageAdoption("3", readable = true, restored = true))
+        assertEquals(PageAdoption.WAIT, pageAdoption("4", readable = false, restored = true))
+    }
 }
