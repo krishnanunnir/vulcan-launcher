@@ -69,6 +69,7 @@ class TouchCheck(private val test: Instrumentation) {
         while (MainActivity.running?.get()?.let { !it.isDestroyed && it.hasWindowFocus() } != true && tries++ < 100) SystemClock.sleep(100)
         a = MainActivity.running?.get() ?: error("Launcher activity didn't start")
         val before = a.items.toList()
+        val pagesBefore = a.pageLayout.pages
         try {
             ui { a.workspace.snapTo(0, animate = false) }
             // An icon with its own swipe up (the drawer), in a free cell of the first page.
@@ -156,6 +157,8 @@ class TouchCheck(private val test: Instrumentation) {
 
                 // The real edge swipe, through the system: from page 2, a swipe in from the left edge turns the page back
                 // instead of being taken as Back.
+                // A second page to swipe back from; the page count is put back after.
+                if (a.pages.size < 2) { ui { a.editLayout { it.addPage() }; a.rebuild() }; settle(1500) }
                 if (a.pages.size >= 2) {
                     ui { a.workspace.snapTo(1, animate = false) }; settle()
                     val t = SystemClock.uptimeMillis(); val y = h / 2
@@ -185,7 +188,9 @@ class TouchCheck(private val test: Instrumentation) {
         } catch (e: Throwable) {
             failures++; log.append("ERROR ${e.stackTraceToString()}\n")
         } finally {
-            runCatching { closeAll(); ui { a.editItems { it.clear(); it += before } }; settle() }.onFailure { failures++; log.append("RESTORE ERROR $it\n") }
+            runCatching {
+                closeAll(); ui { a.editLayout { it.copy(pages = pagesBefore) }; a.editItems { it.clear(); it += before }; a.rebuild() }; settle()
+            }.onFailure { failures++; log.append("RESTORE ERROR $it\n") }
         }
         log.append(if (failures == 0) "TOUCH CHECK PASSED\n" else "$failures FAILED\n")
         test.finish(if (failures == 0) Activity.RESULT_OK else Activity.RESULT_CANCELED, Bundle().apply { putString("stream", log.toString()) })
