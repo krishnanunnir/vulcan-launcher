@@ -29,9 +29,10 @@ data class PageLayout(val items: List<Item>, val pages: Int, val defaultPage: In
     /** Pages set in Settings: items on pages that go are moved by [fitItems] when home is built again. */
     fun withPages(n: Int) = PageLayout(items, n.coerceIn(1, MAX_PAGES), defaultPage.coerceIn(0, n.coerceIn(1, MAX_PAGES) - 1))
 
-    /** [settlePages] after a home drag, with the page it removed (-1 for none). */
+    /** [settlePages] after a home drag, with the page it removed (-1 for none); the default page is never removed. */
     fun settleDrag(from: Int?): Pair<PageLayout, Int> {
-        val (kept, n, gone) = settlePages(items, pages, from)
+        // Never the default page: the Home button would land somewhere else, unasked.
+        val (kept, n, gone) = settlePages(items, pages, from?.takeIf { it != default })
         return PageLayout(kept, n, if (gone < 0) default.coerceAtMost(n - 1) else shifted(gone, n)) to gone
     }
 

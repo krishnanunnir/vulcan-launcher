@@ -87,6 +87,14 @@ class PagesTest {
     }
 
     @Test
+    fun dragNeverRemovesTheDefaultPage() {
+        // c dragged off page 2, the default: the page stays, empty, and stays the default.
+        val (l, gone) = PageLayout(listOf(a, b, c.copy(page = 0), d), 3, 2).settleDrag(2)
+        assertEquals(-1, gone)
+        assertEquals(PageLayout(listOf(a, b, c.copy(page = 0), d), 3, 2), l)
+    }
+
+    @Test
     fun imported() {
         // Enough pages for the items, the backup's count when larger, never more than the cap; the dock doesn't count.
         assertEquals(3, importedLayout(listOf(a, c, d), null, 0).pages)
