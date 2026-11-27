@@ -53,8 +53,11 @@ class BoundaryTest {
         fun row(container: Long, screen: Long, x: Double, y: Double = 0.0, sx: Double = 1.0, sy: Double = 1.0) =
             ImportRow(1, "t", "#Intent;component=p/.A;end", container, screen, x, y, sx, sy, 0, 0, 0)
         val l = importToItems(listOf(row(-101, -2, -3.0), row(-100, -5, 1.0), row(-100, 9_000_000_000, 0.0), row(-100, 0, 1.0, 1.0, 0.0, -2.0)), emptyMap(), 5)
-        assertEquals(listOf(-1 to 0, 0 to 1, Int.MAX_VALUE to 0, 0 to 1), l.items.map { it.page to it.x })
+        assertEquals(listOf(-1 to 0, 0 to 1, MAX_CELL to 0, 0 to MAX_CELL), l.items.map { it.page to it.x })
+        // A span of 0 or less is a size of 1, and off the grid for home to move to the first free cell.
         assertEquals(1 to 1, l.items[3].w to l.items[3].h)
+        // A NaN cell (roundToInt throws on it) once failed the whole import: it is off the grid like any bad cell.
+        assertEquals(MAX_CELL, importToItems(listOf(row(-100, 0, Double.NaN, sx = Double.NaN)), emptyMap(), 5).items.single().x)
         // A malformed escape in a shortcut id drops that shortcut, not the import.
         assertNull(intentShortcut("#Intent;package=p;S.shortcut_id=%zz;end"))
     }
