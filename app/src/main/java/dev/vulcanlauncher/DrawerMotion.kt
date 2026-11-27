@@ -38,70 +38,18 @@ internal class DrawerMotion(private val a: MainActivity, private val d: Drawer) 
     /** Finger travel that fully opens or closes the drawer (Launcher3's phones: 300 dp; shorter here, so it's quicker). */
     private fun travel() = 220 * a.dp
 
-    /** A VelocityTracker sample in screen coordinates: the list moves with the sheet, so its own would halve a flick. */
-    fun track(tracker: android.view.VelocityTracker?, ev: MotionEvent) {
-        tracker?.let {
-            val sample = MotionEvent.obtain(ev)
-            sample.setLocation(ev.rawX, ev.rawY)
-            it.addMovement(sample)
-            sample.recycle()
-        }
-    }
-
     /**
-     * A finger pulled down on the list, the search bar, the field or the frequent row: the drawer follows it and
-     * closes on release, or springs back open. [start] gates the pull (the list only pulls from its top); [search], on
-     * the list alone, turns a longer pull into search instead when 'pull to search' is on.
+     * A pull down on the open drawer ([HomeTouch]'s drawer close): [down] px so far, then once more with [end] and the
+     * upward velocity [vy] (px/s). Letting go short of 30% of the way down springs it back open.
      */
-    inner class PullDown(
-        private val start: () -> Boolean = { true },
-        private val search: (() -> Unit)? = null,
-    ) {
-        /** The drawer is following this touch. */
-        var closing = false
-            private set
-        /** This event started the pull, so the view's own touch must be cancelled. */
-        var started = false
-            private set
-        private var downY = 0f
-        private var velocity: android.view.VelocityTracker? = null
-
-        fun handle(ev: MotionEvent): Boolean {
-            started = false
-            if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
-                // Screen coordinates: the list moves with the sheet, so its own would halve the pull.
-                closing = false; downY = ev.rawY
-                velocity?.recycle(); velocity = android.view.VelocityTracker.obtain()
-            }
-            track(velocity, ev)
-            if (!closing) {
-                if (ev.actionMasked == MotionEvent.ACTION_MOVE && ev.rawY - downY > 24 * a.dp && start()) {
-                    if (search != null && a.looks.on("pullToSearch")) {
-                        if (ev.rawY - downY > 96 * a.dp) { downY = Float.MAX_VALUE; search() }
-                    } else {
-                        closing = true; started = true; held = true; downY = ev.rawY; stop()
-                        // As Launcher3, the keyboard goes as the drag down starts, not once the drawer is gone (#73).
-                        d.hideKeyboard()
-                    }
-                }
-                if (!closing) {
-                    if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
-                        velocity?.recycle(); velocity = null
-                    }
-                    return false
-                }
-            }
-            // On release too: the finger's last position decides whether it's past the threshold, even if the last move dropped.
-            if (ev.actionMasked == MotionEvent.ACTION_MOVE || ev.actionMasked == MotionEvent.ACTION_UP)
-                setProgress(1 - (ev.rawY - downY) / travel())
-            if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
-                velocity?.computeCurrentVelocity(1000)
-                release(-(velocity?.yVelocity ?: 0f), 0.7f)
-                velocity?.recycle(); velocity = null
-                closing = false; held = false
-            }
-            return true
+    fun followClose(down: Float, vy: Float, end: Boolean) {
+        if (!held) {
+            held = true; stop()
+            // As Launcher3, the keyboard goes as the drag down starts, not once the drawer is gone (#73).
+            d.hideKeyboard()
         }
+        setProgress(1 - down / travel())
+        if (end) { held = false; release(vy, 0.7f) }
     }
 
     /**
