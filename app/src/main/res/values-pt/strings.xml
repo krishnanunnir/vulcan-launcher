@@ -455,6 +455,7 @@
     <string name="no_room">Não há espaço na tela inicial</string>
     <string name="remove">Remover</string>
     <string name="app_info">Informações do aplicativo</string>
+    <string name="permission_blocked">O Android não solicita mais essa permissão. Conceda-a nas informações do aplicativo, em Permissões.</string>
     <string name="uninstall">Desinstalar</string>
     <string name="added_to_home">Adicionado à tela inicial</string>
     <string name="menu_add">Adicionar</string>
@@ -579,10 +580,15 @@
     <string name="launcher_settings">Configurações do launcher</string>
     <string name="letter_index">Índice de letras</string>
     <string name="a11y_menu">Menu</string>
+    <plurals name="a11y_notifications">
+        <item quantity="one">%d notificação</item>
+        <item quantity="other">%d notificações</item>
+    </plurals>
     <string name="page_of">Página %1$d de %2$d</string>
     <string name="not_launcher_backup">Nenhum banco de dados de launcher neste arquivo; isto é um backup de launcher?</string>
     <string name="not_vulcan_backup">Não é um backup do Vulcan</string>
     <string name="backup_too_large">O arquivo é muito grande para ser um backup</string>
+    <string name="auto_backup_not_saved">O backup automático não pôde ser salvo.</string>
     <string name="restore_not_saved">A configuração restaurada não pôde ser salva</string>
     <string name="app_name" translatable="false">Vulcan</string>
     <string name="badge_service_label">Selos do Vulcan</string>
@@ -655,6 +661,8 @@
     <string name="no_work_profile">Sem perfil de trabalho</string>
     <string name="work_paused">Perfil de trabalho pausado</string>
     <string name="work_resumed">Perfil de trabalho ativo</string>
+    <string name="work_needs_home">Defina o Vulcan como seu aplicativo de início para pausar os aplicativos de trabalho</string>
+    <string name="work_refused">O Android não alterou o perfil de trabalho</string>
     <string name="no_flashlight">Nenhuma lanterna disponível no momento</string>
     <string name="name">Nome</string>
     <string name="backup_panel_save">Salvar</string>
@@ -748,7 +756,7 @@
     <string name="tab_bar_wrap">Quebra de linha</string>
     <string name="names_and_more">%1$s e mais %2$d</string>
     <string name="tabs_in_bar">Na barra de abas</string>
-    <string name="tabs_hint">Arraste uma aba para movê-la. Deslize uma para a esquerda para excluí-la.</string>
+    <string name="tabs_hint">Toque em uma aba para renomear ou mudar a cor. Arraste para mover; deslize para a esquerda para excluir.</string>
     <string name="tab_hidden">Oculta</string>
     <string name="tab_show">Mostrar %s</string>
     <string name="tab_hide">Ocultar %s</string>
