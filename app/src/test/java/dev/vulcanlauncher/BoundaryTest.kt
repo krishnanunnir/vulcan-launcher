@@ -118,4 +118,18 @@ class BoundaryTest {
         for ((v, want) in listOf("0.8" to 0.8f, "0" to 1f, "-2" to 1f, "Infinity" to 1f, "x" to 1f))
             assertEquals(v, want, appfilter("""<resources><scale factor="$v"/></resources>""").scale)
     }
+
+    @Test fun aFileIsWrittenWholeOrNotAtAllAndAFailureIsThrown() { // 9889fb5, 0c1a90d
+        val dir = java.nio.file.Files.createTempDirectory("vulcan").toFile()
+        try {
+            val f = java.io.File(dir, "a.json")
+            f.writeAtomically("one")
+            f.writeAtomically("two")
+            assertEquals("two", f.readText())
+            // A target that can't be replaced (here a directory with a file in it): the caller hears of it, no temp is left.
+            val busy = java.io.File(dir, "busy").apply { mkdir(); java.io.File(this, "x").writeText("x") }
+            org.junit.Assert.assertThrows(java.io.IOException::class.java) { busy.writeAtomically("three") }
+            assertEquals(listOf("a.json", "busy"), dir.list()!!.sorted())
+        } finally { dir.deleteRecursively() }
+    }
 }

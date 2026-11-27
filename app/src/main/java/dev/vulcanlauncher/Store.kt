@@ -284,10 +284,17 @@ class Store(private val context: Context) {
         // every stop while a kept backup that moved to the front shows its old date.
         if (runCatching { autoBackups[0].readText() }.getOrNull() == now) { autoBackups[0].setLastModified(System.currentTimeMillis()); return }
         val texts = rotatedBackups(now, old.keys.toList(), autoBackups.size)
-        // All written whole before any replaces a file: a write cut short (a full disk) must not stand as a backup or lose one.
-        // A kept backup keeps its date: the list in Settings tells them apart by it.
-        texts.zip(autoBackups).map { (text, f) -> File(f.path + ".tmp").apply { writeText(text); old[text]?.let(::setLastModified) } to f }
-            .forEach { (tmp, f) -> check(tmp.renameTo(f)) { context.getString(R.string.auto_backup_not_saved) } }
+        // All written whole and synced before any replaces a file: a write cut short (a full disk) must not stand as a backup
+        // or lose one. A kept backup keeps its date: the list in Settings tells them apart by it.
+        val tmps = autoBackups.take(texts.size).map { File(it.path + ".tmp") }
+        try {
+            texts.zip(tmps).forEach { (text, tmp) -> tmp.writeSynced(text); old[text]?.let(tmp::setLastModified) }
+            tmps.zip(autoBackups).forEach { (tmp, f) -> tmp.moveTo(f) }
+        } catch (e: Exception) {
+            throw IllegalStateException(context.getString(R.string.auto_backup_not_saved), e)
+        } finally {
+            tmps.forEach { it.delete() } // what was moved into place is no longer there; nothing half-written is left behind
+        }
     }
 
     // Lenient: a restored or hand-edited value of the wrong type reads as empty instead of crashing home on every start.
