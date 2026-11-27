@@ -180,7 +180,7 @@ class MainActivity : VulcanActivity() {
         }
         // A widget whose ID is gone (its app uninstalled while Vulcan wasn't running) has no view, but would hold its cells.
         // Read once: if it throws, a second unguarded read would too, and a launcher crashing in onCreate loops.
-        runCatching { host.appWidgetIds.toSet() }.onFailure { android.util.Log.w("Vulcan", "can't list widget IDs", it) }.getOrNull()?.let { ids ->
+        if (store.layoutReadable) runCatching { host.appWidgetIds.toSet() }.onFailure { android.util.Log.w("Vulcan", "can't list widget IDs", it) }.getOrNull()?.let { ids ->
             val kept = keepWidgets(items) { it in ids }
             if (kept != items) { items.clear(); items += kept; save(); render() }
             // Widget IDs no item holds (the process died mid-flow, a pin failed, an undo bar was cut short) still get
@@ -297,7 +297,7 @@ class MainActivity : VulcanActivity() {
             firstFreeSpot(items.filter { !isDock(it.page) }, looks.pages, looks.cols * sub, looks.rows * sub, looks.cols * sub, sub)
                 ?.let { items += it.copy(action = "clock") }
         }
-        save()
+        if (store.layoutReadable) save()
     }
 
     /** Transparent system bars, home drawn behind them and into the notch. */
@@ -682,7 +682,7 @@ class MainActivity : VulcanActivity() {
             reloadItems()
             reload(listOf(pkg))
             // Not twice: a second MainActivity, or an app that was removed and came back, already has its icon.
-            if (looks.on("autoAdd")) repo.activities(pkg, user)
+            if (looks.on("autoAdd") && store.layoutReadable) repo.activities(pkg, user)
                 .filter { app -> items.none { i -> (i.children + i).any { it.pkg == app.pkg && it.cls == app.cls && it.user == app.serial } } }
                 .forEach { addToHome(it, quiet = true) }
         }
@@ -691,7 +691,7 @@ class MainActivity : VulcanActivity() {
         override fun onPackageRemoved(pkg: String, user: UserHandle) {
             reloadItems()
             items = keepWidgets(removePackage(items, pkg, repo.serial(user))) { awm.getAppWidgetInfo(it) != null }.toMutableList()
-            save()
+            if (store.layoutReadable) save()
             reload(listOf(pkg))
         }
         // An update or a component switched on or off: home redraws only if it shows one of the package's apps.
