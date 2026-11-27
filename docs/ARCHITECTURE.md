@@ -34,7 +34,7 @@ Settings are declared once, as `Choice` entries in `LOOKS` (`Looks.kt`): stored 
 
 ## Data flow
 
-1. `items` in `MainActivity` is the single source of truth. Every change edits it, saves it, then re-renders. Only one activity edits it: a second one started outside the home task hands off to the home one and finishes.
+1. `items` in `MainActivity` is the single source of truth. Every change edits it, saves it, then re-renders. Only one activity edits it: a second one started outside the home task hands off to the home one and finishes. A change to pages (add, remove, move, default page, page count) goes through `editLayout` in `Pages.kt`, which stores the items with the `pages` and `defaultPage` settings as one change; nothing else writes those two settings.
 2. Rendering rebuilds the views from `items`; widget views are kept and re-attached so widgets don't reload.
 3. Apps that are missing for now (mid-update, disabled, on an unmounted SD card) are skipped, never deleted. Items are removed only when Android says the package or profile is gone for good.
 4. Items that no longer fit a smaller grid, dock or page count stay stored and come back when it grows.
