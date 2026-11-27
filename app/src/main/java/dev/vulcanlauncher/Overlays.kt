@@ -495,6 +495,14 @@ class ResizeFrame(
         handles(rc).forEachIndexed { i, (x, y) ->
             if (if (i % 2 == 0) canW else canH) canvas.drawCircle(x, y, 9 * a.dp, paint)
         }
+        // A handle by the screen's edge is the frame's, not the back gesture's (#127). Here, not onLayout: resizing moves
+        // the handles without a layout. Set only on change, so no work on most frames.
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            val reach = (32 * a.dp).toInt()
+            val rects = handles(rc).filterIndexed { i, _ -> if (i % 2 == 0) canW else canH }
+                .map { (x, y) -> android.graphics.Rect(x.toInt() - reach, y.toInt() - reach, x.toInt() + reach, y.toInt() + reach) }
+            if (rects != systemGestureExclusionRects) systemGestureExclusionRects = rects
+        }
     }
 
     @SuppressLint("ClickableViewAccessibility")

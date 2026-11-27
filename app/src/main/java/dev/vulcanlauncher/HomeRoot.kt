@@ -57,13 +57,48 @@ class HomeRoot(private val a: MainActivity) : FrameLayout(a) {
         velocity?.addMovement(ev)
         pointer.onEvent(ev)
         val two = ev.pointerCount >= 2
-        touch.feed(Touch(action, pointer.x, pointer.y, ev.eventTime, ev.pointerCount, if (two) ev.getX(1) else 0f, if (two) ev.getY(1) else 0f))
+        touch.feed(Touch(action, pointer.x, pointer.y, ev.eventTime, ev.pointerCount, if (two) ev.getX(1) else 0f, if (two) ev.getY(1) else 0f),
+            blocked = action == MotionEvent.ACTION_DOWN && inGestureStrip(ev))
         val handled = super.dispatchTouchEvent(ev)
         if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
             touch.arbiter.ended(action == MotionEvent.ACTION_UP)
             velocity?.recycle(); velocity = null
         }
         return handled
+    }
+
+    /** Vulcan is the default home: its exclusion rects are exempt from the system's 200 dp cap. Checked on each resume. */
+    var defaultHome = true
+
+    fun checkDefaultHome() {
+        if (android.os.Build.VERSION.SDK_INT >= 29) defaultHome = a.getSystemService(android.app.role.RoleManager::class.java).isRoleHeld(android.app.role.RoleManager.ROLE_HOME)
+    }
+
+    private val band = android.graphics.Rect()
+    private val noRects = emptyList<android.graphics.Rect>()
+
+    // While home shows as it is, an edge swipe is home's (a page turn, the Now page), not Back (#127). Anything open over
+    // it clears the rect, so Back works there. Not the default home, the system caps the rect at 200 dp per edge: a band
+    // centred on the screen. Set only on change, so no work on most frames.
+    private val exclude = android.view.ViewTreeObserver.OnPreDrawListener {
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            val normal = a.overlays.panel == null && a.overlays.menu == null && !a.drawer.visible
+            val band200 = (200 * a.dp).toInt()
+            if (defaultHome) band.set(0, 0, width, height) else band.set(0, (height - band200) / 2, width, (height + band200) / 2)
+            val want = if (normal && width > 0) listOf(band) else noRects
+            if (want != systemGestureExclusionRects) systemGestureExclusionRects = want.map { android.graphics.Rect(it) }
+        }
+        true
+    }
+
+    override fun onAttachedToWindow() { super.onAttachedToWindow(); viewTreeObserver.addOnPreDrawListener(exclude) }
+    override fun onDetachedFromWindow() { viewTreeObserver.removeOnPreDrawListener(exclude); super.onDetachedFromWindow() }
+
+    /** A DOWN in the strips where the system's gestures always win (API 30+): no claimant, the system takes it. */
+    private fun inGestureStrip(ev: MotionEvent): Boolean {
+        if (android.os.Build.VERSION.SDK_INT < 30) return false
+        val m = rootWindowInsets?.getInsets(android.view.WindowInsets.Type.mandatorySystemGestures()) ?: return false
+        return ev.x < m.left || ev.x >= width - m.right || ev.y < m.top || ev.y >= height - m.bottom
     }
 
     // A claimant owns the touch: Android cancels every child that had it.

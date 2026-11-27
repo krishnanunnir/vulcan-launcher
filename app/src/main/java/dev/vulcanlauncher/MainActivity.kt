@@ -575,6 +575,7 @@ class MainActivity : VulcanActivity() {
         resumed = true
         // A copy opened from another launcher before Vulcan became the default one.
         if (handOffToHome()) return
+        (root as? HomeRoot)?.checkDefaultHome()
         updateLocation()
         if (nightChanged()) rebuild()
         refreshWelcome()
