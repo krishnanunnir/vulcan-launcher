@@ -1,0 +1,6 @@
+Import from Lawnchair and Octopi, plus Nova's drawer tabs, hidden apps, gestures and icon shape.
+Drawer search finds unit conversions, numbers, links, settings, calendar events and hidden apps.
+The mic works without Google.
+Custom icons take the icon shape; the All apps tab gets its own name and colour.
+Fixed: icons dragged home on Home, swipes firing while dragging, the work switch.
+Better Portuguese, German and Russian.
