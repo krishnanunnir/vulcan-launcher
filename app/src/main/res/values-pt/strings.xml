@@ -580,7 +580,7 @@
     <string name="letter_index">Índice de letras</string>
     <string name="a11y_menu">Menu</string>
     <string name="page_of">Página %1$d de %2$d</string>
-    <string name="not_launcher_backup">Nenhum banco de dados de launcher neste arquivo; isto é um backup de launcher?</string>
+    <string name="not_launcher_backup">Não é um backup do Nova, Lawnchair ou Octopi</string>
     <string name="not_vulcan_backup">Não é um backup do Vulcan</string>
     <string name="backup_too_large">O arquivo é muito grande para ser um backup</string>
     <string name="restore_not_saved">A configuração restaurada não pôde ser salva</string>
@@ -599,17 +599,9 @@
         <item quantity="one">%1$d pasta criada</item>
         <item quantity="other">%1$d pastas criadas</item>
     </plurals>
-    <plurals name="import_skipped">
-        <item quantity="one">%1$d item não pode ser importado: é exclusivo do Nova ou o aplicativo correspondente não está neste aparelho.</item>
-        <item quantity="other">%1$d itens não podem ser importados: são exclusivos do Nova ou os aplicativos correspondentes não estão neste aparelho.</item>
-    </plurals>
     <plurals name="restore_missing">
         <item quantity="one">%1$d ícone ficou de fora: o aplicativo dele não está instalado. Restaure novamente quando ele for instalado.</item>
         <item quantity="other">%1$d ícones ficaram de fora: os aplicativos deles não estão instalados. Restaure novamente quando eles forem instalados.</item>
-    </plurals>
-    <plurals name="import_items">
-        <item quantity="one">%1$d item substituirá sua tela inicial.</item>
-        <item quantity="other">%1$d itens substituirão sua tela inicial.</item>
     </plurals>
     <plurals name="import_widgets">
         <item quantity="one">%1$d widget retorna após o Android perguntar uma vez.</item>
@@ -691,7 +683,7 @@
         <item quantity="other">Aplicar %1$d configurações deste link? Os itens da sua tela inicial continuam salvos, mas alterações na grade podem movê-los.</item>
     </plurals>
     <string name="import_launcher_backup">Importar de outro launcher</string>
-    <string name="import_launcher_backup_info">Importa uma tela inicial a partir de um arquivo .novabackup</string>
+    <string name="import_launcher_backup_info">Um arquivo de backup do Nova, Lawnchair ou Octopi</string>
     <string name="reset_defaults_info">Remove todas as configurações e todo o layout da tela inicial</string>
     <string name="perm_intro">O Vulcan nunca acessa a internet. Estas opções permitem que ele faça mais, e cada uma funciona apenas após você permitir nas configurações do Android.</string>
     <string name="perm_count">%1$d de %2$d permitidas</string>
@@ -721,16 +713,43 @@
     <string name="welcome_home_set">Definir como aplicativo inicial</string>
     <string name="welcome_not_now">Agora não</string>
     <string name="welcome_setup_title">Traga sua tela inicial</string>
-    <string name="welcome_setup_body">Escolha um backup do Nova e seus aplicativos, pastas, doca, grade e widgets serão importados.</string>
-    <string name="welcome_nova">Importar do Nova</string>
+    <string name="welcome_setup_body">Escolha um backup do Nova, Lawnchair ou Octopi e seus aplicativos, pastas, doca, grade e widgets serão importados.</string>
+    <string name="welcome_import">Importar de outro launcher</string>
     <string name="welcome_restore">Restaurar um backup do Vulcan</string>
     <string name="welcome_fresh">Começar do zero</string>
     <string name="widget_slot_add">Toque para adicionar</string>
     <string name="widget_slot_missing">Aplicativo não instalado</string>
     <string name="widget_slot_missing_toast">O aplicativo deste widget não está instalado</string>
     <string name="widget_slot_describe">Adicionar o widget %1$s</string>
-    <string name="review_title">Sua tela inicial do Nova</string>
+    <string name="review_title">Sua tela inicial do %1$s</string>
     <string name="review_another">Escolher outro arquivo</string>
+    <string name="import_is_vulcan">Isto é um backup do Vulcan: use “Restaurar de um arquivo”.</string>
+    <string name="import_unknown_shape">Parece um backup do %1$s que o Vulcan não consegue ler, talvez de uma versão mais nova do %1$s</string>
+    <string name="import_no_layout">Este backup do %1$s não tem tela inicial</string>
+    <string name="import_nothing">Nenhum aplicativo deste backup está neste aparelho</string>
+    <string name="review_items">Aplicativos, atalhos e pastas onde estavam</string>
+    <plurals name="review_dock">
+        <item quantity="one">Doca: %1$d ícone</item>
+        <item quantity="other">Doca: %1$d ícones</item>
+    </plurals>
+    <plurals name="review_dock_pages">
+        <item quantity="one">Doca: %1$d ícone em %2$d páginas da doca</item>
+        <item quantity="other">Doca: %1$d ícones em %2$d páginas da doca</item>
+    </plurals>
+    <string name="review_grid">Grade %1$d × %2$d</string>
+    <string name="review_grid_half">, meias células</string>
+    <string name="review_grid_drawer">, gaveta de aplicativos com %1$d colunas</string>
+    <string name="review_grid_start">, começa na página %1$d</string>
+    <plurals name="skip_own">
+        <item quantity="one">%1$d não pode ser importado: é exclusivo do %2$s ou o Vulcan não tem lugar para ele</item>
+        <item quantity="other">%1$d não podem ser importados: são exclusivos do %2$s ou o Vulcan não tem lugar para eles</item>
+    </plurals>
+    <plurals name="skip_missing">
+        <item quantity="one">%1$d aplicativo não está neste aparelho</item>
+        <item quantity="other">%1$d aplicativos não estão neste aparelho</item>
+    </plurals>
+    <string name="review_kept">Gestos, pacote de ícones, tema e abas da gaveta ficam como estão</string>
+    <string name="review_newer">Este backup é de uma versão do %1$s mais nova do que o Vulcan conhece. Confira a prévia antes de importar.</string>
     <plurals name="review_apps"><item quantity="one">%1$d aplicativo</item><item quantity="other">%1$d aplicativos</item></plurals>
     <plurals name="review_folders"><item quantity="one">%1$d pasta</item><item quantity="other">%1$d pastas</item></plurals>
     <plurals name="review_widgets"><item quantity="one">%1$d widget</item><item quantity="other">%1$d widgets</item></plurals>

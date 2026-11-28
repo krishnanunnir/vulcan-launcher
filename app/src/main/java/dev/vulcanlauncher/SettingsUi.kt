@@ -849,12 +849,31 @@ fun VulcanActivity.restoreBackup(uri: android.net.Uri, restart: () -> Unit) {
         }.onFailure { toast(R.string.restore_failed, it.message) }
 }
 
-/** One plain paragraph: what replaces home, and what comes back differently or not at all. */
-fun VulcanActivity.importNote(layout: ImportedLayout, lead: Boolean = true, separator: String = " ") = listOfNotNull(
-    if (lead) resources.getQuantityString(R.plurals.import_items, layout.items.size, layout.items.size) else null,
-    if (layout.widgets > 0) resources.getQuantityString(R.plurals.import_widgets, layout.widgets, layout.widgets) else null,
-    if (layout.skipped > 0) resources.getQuantityString(R.plurals.import_skipped, layout.skipped, layout.skipped) else null,
-).joinToString(separator)
+/** The review's list, a line each: what comes over, and what comes back differently or not at all. */
+fun VulcanActivity.importNote(backup: ImportedBackup): String {
+    val layout = backup.layout
+    val s = backup.settings
+    val name = getString(backup.name)
+    fun count(id: Int, n: Int, vararg args: Any) = resources.getQuantityString(id, n, *args)
+    val dock = layout.items.filter { isDock(it.page) }
+    val dockPages = dock.map { it.page }.distinct().size
+    val cols = s["cols"]?.toIntOrNull()
+    val rows = s["rows"]?.toIntOrNull()
+    val grid = if (cols == null || rows == null) null else getString(R.string.review_grid, cols, rows) +
+        (if (layout.subgrid) getString(R.string.review_grid_half) else "") +
+        (s["drawerCols"]?.toIntOrNull()?.let { getString(R.string.review_grid_drawer, it) } ?: "") +
+        (s["defaultPage"]?.toIntOrNull()?.takeIf { it > 0 }?.let { getString(R.string.review_grid_start, it + 1) } ?: "")
+    return listOfNotNull(
+        if (backup.newer) getString(R.string.review_newer, name) else null,
+        if (layout.items.any { !it.isWidgetSlot && !isDock(it.page) }) getString(R.string.review_items) else null,
+        dock.size.takeIf { it > 0 }?.let { if (dockPages > 1) count(R.plurals.review_dock_pages, it, it, dockPages) else count(R.plurals.review_dock, it, it) },
+        grid,
+        if (layout.widgets > 0) count(R.plurals.import_widgets, layout.widgets, layout.widgets) else null,
+        if (layout.skipped > 0) count(R.plurals.skip_own, layout.skipped, layout.skipped, name) else null,
+        if (layout.missing > 0) count(R.plurals.skip_missing, layout.missing, layout.missing) else null,
+        getString(R.string.review_kept),
+    ).joinToString("\n")
+}
 
 /** Stores an imported layout and its grid settings in place of the current ones; home is rebuilt after (restart). */
 fun VulcanActivity.applyImport(layout: ImportedLayout, settings: Map<String, String>) {
@@ -864,7 +883,9 @@ fun VulcanActivity.applyImport(layout: ImportedLayout, settings: Map<String, Str
     // The page count goes with the items, below.
     settings.forEach { (k, v) -> if (k !in PAGE_KEYS) looks[k] = v }
     looks["subgrid"] = if (layout.subgrid) "on" else "off"
-    store.editLayout(if (layout.subgrid) 2 else 1) { importedLayout(layout.items, settings["pages"]?.toIntOrNull(), it.defaultPage) }
+    store.editLayout(if (layout.subgrid) 2 else 1) {
+        importedLayout(layout.items, settings["pages"]?.toIntOrNull(), settings["defaultPage"]?.toIntOrNull() ?: it.defaultPage)
+    }
     if (layout.widgets > 0) store.data.edit().putBoolean(RESTORING_WIDGETS, true).commit()
     // The same pins as these, from what was just stored; it waits for onResume when Vulcan isn't the default home app yet.
     home.repinShortcuts()

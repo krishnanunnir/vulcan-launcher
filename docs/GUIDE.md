@@ -1,6 +1,6 @@
 # Vulcan guide
 
-Everything the [README](../README.md) leaves out: the full feature list, installing, moving from Nova, sharing a style, and what Vulcan can't do.
+Everything the [README](../README.md) leaves out: the full feature list, installing, moving from another launcher, sharing a style, and what Vulcan can't do.
 
 ## The look
 
@@ -42,14 +42,20 @@ the target and the dragged preview turn red before you release.
 
 Long-press an empty spot on the home screen to open **Settings**.
 
-## Coming from Nova
+## Coming from another launcher
 
-You can bring your Nova home screen with you:
+You can bring your home screen with you from Nova, Lawnchair or Octopi:
 
-1. In Nova, open **Nova Settings → Backup & import settings → Backup** and save the file.
-2. The first time Vulcan opens, tap **Bring your Nova home screen** and pick that file. Later, it's in **Settings → Backup & restore → Import a launcher backup (.novabackup)…** (long-press an empty spot on the home screen for Settings).
+1. Save a backup in your old launcher:
+   - **Nova:** Nova Settings → Backup & import settings → Backup.
+   - **Lawnchair:** Lawnchair settings → ⋮ → Create backup, with "Layout and settings" ticked.
+   - **Octopi:** Octopi settings → General → Backup settings, then save a backup (an `OtpLauncher_….zip`).
+2. The first time Vulcan opens, tap **Import from another launcher** and pick that file. Later, it's in **Settings → Backup & restore → Import from another launcher** (long-press an empty spot on the home screen for Settings).
+3. Vulcan works out which launcher the file is from and shows what will come over before anything changes. Tap **Import** to replace your home screen; the old one is kept as an automatic backup.
 
-Your apps, folders, dock, grid size, most shortcuts and widgets come over. Each widget is made new in its old spot: Android asks once whether Vulcan may add widgets, and widgets with options (a clock face, a note) ask for them again. A widget you skip stays as a "Tap to add" spot. Nova's own widgets can't come over.
+Your apps, folders, dock, grid size (with half cells when the old layout used them), most shortcuts and widgets come over. Each widget is made new in its old spot: Android asks once whether Vulcan may add widgets, and widgets with options (a clock face, a note) ask for them again. A widget you skip stays as a "Tap to add" spot.
+
+What stays behind: the old launcher's own widgets and icons (Octopi's "open drawer" button, for one), apps that aren't on this phone, drawer folders and tabs, icon packs, custom icons, gestures, themes and the wallpaper. From Octopi, folders in the dock and widget stacks don't come over either.
 
 ## Share your style
 
@@ -71,7 +77,7 @@ Nova Launcher changed owners in 2022 and again in 2026, and picked up ads, track
 
 ## What it won't do
 
-Anything that needs the network: weather, news, Google Discover, web search suggestions, cloud backup, self-update. Searching the web hands your query to your browser instead. Importing from launchers other than Nova isn't possible either, since their layout databases aren't readable by other apps.
+Anything that needs the network: weather, news, Google Discover, web search suggestions, cloud backup, self-update. Searching the web hands your query to your browser instead. Importing from a launcher other than Nova, Lawnchair or Octopi isn't possible either: a launcher's layout is private to it, so Vulcan can only read the backup files those three save.
 
 ## Known limitations
 

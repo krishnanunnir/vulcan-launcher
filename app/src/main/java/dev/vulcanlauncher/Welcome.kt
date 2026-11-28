@@ -59,7 +59,7 @@ fun MainActivity.showWelcome() {
 }
 
 /** An import from Settings: the same review and widget steps as the first run, over home. */
-fun MainActivity.showImport(picked: Pair<ImportedLayout, Map<String, String>>) {
+fun MainActivity.showImport(picked: ImportedBackup) {
     root.findViewWithTag<View>(WELCOME)?.let(root::removeView)
     addWelcome(WelcomeView(this, picked))
 }
@@ -73,17 +73,22 @@ private fun MainActivity.addWelcome(v: WelcomeView) {
 }
 
 /**
- * A Nova backup, ready for the review: what this phone can't open (Nova's own settings screen, an app or a widget's
- * app not installed here) would vanish from home anyway, so it's left out of the preview and the counts and said not to come over.
- * Null (and said) when the file isn't one.
+ * Another launcher's backup, ready for the review: what this phone can't open (an app or a widget's app not installed
+ * here) would vanish from home anyway, so it's left out of the preview and the counts and said not to come over.
+ * Null (and said) when the file isn't one, or nothing in it can come over.
  */
-fun MainActivity.readForReview(uri: android.net.Uri): Pair<ImportedLayout, Map<String, String>>? =
-    runCatching { readLauncherBackup(this, uri) }
-        .onFailure { toast(getString(R.string.import_failed, it.message)) }
-        .getOrNull()?.let { (layout, settings) ->
-            val kept = layout.items.filter { if (it.isWidgetSlot) widgetFlow.slotProvider(it) != null else it.folder || resolve(it) != null }
-            ImportedLayout(kept, layout.subgrid, layout.skipped + layout.items.size - kept.size) to settings
-        }
+fun MainActivity.readForReview(uri: android.net.Uri): ImportedBackup? {
+    val b = runCatching { readLauncherBackup(this, uri) }.onFailure { toast(getString(R.string.import_failed, it.message)) }.getOrNull() ?: return null
+    val layout = b.layout
+    val kept = layout.items.filter { if (it.isWidgetSlot) widgetFlow.slotProvider(it) != null else it.folder || resolve(it) != null }
+    val problem = when {
+        layout.items.isEmpty() && layout.skipped == 0 -> getString(R.string.import_no_layout, getString(b.name))
+        kept.isEmpty() -> getString(R.string.import_nothing)
+        else -> return ImportedBackup(ImportedLayout(kept, layout.subgrid, layout.skipped, layout.items.size - kept.size), b.settings, b.name, b.newer)
+    }
+    toast(getString(R.string.import_failed, problem))
+    return null
+}
 
 /** Back from Android's home prompt: move on once Vulcan is the home app. */
 fun MainActivity.refreshWelcome() = welcome?.resumed()
@@ -91,7 +96,7 @@ fun MainActivity.refreshWelcome() = welcome?.resumed()
 fun MainActivity.welcomeBack() = welcome?.back()
 
 /** [import]: a Nova backup picked in Settings; the welcome is then just its review (and widget) steps. */
-class WelcomeView(private val a: MainActivity, import: Pair<ImportedLayout, Map<String, String>>? = null) : FrameLayout(a) {
+class WelcomeView(private val a: MainActivity, import: ImportedBackup? = null) : FrameLayout(a) {
     private val dp = a.dp
     private fun px(v: Float) = (v * dp).roundToInt()
     /** Only the import's steps, without hello and setup: started from Settings, or its rebuild for the widget step. */
@@ -105,8 +110,8 @@ class WelcomeView(private val a: MainActivity, import: Pair<ImportedLayout, Map<
         if (import == null && a.store.data.getBoolean(RESTORING_WIDGETS, false) && a.items.any { it.isWidgetSlot }) add("widgets")
         if (isEmpty()) add("widgets") // ponytail: an import-only welcome whose widgets went meanwhile; its Continue just finishes
     }
-    /** The Nova backup picked on "setup", shown on "review" before it replaces anything. */
-    private var picked: Pair<ImportedLayout, Map<String, String>>? = import
+    /** The launcher backup picked on "setup", shown on "review" before it replaces anything. */
+    private var picked: ImportedBackup? = import
     // Becoming the home app relaunches Vulcan, and that step is gone from the list then; a review lost its file. Both
     // carry on from "setup".
     private var at = if (importOnly) 0 else a.store.data.getString(WELCOME_STEP, "")!!.let { saved ->
@@ -245,7 +250,7 @@ class WelcomeView(private val a: MainActivity, import: Pair<ImportedLayout, Map<
                 addView(quiet(R.string.welcome_not_now) { go(at + 1) }, keyParams(gap = 8f, h = 48f))
             }
             else -> {
-                addView(primary(R.string.welcome_nova) { pickNova() }, keyParams())
+                addView(primary(R.string.welcome_import) { pickBackup() }, keyParams())
                 addView(secondary(R.string.welcome_restore) { pick("restore") }, keyParams(gap = 12f))
                 addView(quiet(R.string.welcome_fresh) { finish() }, keyParams(gap = 8f, h = 48f))
             }
@@ -256,8 +261,9 @@ class WelcomeView(private val a: MainActivity, import: Pair<ImportedLayout, Map<
     private fun buildReview() = LinearLayout(a).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
-        val (layout, settings) = picked ?: return@apply
-        addView(title(a.getString(R.string.review_title), 30f))
+        val backup = picked ?: return@apply
+        val (layout, settings) = backup.layout to backup.settings
+        addView(title(a.getString(R.string.review_title, a.getString(backup.name)), 30f))
         addView(LayoutPreview(a, layout, settings["cols"]?.toIntOrNull() ?: a.looks.int("cols"), settings["rows"]?.toIntOrNull() ?: a.looks.int("rows"),
             settings["dockCols"]?.toIntOrNull() ?: a.looks.int("dockCols")), LinearLayout.LayoutParams(-2, -2).apply { topMargin = px(20f) })
         val items = layout.items
@@ -279,9 +285,7 @@ class WelcomeView(private val a: MainActivity, import: Pair<ImportedLayout, Map<
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             gravity = Gravity.CENTER
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(16f) })
-        a.importNote(layout, lead = false, separator = "\n").takeIf { it.isNotEmpty() }?.let { note ->
-            addView(body(note).apply { textSize = 14f }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = px(8f) })
-        }
+        addView(body(a.importNote(backup)).apply { textSize = 14f }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = px(8f) })
         addView(View(a), LinearLayout.LayoutParams(1, 0, 1f))
         addView(primary(R.string.import_) {
             a.applyImport(layout, settings)
@@ -291,11 +295,11 @@ class WelcomeView(private val a: MainActivity, import: Pair<ImportedLayout, Map<
                 a.recreate()
             }
         }, keyParams())
-        addView(quiet(R.string.review_another) { pickNova() }, keyParams(gap = 8f, h = 48f))
+        addView(quiet(R.string.review_another) { pickBackup() }, keyParams(gap = 8f, h = 48f))
     }
 
-    /** A Nova backup from the file picker: read now, so a file that isn't one is said at once, then the review. */
-    private fun pickNova() = pick("nova")
+    /** A launcher backup from the file picker: read now, so a file that isn't one is said at once, then the review. */
+    private fun pickBackup() = pick("nova") // the key stays "nova": a picker answer can come back to an older key
 
     /**
      * The document picker's answer for [key] (see [pick]). By key, not a callback: a launcher restarted while the
@@ -304,7 +308,7 @@ class WelcomeView(private val a: MainActivity, import: Pair<ImportedLayout, Map<
     fun picked(key: String, uri: android.net.Uri): Boolean {
         when (key) {
             "restore" -> a.restoreBackup(uri, ::begin)
-            // A Nova backup: read now, so a file that isn't one is said at once, then the review.
+            // A launcher backup: read now, so a file that isn't one is said at once, then the review.
             "nova" -> a.readForReview(uri)?.let {
                 picked = it
                 if ("review" !in steps) steps += "review"

@@ -39,16 +39,16 @@ Grids, gestures, icon packs, widgets and smart search, with no libraries and no 
 - **Your look:** icon packs, themed icons, shapes, custom icons and labels, folder previews, app launch animations, night mode on a schedule.
 - **Notification badges:** dots, counts or the notification's own picture on app icons.
 - **Now page:** date, music, upcoming events, favourite contacts and cards of your own.
-- **Nova import and backups:** bring your `.novabackup` across, and back up or share your whole setup.
+- **Import and backups:** bring your home screen across from Nova, Lawnchair or Octopi, and back up or share your whole setup.
 - **Private by design:** no internet permission, no ads, no analytics. [What each permission is for](docs/PERMISSIONS.md).
 
 ## Install
 
-Get it from [F-Droid](https://f-droid.org/packages/dev.vulcanlauncher/), [Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/krishnanunnir/vulcan-launcher) or as an [APK](https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk) (Android 8+), then press **Home** and pick **Vulcan → Always**. Coming from Nova? See the [guide](docs/GUIDE.md#coming-from-nova).
+Get it from [F-Droid](https://f-droid.org/packages/dev.vulcanlauncher/), [Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/krishnanunnir/vulcan-launcher) or as an [APK](https://github.com/krishnanunnir/vulcan-launcher/releases/latest/download/vulcan-launcher.apk) (Android 8+), then press **Home** and pick **Vulcan → Always**. Coming from another launcher? See the [guide](docs/GUIDE.md#coming-from-another-launcher).
 
 ## Learn more
 
-- [Guide](docs/GUIDE.md): install options, Nova import, sharing a style, AI-assisted layouts, what Vulcan won't do
+- [Guide](docs/GUIDE.md): install options, importing from another launcher, sharing a style, AI-assisted layouts, what Vulcan won't do
 - [Privacy and permissions](docs/PERMISSIONS.md)
 - [Building from source](docs/BUILDING.md) and [architecture](docs/ARCHITECTURE.md)
 - [Translating](docs/TRANSLATING.md)

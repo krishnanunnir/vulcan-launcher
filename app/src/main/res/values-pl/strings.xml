@@ -579,7 +579,7 @@
     <string name="letter_index">Indeks literowy</string>
     <string name="a11y_menu">Menu</string>
     <string name="page_of">Strona %1$d z %2$d</string>
-    <string name="not_launcher_backup">Brak bazy danych launchera w tym pliku. Czy to na pewno kopia zapasowa launchera?</string>
+    <string name="not_launcher_backup">To nie jest kopia zapasowa z Nova, Lawnchair ani Octopi</string>
     <string name="not_vulcan_backup">To nie jest kopia zapasowa aplikacji Vulcan</string>
     <string name="badge_service_label">Plakietki Vulcan</string>
     <string name="action_service_label">Działania Vulcan</string>
@@ -600,18 +600,6 @@
         <item quantity="few">Utworzono %1$d foldery</item>
         <item quantity="many">Utworzono %1$d folderów</item>
         <item quantity="other">Utworzono %1$d folderu</item>
-    </plurals>
-    <plurals name="import_skipped">
-        <item quantity="one">%1$d element nie może zostać przeniesiony: należy do Nova lub jego aplikacja nie jest zainstalowana na tym telefonie.</item>
-        <item quantity="few">%1$d elementy nie mogą zostać przeniesione: należą do Nova lub ich aplikacje nie są zainstalowane na tym telefonie.</item>
-        <item quantity="many">%1$d elementów nie może zostać przeniesionych: należą do Nova lub ich aplikacje nie są zainstalowane na tym telefonie.</item>
-        <item quantity="other">%1$d elementu nie może zostać przeniesionego: należy do Nova lub jego aplikacja nie jest zainstalowana na tym telefonie.</item>
-    </plurals>
-    <plurals name="import_items">
-        <item quantity="one">%1$d element zastąpi Twój ekran główny.</item>
-        <item quantity="few">%1$d elementy zastąpią Twój ekran główny.</item>
-        <item quantity="many">%1$d elementów zastąpi Twój ekran główny.</item>
-        <item quantity="other">%1$d elementu zastąpi Twój ekran główny.</item>
     </plurals>
     <plurals name="import_widgets">
         <item quantity="one">%1$d widżet wróci, gdy Android poprosi Cię o jednorazowe potwierdzenie.</item>
@@ -699,7 +687,7 @@
         <item quantity="other">Zastosować %1$d ustawienia z tego linku? Elementy ekranu głównego pozostaną zapisane, ale zmiana siatki może je przesunąć.</item>
     </plurals>
     <string name="import_launcher_backup">Importuj z innego launchera</string>
-    <string name="import_launcher_backup_info">Przenosi ekran główny z pliku .novabackup</string>
+    <string name="import_launcher_backup_info">Plik kopii zapasowej z Nova, Lawnchair lub Octopi</string>
     <string name="reset_defaults_info">Usuwa wszystkie ustawienia oraz cały układ ekranu głównego</string>
     <string name="perm_intro">Vulcan nigdy nie łączy się z internetem. Poniższe opcje pozwalają mu na więcej, a każda z nich działa dopiero po wyrażeniu zgody w ustawieniach systemu Android.</string>
     <string name="perm_count">Dozwolone: %1$d z %2$d</string>
@@ -733,16 +721,51 @@
     <string name="welcome_home_set">Ustaw jako aplikację ekranu głównego</string>
     <string name="welcome_not_now">Nie teraz</string>
     <string name="welcome_setup_title">Przenieś swój ekran główny</string>
-    <string name="welcome_setup_body">Wybierz kopię zapasową Nova, aby przenieść aplikacje, foldery, dock, siatkę i widżety.</string>
-    <string name="welcome_nova">Importuj z Nova</string>
+    <string name="welcome_setup_body">Wybierz kopię zapasową z Nova, Lawnchair lub Octopi, aby przenieść aplikacje, foldery, dock, siatkę i widżety.</string>
+    <string name="welcome_import">Importuj z innego launchera</string>
     <string name="welcome_restore">Przywróć kopię zapasową Vulcan</string>
     <string name="welcome_fresh">Zacznij od nowa</string>
     <string name="widget_slot_add">Dotknij, aby dodać</string>
     <string name="widget_slot_missing">Nie zainstalowano aplikacji</string>
     <string name="widget_slot_missing_toast">Aplikacja tego widżetu nie jest zainstalowana</string>
     <string name="widget_slot_describe">Dodaj widżet %1$s</string>
-    <string name="review_title">Twój ekran główny Nova</string>
+    <string name="review_title">Twój ekran główny z %1$s</string>
     <string name="review_another">Wybierz inny plik</string>
+    <string name="import_is_vulcan">To kopia zapasowa Vulcan: użyj opcji „Przywróć z pliku”.</string>
+    <string name="import_unknown_shape">Kopia %1$s, której Vulcan nie umie odczytać, może z nowszej wersji %1$s</string>
+    <string name="import_no_layout">Ta kopia zapasowa %1$s nie zawiera ekranu głównego</string>
+    <string name="import_nothing">Żadnej aplikacji z tej kopii nie ma na tym telefonie</string>
+    <string name="review_items">Aplikacje, skróty i foldery tam, gdzie były</string>
+    <plurals name="review_dock">
+        <item quantity="one">Dock: %1$d ikona</item>
+        <item quantity="few">Dock: %1$d ikony</item>
+        <item quantity="many">Dock: %1$d ikon</item>
+        <item quantity="other">Dock: %1$d ikony</item>
+    </plurals>
+    <plurals name="review_dock_pages">
+        <item quantity="one">Dock: %1$d ikona na %2$d stronach docka</item>
+        <item quantity="few">Dock: %1$d ikony na %2$d stronach docka</item>
+        <item quantity="many">Dock: %1$d ikon na %2$d stronach docka</item>
+        <item quantity="other">Dock: %1$d ikony na %2$d stronach docka</item>
+    </plurals>
+    <string name="review_grid">Siatka %1$d × %2$d</string>
+    <string name="review_grid_half">, połówki komórek</string>
+    <string name="review_grid_drawer">, szuflada aplikacji: %1$d kolumn</string>
+    <string name="review_grid_start">, zaczyna od strony %1$d</string>
+    <plurals name="skip_own">
+        <item quantity="one">%1$d element nie może zostać przeniesiony: należy do %2$s lub Vulcan nie ma na niego miejsca</item>
+        <item quantity="few">%1$d elementy nie mogą zostać przeniesione: należą do %2$s lub Vulcan nie ma na nie miejsca</item>
+        <item quantity="many">%1$d elementów nie może zostać przeniesionych: należą do %2$s lub Vulcan nie ma na nie miejsca</item>
+        <item quantity="other">%1$d elementu nie może zostać przeniesionego: należy do %2$s lub Vulcan nie ma na niego miejsca</item>
+    </plurals>
+    <plurals name="skip_missing">
+        <item quantity="one">Na tym telefonie brakuje %1$d aplikacji</item>
+        <item quantity="few">Na tym telefonie brakuje %1$d aplikacji</item>
+        <item quantity="many">Na tym telefonie brakuje %1$d aplikacji</item>
+        <item quantity="other">Na tym telefonie brakuje %1$d aplikacji</item>
+    </plurals>
+    <string name="review_kept">Gesty, pakiet ikon, motyw i karty szuflady pozostają bez zmian</string>
+    <string name="review_newer">Ta kopia zapasowa pochodzi z nowszej wersji %1$s, niż zna Vulcan. Sprawdź podgląd przed importem.</string>
     <plurals name="review_apps">
         <item quantity="one">%1$d aplikacja</item>
         <item quantity="few">%1$d aplikacje</item>

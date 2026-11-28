@@ -230,7 +230,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="no_room">Kein Platz auf dem Startbildschirm</string>
     <string name="no_web_search_app">Keine App für die Websuche verfügbar</string>
     <string name="none">Keine</string>
-    <string name="not_launcher_backup">Keine Launcher-Datenbank in dieser Datei; ist es eine Launcher-Sicherung?</string>
+    <string name="not_launcher_backup">Keine Sicherung von Nova, Lawnchair oder Octopi</string>
     <string name="not_used_by_bg">Wird vom Hintergrund „%1$s“ nicht verwendet</string>
     <string name="panels_amoled">Bei der Theme-Farbe AMOLED-Schwarz bleiben Panels immer dunkel</string>
     <string name="not_vulcan_backup">Keine Vulcan-Sicherung</string>
@@ -493,7 +493,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="restore_auto_confirm">Layout und Einstellungen durch die automatische Sicherung vom %1$s ersetzen?</string>
     <string name="restore">Wiederherstellen</string>
     <string name="import_launcher_backup">Aus anderem Launcher importieren</string>
-    <string name="import_launcher_backup_info">Übernimmt einen Startbildschirm aus einer .novabackup-Datei</string>
+    <string name="import_launcher_backup_info">Eine Sicherungsdatei von Nova, Lawnchair oder Octopi</string>
     <string name="reset_defaults_info">Entfernt alle Einstellungen und das gesamte Startbildschirm-Layout</string>
     <string name="perm_intro">Vulcan geht nie online. Mit diesen Berechtigungen kann Vulcan mehr. Jede wird erst wirksam, wenn du sie in den Android-Einstellungen erlaubst.</string>
     <string name="perm_count">%1$d von %2$d erlaubt</string>
@@ -644,15 +644,42 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="favourites">Favoriten</string>
     <string name="in_groups">In %1$s</string>
     <string name="accessibility_text">Vulcan verwendet die AccessibilityService-API nur, wenn du eine Geste oder Verknüpfung auslöst, um den Bildschirm zu sperren oder die zuletzt verwendeten Apps, Benachrichtigungen, Schnelleinstellungen oder das Ein/Aus-Menü zu öffnen.\n\nDer Dienst liest keine Bildschirminhalte, zeichnet deine Interaktionen nicht auf und sammelt oder teilt keine personenbezogenen Daten. Er führt nur die von dir angeforderte Aktion aus. Der Zugriff ist optional; der restliche Launcher funktioniert auch ohne ihn. Du kannst den Dienst jederzeit in den Android-Einstellungen unter „Bedienungshilfen“ deaktivieren.\n\nTippe auf „Zustimmen und Einstellungen öffnen“, um fortzufahren, und aktiviere anschließend die Vulcan-Aktionen.</string>
-    <string name="review_title">Dein Nova-Startbildschirm</string>
+    <string name="review_title">Dein %1$s-Startbildschirm</string>
     <string name="review_another">Andere Datei wählen</string>
+    <string name="import_is_vulcan">Das ist eine Vulcan-Sicherung: Nutze „Aus Datei wiederherstellen“.</string>
+    <string name="import_unknown_shape">Sieht nach einer %1$s-Sicherung aus, die Vulcan nicht lesen kann, vielleicht von einer neueren %1$s-Version</string>
+    <string name="import_no_layout">Diese %1$s-Sicherung enthält keinen Startbildschirm</string>
+    <string name="import_nothing">Keine App aus dieser Sicherung ist auf diesem Telefon</string>
+    <string name="review_items">Apps, Verknüpfungen und Ordner an ihrem alten Platz</string>
+    <plurals name="review_dock">
+        <item quantity="one">Dock: %1$d Symbol</item>
+        <item quantity="other">Dock: %1$d Symbole</item>
+    </plurals>
+    <plurals name="review_dock_pages">
+        <item quantity="one">Dock: %1$d Symbol auf %2$d Dock-Seiten</item>
+        <item quantity="other">Dock: %1$d Symbole auf %2$d Dock-Seiten</item>
+    </plurals>
+    <string name="review_grid">Raster %1$d × %2$d</string>
+    <string name="review_grid_half">, halbe Zellen</string>
+    <string name="review_grid_drawer">, App-Drawer mit %1$d Spalten</string>
+    <string name="review_grid_start">, beginnt auf Seite %1$d</string>
+    <plurals name="skip_own">
+        <item quantity="one">%1$d kann nicht übernommen werden: gehört zu %2$s selbst, oder Vulcan hat keinen Platz dafür</item>
+        <item quantity="other">%1$d können nicht übernommen werden: gehören zu %2$s selbst, oder Vulcan hat keinen Platz dafür</item>
+    </plurals>
+    <plurals name="skip_missing">
+        <item quantity="one">%1$d App ist nicht auf diesem Telefon</item>
+        <item quantity="other">%1$d Apps sind nicht auf diesem Telefon</item>
+    </plurals>
+    <string name="review_kept">Gesten, Symbolpaket, Design und Drawer-Tabs bleiben, wie sie sind</string>
+    <string name="review_newer">Diese Sicherung stammt von einer neueren %1$s-Version, als Vulcan kennt. Prüfe die Vorschau vor dem Import.</string>
     <string name="welcome_tagline">Ein Startbildschirm ohne Internetzugriff. Alles, was Vulcan tut, bleibt auf deinem Telefon.</string>
     <string name="welcome_begin">Loslegen</string>
     <string name="welcome_fresh">Neu anfangen</string>
-    <string name="welcome_nova">Aus Nova importieren</string>
+    <string name="welcome_import">Aus anderem Launcher importieren</string>
     <string name="welcome_restore">Vulcan-Sicherung wiederherstellen</string>
     <string name="welcome_setup_title">Bring deinen Startbildschirm mit</string>
-    <string name="welcome_setup_body">Wähle eine Nova-Sicherung – Apps, Ordner, Dock, Raster und Widgets werden dann übernommen.</string>
+    <string name="welcome_setup_body">Wähle eine Sicherung von Nova, Lawnchair oder Octopi – Apps, Ordner, Dock, Raster und Widgets werden dann übernommen.</string>
     <string name="welcome_home_title">Mach Vulcan zu deinem Startbildschirm</string>
     <string name="welcome_home_body">Vulcan wird geöffnet, wenn du die Home-Taste drückst. In den Android-Einstellungen kannst du jederzeit wieder zu deinem bisherigen Startbildschirm wechseln.</string>
     <string name="welcome_home_set">Als Startbildschirm-App festlegen</string>
@@ -665,14 +692,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="widget_slot_describe">Widget %1$s hinzufügen</string>
     <string name="widget_slot_missing">App nicht installiert</string>
     <string name="widget_slot_missing_toast">Die App für dieses Widget ist nicht installiert</string>
-    <plurals name="import_skipped">
-        <item quantity="one">%1$d Element kann nicht übernommen werden: Es stammt von Nova selbst oder die zugehörige App ist auf diesem Telefon nicht installiert.</item>
-        <item quantity="other">%1$d Elemente können nicht übernommen werden: Sie stammen von Nova selbst oder die zugehörigen Apps sind auf diesem Telefon nicht installiert.</item>
-    </plurals>
-    <plurals name="import_items">
-        <item quantity="one">Dein Startbildschirm wird durch %1$d Element ersetzt.</item>
-        <item quantity="other">Dein Startbildschirm wird durch %1$d Elemente ersetzt.</item>
-    </plurals>
     <plurals name="import_widgets">
         <item quantity="one">Nach der einmaligen Berechtigungsabfrage durch Android wird %1$d Widget wiederhergestellt.</item>
         <item quantity="other">Nach der einmaligen Berechtigungsabfrage durch Android werden %1$d Widgets wiederhergestellt.</item>

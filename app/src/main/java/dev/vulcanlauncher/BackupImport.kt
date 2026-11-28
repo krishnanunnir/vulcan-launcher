@@ -1,18 +1,16 @@
 package dev.vulcanlauncher
 
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import java.io.ByteArrayOutputStream
-import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.zip.ZipInputStream
 import kotlin.math.roundToInt
 
-// Importing another launcher's backup (.novabackup): a zip holding an SQLite database with a Launcher3-style
-// `favorites` table plus `workspaceScreens`, and a preferences XML with the grid settings (see docs/nova-reference.md).
+// Importing another launcher's backup: the shared part. Each format (ImportFavorites.kt, ImportInfoPb.kt, ImportJsonTables.kt)
+// reads its files into Launcher3-style rows; [importToItems] turns them into Vulcan items.
 
 /** One `favorites` row. [container]: -100 desktop, -101 dock, otherwise the _id of the folder it is in. */
 data class ImportRow(
@@ -52,8 +50,11 @@ const val RESTORING_WIDGETS = "restoringWidgets"
 /** In Store.data: set by a restore or import made while Vulcan isn't the default home app, until its shortcuts are pinned (#103). */
 const val REPIN_SHORTCUTS = "repinShortcuts"
 
-/** Result of converting an imported layout: items, whether it uses half cells, and how many rows couldn't be brought over. */
-class ImportedLayout(val items: List<Item>, val subgrid: Boolean, val skipped: Int) {
+/**
+ * Result of converting an imported layout: items, whether it uses half cells, how many rows couldn't be brought over (the
+ * other launcher's own, or nothing in Vulcan to hold them) and how many were left out as their app isn't on this phone.
+ */
+class ImportedLayout(val items: List<Item>, val subgrid: Boolean, val skipped: Int, val missing: Int = 0) {
     val widgets get() = items.count { it.isWidgetSlot }
 }
 
@@ -106,17 +107,26 @@ fun importToItems(rows: List<ImportRow>, screenRank: Map<Long, Int>, dockCols: I
 /** A cell or span from a backup row, in whole cells: NaN (which roundToInt throws on) is -1, off the grid. */
 private fun cell(d: Double) = if (d.isNaN()) -1 else d.roundToInt()
 
-/** Vulcan settings from the backup's preferences XML (only the grid and page settings carry over). */
-fun importedPrefs(xml: String): Map<String, String> {
-    val values = Regex("<(?:int|string|long)\\s+name=\"([^\"]+)\"(?:\\s+value=\"([^\"]*)\"\\s*/>|>([^<]*)</string>)").findAll(xml)
+/** A SharedPreferences XML file's int, long and string values by name. */
+fun prefValues(xml: String): Map<String, String> =
+    Regex("<(?:int|string|long)\\s+name=\"([^\"]+)\"(?:\\s+value=\"([^\"]*)\"\\s*/>|>([^<]*)</string>)").findAll(xml)
         .associate { m -> m.groupValues[1] to (m.groupValues[2].ifEmpty { m.groupValues[3] }) }
+
+/**
+ * Vulcan setting [ours] set to [n], kept within what the setting allows (a value outside it shows wrong in settings and is
+ * refused by a later restore); null for no number.
+ */
+fun setting(ours: String, n: Int?): Pair<String, String>? {
+    val allowed = choiceOf(ours)!!.values
+    return n?.let { ours to it.coerceIn(allowed.first().toInt(), allowed.last().toInt()).toString() }
+}
+
+/** Vulcan settings from a favorites backup's preferences XML (only the grid and page settings carry over). */
+fun importedPrefs(xml: String): Map<String, String> {
+    val values = prefValues(xml)
     val map = mapOf("desktop_grid_cols" to "cols", "desktop_grid_rows" to "rows", "desktop_page_count" to "pages",
         "dock_grid_cols" to "dockCols", "dock_pages_count" to "dockPages", "drawer_app_grid_cols" to "drawerCols", "drawer_app_grid_rows" to "drawerRows")
-    // Kept within what the setting allows: a value outside it shows wrong in settings and is refused by a later restore.
-    return map.mapNotNull { (theirs, ours) ->
-        val allowed = choiceOf(ours)!!.values
-        values[theirs]?.toIntOrNull()?.let { ours to it.coerceIn(allowed.first().toInt(), allowed.last().toInt()).toString() }
-    }.toMap()
+    return map.mapNotNull { (theirs, ours) -> setting(ours, values[theirs]?.toIntOrNull()) }.toMap()
 }
 
 /** More than any backup holds: a picked file is read on the main thread, so a bigger one (or a zip bomb) is refused. */
@@ -139,55 +149,76 @@ fun InputStream.readAtMost(max: Long, tooLarge: String): ByteArray = ByteArrayOu
 /** More rows or zip entries than any launcher backup has: a file with more entries is refused, rows past it are left out, not read for minutes on the main thread. */
 const val MAX_IMPORT_ROWS = 5000
 
-/** Reads a .novabackup chosen by the user. Throws with a readable message when the file isn't one. */
-fun readLauncherBackup(context: Context, uri: Uri): Pair<ImportedLayout, Map<String, String>> {
-    val dir = File(context.cacheDir, "launcher-import").apply { deleteRecursively(); mkdirs() }
-    var db: File? = null
-    var prefs = ""
-    val tooLarge = context.getString(R.string.backup_too_large)
-    // A budget for everything unpacked, entries skipped included (they're unpacked to move past them), so no entry is an
-    // uncapped zip bomb; roomier than one entry's cap, as a backup can also hold a wallpaper and icons.
+/** A launcher backup's files by base name (no path from the archive is ever used), only those a format reads. */
+class BackupArchive(val files: Map<String, ByteArray>, /** Not a zip but a JSON text: a Vulcan backup picked here. */ val isJson: Boolean = false) {
+    operator fun get(name: String) = files[name]
+    operator fun contains(name: String) = name in files
+    /** The text of the first file whose name ends with [suffix], or "". */
+    fun text(suffix: String) = files.entries.firstOrNull { it.key.endsWith(suffix) }?.value?.decodeToString().orEmpty()
+}
+
+/** Entries a format may read; anything else (icons, wallpapers, screenshots) is passed over unread. */
+private fun wanted(name: String) = name == "info.pb" || listOf(".db", ".xml", ".txt", ".preferences_pb").any(name::endsWith)
+
+/**
+ * Reads a picked file as a backup archive, within the caps: [MAX_BACKUP_BYTES] an entry, four times that for everything
+ * unpacked (skipped entries included, as they're unpacked to move past them), [MAX_IMPORT_ROWS] entries. Throws an
+ * [IOException] with [tooLarge] past them. A file that isn't a zip comes back empty.
+ */
+fun readArchive(input: InputStream, tooLarge: String): BackupArchive {
+    val buffered = java.io.BufferedInputStream(input)
+    buffered.mark(64)
+    val head = ByteArray(64).let { it.copyOf(maxOf(0, buffered.read(it))) }
+    buffered.reset()
+    if (head.decodeToString().trimStart().startsWith("{")) return BackupArchive(emptyMap(), isJson = true)
+    val files = LinkedHashMap<String, ByteArray>()
     var left = 4 * MAX_BACKUP_BYTES
     val skip = object : OutputStream() { override fun write(b: Int) {}; override fun write(b: ByteArray, off: Int, len: Int) {} }
-    ZipInputStream(context.contentResolver.openInputStream(uri)!!).use { zip ->
+    ZipInputStream(buffered).use { zip ->
         for (count in 0..MAX_IMPORT_ROWS) {
             if (count == MAX_IMPORT_ROWS) throw IOException(tooLarge)
             val e = zip.nextEntry ?: break
-            val name = e.name.substringAfterLast('/')
+            val name = e.name.substringAfterLast('/').substringAfterLast('\\')
             fun copy(out: OutputStream) { left -= zip.copyAtMost(out, minOf(MAX_BACKUP_BYTES, left), tooLarge) }
-            when {
-                e.isDirectory -> {}
-                name.endsWith(".db") && (db == null || name == "backup.db" || name == "launcher.db") ->
-                    db = File(dir, "import.db").apply { outputStream().use(::copy) }
-                name.endsWith("preferences.xml") -> prefs = ByteArrayOutputStream().also(::copy).toByteArray().decodeToString()
-                else -> copy(skip)
-            }
+            if (!e.isDirectory && wanted(name) && name !in files) files[name] = ByteArrayOutputStream().also(::copy).toByteArray()
+            else copy(skip)
         }
     }
-    val file = db ?: error(context.getString(R.string.not_launcher_backup))
-    try {
-        SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY).use { sql ->
-            val ranks = HashMap<Long, Int>()
-            runCatching {
-                sql.rawQuery("SELECT _id, screenRank FROM workspaceScreens ORDER BY screenRank", null).use { c ->
-                    var i = 0
-                    while (c.moveToNext()) ranks[c.getLong(0)] = i++
-                }
-            }
-            val rows = ArrayList<ImportRow>()
-            sql.rawQuery("SELECT * FROM favorites LIMIT $MAX_IMPORT_ROWS", null).use { c ->
-                fun s(n: String) = c.getColumnIndex(n).let { if (it < 0 || c.isNull(it)) "" else c.getString(it) }
-                fun d(n: String) = c.getColumnIndex(n).let { if (it < 0 || c.isNull(it)) 0.0 else c.getDouble(it) }
-                fun l(n: String, def: Long = 0) = c.getColumnIndex(n).let { if (it < 0 || c.isNull(it)) def else c.getLong(it) }
-                while (c.moveToNext()) rows += ImportRow(l("_id"), s("title"), s("intent"), l("container"), l("screen"),
-                    d("cellX"), d("cellY"), d("spanX").takeIf { it > 0 } ?: 1.0, d("spanY").takeIf { it > 0 } ?: 1.0,
-                    l("itemType").toInt(), l("profileId", -1), l("rank").toInt(), s("appWidgetProvider"))
-            }
-            val settings = importedPrefs(prefs)
-            val layout = importToItems(rows, ranks, settings["dockCols"]?.toInt() ?: 5)
-            return layout to settings
-        }
-    } finally {
-        dir.deleteRecursively()
+    return BackupArchive(files)
+}
+
+/** What an import read: the layout, Vulcan settings, the launcher's name (R.string) and whether it came from a newer version than this reads. */
+class ImportedBackup(val layout: ImportedLayout, val settings: Map<String, String>, val name: Int, val newer: Boolean = false)
+
+/** A problem to tell the user as it is, not as "can't read this file". */
+class ImportProblem(message: String) : Exception(message)
+
+/**
+ * One launcher's backup file. A new launcher is one object reading its files into [ImportRow]s (or [Item]s) and a line in
+ * [BACKUP_FORMATS]; everything after (the review, the widgets, storing it) is shared.
+ */
+interface BackupFormat {
+    /** The launcher's name, shown in the review. */
+    val name: Int
+    /** Whether [archive] is this format's, from its entries alone. */
+    fun matches(archive: BackupArchive): Boolean
+    /** Throws [ImportProblem] to say what's wrong; anything else is reported as a file of this kind it can't read. */
+    fun read(context: Context, archive: BackupArchive): ImportedBackup
+}
+
+/** In order: the first that matches reads the file (a favorites database is last, as other formats hold one too). */
+val BACKUP_FORMATS = listOf<BackupFormat>(InfoPbFormat, JsonTablesFormat, FavoritesFormat)
+
+/** Reads another launcher's backup chosen by the user. Throws with a readable message when it isn't one. */
+fun readLauncherBackup(context: Context, uri: Uri): ImportedBackup {
+    val archive = context.contentResolver.openInputStream(uri)!!.use { readArchive(it, context.getString(R.string.backup_too_large)) }
+    if (archive.isJson) throw ImportProblem(context.getString(R.string.import_is_vulcan))
+    val format = BACKUP_FORMATS.firstOrNull { it.matches(archive) } ?: throw ImportProblem(context.getString(R.string.not_launcher_backup))
+    return try {
+        format.read(context, archive)
+    } catch (e: ImportProblem) {
+        throw e
+    } catch (e: Exception) {
+        throw ImportProblem(context.getString(R.string.import_unknown_shape, context.getString(format.name)))
     }
 }

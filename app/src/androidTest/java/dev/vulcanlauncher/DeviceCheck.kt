@@ -22,19 +22,22 @@ import kotlin.math.sin
 class DeviceCheck : Instrumentation() {
     private var mode = "gestures"
     private var issueCases = ""
+    private var importFile = "test.novabackup"
 
     override fun onCreate(arguments: Bundle?) {
         super.onCreate(arguments)
         mode = arguments?.getString("check") ?: "gestures"
         issueCases = arguments?.getString("cases").orEmpty()
+        importFile = arguments?.getString("file") ?: "test.novabackup"
         start()
     }
 
-    /** -e check import: reads files/test.novabackup (copied in with run-as) through the real import code. */
+    /** -e check import [-e file name]: reads files/test.novabackup (or the named file, copied in with run-as) through the real import code. */
     private fun importCheck() {
-        val f = java.io.File(targetContext.filesDir, "test.novabackup")
-        val (layout, prefs) = readLauncherBackup(targetContext, android.net.Uri.fromFile(f))
-        log.append("prefs=$prefs subgrid=${layout.subgrid} skipped=${layout.skipped}\n")
+        val f = java.io.File(targetContext.filesDir, importFile)
+        val b = readLauncherBackup(targetContext, android.net.Uri.fromFile(f))
+        val layout = b.layout
+        log.append("format=${targetContext.getString(b.name)} newer=${b.newer} prefs=${b.settings} subgrid=${layout.subgrid} skipped=${layout.skipped}\n")
         layout.items.forEach { log.append("item page=${it.page} x=${it.x} y=${it.y} ${it.w}x${it.h} pkg=${it.pkg} cls=${it.cls} sc=${it.shortcutId} folder=${it.label.takeIf { _ -> it.folder }} children=${it.children.map { c -> c.pkg + (if (c.isShortcut) ":" + c.shortcutId else "") }}\n") }
         finish(Activity.RESULT_OK, Bundle().apply { putString("stream", log.toString()) })
     }

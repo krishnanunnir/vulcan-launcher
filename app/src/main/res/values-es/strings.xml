@@ -573,7 +573,7 @@
     <string name="letter_index">Índice alfabético</string>
     <string name="a11y_menu">Menú</string>
     <string name="page_of">Página %1$d de %2$d</string>
-    <string name="not_launcher_backup">Este archivo no contiene ninguna base de datos de launcher. ¿Es una copia de seguridad de un launcher?</string>
+    <string name="not_launcher_backup">No es una copia de seguridad de Nova, Lawnchair u Octopi</string>
     <string name="not_vulcan_backup">No es una copia de seguridad de Vulcan</string>
     <string name="badge_service_label">Insignias de Vulcan</string>
     <string name="action_service_label">Acciones de Vulcan</string>
@@ -591,16 +591,6 @@
         <item quantity="one">%1$d carpeta creada</item>
         <item quantity="other">%1$d carpetas creadas</item>
         <item quantity="many">%1$d carpetas creadas</item>
-    </plurals>
-    <plurals name="import_skipped">
-        <item quantity="one">%1$d elemento no se puede traer: es propio de Nova o su aplicación no está en este teléfono.</item>
-        <item quantity="other">%1$d elementos no se pueden traer: son propios de Nova o su aplicación no está en este teléfono.</item>
-        <item quantity="many">%1$d elementos no se pueden traer: son propios de Nova o su aplicación no está en este teléfono.</item>
-    </plurals>
-    <plurals name="import_items">
-        <item quantity="one">%1$d elemento sustituirá tu pantalla de inicio.</item>
-        <item quantity="other">%1$d elementos sustituirán tu pantalla de inicio.</item>
-        <item quantity="many">%1$d elementos sustituirán tu pantalla de inicio.</item>
     </plurals>
     <plurals name="import_widgets">
         <item quantity="one">%1$d widget volverá después de que Android te pregunte una vez.</item>
@@ -685,7 +675,7 @@
         <item quantity="many">¿Aplicar %1$d ajustes de este enlace? Los elementos de tu pantalla de inicio se conservan, aunque los cambios en la cuadrícula pueden moverlos.</item>
     </plurals>
     <string name="import_launcher_backup">Importar desde otro launcher</string>
-    <string name="import_launcher_backup_info">Trae una pantalla de inicio desde un archivo .novabackup</string>
+    <string name="import_launcher_backup_info">Un archivo de copia de seguridad de Nova, Lawnchair u Octopi</string>
     <string name="reset_defaults_info">Borra todos los ajustes y todo el diseño de la pantalla de inicio</string>
     <string name="perm_intro">Vulcan nunca se conecta a internet. Estos permisos le permiten hacer más cosas, y cada uno solo funciona después de que lo concedas en los ajustes de Android.</string>
     <string name="perm_count">%1$d de %2$d permitidos</string>
@@ -717,16 +707,47 @@
     <string name="welcome_home_set">Usar como aplicación de inicio</string>
     <string name="welcome_not_now">Ahora no</string>
     <string name="welcome_setup_title">Trae tu pantalla de inicio</string>
-    <string name="welcome_setup_body">Elige una copia de seguridad de Nova y se traerán tus aplicaciones, carpetas, dock, cuadrícula y widgets.</string>
-    <string name="welcome_nova">Importar desde Nova</string>
+    <string name="welcome_setup_body">Elige una copia de seguridad de Nova, Lawnchair u Octopi y se traerán tus aplicaciones, carpetas, dock, cuadrícula y widgets.</string>
+    <string name="welcome_import">Importar desde otro launcher</string>
     <string name="welcome_restore">Restaurar una copia de seguridad de Vulcan</string>
     <string name="welcome_fresh">Empezar de cero</string>
     <string name="widget_slot_add">Toca para añadir</string>
     <string name="widget_slot_missing">Aplicación no instalada</string>
     <string name="widget_slot_missing_toast">La aplicación de este widget no está instalada</string>
     <string name="widget_slot_describe">Añadir el widget de %1$s</string>
-    <string name="review_title">Tu pantalla de inicio de Nova</string>
+    <string name="review_title">Tu pantalla de inicio de %1$s</string>
     <string name="review_another">Elegir otro archivo</string>
+    <string name="import_is_vulcan">Es una copia de seguridad de Vulcan: usa «Restaurar desde un archivo».</string>
+    <string name="import_unknown_shape">Parece una copia de %1$s que Vulcan no puede leer, quizá de una versión más reciente de %1$s</string>
+    <string name="import_no_layout">Esta copia de seguridad de %1$s no tiene pantalla de inicio</string>
+    <string name="import_nothing">Ninguna aplicación de esta copia está en este teléfono</string>
+    <string name="review_items">Aplicaciones, accesos directos y carpetas donde estaban</string>
+    <plurals name="review_dock">
+        <item quantity="one">Dock: %1$d icono</item>
+        <item quantity="many">Dock: %1$d iconos</item>
+        <item quantity="other">Dock: %1$d iconos</item>
+    </plurals>
+    <plurals name="review_dock_pages">
+        <item quantity="one">Dock: %1$d icono en %2$d páginas del dock</item>
+        <item quantity="many">Dock: %1$d iconos en %2$d páginas del dock</item>
+        <item quantity="other">Dock: %1$d iconos en %2$d páginas del dock</item>
+    </plurals>
+    <string name="review_grid">Cuadrícula %1$d × %2$d</string>
+    <string name="review_grid_half">, medias celdas</string>
+    <string name="review_grid_drawer">, cajón de aplicaciones de %1$d columnas</string>
+    <string name="review_grid_start">, empieza en la página %1$d</string>
+    <plurals name="skip_own">
+        <item quantity="one">%1$d no se puede traer: es propio de %2$s o Vulcan no tiene sitio para él</item>
+        <item quantity="many">%1$d no se pueden traer: son propios de %2$s o Vulcan no tiene sitio para ellos</item>
+        <item quantity="other">%1$d no se pueden traer: son propios de %2$s o Vulcan no tiene sitio para ellos</item>
+    </plurals>
+    <plurals name="skip_missing">
+        <item quantity="one">%1$d aplicación no está en este teléfono</item>
+        <item quantity="many">%1$d aplicaciones no están en este teléfono</item>
+        <item quantity="other">%1$d aplicaciones no están en este teléfono</item>
+    </plurals>
+    <string name="review_kept">Los gestos, el paquete de iconos, el tema y las pestañas del cajón se quedan como están</string>
+    <string name="review_newer">Esta copia de seguridad es de una versión de %1$s más reciente de las que Vulcan conoce. Revisa la vista previa antes de importar.</string>
     <plurals name="review_apps"><item quantity="one">%1$d aplicación</item><item quantity="other">%1$d aplicaciones</item><item quantity="many">%1$d aplicaciones</item></plurals>
     <plurals name="review_folders"><item quantity="one">%1$d carpeta</item><item quantity="other">%1$d carpetas</item><item quantity="many">%1$d carpetas</item></plurals>
     <plurals name="review_widgets"><item quantity="one">%1$d widget</item><item quantity="other">%1$d widgets</item><item quantity="many">%1$d widgets</item></plurals>

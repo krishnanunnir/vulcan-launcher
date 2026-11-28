@@ -605,7 +605,7 @@
         <item quantity="other">%d notifications</item>
     </plurals>
     <string name="page_of">Page %1$d of %2$d</string>
-    <string name="not_launcher_backup">No launcher database in this file; is it a launcher backup?</string>
+    <string name="not_launcher_backup">Not a backup from Nova, Lawnchair or Octopi</string>
     <string name="not_vulcan_backup">Not a Vulcan backup</string>
     <string name="backup_too_large">The file is too large to be a backup</string>
     <string name="auto_backup_not_saved">The automatic backup couldn’t be saved</string>
@@ -625,17 +625,9 @@
         <item quantity="one">Created %1$d folder</item>
         <item quantity="other">Created %1$d folders</item>
     </plurals>
-    <plurals name="import_skipped">
-        <item quantity="one">%1$d item can\'t come over: it\'s Nova\'s own, or its app isn\'t on this phone.</item>
-        <item quantity="other">%1$d items can\'t come over: they\'re Nova\'s own, or their app isn\'t on this phone.</item>
-    </plurals>
     <plurals name="restore_missing">
         <item quantity="one">%1$d icon was left out: its app isn\'t installed. Restore again once it is.</item>
         <item quantity="other">%1$d icons were left out: their apps aren\'t installed. Restore again once they are.</item>
-    </plurals>
-    <plurals name="import_items">
-        <item quantity="one">%1$d item will replace your home screen.</item>
-        <item quantity="other">%1$d items will replace your home screen.</item>
     </plurals>
     <plurals name="import_widgets">
         <item quantity="one">%1$d widget comes back after Android asks you once.</item>
@@ -719,7 +711,7 @@
         <item quantity="other">Apply %1$d settings from this link? Your home screen items stay saved, though grid changes can move them.</item>
     </plurals>
     <string name="import_launcher_backup">Import from another launcher</string>
-    <string name="import_launcher_backup_info">Brings over a home screen from a .novabackup file</string>
+    <string name="import_launcher_backup_info">A backup file from Nova, Lawnchair or Octopi</string>
     <string name="reset_defaults_info">Removes every setting and the whole home screen layout</string>
     <string name="perm_intro">Vulcan never goes online. These let it do more, and each one works only after you allow it in Android settings.</string>
     <string name="perm_count">%1$d of %2$d allowed</string>
@@ -749,16 +741,46 @@
     <string name="welcome_home_set">Set as home app</string>
     <string name="welcome_not_now">Not now</string>
     <string name="welcome_setup_title">Bring your home screen</string>
-    <string name="welcome_setup_body">Pick a Nova backup and your apps, folders, dock, grid and widgets come over.</string>
-    <string name="welcome_nova">Import from Nova</string>
+    <string name="welcome_setup_body">Pick a backup from Nova, Lawnchair or Octopi, and your apps, folders, dock, grid and widgets come over.</string>
+    <string name="welcome_import">Import from another launcher</string>
     <string name="welcome_restore">Restore a Vulcan backup</string>
     <string name="welcome_fresh">Start fresh</string>
     <string name="widget_slot_add">Tap to add</string>
     <string name="widget_slot_missing">App not installed</string>
     <string name="widget_slot_missing_toast">This widget\'s app isn\'t installed</string>
     <string name="widget_slot_describe">Add the %1$s widget</string>
-    <string name="review_title">Your Nova home screen</string>
+    <string name="review_title">Your %1$s home screen</string>
     <string name="review_another">Choose another file</string>
+    <string name="format_nova" translatable="false">Nova</string>
+    <string name="format_lawnchair" translatable="false">Lawnchair</string>
+    <string name="format_octopi" translatable="false">Octopi</string>
+    <string name="import_is_vulcan">That\'s a Vulcan backup: use Restore from a file.</string>
+    <string name="import_unknown_shape">Looks like a %1$s backup Vulcan can\'t read, maybe from a newer %1$s</string>
+    <string name="import_no_layout">This %1$s backup has no home screen in it</string>
+    <string name="import_nothing">None of this backup\'s apps are on this phone</string>
+    <string name="review_items">Apps, shortcuts and folders where they were</string>
+    <plurals name="review_dock">
+        <item quantity="one">Dock: %1$d icon</item>
+        <item quantity="other">Dock: %1$d icons</item>
+    </plurals>
+    <plurals name="review_dock_pages">
+        <item quantity="one">Dock: %1$d icon on %2$d dock pages</item>
+        <item quantity="other">Dock: %1$d icons on %2$d dock pages</item>
+    </plurals>
+    <string name="review_grid">Grid %1$d × %2$d</string>
+    <string name="review_grid_half">, half cells</string>
+    <string name="review_grid_drawer">, app drawer %1$d columns</string>
+    <string name="review_grid_start">, starts on page %1$d</string>
+    <plurals name="skip_own">
+        <item quantity="one">%1$d can\'t come over: it\'s %2$s\'s own, or Vulcan has no place for it</item>
+        <item quantity="other">%1$d can\'t come over: they\'re %2$s\'s own, or Vulcan has no place for them</item>
+    </plurals>
+    <plurals name="skip_missing">
+        <item quantity="one">%1$d app isn\'t on this phone</item>
+        <item quantity="other">%1$d apps aren\'t on this phone</item>
+    </plurals>
+    <string name="review_kept">Gestures, icon pack, theme and drawer tabs stay as they are</string>
+    <string name="review_newer">This backup is from a newer %1$s than Vulcan knows. Check the preview before you import.</string>
     <plurals name="review_apps"><item quantity="one">%1$d app</item><item quantity="other">%1$d apps</item></plurals>
     <plurals name="review_folders"><item quantity="one">%1$d folder</item><item quantity="other">%1$d folders</item></plurals>
     <plurals name="review_widgets"><item quantity="one">%1$d widget</item><item quantity="other">%1$d widgets</item></plurals>

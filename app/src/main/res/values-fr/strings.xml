@@ -577,7 +577,7 @@
     <string name="letter_index">Index alphabétique</string>
     <string name="a11y_menu">Menu</string>
     <string name="page_of">Page %1$d sur %2$d</string>
-    <string name="not_launcher_backup">Aucune base de données de lanceur dans ce fichier ; s’agit-il d’une sauvegarde de lanceur ?</string>
+    <string name="not_launcher_backup">Ce n’est pas une sauvegarde de Nova, Lawnchair ou Octopi</string>
     <string name="not_vulcan_backup">Ce n’est pas une sauvegarde Vulcan</string>
     <string name="badge_service_label">Pastilles Vulcan</string>
     <string name="action_service_label">Actions Vulcan</string>
@@ -593,17 +593,9 @@
         <item quantity="one">%1$d dossier créé</item>
         <item quantity="other">%1$d dossiers créés</item>
     </plurals>
-    <plurals name="import_skipped">
-        <item quantity="one">%1$d élément ne peut pas être importé : il appartient à Nova ou son appli n’est pas sur ce téléphone.</item>
-        <item quantity="other">%1$d éléments ne peuvent pas être importés : ils appartiennent à Nova ou leur appli n’est pas sur ce téléphone.</item>
-    </plurals>
     <plurals name="restore_missing">
         <item quantity="one">%1$d icône a été ignorée : son appli n’est pas installée. Relancez la restauration une fois qu’elle l’est.</item>
         <item quantity="other">%1$d icônes ont été ignorées : leurs applis ne sont pas installées. Relancez la restauration une fois qu’elles le sont.</item>
-    </plurals>
-    <plurals name="import_items">
-        <item quantity="one">%1$d élément remplacera votre écran d’accueil.</item>
-        <item quantity="other">%1$d éléments remplaceront votre écran d’accueil.</item>
     </plurals>
     <plurals name="import_widgets">
         <item quantity="one">%1$d widget revient après une autorisation unique d’Android.</item>
@@ -685,7 +677,7 @@
         <item quantity="other">Appliquer %1$d réglages de ce lien ? Vos éléments de l’écran d’accueil restent enregistrés, mais les changements de grille peuvent les déplacer.</item>
     </plurals>
     <string name="import_launcher_backup">Importer depuis un autre lanceur</string>
-    <string name="import_launcher_backup_info">Récupère un écran d’accueil depuis un fichier .novabackup</string>
+    <string name="import_launcher_backup_info">Un fichier de sauvegarde de Nova, Lawnchair ou Octopi</string>
     <string name="reset_defaults_info">Supprime tous les paramètres et toute la disposition de l’écran d’accueil</string>
     <string name="perm_intro">Vulcan ne va jamais en ligne. Ces autorisations lui permettent d’en faire plus, et chacune ne s’active qu’après votre accord dans les paramètres Android.</string>
     <string name="perm_count">%1$d sur %2$d autorisées</string>
@@ -715,16 +707,43 @@
     <string name="welcome_home_set">Définir comme appli d’accueil</string>
     <string name="welcome_not_now">Plus tard</string>
     <string name="welcome_setup_title">Récupérez votre écran d’accueil</string>
-    <string name="welcome_setup_body">Choisissez une sauvegarde Nova et vos applis, dossiers, dock, grille et widgets seront récupérés.</string>
-    <string name="welcome_nova">Importer depuis Nova</string>
+    <string name="welcome_setup_body">Choisissez une sauvegarde de Nova, Lawnchair ou Octopi et vos applis, dossiers, dock, grille et widgets seront récupérés.</string>
+    <string name="welcome_import">Importer depuis un autre lanceur</string>
     <string name="welcome_restore">Restaurer une sauvegarde Vulcan</string>
     <string name="welcome_fresh">Partir de zéro</string>
     <string name="widget_slot_add">Touchez pour ajouter</string>
     <string name="widget_slot_missing">Appli non installée</string>
     <string name="widget_slot_missing_toast">L’appli de ce widget n’est pas installée</string>
     <string name="widget_slot_describe">Ajouter le widget %1$s</string>
-    <string name="review_title">Votre écran d’accueil Nova</string>
+    <string name="review_title">Votre écran d’accueil %1$s</string>
     <string name="review_another">Choisir un autre fichier</string>
+    <string name="import_is_vulcan">C’est une sauvegarde Vulcan : utilisez « Restaurer depuis un fichier ».</string>
+    <string name="import_unknown_shape">Sauvegarde %1$s illisible pour Vulcan, peut-être d’une version plus récente de %1$s</string>
+    <string name="import_no_layout">Cette sauvegarde %1$s ne contient aucun écran d’accueil</string>
+    <string name="import_nothing">Aucune appli de cette sauvegarde n’est sur ce téléphone</string>
+    <string name="review_items">Applis, raccourcis et dossiers à leur place</string>
+    <plurals name="review_dock">
+        <item quantity="one">Dock : %1$d icône</item>
+        <item quantity="other">Dock : %1$d icônes</item>
+    </plurals>
+    <plurals name="review_dock_pages">
+        <item quantity="one">Dock : %1$d icône sur %2$d pages du dock</item>
+        <item quantity="other">Dock : %1$d icônes sur %2$d pages du dock</item>
+    </plurals>
+    <string name="review_grid">Grille %1$d × %2$d</string>
+    <string name="review_grid_half">, demi-cellules</string>
+    <string name="review_grid_drawer">, tiroir d’applis sur %1$d colonnes</string>
+    <string name="review_grid_start">, commence à la page %1$d</string>
+    <plurals name="skip_own">
+        <item quantity="one">%1$d ne peut pas être importé : il est propre à %2$s, ou Vulcan n’a pas de place pour lui</item>
+        <item quantity="other">%1$d ne peuvent pas être importés : ils sont propres à %2$s, ou Vulcan n’a pas de place pour eux</item>
+    </plurals>
+    <plurals name="skip_missing">
+        <item quantity="one">%1$d appli n’est pas sur ce téléphone</item>
+        <item quantity="other">%1$d applis ne sont pas sur ce téléphone</item>
+    </plurals>
+    <string name="review_kept">Gestes, pack d’icônes, thème et onglets du tiroir restent tels quels</string>
+    <string name="review_newer">Cette sauvegarde vient d’une version de %1$s plus récente que celles que Vulcan connaît. Vérifiez l’aperçu avant d’importer.</string>
     <plurals name="review_apps">
         <item quantity="one">%1$d appli</item>
         <item quantity="other">%1$d applis</item>
