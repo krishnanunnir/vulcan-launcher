@@ -760,8 +760,11 @@
     <string name="review_grid">%1$d × %2$d</string>
     <string name="review_grid_half">, half cells</string>
     <string name="review_grid_start">, starts on page %1$d</string>
-    <string name="review_kept">Your gestures, icon pack, theme and drawer tabs in Vulcan don\'t change.</string>
+    <string name="review_kept">Your icon pack, theme and other Vulcan settings stay as they are.</string>
     <string name="review_newer">This backup is from a newer %1$s than Vulcan knows. Check the preview before you import.</string>
+    <string name="review_row_renamed">Renamed apps</string>
+    <plurals name="review_tabs"><item quantity="one">%1$d tab</item><item quantity="other">%1$d tabs</item></plurals>
+    <plurals name="review_gestures"><item quantity="one">%1$d gesture</item><item quantity="other">%1$d gestures</item></plurals>
     <string name="review_comes_over">Comes over</string>
     <string name="review_stays_behind">Stays behind</string>
     <string name="review_row_home">Home screen</string>

@@ -175,3 +175,9 @@ fun workAtAfter(old: List<String>, new: List<String>, at: Int) =
     if (new.size >= old.size) at else at - old.take(at.coerceAtLeast(0)).count { it !in new }
 /** [WORK_AT]'s value: an int, as Store's [dataValue] keeps it whatever a backup held. */
 fun android.content.SharedPreferences.workAt() = getInt(WORK_AT, 0)
+
+/** [ours] with [theirs] added: a group of the same name and type gets the apps it lacks, after its own; the rest come after ours. */
+fun mergedGroups(ours: List<Group>, theirs: List<Group>): List<Group> = theirs.fold(ours) { out, g ->
+    val i = out.indexOfFirst { it.name == g.name && it.type == g.type }
+    if (i < 0) out + g else out.toMutableList().apply { this[i] = this[i].copy(apps = (this[i].apps + g.apps).distinct()) }
+}

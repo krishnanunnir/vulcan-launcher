@@ -55,7 +55,9 @@ You can bring your home screen with you from Nova, Lawnchair or Octopi:
 
 Your apps, folders, dock, grid size (with half cells when the old layout used them), most shortcuts and widgets come over. Each widget is made new in its old spot: Android asks once whether Vulcan may add widgets, and widgets with options (a clock face, a note) ask for them again. A widget you skip stays as a "Tap to add" spot.
 
-What stays behind: the old launcher's own widgets and icons (Octopi's "open drawer" button, for one), apps that aren't on this phone, drawer folders and tabs, icon packs, custom icons, gestures, themes and the wallpaper. From Octopi, folders in the dock and widget stacks don't come over either.
+Your app drawer comes too: hidden apps, renamed apps, and from Nova its tabs and drawer folders (joined to a Vulcan tab of the same name). Gestures come over when Vulcan has the same action, along with the icon shape and the drawer's transparency, plus Nova's drawer search, keyboard and search bar placement.
+
+What stays behind: the old launcher's own widgets and icons (Octopi's "open drawer" button, for one), apps that aren't on this phone, gestures Vulcan has no action for (Google Lens, for one), smart folders, icon packs, custom icons, themes and the wallpaper. From Octopi, drawer folders, folders in the dock and widget stacks don't come over either; from Lawnchair, work apps' drawer settings stay behind.
 
 ## Share your style
 

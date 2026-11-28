@@ -721,8 +721,11 @@
     <string name="review_grid">%1$d × %2$d</string>
     <string name="review_grid_half">, demi-cellules</string>
     <string name="review_grid_start">, commence à la page %1$d</string>
-    <string name="review_kept">Vos gestes, pack d\'icônes, thème et onglets du tiroir dans Vulcan ne changent pas.</string>
+    <string name="review_kept">Votre pack d\'icônes, votre thème et vos autres réglages Vulcan restent tels quels.</string>
     <string name="review_newer">Cette sauvegarde vient d’une version de %1$s plus récente que celles que Vulcan connaît. Vérifiez l’aperçu avant d’importer.</string>
+    <string name="review_row_renamed">Applis renommées</string>
+    <plurals name="review_tabs"><item quantity="one">%1$d onglet</item><item quantity="other">%1$d onglets</item></plurals>
+    <plurals name="review_gestures"><item quantity="one">%1$d geste</item><item quantity="other">%1$d gestes</item></plurals>
     <string name="review_comes_over">Importé</string>
     <string name="review_stays_behind">Laissé de côté</string>
     <string name="review_row_home">Écran d\'accueil</string>

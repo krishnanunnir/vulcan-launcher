@@ -667,8 +667,11 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="review_grid">%1$d × %2$d</string>
     <string name="review_grid_half">, половинные ячейки</string>
     <string name="review_grid_start">, начинается со страницы %1$d</string>
-    <string name="review_kept">Ваши жесты, пакет значков, тема и вкладки меню приложений в Vulcan не изменятся.</string>
+    <string name="review_kept">Ваш пакет значков, тема и другие настройки Vulcan останутся как есть.</string>
     <string name="review_newer">Эта резервная копия из более новой версии %1$s, чем знает Vulcan. Проверьте превью перед импортом.</string>
+    <string name="review_row_renamed">Переименованные приложения</string>
+    <plurals name="review_tabs"><item quantity="one">%1$d вкладка</item><item quantity="few">%1$d вкладки</item><item quantity="many">%1$d вкладок</item><item quantity="other">%1$d вкладки</item></plurals>
+    <plurals name="review_gestures"><item quantity="one">%1$d жест</item><item quantity="few">%1$d жеста</item><item quantity="many">%1$d жестов</item><item quantity="other">%1$d жеста</item></plurals>
     <string name="review_comes_over">Переносится</string>
     <string name="review_stays_behind">Остаётся</string>
     <string name="review_row_home">Главный экран</string>

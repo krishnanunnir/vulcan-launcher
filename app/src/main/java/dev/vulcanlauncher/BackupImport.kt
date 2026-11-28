@@ -119,9 +119,9 @@ fun importToItems(rows: List<ImportRow>, screenRank: Map<Long, Int>, dockCols: I
 /** A cell or span from a backup row, in whole cells: NaN (which roundToInt throws on) is -1, off the grid. */
 private fun cell(d: Double) = if (d.isNaN()) -1 else d.roundToInt()
 
-/** A SharedPreferences XML file's int, long and string values by name. */
+/** A SharedPreferences XML file's int, long, float, boolean and string values by name. */
 fun prefValues(xml: String): Map<String, String> =
-    Regex("<(?:int|string|long)\\s+name=\"([^\"]+)\"(?:\\s+value=\"([^\"]*)\"\\s*/>|>([^<]*)</string>)").findAll(xml)
+    Regex("<(?:int|string|long|float|boolean)\\s+name=\"([^\"]+)\"(?:\\s+value=\"([^\"]*)\"\\s*/>|>([^<]*)</string>)").findAll(xml)
         .associate { m -> m.groupValues[1] to (m.groupValues[2].ifEmpty { m.groupValues[3] }) }
 
 /**
@@ -132,6 +132,26 @@ fun setting(ours: String, n: Int?): Pair<String, String>? {
     val allowed = choiceOf(ours)!!.values
     return n?.let { ours to it.coerceIn(allowed.first().toInt(), allowed.last().toInt()).toString() }
 }
+
+/** Vulcan setting [ours] set to [v] if it takes that value (see [Choice.accepts]); null for null or a value it doesn't. */
+fun choice(ours: String, v: String?): Pair<String, String>? = choiceOf(ours)!!.let { c -> v?.takeIf(c::accepts)?.let { ours to it } }
+
+/** An opacity from 0 to 1 as a percent setting's value, on the nearest step of 10. */
+fun percentStep(f: Double?) = f?.takeIf { it.isFinite() }?.let { ((it.coerceIn(0.0, 1.0) * 10).roundToInt() * 10).toString() }
+
+/**
+ * The app key of "pkg/cls" or "pkg/cls#N" (".Cls" is short for "pkg.Cls"), [serial] turning N into this phone's user serial
+ * (null drops the app); null for anything else.
+ */
+fun componentKey(s: String, serial: (Long) -> Long? = { maxOf(0L, it) }): String? {
+    val (component, user) = s.substringBefore('#') to (s.substringAfter('#', "0").toLongOrNull() ?: return null)
+    val pkg = component.substringBefore('/', "").takeIf { it.isNotEmpty() } ?: return null
+    val cls = component.substringAfter('/').let { if (it.startsWith('.')) pkg + it else it }.takeIf { it.isNotEmpty() && '/' !in it } ?: return null
+    return appKey(pkg, cls, serial(user) ?: return null)
+}
+
+/** "app:" and the key: the action that opens that app. */
+fun appAction(key: String?) = key?.let { "app:$it" }
 
 /** Vulcan settings from a favorites backup's preferences XML (only the grid and page settings carry over). */
 fun importedPrefs(xml: String): Map<String, String> {
@@ -203,8 +223,30 @@ fun readArchive(input: InputStream, tooLarge: String): BackupArchive {
     return BackupArchive(files)
 }
 
-/** What an import read: the layout, Vulcan settings, the launcher's name (R.string) and whether it came from a newer version than this reads. */
-class ImportedBackup(val layout: ImportedLayout, val settings: Map<String, String>, val name: Int, val newer: Boolean = false)
+/**
+ * A backup's drawer: its tabs and folders (empty ones left out), the apps it hid and the names it gave apps, by app key.
+ * Apps that aren't installed are kept: they show once the app is.
+ */
+class ImportedDrawer(val groups: List<Group> = emptyList(), val hidden: Set<String> = emptySet(), val labels: Map<String, String> = emptyMap())
+
+/**
+ * What an import read: the layout, Vulcan settings, the launcher's name (R.string), whether it came from a newer version
+ * than this reads, its drawer, and how many of its gestures do something Vulcan has no action for.
+ */
+class ImportedBackup(val layout: ImportedLayout, val settings: Map<String, String>, val name: Int, val newer: Boolean = false,
+    val drawer: ImportedDrawer = ImportedDrawer(), val gesturesLeft: Int = 0)
+
+/**
+ * Gesture settings from another launcher's [values] (its key to its value), [keys] giving the Vulcan setting for each of
+ * its keys and [action] the Vulcan action for a value, null for one Vulcan doesn't have. Returns the settings and how
+ * many gestures were left out. A key the backup doesn't hold keeps Vulcan's setting.
+ */
+fun gestureSettings(values: Map<String, String>, keys: Map<String, String>, action: (String) -> String?): Pair<Map<String, String>, Int> {
+    keys.values.forEach { choiceOf(it)!! } // a mistyped key fails at once (and in everySettingAFormatSetsIsASetting), not only for a backup that sets it
+    val held = keys.filterKeys { !values[it].isNullOrBlank() }
+    val set = held.mapNotNull { (theirs, ours) -> choice(ours, action(values[theirs]!!)) }.toMap()
+    return set to held.values.distinct().count { it !in set }
+}
 
 /** A problem to tell the user as it is, not as "can't read this file". */
 class ImportProblem(message: String) : Exception(message)

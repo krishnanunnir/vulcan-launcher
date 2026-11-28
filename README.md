@@ -39,7 +39,7 @@ Grids, gestures, icon packs, widgets and smart search, with no libraries and no 
 - **Your look:** icon packs, themed icons, shapes, custom icons and labels, folder previews, app launch animations, night mode on a schedule.
 - **Notification badges:** dots, counts or the notification's own picture on app icons.
 - **Now page:** date, music, upcoming events, favourite contacts and cards of your own.
-- **Import and backups:** bring your home screen across from Nova, Lawnchair or Octopi, and back up or share your whole setup.
+- **Import and backups:** bring your home screen, app drawer, gestures and icon shape across from Nova, Lawnchair or Octopi, and back up or share your whole setup.
 - **Private by design:** no internet permission, no ads, no analytics. [What each permission is for](docs/PERMISSIONS.md).
 
 ## Install

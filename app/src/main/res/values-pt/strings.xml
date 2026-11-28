@@ -727,8 +727,11 @@
     <string name="review_grid">%1$d × %2$d</string>
     <string name="review_grid_half">, meias células</string>
     <string name="review_grid_start">, começa na página %1$d</string>
-    <string name="review_kept">Seus gestos, pacote de ícones, tema e abas da gaveta no Vulcan não mudam.</string>
+    <string name="review_kept">Seu pacote de ícones, tema e outras configurações do Vulcan ficam como estão.</string>
     <string name="review_newer">Este backup é de uma versão do %1$s mais nova do que o Vulcan conhece. Confira a prévia antes de importar.</string>
+    <string name="review_row_renamed">Apps renomeados</string>
+    <plurals name="review_tabs"><item quantity="one">%1$d aba</item><item quantity="other">%1$d abas</item></plurals>
+    <plurals name="review_gestures"><item quantity="one">%1$d gesto</item><item quantity="other">%1$d gestos</item></plurals>
     <string name="review_comes_over">Vem junto</string>
     <string name="review_stays_behind">Fica de fora</string>
     <string name="review_row_home">Tela inicial</string>

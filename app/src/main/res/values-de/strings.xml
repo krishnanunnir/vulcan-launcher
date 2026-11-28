@@ -654,8 +654,11 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="review_grid">%1$d × %2$d</string>
     <string name="review_grid_half">, halbe Zellen</string>
     <string name="review_grid_start">, beginnt auf Seite %1$d</string>
-    <string name="review_kept">Deine Gesten, dein Symbolpaket, dein Design und deine Drawer-Tabs in Vulcan ändern sich nicht.</string>
+    <string name="review_kept">Dein Symbolpaket, dein Design und deine anderen Vulcan-Einstellungen bleiben, wie sie sind.</string>
     <string name="review_newer">Diese Sicherung stammt von einer neueren %1$s-Version, als Vulcan kennt. Prüfe die Vorschau vor dem Import.</string>
+    <string name="review_row_renamed">Umbenannte Apps</string>
+    <plurals name="review_tabs"><item quantity="one">%1$d Tab</item><item quantity="other">%1$d Tabs</item></plurals>
+    <plurals name="review_gestures"><item quantity="one">%1$d Geste</item><item quantity="other">%1$d Gesten</item></plurals>
     <string name="review_comes_over">Kommt mit</string>
     <string name="review_stays_behind">Bleibt zurück</string>
     <string name="review_row_home">Startbildschirm</string>

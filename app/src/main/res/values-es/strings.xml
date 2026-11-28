@@ -720,8 +720,11 @@
     <string name="review_grid">%1$d × %2$d</string>
     <string name="review_grid_half">, medias celdas</string>
     <string name="review_grid_start">, empieza en la página %1$d</string>
-    <string name="review_kept">Tus gestos, paquete de iconos, tema y pestañas del cajón en Vulcan no cambian.</string>
+    <string name="review_kept">Tu paquete de iconos, tema y demás ajustes de Vulcan se quedan como están.</string>
     <string name="review_newer">Esta copia de seguridad es de una versión de %1$s más reciente de las que Vulcan conoce. Revisa la vista previa antes de importar.</string>
+    <string name="review_row_renamed">Apps renombradas</string>
+    <plurals name="review_tabs"><item quantity="one">%1$d pestaña</item><item quantity="other">%1$d pestañas</item><item quantity="many">%1$d pestañas</item></plurals>
+    <plurals name="review_gestures"><item quantity="one">%1$d gesto</item><item quantity="other">%1$d gestos</item><item quantity="many">%1$d gestos</item></plurals>
     <string name="review_comes_over">Se importa</string>
     <string name="review_stays_behind">Se queda fuera</string>
     <string name="review_row_home">Pantalla de inicio</string>

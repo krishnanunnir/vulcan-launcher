@@ -733,8 +733,11 @@
     <string name="review_grid">%1$d × %2$d</string>
     <string name="review_grid_half">, połówki komórek</string>
     <string name="review_grid_start">, zaczyna od strony %1$d</string>
-    <string name="review_kept">Twoje gesty, pakiet ikon, motyw i karty szuflady w Vulcanie się nie zmienią.</string>
+    <string name="review_kept">Twój pakiet ikon, motyw i inne ustawienia Vulcana zostają bez zmian.</string>
     <string name="review_newer">Ta kopia zapasowa pochodzi z nowszej wersji %1$s, niż zna Vulcan. Sprawdź podgląd przed importem.</string>
+    <string name="review_row_renamed">Aplikacje z nową nazwą</string>
+    <plurals name="review_tabs"><item quantity="one">%1$d karta</item><item quantity="few">%1$d karty</item><item quantity="many">%1$d kart</item><item quantity="other">%1$d karty</item></plurals>
+    <plurals name="review_gestures"><item quantity="one">%1$d gest</item><item quantity="few">%1$d gesty</item><item quantity="many">%1$d gestów</item><item quantity="other">%1$d gestu</item></plurals>
     <string name="review_comes_over">Przenoszone</string>
     <string name="review_stays_behind">Zostaje</string>
     <string name="review_row_home">Ekran główny</string>

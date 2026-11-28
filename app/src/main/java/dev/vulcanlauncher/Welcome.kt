@@ -86,7 +86,7 @@ fun MainActivity.readForReview(uri: android.net.Uri): ImportedBackup? {
     val problem = when {
         layout.items.isEmpty() && layout.skipped == 0 -> getString(R.string.import_no_layout, getString(b.name))
         kept.isEmpty() -> getString(R.string.import_nothing)
-        else -> return ImportedBackup(ImportedLayout(kept, layout.subgrid, layout.skipped, layout.items.size - kept.size), b.settings, b.name, b.newer)
+        else -> return ImportedBackup(ImportedLayout(kept, layout.subgrid, layout.skipped, layout.items.size - kept.size), b.settings, b.name, b.newer, b.drawer, b.gesturesLeft)
     }
     toast(getString(R.string.import_failed, problem))
     return null
@@ -290,7 +290,7 @@ class WelcomeView(private val a: MainActivity, import: ImportedBackup? = null) :
             }, FrameLayout.LayoutParams(-1, -2))
         }, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = px(16f); bottomMargin = px(12f) })
         addView(primary(R.string.import_) {
-            a.applyImport(layout, settings)
+            a.applyImport(backup)
             if (layout.widgets == 0) begin()
             else { // home rebuilt, then the widgets step
                 a.store.data.edit().putBoolean(WELCOME, true).putString(WELCOME_STEP, "widgets").putBoolean(WELCOME_IMPORT, importOnly).commit()

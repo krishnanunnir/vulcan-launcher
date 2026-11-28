@@ -51,6 +51,46 @@ fun dataStoreInts(b: ByteArray): Map<String, Int> = protoFields(b)[1].orEmpty().
     entry.bytes(1)?.decodeToString()?.let { it to n.toInt() }
 }.toMap()
 
+/** A DataStore preferences file's text entries: a string { 5 } as one, a string set { 6 { 1 each } } as its strings. */
+fun dataStoreStrings(b: ByteArray): Map<String, List<String>> = protoFields(b)[1].orEmpty().mapNotNull { e ->
+    val entry = protoFields(e as? ByteArray ?: return@mapNotNull null)
+    val value = entry.bytes(2)?.let(::protoFields) ?: return@mapNotNull null
+    val texts = value.bytes(5)?.let { listOf(it.decodeToString()) }
+        ?: value.bytes(6)?.let { set -> protoFields(set)[1].orEmpty().mapNotNull { (it as? ByteArray)?.decodeToString() } }
+        ?: return@mapNotNull null
+    entry.bytes(1)?.decodeToString()?.let { it to texts }
+}.toMap()
+
+/** Lawnchair's gesture settings by name, with the Vulcan setting each is (its Back button has no Vulcan setting). */
+val LAWNCHAIR_GESTURES = mapOf("swipe_up_gesture_handler" to "g_swipeUp", "swipe_down_gesture_handler" to "g_swipeDown",
+    "double_tap_gesture_handler" to "g_doubleTap", "home_press_gesture_handler" to "homeButton")
+
+// "openNotificationdata" is what Lawnchair itself writes for Open notifications (seen in a real backup).
+private val LAWNCHAIR_ACTIONS = mapOf("noOp" to "none", "sleep" to "lock", "recents" to "recents", "openNotifications" to "notifications",
+    "openNotificationdata" to "notifications",
+    "openAppDrawer" to "drawer", "openAppSearch" to "search", "openSearch" to "search", "openAssistant" to "assistant")
+
+/** A Lawnchair app key ("pkg/cls#user"), personal apps only. */
+private fun lawnchairKey(s: String) = componentKey(s) { it.takeIf { it == 0L } } // ponytail: #N is a user id, not a serial; work apps are dropped until a backup with one shows how to map it
+
+/** The Vulcan action for a Lawnchair gesture value, JSON such as {"type":"openApp","target":{"key":"pkg/cls#0"}}. */
+fun lawnchairAction(value: String): String? {
+    val o = runCatching { org.json.JSONObject(value) }.getOrNull() ?: return null
+    val type = o.optString("type")
+    return if (type == "openApp") appAction(o.optJSONObject("target")?.optString("key")?.let(::lawnchairKey)) else LAWNCHAIR_ACTIONS[type]
+}
+
+/** Lawnchair's icon shapes where Vulcan's name differs; the rest are Vulcan's as they are. */
+private val LAWNCHAIR_SHAPES = mapOf("roundedSquare" to "rounded")
+
+/** Settings, gestures left out and the drawer from Lawnchair's DataStore file [b]; nothing from one that can't be read. */
+fun lawnchairOwn(b: ByteArray?): Triple<Map<String, String>, Int, ImportedDrawer> {
+    val strings = b?.let { runCatching { dataStoreStrings(it) }.getOrNull() }.orEmpty()
+    val (gestures, left) = gestureSettings(strings.mapValues { it.value.first() }, LAWNCHAIR_GESTURES, ::lawnchairAction)
+    val shape = strings["icon_shape"]?.firstOrNull()?.let { choice("shape", LAWNCHAIR_SHAPES[it] ?: it) }
+    return Triple(gestures + listOfNotNull(shape), left, ImportedDrawer(hidden = strings["hidden_apps"].orEmpty().mapNotNull(::lawnchairKey).toSet()))
+}
+
 /** "columns,rows" as two numbers, or null. */
 private fun gridSize(s: String?) = s?.split(',')?.mapNotNull { it.trim().toIntOrNull() }?.takeIf { it.size == 2 }
 
@@ -70,6 +110,7 @@ fun infoPbSettings(info: ByteArray, prefsXml: String, dataStore: ByteArray?): Ma
         setting("rows", size?.get(1) ?: prefs["pref_workspaceRows"]?.toIntOrNull()),
         setting("dockCols", dock),
         setting("drawerCols", drawer["drawer_columns"]),
+        choice("drawerAlpha", percentStep(prefs["pref_drawerOpacity"]?.toDoubleOrNull())),
     ).toMap()
 }
 
@@ -88,7 +129,8 @@ object InfoPbFormat : BackupFormat {
         if (db == null || (fields.long(4) ?: 1L) and 1L == 0L) throw ImportProblem(context.getString(R.string.import_no_layout, context.getString(name)))
         val settings = infoPbSettings(info, archive.text(PREFS), archive["preferences.preferences_pb"])
         val (rows, ranks) = readFavorites(context, db)
-        return ImportedBackup(importToItems(rows, ranks, settings["dockCols"]?.toInt() ?: 5), settings, name,
-            newer = (fields.long(2) ?: 1L) > 1L)
+        val (own, left, drawer) = lawnchairOwn(archive["preferences.preferences_pb"])
+        return ImportedBackup(importToItems(rows, ranks, settings["dockCols"]?.toInt() ?: 5), settings + own, name,
+            newer = (fields.long(2) ?: 1L) > 1L, drawer = drawer, gesturesLeft = left)
     }
 }

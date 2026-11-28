@@ -78,8 +78,87 @@ class LauncherImportTest {
         // setting() looks its key up strictly, before the value; running each format's settings code once reaches every
         // call, so a mistyped key fails here, not at import. A new format's settings function goes here too.
         importedPrefs("")
+        novaLooks(emptyMap())
+        gestureSettings(emptyMap(), NOVA_GESTURES) { null }
         infoPbSettings(ByteArray(0), "", null)
+        lawnchairOwn(null)
         jsonTablesToRows(tables) { 0 }
+    }
+
+    @Test fun componentKeysAreAppKeys() {
+        assertEquals("com.a/com.a.Main/0", componentKey("com.a/com.a.Main#-1"))
+        assertEquals("com.a/com.a.Main/0", componentKey("com.a/.Main"))
+        assertEquals("com.a/com.a.Main/12", componentKey("com.a/com.a.Main#12"))
+        assertEquals(null, componentKey("com.a/com.a.Main#10") { null }) // a user that isn't on this phone
+        for (bad in listOf("", "com.a", "/x", "com.a/", "com.a/b/c", "com.a/b#x")) assertEquals(bad, null, componentKey(bad))
+    }
+
+    // As in a real Nova 8.9.4 nova.xml.
+    private fun nova(action: String) = "Label\$#Intent;action=com.teslacoilsw.launcher.ACTION;launchFlags=0x10000000;component=com.teslacoilsw.launcher/.NovaShortcutHandler;S.LAUNCHER_ACTION=$action;end"
+
+    @Test fun novaGesturesBecomeActions() {
+        val values = mapOf("gesture_swipe_up" to nova("APP_DRAWER"), "gesture_pinch" to nova("SHOW_PREVIEWS"), "home_button_intent" to nova("APP_SEARCH"),
+            "gesture_two_finger_scroll_up" to "Nova Settings\$#Intent;action=android.intent.action.MAIN;launchFlags=0x30008000;component=com.teslacoilsw.launcher/.preferences.SettingsActivity;end",
+            "gesture_swipe_right" to "Maps\$#Intent;action=android.intent.action.MAIN;component=com.google.android.apps.maps/com.google.android.maps.MapsActivity;end",
+            "gesture_double_tap" to nova("GOOGLE_LENS"), "gesture_swipe_left" to "", "desktop_grid" to "6x5")
+        val (set, left) = gestureSettings(values, NOVA_GESTURES, ::novaAction)
+        assertEquals(mapOf("g_swipeUp" to "drawer", "g_pinchIn" to "previews", "homeButton" to "search", "g_swipeUp2" to "settings",
+            "g_swipeRight" to "app:com.google.android.apps.maps/com.google.android.maps.MapsActivity/0"), set)
+        assertEquals(1, left) // Lens; the empty one is Nova's "none", left as Vulcan has it
+    }
+
+    @Test fun novaLooksAndDrawer() {
+        val xml = """<string name="adaptive_icon_shape">FLOWER</string><string name="adaptive_icon_reshape">OFF</string>
+            <string name="drawer_searchbar_position">TOP</string><string name="drawer_style">VERTICAL</string>
+            <string name="searchbar_placement">DOCK_BELOW_ICONS</string><int name="drawer_transparency" value="128" />
+            <boolean name="drawer_show_keyboard_by_default" value="true" />"""
+        assertEquals(mapOf("shape" to "flower", "reshape" to "off", "drawerSearch" to "top", "drawerStyle" to "grid", "searchBar" to "dockBelow",
+            "drawerAlpha" to "50", "showKeyboard" to "on"), novaLooks(prefValues(xml)))
+        assertEquals(mapOf("shape" to "rounded"), novaLooks(mapOf("adaptive_icon_shape" to "ROUNDED_SQUARE", "drawer_style" to "SIDEWAYS")))
+        val groups = listOf(NovaGroup(1, "Apps", "TAB_APPS", 0, 262914), NovaGroup(4, "Games", "FOLDER_APP_GROUP", 101, 262914),
+            NovaGroup(3, "Work stuff", "TAB_APP_GROUP", 2, 0xFF1E88E5.toInt()), NovaGroup(5, "Empty", "TAB_APP_GROUP", 3, 262914))
+        val members = listOf(4L to "com.g/com.g.G#-1", 3L to "com.w/.W#-1", -1L to "com.h/com.h.H#-1", -100L to "com.g/com.g.G#-1", 4L to "junk")
+        val drawer = novaDrawer(groups, members, listOf(Triple("com.r/com.r.R", -1L, "Mine"), Triple("com.s/com.s.S", -1L, "")))
+        assertEquals(listOf(Group("Work stuff", "tab", listOf("com.w/com.w.W/0"), "#1E88E5"), Group("Games", "folder", listOf("com.g/com.g.G/0"))), drawer.groups)
+        assertEquals(setOf("com.h/com.h.H/0"), drawer.hidden)
+        assertEquals(mapOf("com.r/com.r.R/0" to "Mine"), drawer.labels)
+    }
+
+    @Test fun lawnchairDataStoreText() {
+        fun entry(k: String, value: ByteArray) = msg(1, msg(1, k.toByteArray()) + msg(2, value))
+        fun text(v: String) = msg(5, v.toByteArray())
+        val ds = entry("hidden_apps", msg(6, msg(1, "com.c/com.c.Cal#0".toByteArray()) + msg(1, "com.w/com.w.W#10".toByteArray()))) +
+            entry("icon_shape", text("hexagon")) + entry("swipe_down_gesture_handler", text("""{"type":"recents"}""")) +
+            entry("home_press_gesture_handler", text("""{"type":"openApp","appName":"Camera","target":{"type":"app","key":"com.k/com.k.Cam#0"}}""")) +
+            entry("double_tap_gesture_handler", text("""{"type":"openShortcut"}""")) + entry("drawer_columns", msg(3, varint(5)))
+        val (settings, left, drawer) = lawnchairOwn(ds)
+        assertEquals(mapOf("shape" to "hexagon", "g_swipeDown" to "recents", "homeButton" to "app:com.k/com.k.Cam/0"), settings)
+        assertEquals(1, left)
+        assertEquals(setOf("com.c/com.c.Cal/0"), drawer.hidden) // the work app is dropped (see lawnchairKey)
+        assertEquals("roundedSquare is ours", "rounded", lawnchairOwn(entry("icon_shape", text("roundedSquare"))).first["shape"])
+        assertEquals(mapOf("drawerAlpha" to "60"), infoPbSettings(ByteArray(0), """<float name="pref_drawerOpacity" value="0.6" />""", null))
+        assertEquals("notifications", lawnchairAction("""{"type":"openNotificationdata"}"""))
+        assertTrue(lawnchairOwn(byteArrayOf(10, 99)).first.isEmpty())
+    }
+
+    @Test fun octopiDrawerAndGestures() {
+        val items = """[{"componentName":"com.c/com.c.Cal","shortcutID":"","profile":"UserHandle{0}","hidden":true,"nickname":""},
+            {"componentName":"com.k/com.k.Cam","shortcutID":"","profile":"UserHandle{0}","hidden":false,"nickname":" Snap "},
+            {"componentName":"com.k/com.k.Cam","shortcutID":"s1","profile":"UserHandle{0}","hidden":true,"nickname":"x"}]"""
+        val drawer = jsonTablesDrawer(mapOf("DrawerItem" to items)) { 0L }
+        assertEquals(setOf("com.c/com.c.Cal/0"), drawer.hidden)
+        assertEquals(mapOf("com.k/com.k.Cam/0" to "Snap"), drawer.labels)
+        val screen = org.json.JSONObject("""{"actionTypeDoubleTap":"SCREEN_OFF","actionTypeSwipeUp":"","actionTypePinchIn":"GOOGLE",
+            "actionTypeSwipeDown":"","componentNameSwipeDown":"com.m/com.m.M","drawerBackgroundAlpha":0.5}""")
+        assertEquals(mapOf("g_doubleTap" to "lock", "g_swipeDown" to "app:com.m/com.m.M/0") to 1, octopiGestures(screen))
+        assertEquals("50", jsonTablesToRows(tables + ("Screen" to "[" + screen.toString().replace("{", """{"screenId":1,"homeIconsX":5,""") + "]")) { 0 }.settings["drawerAlpha"])
+    }
+
+    @Test fun importedGroupsJoinOursByName() {
+        val ours = listOf(Group("Games", "folder", listOf("a")), Group("Work stuff", "tab", listOf("b")))
+        val theirs = listOf(Group("Games", "folder", listOf("c", "a")), Group("Games", "tab", listOf("d")), Group("New", "tab", listOf("e")))
+        assertEquals(listOf(Group("Games", "folder", listOf("a", "c")), Group("Work stuff", "tab", listOf("b")), Group("Games", "tab", listOf("d")),
+            Group("New", "tab", listOf("e"))), mergedGroups(ours, theirs))
     }
 
     @Test fun protobufReaderRefusesWhatIsNotOne() {

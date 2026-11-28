@@ -28,11 +28,14 @@ private fun <T> commonest(values: List<T>) = values.groupingBy { it }.eachCount(
 
 private fun List<Double>.sizes() = filter { it.isFinite() && it > 0 }
 
+/** What [jsonTablesToRows] read: [gesturesLeft] counts the gestures Vulcan has no action for. */
+data class JsonTables(val rows: List<ImportRow>, val ranks: Map<Long, Int>, val settings: Map<String, String>, val gesturesLeft: Int)
+
 /**
- * Rows, page order and Vulcan settings from the JSON tables [tables] (by name, without ".txt"). [serialOf] maps a user id
+ * Rows, page order and Vulcan settings (gestures too) from the JSON tables [tables] (by name, without ".txt"). [serialOf] maps a user id
  * to this phone's user serial. Throws when there's no screen to read.
  */
-fun jsonTablesToRows(tables: Map<String, String>, serialOf: (Int) -> Long): Triple<List<ImportRow>, Map<Long, Int>, Map<String, String>> {
+fun jsonTablesToRows(tables: Map<String, String>, serialOf: (Int) -> Long): JsonTables {
     fun table(name: String): List<JSONObject> = tables[name]?.let(::JSONArray)?.let { a ->
         (0 until minOf(a.length(), MAX_IMPORT_ROWS)).mapNotNull(a::optJSONObject)
     }.orEmpty()
@@ -108,8 +111,38 @@ fun jsonTablesToRows(tables: Map<String, String>, serialOf: (Int) -> Long): Trip
         setting("cols", cols), setting("rows", screen.optInt("homeIconsY").takeIf { it > 0 }),
         setting("dockCols", dockCols), setting("drawerCols", screen.optInt("drawerIconsX").takeIf { it > 0 }),
         setting("pages", ranks.size.takeIf { it > 0 }), setting("defaultPage", screen.optInt("defaultHomeScreenIndex")),
+        choice("drawerAlpha", percentStep(screen.optDouble("drawerBackgroundAlpha"))),
     ).toMap()
-    return Triple(rows, ranks, settings)
+    val (gestures, left) = octopiGestures(screen)
+    return JsonTables(rows, ranks, settings + gestures, left)
+}
+
+/** Octopi's gesture fields on a Screen (actionType…), with the Vulcan setting each is. Its empty ones are its defaults. */
+private val OCTOPI_GESTURES = mapOf("SwipeUp" to "g_swipeUp", "SwipeDown" to "g_swipeDown", "DoubleSwipeUp" to "g_swipeUp2",
+    "DoubleSwipeDown" to "g_swipeDown2", "DoubleTap" to "g_doubleTap", "TapAndSwipeUp" to "g_doubleTapUp", "TapAndSwipeDown" to "g_doubleTapDown",
+    "PinchIn" to "g_pinchIn", "PinchOut" to "g_pinchOut", "HomeAction" to "homeButton")
+
+private val OCTOPI_ACTIONS = mapOf("SCREEN_OFF" to "lock", "SCREEN_OFF_OLD" to "lock", "NOTIFICATIONS" to "notifications",
+    "QUICK_SETTINGS" to "quicksettings", "RECENTS" to "recents", "ASSISTANT" to "assistant", "TOGGLE_DOCK" to "toggledock", "SETTINGS" to "settings")
+
+// ponytail: only the action names seen in Octopi 1.955's code; an app's profile is taken as the personal one
+/** Gesture settings and how many were left out, from Octopi's [screen]; an app gesture opens its componentName. */
+fun octopiGestures(screen: JSONObject): Pair<Map<String, String>, Int> = gestureSettings(
+    OCTOPI_GESTURES.keys.associateWith { k -> screen.optString("actionType$k").let { t -> screen.optString("componentName$k").takeIf { '/' in it }?.let { "app:$it" } ?: t } },
+    OCTOPI_GESTURES,
+) { v -> if (v.startsWith("app:")) appAction(componentKey(v.removePrefix("app:"))) else OCTOPI_ACTIONS[v] }
+
+// ponytail: Octopi's drawer folders (DrawerFolder) hold no name in the backups seen; they stay behind until one shows where it is
+/** Octopi's drawer from [tables]: the apps it hid and the nicknames it gave them. [serialOf] as for [jsonTablesToRows]. */
+fun jsonTablesDrawer(tables: Map<String, String>, serialOf: (Int) -> Long): ImportedDrawer {
+    val items = runCatching { JSONArray(tables["DrawerItem"] ?: "[]") }.getOrDefault(JSONArray()).let { a -> (0 until minOf(a.length(), MAX_IMPORT_ROWS)).mapNotNull(a::optJSONObject) }
+    fun key(o: JSONObject): String? {
+        val user = Regex("\\d+").find(o.optString("profile"))?.value?.toIntOrNull()?.let(serialOf)?.takeIf { it >= 0 } ?: 0L
+        return componentKey(o.optString("componentName")) { user }
+    }
+    val apps = items.filter { it.optString("shortcutID").isEmpty() }
+    return ImportedDrawer(hidden = apps.filter { it.optBoolean("hidden") }.mapNotNull(::key).toSet(),
+        labels = apps.mapNotNull { o -> o.optString("nickname").trim().takeIf { it.isNotEmpty() }?.let { n -> key(o)?.let { it to n } } }.toMap())
 }
 
 object JsonTablesFormat : BackupFormat {
@@ -120,9 +153,9 @@ object JsonTablesFormat : BackupFormat {
     override fun read(context: Context, archive: BackupArchive): ImportedBackup {
         val users = context.getSystemService(UserManager::class.java)
         val tables = archive.files.filterKeys { it.endsWith(".txt") }.map { (k, v) -> k.removeSuffix(".txt") to v.decodeToString() }.toMap()
-        val (rows, ranks, settings) = jsonTablesToRows(tables) { id ->
-            runCatching { users.getSerialNumberForUser(UserHandle.getUserHandleForUid(id * 100_000)) }.getOrDefault(-1L)
-        }
-        return ImportedBackup(importToItems(rows, ranks, settings["dockCols"]?.toInt() ?: 5), settings, name)
+        val serialOf = { id: Int -> runCatching { users.getSerialNumberForUser(UserHandle.getUserHandleForUid(id * 100_000)) }.getOrDefault(-1L) }
+        val (rows, ranks, settings, left) = jsonTablesToRows(tables, serialOf)
+        return ImportedBackup(importToItems(rows, ranks, settings["dockCols"]?.toInt() ?: 5), settings, name,
+            drawer = jsonTablesDrawer(tables, serialOf), gesturesLeft = left)
     }
 }

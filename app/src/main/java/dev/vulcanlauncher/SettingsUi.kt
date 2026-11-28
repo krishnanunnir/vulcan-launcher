@@ -18,6 +18,7 @@ import android.widget.ScrollView
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import org.json.JSONObject
 import kotlin.math.roundToInt
 
 // Settings: a screen of its own (SettingsActivity), as Launcher3's: categories, then one page per category. Picking a
@@ -870,6 +871,13 @@ fun VulcanActivity.importNote(backup: ImportedBackup): ImportNote {
     )
     val cols = s["cols"]?.toIntOrNull()
     val rows = s["rows"]?.toIntOrNull()
+    val drawer = backup.drawer
+    val drawerParts = listOfNotNull(
+        s["drawerCols"]?.toIntOrNull()?.let { n -> count(R.plurals.review_columns, n, n) },
+        drawer.groups.count { it.type == "tab" }.takeIf { it > 0 }?.let { n -> count(R.plurals.review_tabs, n, n) },
+        drawer.groups.count { it.type == "folder" }.takeIf { it > 0 }?.let { n -> count(R.plurals.review_folders, n, n) },
+    )
+    val gestures = s.keys.count { it in GESTURE_KEYS || it == "homeButton" }
     val comes = listOfNotNull(
         held.takeIf { it.isNotEmpty() }?.let { ReviewRow(getString(R.string.review_row_home), getString(R.string.review_where, it.joinToString(", ")) +
             (s["defaultPage"]?.toIntOrNull()?.takeIf { it > 0 }?.let { getString(R.string.review_grid_start, it + 1) } ?: "")) },
@@ -878,17 +886,26 @@ fun VulcanActivity.importNote(backup: ImportedBackup): ImportNote {
         layout.widgets.takeIf { it > 0 }?.let { n -> ReviewRow(getString(R.string.review_row_widgets), getString(R.string.review_widgets_later, n), signal = true) },
         if (cols == null || rows == null) null else ReviewRow(getString(R.string.review_row_grid),
             getString(R.string.review_grid, cols, rows) + (if (layout.subgrid) getString(R.string.review_grid_half) else "")),
-        s["drawerCols"]?.toIntOrNull()?.let { n -> ReviewRow(getString(R.string.review_row_drawer), count(R.plurals.review_columns, n, n)) },
+        drawerParts.takeIf { it.isNotEmpty() }?.let { ReviewRow(getString(R.string.review_row_drawer), it.joinToString(", ")) },
+        drawer.hidden.size.takeIf { it > 0 }?.let { n -> ReviewRow(getString(R.string.hidden_apps), count(R.plurals.review_apps, n, n)) },
+        drawer.labels.size.takeIf { it > 0 }?.let { n -> ReviewRow(getString(R.string.review_row_renamed), count(R.plurals.review_apps, n, n)) },
+        gestures.takeIf { it > 0 }?.let { n -> ReviewRow(getString(R.string.sec_gestures), count(R.plurals.review_gestures, n, n)) },
+        SHAPES.indexOf(s["shape"]).takeIf { it >= 0 }?.let { ReviewRow(getString(R.string.set_shape), getString(SHAPE_NAMES[it])) },
     )
     val stays = listOfNotNull(
         layout.skipped.takeIf { it > 0 }?.let { n -> ReviewRow(count(R.plurals.review_items_count, n, n), getString(R.string.review_only_in, name)) },
         layout.missing.takeIf { it > 0 }?.let { n -> ReviewRow(count(R.plurals.review_apps, n, n), getString(R.string.review_not_installed)) },
+        backup.gesturesLeft.takeIf { it > 0 }?.let { n -> ReviewRow(count(R.plurals.review_gestures, n, n), getString(R.string.review_only_in, name)) },
     )
     return ImportNote(if (backup.newer) getString(R.string.review_newer, name) else null, comes, stays, getString(R.string.review_kept))
 }
 
-/** Stores an imported layout and its grid settings in place of the current ones; home is rebuilt after (restart). */
-fun VulcanActivity.applyImport(layout: ImportedLayout, settings: Map<String, String>) {
+/**
+ * Stores an imported layout and its settings in place of the current ones, and adds its drawer to this one (tabs and
+ * folders by name, hidden apps, app names); home is rebuilt after (restart).
+ */
+fun VulcanActivity.applyImport(backup: ImportedBackup) {
+    val (layout, settings) = backup.layout to backup.settings
     // The home this replaces stays restorable from Settings; like Store.import, nothing is replaced if that can't be saved.
     runCatching { store.rotateAutoBackup() }.onFailure { toast(R.string.import_failed, it.message); return }
     home.items.flatMap { it.widgetIds }.forEach(home.host::deleteAppWidgetId)
@@ -898,7 +915,15 @@ fun VulcanActivity.applyImport(layout: ImportedLayout, settings: Map<String, Str
     store.editLayout(if (layout.subgrid) 2 else 1) {
         importedLayout(layout.items, settings["pages"]?.toIntOrNull(), settings["defaultPage"]?.toIntOrNull() ?: it.defaultPage)
     }
-    if (layout.widgets > 0) store.data.edit().putBoolean(RESTORING_WIDGETS, true).commit()
+    val drawer = backup.drawer
+    store.data.edit().apply {
+        if (drawer.groups.isNotEmpty()) putString("groups", groupsToJson(mergedGroups(groupsFromJson(store.data.getString("groups", "[]")!!), drawer.groups)))
+        if (layout.widgets > 0) putBoolean(RESTORING_WIDGETS, true)
+    }.commit()
+    if (drawer.hidden.isNotEmpty()) store.putStrings("hidden", store.strings("hidden") + drawer.hidden)
+    if (drawer.labels.isNotEmpty()) store.putObj("custom", store.obj("custom").apply {
+        drawer.labels.forEach { (key, label) -> put(key, (optJSONObject(key) ?: JSONObject().put("icon", "")).put("label", label)) }
+    })
     // The same pins as these, from what was just stored; it waits for onResume when Vulcan isn't the default home app yet.
     home.repinShortcuts()
 }
