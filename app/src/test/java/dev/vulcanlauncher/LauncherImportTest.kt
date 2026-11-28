@@ -228,4 +228,12 @@ class LauncherImportTest {
         importToItems(rows, ranks, 5).items.forEach { assertTrue(it.x in 0..MAX_CELL && it.y in 0..MAX_CELL) }
         assertFalse(rows.isEmpty())
     }
+
+    @Test fun importedDrawerKeepsOnlyInstalledApps() {
+        val d = ImportedDrawer(listOf(Group("Tab", "tab", listOf("a/A#0", "gone/G#0")), Group("Gone", "folder", listOf("gone/G#0"))),
+            setOf("a/A#0", "gone/G#0"), mapOf("a/A#0" to "Mail", "gone/G#0" to "Old")).installedOnly(setOf("a/A#0"))
+        assertEquals(listOf(Group("Tab", "tab", listOf("a/A#0"))), d.groups)
+        assertEquals(setOf("a/A#0"), d.hidden)
+        assertEquals(mapOf("a/A#0" to "Mail"), d.labels)
+    }
 }

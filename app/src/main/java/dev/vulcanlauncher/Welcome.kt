@@ -63,6 +63,8 @@ fun MainActivity.showWelcome() {
 /** An import from Settings: the same review and widget steps as the first run, over home. */
 fun MainActivity.showImport(picked: ImportedBackup) {
     root.findViewWithTag<View>(WELCOME)?.let(root::removeView)
+    // An open drawer under the review would take its search's keyboard back over it.
+    if (drawer.visible) drawer.hide(animate = false)
     addWelcome(WelcomeView(this, picked))
 }
 
@@ -86,7 +88,7 @@ fun MainActivity.readForReview(uri: android.net.Uri): ImportedBackup? {
     val problem = when {
         layout.items.isEmpty() && layout.skipped == 0 -> getString(R.string.import_no_layout, getString(b.name))
         kept.isEmpty() -> getString(R.string.import_nothing)
-        else -> return ImportedBackup(ImportedLayout(kept, layout.subgrid, layout.skipped, layout.items.size - kept.size), b.settings, b.name, b.newer, b.drawer, b.gesturesLeft)
+        else -> return ImportedBackup(ImportedLayout(kept, layout.subgrid, layout.skipped, layout.items.size - kept.size), b.settings, b.name, b.newer, b.drawer.installedOnly(repo.apps.keys), b.gesturesLeft)
     }
     toast(getString(R.string.import_failed, problem))
     return null

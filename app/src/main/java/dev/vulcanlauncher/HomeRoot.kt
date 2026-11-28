@@ -58,7 +58,7 @@ class HomeRoot(private val a: MainActivity) : FrameLayout(a) {
         pointer.onEvent(ev)
         val two = ev.pointerCount >= 2
         touch.feed(Touch(action, pointer.x, pointer.y, ev.eventTime, ev.pointerCount, if (two) ev.getX(1) else 0f, if (two) ev.getY(1) else 0f),
-            blocked = action == MotionEvent.ACTION_DOWN && inGestureStrip(ev))
+            blocked = action == MotionEvent.ACTION_DOWN && (inGestureStrip(ev) || a.welcoming)) // the welcome or an import's review covers home: none of its gestures
         // A cut touch reaches no child either: they were cancelled when it was cut.
         dispatching = true
         val handled = touch.arbiter.cut || super.dispatchTouchEvent(ev)
