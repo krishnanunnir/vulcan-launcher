@@ -54,6 +54,7 @@
     <string name="padding_top">Góra</string>
     <string name="padding_bottom">Dół</string>
     <string name="set_widgetRadius">Promień zaokrąglenia narożników widżetów</string>
+    <string name="set_widgetPadding">Marginesy wewnętrzne widżetu</string>
     <string name="set_autoAdd">Dodawaj ikony nowych aplikacji do ekranu głównego</string>
     <string name="set_hideClock">Ukryj zegar na pasku stanu</string>
     <string name="set_hideClock_info">Na ekranie głównym. Wymaga jednorazowego nadania uprawnień z poziomu komputera</string>
@@ -116,6 +117,16 @@
     <string name="set_searchEngine">Wyszukiwanie w sieci za pomocą</string>
     <string name="set_contactSearch">Przeszukuj kontakty</string>
     <string name="set_contactSearch_info">Wymaga uprawnień do kontaktów</string>
+    <string name="set_searchShortcuts">Skróty aplikacji</string>
+    <string name="set_searchShortcuts_info">Na przykład Nowa karta lub Utwórz wiadomość</string>
+    <string name="set_searchSettings">Ustawienia Androida</string>
+    <string name="set_searchSettings_info">Na przykład Wi-Fi lub Bateria</string>
+    <string name="set_quickAnswers">Szybkie odpowiedzi</string>
+    <string name="set_quickAnswers_info">Obliczenia, jednostki, minutniki, alarmy, numery telefonów i linki</string>
+    <string name="set_calendarSearch">Przeszukuj kalendarz</string>
+    <string name="set_calendarSearch_info">Nadchodzące wydarzenia. Wymaga uprawnienia dostępu do kalendarza</string>
+    <string name="set_hiddenSearch">Uwzględniaj ukryte aplikacje</string>
+    <string name="set_hiddenSearch_info">Wyszukuj ukryte aplikacje po nazwie. Pozostaną one niewidoczne na liście alfabetycznej.</string>
     <string name="set_folderPreview">Podgląd folderu</string>
     <string name="set_folderBg">Tło folderu</string>
     <string name="set_folderColor">Kolor tła folderu</string>
@@ -452,6 +463,7 @@
     <string name="no_room">Brak miejsca na ekranie głównym</string>
     <string name="remove">Usuń</string>
     <string name="app_info">O aplikacji</string>
+    <string name="permission_blocked">System Android nie pyta już o to uprawnienie. Zezwól na nie w sekcji Informacje o aplikacji, w zakładce Uprawnienia.</string>
     <string name="uninstall">Odinstaluj</string>
     <string name="added_to_home">Dodano do ekranu głównego</string>
     <string name="menu_add">Dodaj</string>
@@ -484,6 +496,7 @@
     <string name="open_app">Otwórz aplikację</string>
     <string name="lock_needs_9">Blokada ekranu wymaga systemu Android 9</string>
     <string name="no_app_handles">Brak aplikacji obsługującej to działanie</string>
+    <string name="no_voice_app">Nie zainstalowano aplikacji głosowej. Zainstaluj aplikację do zamiany mowy na tekst, aby wyszukiwać głosowo.</string>
     <string name="accessibility_title">Włącz usługę ułatwień dostępu</string>
     <string name="accessibility_text">Vulcan korzysta z interfejsu AccessibilityService API wyłącznie wtedy, gdy użyjesz gestu lub skrótu do zablokowania ekranu, otwarcia ostatnio używanych aplikacji, powiadomień, szybkich ustawień lub menu zasilania.\n\nUsługa nie odczytuje zawartości ekranu, nie rejestruje Twoich interakcji ani nie gromadzi i nie udostępnia danych osobowych. Wykonuje jedynie wybraną przez Ciebie akcję. Dostęp jest opcjonalny – pozostałe funkcje launchera działają bez niego. Możesz go wyłączyć w dowolnym momencie w ustawieniach ułatwień dostępu Androida.\n\nDotknij „Zgadzam się i otwórz ustawienia”, aby kontynuować, a następnie włącz akcje aplikacji Vulcan.</string>
     <string name="agree_open_settings">Zgadzam się i otwórz ustawienia</string>
@@ -506,7 +519,6 @@
     <string name="now_add_card">Dodaj kartę</string>
     <string name="now_card_apps">Aplikacje</string>
     <string name="now_card_widget">Widżet</string>
-     <string name="now_card_height">%1$d dp</string>
     <string name="now_frequent">Często używane</string>
     <string name="now_now">Teraz</string>
     <string name="charging">Ładowanie · %1$d%%</string>
@@ -554,6 +566,14 @@
     <string name="search_web_for">Szukaj „%1$s”</string>
     <string name="search_timer">Minutnik: %1$s</string>
     <string name="search_alarm">Alarm: %1$s</string>
+    <string name="search_call">Zadzwoń do: %1$s</string>
+    <string name="search_message">Napisz do: %1$s</string>
+    <string name="search_open">Otwórz %1$s</string>
+    <string name="search_tab">Karta %1$s</string>
+    <string name="search_vulcan_setting">%1$s (ustawienie)</string>
+    <string name="search_event">%1$s, %2$s</string>
+    <string name="search_store">Szukaj „%2$s” w: %1$s</string>
+    <string name="search_store_any">sklepie z aplikacjami</string>
     <string name="copied">Skopiowano</string>
     <string name="no_clock_app">Brak aplikacji zegara obsługującej to działanie</string>
     <string name="page_wifi">Ustawienia Wi-Fi</string>
@@ -578,10 +598,19 @@
     <string name="launcher_settings">Ustawienia launchera</string>
     <string name="letter_index">Indeks literowy</string>
     <string name="a11y_menu">Menu</string>
+    <plurals name="a11y_notifications">
+        <item quantity="one">%d powiadomienie</item>
+        <item quantity="few">%d powiadomienia</item>
+        <item quantity="many">%d powiadomień</item>
+        <item quantity="other">%d powiadomienia</item>
+    </plurals>
     <string name="page_of">Strona %1$d z %2$d</string>
-    <string name="not_launcher_backup">To nie jest kopia zapasowa z %1$s</string>
+    <string name="not_launcher_backup">To nie jest kopia zapasowa z Nova, Lawnchair ani Octopi</string>
     <string name="list_or">%1$s lub %2$s</string>
     <string name="not_vulcan_backup">To nie jest kopia zapasowa aplikacji Vulcan</string>
+    <string name="backup_too_large">Plik jest za duży, aby mógł być kopią zapasową</string>
+    <string name="auto_backup_not_saved">Nie udało się zapisać automatycznej kopii zapasowej</string>
+    <string name="restore_not_saved">Nie udało się zapisać przywróconej konfiguracji</string>
     <string name="badge_service_label">Plakietki Vulcan</string>
     <string name="action_service_label">Działania Vulcan</string>
     <plurals name="filter_icons">
@@ -601,6 +630,12 @@
         <item quantity="few">Utworzono %1$d foldery</item>
         <item quantity="many">Utworzono %1$d folderów</item>
         <item quantity="other">Utworzono %1$d folderu</item>
+    </plurals>
+    <plurals name="restore_missing">
+        <item quantity="one">Pominięto %1$d ikonę: jej aplikacja nie jest zainstalowana. Przywróć ponownie, gdy ją zainstalujesz.</item>
+        <item quantity="few">Pominięto %1$d ikony: ich aplikacje nie są zainstalowane. Przywróć ponownie, gdy je zainstalujesz.</item>
+        <item quantity="many">Pominięto %1$d ikon: ich aplikacje nie są zainstalowane. Przywróć ponownie, gdy je zainstalujesz.</item>
+        <item quantity="other">Pominięto %1$d ikony: ich aplikacje nie są zainstalowane. Przywróć ponownie, gdy je zainstalujesz.</item>
     </plurals>
     <string name="custom_colors">Własne kolory</string>
     <string name="custom_colors_info">Każdy z kolorów zastępuje barwę motywu w każdym widoku. Zresetuj dowolny z nich, aby przywrócić pierwotny styl.</string>
@@ -644,6 +679,8 @@
     <string name="no_work_profile">Brak profilu służbowego</string>  
     <string name="work_paused">Profil służbowy jest wstrzymany</string>
     <string name="work_resumed">Profil służbowy jest włączony</string>
+    <string name="work_needs_home">Ustaw Vulcan jako aplikację ekranu głównego, aby wstrzymywać aplikacje służbowe</string>
+    <string name="work_refused">System Android nie zmienił stanu profilu służbowego</string>
     <string name="no_flashlight">Latarka jest obecnie niedostępna</string>
     <string name="name">Nazwa</string>
     <string name="backup_panel_save">Zapisz</string>
@@ -789,7 +826,7 @@
     <string name="tab_bar_wrap">Zawijany</string>
     <string name="names_and_more">%1$s i jeszcze %2$d</string>
     <string name="tabs_in_bar">Na pasku kart</string>
-    <string name="tabs_hint">Przeciągnij kartę, aby ją przenieść. Przesuń w lewo, aby usunąć.</string>
+    <string name="tabs_hint">Dotknij karty, aby zmienić jej nazwę lub kolor. Przeciągnij ją, aby przenieść, lub przesuń w lewo, aby ją usunąć.</string>
     <string name="tab_hidden">Ukryte</string>
     <string name="tab_show">Pokaż: %s</string>
     <string name="tab_hide">Ukryj: %s</string>
