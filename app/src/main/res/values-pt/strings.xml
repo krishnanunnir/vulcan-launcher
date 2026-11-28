@@ -455,6 +455,7 @@
     <string name="no_room">Não há espaço na tela inicial</string>
     <string name="remove">Remover</string>
     <string name="app_info">Informações do aplicativo</string>
+    <string name="permission_blocked">O Android não solicita mais essa permissão. Conceda-a nas informações do aplicativo, em Permissões.</string>
     <string name="uninstall">Desinstalar</string>
     <string name="added_to_home">Adicionado à tela inicial</string>
     <string name="menu_add">Adicionar</string>
@@ -487,6 +488,7 @@
     <string name="open_app">Abrir aplicativo</string>
     <string name="lock_needs_9">O bloqueio de tela exige o Android 9</string>
     <string name="no_app_handles">Nenhum aplicativo lida com isso</string>
+    <string name="no_voice_app">Nenhum aplicativo de voz instalado. Instale um aplicativo de conversão de voz em texto para pesquisar por voz.</string>
     <string name="accessibility_title">Ativar o serviço de acessibilidade</string>
     <string name="accessibility_text">O Vulcan usa a API AccessibilityService apenas quando você aciona um gesto ou atalho para bloquear a tela, abrir aplicativos recentes, notificações, configurações rápidas ou o menu de energia.\n\nO serviço não lê o conteúdo da tela, não grava suas interações nem coleta ou compartilha dados pessoais. Ele executa apenas a ação solicitada. O acesso é opcional; o restante do launcher funciona sem ele. Você pode desativá-lo a qualquer momento nas configurações de Acessibilidade do Android.\n\nToque em Concordar e abrir configurações para continuar e, em seguida, ative as ações do Vulcan.</string>
     <string name="agree_open_settings">Concordar e abrir configurações</string>
@@ -579,11 +581,16 @@
     <string name="launcher_settings">Configurações do launcher</string>
     <string name="letter_index">Índice de letras</string>
     <string name="a11y_menu">Menu</string>
+    <plurals name="a11y_notifications">
+        <item quantity="one">%d notificação</item>
+        <item quantity="other">%d notificações</item>
+    </plurals>
     <string name="page_of">Página %1$d de %2$d</string>
     <string name="not_launcher_backup">Não é um backup do %1$s</string>
     <string name="list_or">%1$s ou %2$s</string>
     <string name="not_vulcan_backup">Não é um backup do Vulcan</string>
     <string name="backup_too_large">O arquivo é muito grande para ser um backup</string>
+    <string name="auto_backup_not_saved">O backup automático não pôde ser salvo.</string>
     <string name="restore_not_saved">A configuração restaurada não pôde ser salva</string>
     <string name="app_name" translatable="false">Vulcan</string>
     <string name="badge_service_label">Selos do Vulcan</string>
@@ -644,6 +651,8 @@
     <string name="no_work_profile">Sem perfil de trabalho</string>
     <string name="work_paused">Perfil de trabalho pausado</string>
     <string name="work_resumed">Perfil de trabalho ativo</string>
+    <string name="work_needs_home">Defina o Vulcan como seu aplicativo de início para pausar os aplicativos de trabalho</string>
+    <string name="work_refused">O Android não alterou o perfil de trabalho</string>
     <string name="no_flashlight">Nenhuma lanterna disponível no momento</string>
     <string name="name">Nome</string>
     <string name="backup_panel_save">Salvar</string>
@@ -763,7 +772,7 @@
     <string name="tab_bar_wrap">Quebra de linha</string>
     <string name="names_and_more">%1$s e mais %2$d</string>
     <string name="tabs_in_bar">Na barra de abas</string>
-    <string name="tabs_hint">Arraste uma aba para movê-la. Deslize uma para a esquerda para excluí-la.</string>
+    <string name="tabs_hint">Toque em uma aba para renomear ou mudar a cor. Arraste para mover; deslize para a esquerda para excluir.</string>
     <string name="tab_hidden">Oculta</string>
     <string name="tab_show">Mostrar %s</string>
     <string name="tab_hide">Ocultar %s</string>
