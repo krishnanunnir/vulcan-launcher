@@ -230,7 +230,8 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="no_room">На главном экране нет места</string>
     <string name="no_web_search_app">Нет приложения для веб-поиска</string>
     <string name="none">Нет</string>
-    <string name="not_launcher_backup">Это не резервная копия Nova, Lawnchair или Octopi</string>
+    <string name="not_launcher_backup">Это не резервная копия %1$s</string>
+    <string name="list_or">%1$s или %2$s</string>
     <string name="not_used_by_bg">Не используется с фоном «%1$s»</string>
     <string name="panels_amoled">При выборе цвета темы «Чёрный AMOLED» панели всегда остаются тёмными.</string>
     <string name="not_vulcan_backup">Это не резервная копия Vulcan</string>
@@ -498,7 +499,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="restore_auto_confirm">Заменить макет и настройки автоматической копией от %1$s?</string>
     <string name="restore">Восстановить</string>
     <string name="import_launcher_backup">Импорт из другого лаунчера</string>
-    <string name="import_launcher_backup_info">Файл резервной копии Nova, Lawnchair или Octopi</string>
+    <string name="import_launcher_backup_info">Файл резервной копии %1$s</string>
     <string name="reset_defaults_info">Удаляет все настройки и весь макет главного экрана</string>
     <string name="perm_intro">Vulcan никогда не подключается к интернету. Эти разрешения расширяют его возможности, но каждое начинает действовать только после того, как вы разрешите его в настройках Android.</string>
     <string name="perm_count">Разрешено: %1$d из %2$d</string>
@@ -700,7 +701,7 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="welcome_import">Импорт из другого лаунчера</string>
     <string name="welcome_restore">Восстановить резервную копию Vulcan</string>
     <string name="welcome_setup_title">Перенесите свой главный экран</string>
-    <string name="welcome_setup_body">Выберите резервную копию Nova, Lawnchair или Octopi — и сюда перенесутся ваши приложения, папки, док, параметры сетки и виджеты.</string>
+    <string name="welcome_setup_body">Выберите резервную копию %1$s — и сюда перенесутся ваши приложения, папки, док, параметры сетки и виджеты.</string>
     <string name="welcome_home_title">Сделайте Vulcan главным экраном</string>
     <string name="welcome_home_body">Vulcan будет открываться при нажатии кнопки «Домой». В любой момент можно снова выбрать прежний лаунчер в настройках Android.</string>
     <string name="welcome_home_set">Сделать главным экраном</string>

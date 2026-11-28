@@ -579,7 +579,8 @@
     <string name="letter_index">Indeks literowy</string>
     <string name="a11y_menu">Menu</string>
     <string name="page_of">Strona %1$d z %2$d</string>
-    <string name="not_launcher_backup">To nie jest kopia zapasowa z Nova, Lawnchair ani Octopi</string>
+    <string name="not_launcher_backup">To nie jest kopia zapasowa z %1$s</string>
+    <string name="list_or">%1$s lub %2$s</string>
     <string name="not_vulcan_backup">To nie jest kopia zapasowa aplikacji Vulcan</string>
     <string name="badge_service_label">Plakietki Vulcan</string>
     <string name="action_service_label">Działania Vulcan</string>
@@ -687,7 +688,7 @@
         <item quantity="other">Zastosować %1$d ustawienia z tego linku? Elementy ekranu głównego pozostaną zapisane, ale zmiana siatki może je przesunąć.</item>
     </plurals>
     <string name="import_launcher_backup">Importuj z innego launchera</string>
-    <string name="import_launcher_backup_info">Plik kopii zapasowej z Nova, Lawnchair lub Octopi</string>
+    <string name="import_launcher_backup_info">Plik kopii zapasowej z %1$s</string>
     <string name="reset_defaults_info">Usuwa wszystkie ustawienia oraz cały układ ekranu głównego</string>
     <string name="perm_intro">Vulcan nigdy nie łączy się z internetem. Poniższe opcje pozwalają mu na więcej, a każda z nich działa dopiero po wyrażeniu zgody w ustawieniach systemu Android.</string>
     <string name="perm_count">Dozwolone: %1$d z %2$d</string>
@@ -721,7 +722,7 @@
     <string name="welcome_home_set">Ustaw jako aplikację ekranu głównego</string>
     <string name="welcome_not_now">Nie teraz</string>
     <string name="welcome_setup_title">Przenieś swój ekran główny</string>
-    <string name="welcome_setup_body">Wybierz kopię zapasową z Nova, Lawnchair lub Octopi, aby przenieść aplikacje, foldery, dock, siatkę i widżety.</string>
+    <string name="welcome_setup_body">Wybierz kopię zapasową z %1$s, aby przenieść aplikacje, foldery, dock, siatkę i widżety.</string>
     <string name="welcome_import">Importuj z innego launchera</string>
     <string name="welcome_restore">Przywróć kopię zapasową Vulcan</string>
     <string name="welcome_fresh">Zacznij od nowa</string>

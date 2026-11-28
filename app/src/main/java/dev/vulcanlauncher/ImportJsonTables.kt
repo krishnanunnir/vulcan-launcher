@@ -17,9 +17,6 @@ import kotlin.math.roundToInt
 // - HomePanels with a DOCK panel and its PanelIcons: the dock, x in pixels across the panel.
 // - profile "UserHandle{N}": the user id, not a serial.
 
-/** A row the launcher alone has (its "open drawer" icon, a dock folder): counted as its own, never placed. */
-private const val OWN = -1
-
 /** [v] in cells of [size] pixels, on the nearest half cell; NaN (a missing number) stays NaN, for importToItems to place. */
 private fun cells(v: Double, size: Double) = (v / size * 2).let { if (it.isNaN()) it else it.roundToInt() / 2.0 }
 
@@ -66,9 +63,9 @@ fun jsonTablesToRows(tables: Map<String, String>, serialOf: (Int) -> Long): Trip
         val shortcut = o.optString("shortcutID")
         val pkg = o.optString("packageName").ifEmpty { component.substringBefore('/') }
         val (type, intent) = when {
-            shortcut.isNotEmpty() -> 6 to "#Intent;package=$pkg;S.shortcut_id=${java.net.URLEncoder.encode(shortcut, "UTF-8").replace("+", "%20")};end"
-            '/' in component -> 0 to "#Intent;component=$component;end"
-            else -> OWN to ""
+            shortcut.isNotEmpty() -> ITEM_DEEP_SHORTCUT to "#Intent;package=$pkg;S.shortcut_id=${java.net.URLEncoder.encode(shortcut, "UTF-8").replace("+", "%20")};end"
+            '/' in component -> ITEM_APP to "#Intent;component=$component;end"
+            else -> ITEM_OWN to ""
         }
         return ImportRow(0, o.optString("label"), intent, container, screen, x, y, 1.0, 1.0, type, user(o), rank)
     }
@@ -76,7 +73,7 @@ fun jsonTablesToRows(tables: Map<String, String>, serialOf: (Int) -> Long): Trip
     val real = folders.filter { it.optLong("homeScreenOwnerId") in ranks && it.optString("folderInternalName") != "blank" }
         .associateBy { it.optLong("homeScreenFolderId") }
     for (f in real.values) rows += ImportRow(f.optLong("homeScreenFolderId"), f.optString("label"), "", -100, f.optLong("homeScreenOwnerId"),
-        cells(f.optDouble("x") - x0, cellW), cells(f.optDouble("y") - y0, cellH), 1.0, 1.0, 2, 0, 0)
+        cells(f.optDouble("x") - x0, cellW), cells(f.optDouble("y") - y0, cellH), 1.0, 1.0, ITEM_FOLDER, 0, 0)
     for (i in icons) {
         val page = i.optLong("homeScreenOwnerId").takeIf { it in ranks } ?: continue
         val folder = if (i.isNull("homeScreenFolderOwnerId")) null else i.optLong("homeScreenFolderOwnerId")
@@ -94,7 +91,7 @@ fun jsonTablesToRows(tables: Map<String, String>, serialOf: (Int) -> Long): Trip
         val spanX = span(w.optDouble("width"), cellW).coerceIn(0.5, cols.toDouble())
         val spanY = span(w.optDouble("height"), cellH).coerceIn(0.5, rowCount.toDouble())
         rows += ImportRow(0, w.optString("label"), "", -100, page, cells(w.optDouble("x") - x0, cellW).coerceAtMost(cols - spanX),
-            cells(w.optDouble("y") - y0, cellH).coerceAtMost(rowCount - spanY), spanX, spanY, if (stacked) OWN else 4, user(w), 0,
+            cells(w.optDouble("y") - y0, cellH).coerceAtMost(rowCount - spanY), spanX, spanY, if (stacked) ITEM_OWN else ITEM_WIDGET, user(w), 0,
             w.optString("provider"))
     }
     val dock = table("HomePanels").firstOrNull { it.optLong("screenOwnerId") == screenId && it.optString("panelType").startsWith("DOCK") }
@@ -104,7 +101,7 @@ fun jsonTablesToRows(tables: Map<String, String>, serialOf: (Int) -> Long): Trip
         for (p in table("PanelIcons").filter { it.optLong("homePanelOwnerId") == dock.optLong("homePanelId") }) {
             val inFolder = !p.isNull("homePanelFolderOwnerId")
             val pos = p.optInt("panelIndex") * dockCols + (p.optDouble("x") / slot).roundToInt()
-            rows += app(p, -101, 0, pos.toDouble(), 0.0).let { if (inFolder) it.copy(itemType = OWN) else it }
+            rows += app(p, -101, 0, pos.toDouble(), 0.0).let { if (inFolder) it.copy(itemType = ITEM_OWN) else it }
         }
     }
     val settings = listOfNotNull(
@@ -117,6 +114,7 @@ fun jsonTablesToRows(tables: Map<String, String>, serialOf: (Int) -> Long): Trip
 
 object JsonTablesFormat : BackupFormat {
     override val name = R.string.format_octopi
+    override val reads = listOf(".txt")
     override fun matches(archive: BackupArchive) = "Screen.txt" in archive && "HomeScreenIcon.txt" in archive
 
     override fun read(context: Context, archive: BackupArchive): ImportedBackup {

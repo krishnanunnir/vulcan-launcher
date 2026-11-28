@@ -5,7 +5,8 @@ import android.database.sqlite.SQLiteDatabase
 import java.io.File
 
 // A zip holding an SQLite database with a Launcher3-style `favorites` table (and, in older ones, `workspaceScreens` for
-// the page order) plus a preferences XML with the grid settings: Nova's .novabackup (see docs/nova-reference.md).
+// the page order). Nova's .novabackup (see docs/nova-reference.md) adds its preferences XML with the grid settings; Nova
+// 8.9.4 names them nova.db and nova.xml, older ones backup.db and com.teslacoilsw.launcher_preferences.xml.
 
 /** Rows of the `favorites` table in database [db] and page order by screen _id; throws when it has no such table. */
 fun readFavorites(context: Context, db: ByteArray): Pair<List<ImportRow>, Map<Long, Int>> {
@@ -40,15 +41,26 @@ fun readFavorites(context: Context, db: ByteArray): Pair<List<ImportRow>, Map<Lo
 fun favoritesDb(archive: BackupArchive) = archive["launcher.db"] ?: archive["backup.db"]
     ?: archive.files.entries.firstOrNull { it.key.endsWith(".db") }?.value
 
-object FavoritesFormat : BackupFormat {
-    override val name = R.string.format_nova
-    override fun matches(archive: BackupArchive) = favoritesDb(archive) != null
+/** Nova's preferences file: in a backup, the sign that it is Nova's. */
+private const val NOVA_PREFS = "com.teslacoilsw.launcher_preferences.xml"
+
+/** A favorites backup: [prefs] names the preferences file it takes the grid from, when the launcher is known. */
+open class FavoritesFormat(override val name: Int, private val prefs: String?) : BackupFormat {
+    override val reads = listOfNotNull(".db", prefs)
+    override fun matches(archive: BackupArchive) = favoritesDb(archive) != null && (prefs == null || prefs in archive)
 
     override fun read(context: Context, archive: BackupArchive): ImportedBackup {
         val (rows, ranks) = runCatching { readFavorites(context, favoritesDb(archive)!!) }
             // A database without a layout table isn't a launcher backup at all.
-            .getOrElse { throw ImportProblem(context.getString(R.string.not_launcher_backup)) }
-        val settings = importedPrefs(archive.text("preferences.xml"))
+            .getOrElse { throw ImportProblem(context.withLaunchers(R.string.not_launcher_backup)) }
+        val settings = prefs?.let { importedPrefs(archive.text(it)) }.orEmpty()
         return ImportedBackup(importToItems(rows, ranks, settings["dockCols"]?.toInt() ?: 5), settings, name)
     }
+}
+
+object NovaFormat : FavoritesFormat(R.string.format_nova, NOVA_PREFS)
+
+/** Any other Launcher3-style backup: its layout comes over, its settings (whose names only it knows) don't. */
+object Launcher3Format : FavoritesFormat(R.string.format_launcher3, null) {
+    override val listed = false
 }

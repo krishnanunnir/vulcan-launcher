@@ -73,8 +73,11 @@ fun infoPbSettings(info: ByteArray, prefsXml: String, dataStore: ByteArray?): Ma
     ).toMap()
 }
 
+private const val PREFS = "com.android.launcher3.prefs.xml"
+
 object InfoPbFormat : BackupFormat {
     override val name = R.string.format_lawnchair
+    override val reads = listOf("info.pb", "launcher.db", PREFS, "preferences.preferences_pb")
     override fun matches(archive: BackupArchive) = "info.pb" in archive
 
     override fun read(context: Context, archive: BackupArchive): ImportedBackup {
@@ -83,7 +86,7 @@ object InfoPbFormat : BackupFormat {
         val db = archive["launcher.db"]
         // A backup of the wallpaper alone has no layout.
         if (db == null || (fields.long(4) ?: 1L) and 1L == 0L) throw ImportProblem(context.getString(R.string.import_no_layout, context.getString(name)))
-        val settings = infoPbSettings(info, archive.text("prefs.xml"), archive["preferences.preferences_pb"])
+        val settings = infoPbSettings(info, archive.text(PREFS), archive["preferences.preferences_pb"])
         val (rows, ranks) = readFavorites(context, db)
         return ImportedBackup(importToItems(rows, ranks, settings["dockCols"]?.toInt() ?: 5), settings, name,
             newer = (fields.long(2) ?: 1L) > 1L)

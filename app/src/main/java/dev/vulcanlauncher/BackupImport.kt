@@ -20,6 +20,16 @@ data class ImportRow(
     val provider: String = "",
 )
 
+// ImportRow.itemType, numbered as Launcher3 does (7 and up are each launcher's own).
+const val ITEM_APP = 0
+const val ITEM_SHORTCUT = 1
+const val ITEM_FOLDER = 2
+const val ITEM_WIDGET = 4
+const val ITEM_CUSTOM_WIDGET = 5
+const val ITEM_DEEP_SHORTCUT = 6
+/** A row the launcher alone has (its "open drawer" icon, a dock folder): counted as its own, never placed. */
+const val ITEM_OWN = -1
+
 /** Package and class from an intent URI ("#Intent;…;component=pkg/.Cls;end"), or null when it names no component. */
 fun intentComponent(intent: String): Pair<String, String>? {
     val c = Regex("component=([^;]+)").find(intent)?.groupValues?.get(1) ?: return null
@@ -69,8 +79,10 @@ fun importToItems(rows: List<ImportRow>, screenRank: Map<Long, Int>, dockCols: I
     fun leaf(r: ImportRow): Item? {
         val user = maxOf(0L, r.profileId)
         return when (r.itemType) {
-            6 -> intentShortcut(r.intent)?.let { (pkg, id) -> Item(0, 0, 0, pkg = pkg, shortcutId = id, user = user, label = r.title) }
-            0, 1 -> intentComponent(r.intent)?.let { (pkg, cls) -> Item(0, 0, 0, pkg = pkg, cls = cls, user = user, label = if (r.itemType == 1) r.title else "") }
+            ITEM_DEEP_SHORTCUT -> intentShortcut(r.intent)?.let { (pkg, id) -> Item(0, 0, 0, pkg = pkg, shortcutId = id, user = user, label = r.title) }
+            ITEM_APP, ITEM_SHORTCUT -> intentComponent(r.intent)?.let { (pkg, cls) ->
+                Item(0, 0, 0, pkg = pkg, cls = cls, user = user, label = if (r.itemType == ITEM_SHORTCUT) r.title else "")
+            }
             else -> null
         }
     }
@@ -78,14 +90,14 @@ fun importToItems(rows: List<ImportRow>, screenRank: Map<Long, Int>, dockCols: I
     val out = ArrayList<Item>()
     for (r in rows.filter { it.container == -100L || it.container == -101L }) {
         val base = when (r.itemType) {
-            2 -> {
+            ITEM_FOLDER -> {
                 val kids = inFolder[r.id].orEmpty().sortedWith(compareBy({ it.rank }, { it.cellY }, { it.cellX })).mapNotNull { k ->
                     leaf(k).also { if (it == null) skipped++ }
                 }
                 // ponytail: an untitled imported folder is named in English (this is pure code, no resources); Nova always stores a title.
                 if (kids.isEmpty()) null else Item(0, 0, 0, folder = true, label = r.title.ifEmpty { "Folder" }, children = kids)
             }
-            4, 5 -> widgetSlot(r.provider)
+            ITEM_WIDGET, ITEM_CUSTOM_WIDGET -> widgetSlot(r.provider)
             else -> leaf(r)
         }
         if (base == null) { skipped++; continue }
@@ -153,12 +165,12 @@ const val MAX_IMPORT_ROWS = 5000
 class BackupArchive(val files: Map<String, ByteArray>, /** Not a zip but a JSON text: a Vulcan backup picked here. */ val isJson: Boolean = false) {
     operator fun get(name: String) = files[name]
     operator fun contains(name: String) = name in files
-    /** The text of the first file whose name ends with [suffix], or "". */
-    fun text(suffix: String) = files.entries.firstOrNull { it.key.endsWith(suffix) }?.value?.decodeToString().orEmpty()
+    /** The text of file [name], or "". */
+    fun text(name: String) = files[name]?.decodeToString().orEmpty()
 }
 
-/** Entries a format may read; anything else (icons, wallpapers, screenshots) is passed over unread. */
-private fun wanted(name: String) = name == "info.pb" || listOf(".db", ".xml", ".txt", ".preferences_pb").any(name::endsWith)
+/** Entries some format reads ([BackupFormat.reads]); anything else (icons, wallpapers, screenshots) is passed over unread. */
+private fun wanted(name: String) = BACKUP_FORMATS.any { f -> f.reads.any { if (it.startsWith(".")) name.endsWith(it) else name == it } }
 
 /**
  * Reads a picked file as a backup archive, within the caps: [MAX_BACKUP_BYTES] an entry, four times that for everything
@@ -200,20 +212,33 @@ class ImportProblem(message: String) : Exception(message)
 interface BackupFormat {
     /** The launcher's name, shown in the review. */
     val name: Int
+    /** Whether [name] is in the list of launchers Vulcan says it imports from; false for a catch-all. */
+    val listed: Boolean get() = true
+    /** The archive entries it reads: exact names, or suffixes starting with ".". */
+    val reads: List<String>
     /** Whether [archive] is this format's, from its entries alone. */
     fun matches(archive: BackupArchive): Boolean
     /** Throws [ImportProblem] to say what's wrong; anything else is reported as a file of this kind it can't read. */
     fun read(context: Context, archive: BackupArchive): ImportedBackup
 }
 
-/** In order: the first that matches reads the file (a favorites database is last, as other formats hold one too). */
-val BACKUP_FORMATS = listOf<BackupFormat>(InfoPbFormat, JsonTablesFormat, FavoritesFormat)
+/** In order: the first that matches reads the file (favorites databases are last, as other formats hold one too). */
+val BACKUP_FORMATS = listOf<BackupFormat>(InfoPbFormat, JsonTablesFormat, NovaFormat, Launcher3Format)
+
+/** The launchers Vulcan imports from, for the user: "Lawnchair, Nova or Octopi". */
+fun Context.importLaunchers(): String {
+    val names = BACKUP_FORMATS.filter { it.listed }.map { getString(it.name) }.sorted()
+    return if (names.size < 2) names.joinToString() else getString(R.string.list_or, names.dropLast(1).joinToString(", "), names.last())
+}
+
+/** [text] (with one %1$s) filled in with [importLaunchers]. */
+fun Context.withLaunchers(text: Int): String = getString(text, importLaunchers())
 
 /** Reads another launcher's backup chosen by the user. Throws with a readable message when it isn't one. */
 fun readLauncherBackup(context: Context, uri: Uri): ImportedBackup {
     val archive = context.contentResolver.openInputStream(uri)!!.use { readArchive(it, context.getString(R.string.backup_too_large)) }
     if (archive.isJson) throw ImportProblem(context.getString(R.string.import_is_vulcan))
-    val format = BACKUP_FORMATS.firstOrNull { it.matches(archive) } ?: throw ImportProblem(context.getString(R.string.not_launcher_backup))
+    val format = BACKUP_FORMATS.firstOrNull { it.matches(archive) } ?: throw ImportProblem(context.withLaunchers(R.string.not_launcher_backup))
     return try {
         format.read(context, archive)
     } catch (e: ImportProblem) {

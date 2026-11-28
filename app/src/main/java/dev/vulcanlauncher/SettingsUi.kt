@@ -817,7 +817,7 @@ private fun SettingsActivity.backupPage(list: LinearLayout) {
         row("refresh", R.string.restore_from_file, getString(R.string.restore_from_file_info)) { pickFile(MainActivity.REQ_RESTORE) },
         row("link", R.string.apply_style_link, getString(R.string.apply_style_info)) { pasteStyle() },
     ) + autoRows)
-    panel(list, getString(R.string.backup_panel_other), listOf(row("archive", R.string.import_launcher_backup, getString(R.string.import_launcher_backup_info)) {
+    panel(list, getString(R.string.backup_panel_other), listOf(row("archive", R.string.import_launcher_backup, withLaunchers(R.string.import_launcher_backup_info)) {
         pickFile(MainActivity.REQ_DOC)
     }))
     panel(list, getString(R.string.backup_panel_reset), listOf(row("delete", R.string.reset_defaults, getString(R.string.reset_defaults_info)) {

@@ -577,7 +577,8 @@
     <string name="letter_index">Index alphabétique</string>
     <string name="a11y_menu">Menu</string>
     <string name="page_of">Page %1$d sur %2$d</string>
-    <string name="not_launcher_backup">Ce n’est pas une sauvegarde de Nova, Lawnchair ou Octopi</string>
+    <string name="not_launcher_backup">Ce n’est pas une sauvegarde de %1$s</string>
+    <string name="list_or">%1$s ou %2$s</string>
     <string name="not_vulcan_backup">Ce n’est pas une sauvegarde Vulcan</string>
     <string name="badge_service_label">Pastilles Vulcan</string>
     <string name="action_service_label">Actions Vulcan</string>
@@ -677,7 +678,7 @@
         <item quantity="other">Appliquer %1$d réglages de ce lien ? Vos éléments de l’écran d’accueil restent enregistrés, mais les changements de grille peuvent les déplacer.</item>
     </plurals>
     <string name="import_launcher_backup">Importer depuis un autre lanceur</string>
-    <string name="import_launcher_backup_info">Un fichier de sauvegarde de Nova, Lawnchair ou Octopi</string>
+    <string name="import_launcher_backup_info">Un fichier de sauvegarde de %1$s</string>
     <string name="reset_defaults_info">Supprime tous les paramètres et toute la disposition de l’écran d’accueil</string>
     <string name="perm_intro">Vulcan ne va jamais en ligne. Ces autorisations lui permettent d’en faire plus, et chacune ne s’active qu’après votre accord dans les paramètres Android.</string>
     <string name="perm_count">%1$d sur %2$d autorisées</string>
@@ -707,7 +708,7 @@
     <string name="welcome_home_set">Définir comme appli d’accueil</string>
     <string name="welcome_not_now">Plus tard</string>
     <string name="welcome_setup_title">Récupérez votre écran d’accueil</string>
-    <string name="welcome_setup_body">Choisissez une sauvegarde de Nova, Lawnchair ou Octopi et vos applis, dossiers, dock, grille et widgets seront récupérés.</string>
+    <string name="welcome_setup_body">Choisissez une sauvegarde de %1$s et vos applis, dossiers, dock, grille et widgets seront récupérés.</string>
     <string name="welcome_import">Importer depuis un autre lanceur</string>
     <string name="welcome_restore">Restaurer une sauvegarde Vulcan</string>
     <string name="welcome_fresh">Partir de zéro</string>

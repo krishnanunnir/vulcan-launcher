@@ -26,6 +26,11 @@ class LauncherImportTest {
         assertEquals("[]", a.text("Screen.txt"))
     }
 
+    @Test fun archiveKeepsOnlyWhatSomeFormatReads() {
+        val a = archive(zip("com.android.launcher3.prefs.xml" to byteArrayOf(1), "other.prefs.xml" to byteArrayOf(2), "notes.xml" to byteArrayOf(3)))
+        assertEquals(setOf("com.android.launcher3.prefs.xml"), a.files.keys)
+    }
+
     @Test fun archiveCapsHoldAgainstBombsAndJunk() {
         assertThrows(IOException::class.java) { archive(zip("big.db" to ByteArray((MAX_BACKUP_BYTES + 1).toInt()))) }
         assertThrows(IOException::class.java) { archive(zip(*(0..MAX_IMPORT_ROWS).map { "$it.png" to ByteArray(0) }.toTypedArray())) }
@@ -37,7 +42,10 @@ class LauncherImportTest {
         assertEquals(InfoPbFormat, format("info.pb", "launcher.db", "screenshot.png"))
         assertEquals(InfoPbFormat, format("info.pb", "wallpaper.png")) // read, then said to hold no layout
         assertEquals(JsonTablesFormat, format("Screen.txt", "HomeScreenIcon.txt", "User.txt"))
-        assertEquals(FavoritesFormat, format("2026-11-01.db", "nova_preferences.xml"))
+        assertEquals(NovaFormat, format("nova.db", "nova.xml", "com.teslacoilsw.launcher_preferences.xml"))
+        assertEquals(NovaFormat, format("backup.db", "com.teslacoilsw.launcher_preferences.xml"))
+        // Another Launcher3-style launcher's: read, but never called Nova's.
+        assertEquals(Launcher3Format, format("2026-11-01.db", "other_preferences.xml"))
         assertEquals(null, format("notes.txt", "photo.png"))
     }
 
@@ -55,6 +63,14 @@ class LauncherImportTest {
         assertEquals(mapOf("cols" to "6", "rows" to "7", "dockCols" to "6"), infoPbSettings(int(2, 1), prefs, null))
         // Out of range is held to the setting, a broken DataStore file is passed over.
         assertEquals(mapOf("cols" to "12", "rows" to "3", "dockCols" to "9"), infoPbSettings(msg(7, msg(1, "40,1".toByteArray()) + int(2, 99)), "", byteArrayOf(10, 99)))
+    }
+
+    @Test fun everySettingAFormatSetsIsASetting() {
+        // setting() looks its key up strictly, before the value; running each format's settings code once reaches every
+        // call, so a mistyped key fails here, not at import. A new format's settings function goes here too.
+        importedPrefs("")
+        infoPbSettings(ByteArray(0), "", null)
+        jsonTablesToRows(tables) { 0 }
     }
 
     @Test fun protobufReaderRefusesWhatIsNotOne() {

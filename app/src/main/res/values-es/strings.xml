@@ -573,7 +573,8 @@
     <string name="letter_index">Índice alfabético</string>
     <string name="a11y_menu">Menú</string>
     <string name="page_of">Página %1$d de %2$d</string>
-    <string name="not_launcher_backup">No es una copia de seguridad de Nova, Lawnchair u Octopi</string>
+    <string name="not_launcher_backup">No es una copia de seguridad de %1$s</string>
+    <string name="list_or">%1$s o %2$s</string>
     <string name="not_vulcan_backup">No es una copia de seguridad de Vulcan</string>
     <string name="badge_service_label">Insignias de Vulcan</string>
     <string name="action_service_label">Acciones de Vulcan</string>
@@ -675,7 +676,7 @@
         <item quantity="many">¿Aplicar %1$d ajustes de este enlace? Los elementos de tu pantalla de inicio se conservan, aunque los cambios en la cuadrícula pueden moverlos.</item>
     </plurals>
     <string name="import_launcher_backup">Importar desde otro launcher</string>
-    <string name="import_launcher_backup_info">Un archivo de copia de seguridad de Nova, Lawnchair u Octopi</string>
+    <string name="import_launcher_backup_info">Un archivo de copia de seguridad de %1$s</string>
     <string name="reset_defaults_info">Borra todos los ajustes y todo el diseño de la pantalla de inicio</string>
     <string name="perm_intro">Vulcan nunca se conecta a internet. Estos permisos le permiten hacer más cosas, y cada uno solo funciona después de que lo concedas en los ajustes de Android.</string>
     <string name="perm_count">%1$d de %2$d permitidos</string>
@@ -707,7 +708,7 @@
     <string name="welcome_home_set">Usar como aplicación de inicio</string>
     <string name="welcome_not_now">Ahora no</string>
     <string name="welcome_setup_title">Trae tu pantalla de inicio</string>
-    <string name="welcome_setup_body">Elige una copia de seguridad de Nova, Lawnchair u Octopi y se traerán tus aplicaciones, carpetas, dock, cuadrícula y widgets.</string>
+    <string name="welcome_setup_body">Elige una copia de seguridad de %1$s y se traerán tus aplicaciones, carpetas, dock, cuadrícula y widgets.</string>
     <string name="welcome_import">Importar desde otro launcher</string>
     <string name="welcome_restore">Restaurar una copia de seguridad de Vulcan</string>
     <string name="welcome_fresh">Empezar de cero</string>

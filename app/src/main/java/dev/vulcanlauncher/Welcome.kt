@@ -237,11 +237,11 @@ class WelcomeView(private val a: MainActivity, import: ImportedBackup? = null) :
         val hello = step == "hello"
         addView(title(if (hello) a.getString(R.string.app_name) else a.getString(
             if (step == "home") R.string.welcome_home_title else R.string.welcome_setup_title), if (hello) 56f else 32f))
-        addView(body(a.getString(when (step) {
-            "hello" -> R.string.welcome_tagline
-            "home" -> R.string.welcome_home_body
-            else -> R.string.welcome_setup_body
-        })), LinearLayout.LayoutParams(-2, -2).apply { topMargin = px(if (hello) 12f else 16f) })
+        addView(body(when (step) {
+            "hello" -> a.getString(R.string.welcome_tagline)
+            "home" -> a.getString(R.string.welcome_home_body)
+            else -> a.withLaunchers(R.string.welcome_setup_body)
+        }), LinearLayout.LayoutParams(-2, -2).apply { topMargin = px(if (hello) 12f else 16f) })
         addView(View(a), LinearLayout.LayoutParams(1, 0, 1f))
         when (step) {
             "hello" -> addView(primary(R.string.welcome_begin) { go(at + 1) }, keyParams())

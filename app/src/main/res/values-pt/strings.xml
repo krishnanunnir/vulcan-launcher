@@ -580,7 +580,8 @@
     <string name="letter_index">Índice de letras</string>
     <string name="a11y_menu">Menu</string>
     <string name="page_of">Página %1$d de %2$d</string>
-    <string name="not_launcher_backup">Não é um backup do Nova, Lawnchair ou Octopi</string>
+    <string name="not_launcher_backup">Não é um backup do %1$s</string>
+    <string name="list_or">%1$s ou %2$s</string>
     <string name="not_vulcan_backup">Não é um backup do Vulcan</string>
     <string name="backup_too_large">O arquivo é muito grande para ser um backup</string>
     <string name="restore_not_saved">A configuração restaurada não pôde ser salva</string>
@@ -683,7 +684,7 @@
         <item quantity="other">Aplicar %1$d configurações deste link? Os itens da sua tela inicial continuam salvos, mas alterações na grade podem movê-los.</item>
     </plurals>
     <string name="import_launcher_backup">Importar de outro launcher</string>
-    <string name="import_launcher_backup_info">Um arquivo de backup do Nova, Lawnchair ou Octopi</string>
+    <string name="import_launcher_backup_info">Um arquivo de backup do %1$s</string>
     <string name="reset_defaults_info">Remove todas as configurações e todo o layout da tela inicial</string>
     <string name="perm_intro">O Vulcan nunca acessa a internet. Estas opções permitem que ele faça mais, e cada uma funciona apenas após você permitir nas configurações do Android.</string>
     <string name="perm_count">%1$d de %2$d permitidas</string>
@@ -713,7 +714,7 @@
     <string name="welcome_home_set">Definir como aplicativo inicial</string>
     <string name="welcome_not_now">Agora não</string>
     <string name="welcome_setup_title">Traga sua tela inicial</string>
-    <string name="welcome_setup_body">Escolha um backup do Nova, Lawnchair ou Octopi e seus aplicativos, pastas, doca, grade e widgets serão importados.</string>
+    <string name="welcome_setup_body">Escolha um backup do %1$s e seus aplicativos, pastas, doca, grade e widgets serão importados.</string>
     <string name="welcome_import">Importar de outro launcher</string>
     <string name="welcome_restore">Restaurar um backup do Vulcan</string>
     <string name="welcome_fresh">Começar do zero</string>

@@ -230,7 +230,8 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="no_room">Kein Platz auf dem Startbildschirm</string>
     <string name="no_web_search_app">Keine App für die Websuche verfügbar</string>
     <string name="none">Keine</string>
-    <string name="not_launcher_backup">Keine Sicherung von Nova, Lawnchair oder Octopi</string>
+    <string name="not_launcher_backup">Keine Sicherung von %1$s</string>
+    <string name="list_or">%1$s oder %2$s</string>
     <string name="not_used_by_bg">Wird vom Hintergrund „%1$s“ nicht verwendet</string>
     <string name="panels_amoled">Bei der Theme-Farbe AMOLED-Schwarz bleiben Panels immer dunkel</string>
     <string name="not_vulcan_backup">Keine Vulcan-Sicherung</string>
@@ -493,7 +494,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="restore_auto_confirm">Layout und Einstellungen durch die automatische Sicherung vom %1$s ersetzen?</string>
     <string name="restore">Wiederherstellen</string>
     <string name="import_launcher_backup">Aus anderem Launcher importieren</string>
-    <string name="import_launcher_backup_info">Eine Sicherungsdatei von Nova, Lawnchair oder Octopi</string>
+    <string name="import_launcher_backup_info">Eine Sicherungsdatei von %1$s</string>
     <string name="reset_defaults_info">Entfernt alle Einstellungen und das gesamte Startbildschirm-Layout</string>
     <string name="perm_intro">Vulcan geht nie online. Mit diesen Berechtigungen kann Vulcan mehr. Jede wird erst wirksam, wenn du sie in den Android-Einstellungen erlaubst.</string>
     <string name="perm_count">%1$d von %2$d erlaubt</string>
@@ -679,7 +680,7 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="welcome_import">Aus anderem Launcher importieren</string>
     <string name="welcome_restore">Vulcan-Sicherung wiederherstellen</string>
     <string name="welcome_setup_title">Bring deinen Startbildschirm mit</string>
-    <string name="welcome_setup_body">Wähle eine Sicherung von Nova, Lawnchair oder Octopi – Apps, Ordner, Dock, Raster und Widgets werden dann übernommen.</string>
+    <string name="welcome_setup_body">Wähle eine Sicherung von %1$s – Apps, Ordner, Dock, Raster und Widgets werden dann übernommen.</string>
     <string name="welcome_home_title">Mach Vulcan zu deinem Startbildschirm</string>
     <string name="welcome_home_body">Vulcan wird geöffnet, wenn du die Home-Taste drückst. In den Android-Einstellungen kannst du jederzeit wieder zu deinem bisherigen Startbildschirm wechseln.</string>
     <string name="welcome_home_set">Als Startbildschirm-App festlegen</string>

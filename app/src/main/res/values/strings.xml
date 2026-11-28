@@ -605,7 +605,9 @@
         <item quantity="other">%d notifications</item>
     </plurals>
     <string name="page_of">Page %1$d of %2$d</string>
-    <string name="not_launcher_backup">Not a backup from Nova, Lawnchair or Octopi</string>
+    <string name="not_launcher_backup">Not a backup from %1$s</string>
+    <!-- The last two of a list: "Lawnchair or Octopi". -->
+    <string name="list_or">%1$s or %2$s</string>
     <string name="not_vulcan_backup">Not a Vulcan backup</string>
     <string name="backup_too_large">The file is too large to be a backup</string>
     <string name="auto_backup_not_saved">The automatic backup couldn’t be saved</string>
@@ -711,7 +713,7 @@
         <item quantity="other">Apply %1$d settings from this link? Your home screen items stay saved, though grid changes can move them.</item>
     </plurals>
     <string name="import_launcher_backup">Import from another launcher</string>
-    <string name="import_launcher_backup_info">A backup file from Nova, Lawnchair or Octopi</string>
+    <string name="import_launcher_backup_info">A backup file from %1$s</string>
     <string name="reset_defaults_info">Removes every setting and the whole home screen layout</string>
     <string name="perm_intro">Vulcan never goes online. These let it do more, and each one works only after you allow it in Android settings.</string>
     <string name="perm_count">%1$d of %2$d allowed</string>
@@ -741,7 +743,7 @@
     <string name="welcome_home_set">Set as home app</string>
     <string name="welcome_not_now">Not now</string>
     <string name="welcome_setup_title">Bring your home screen</string>
-    <string name="welcome_setup_body">Pick a backup from Nova, Lawnchair or Octopi, and your apps, folders, dock, grid and widgets come over.</string>
+    <string name="welcome_setup_body">Pick a backup from %1$s, and your apps, folders, dock, grid and widgets come over.</string>
     <string name="welcome_import">Import from another launcher</string>
     <string name="welcome_restore">Restore a Vulcan backup</string>
     <string name="welcome_fresh">Start fresh</string>
@@ -754,6 +756,7 @@
     <string name="format_nova" translatable="false">Nova</string>
     <string name="format_lawnchair" translatable="false">Lawnchair</string>
     <string name="format_octopi" translatable="false">Octopi</string>
+    <string name="format_launcher3" translatable="false">Launcher3</string>
     <string name="import_is_vulcan">That\'s a Vulcan backup: use Restore from a file.</string>
     <string name="import_unknown_shape">Looks like a %1$s backup Vulcan can\'t read, maybe from a newer %1$s</string>
     <string name="import_no_layout">This %1$s backup has no home screen in it</string>
