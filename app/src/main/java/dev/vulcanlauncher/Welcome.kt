@@ -84,11 +84,12 @@ private fun MainActivity.addWelcome(v: WelcomeView) {
 fun MainActivity.readForReview(uri: android.net.Uri): ImportedBackup? {
     val b = runCatching { readLauncherBackup(this, uri) }.onFailure { toast(getString(R.string.import_failed, it.message)) }.getOrNull() ?: return null
     val layout = b.layout
+    val (settings, gone) = withoutMissingApps(b.settings, repo.apps.keys)
     val kept = layout.items.filter { if (it.isWidgetSlot) widgetFlow.slotProvider(it) != null else it.folder || resolve(it) != null }
     val problem = when {
         layout.items.isEmpty() && layout.skipped == 0 -> getString(R.string.import_no_layout, getString(b.name))
         kept.isEmpty() -> getString(R.string.import_nothing)
-        else -> return ImportedBackup(ImportedLayout(kept, layout.subgrid, layout.skipped, layout.items.size - kept.size), b.settings, b.name, b.newer, b.drawer.installedOnly(repo.apps.keys, namedApps()), b.gesturesLeft)
+        else -> return ImportedBackup(ImportedLayout(kept, layout.subgrid, layout.skipped, layout.items.size - kept.size), settings, b.name, b.newer, b.drawer.installedOnly(repo.apps.keys, namedApps()), b.gesturesLeft + gone)
     }
     toast(getString(R.string.import_failed, problem))
     return null

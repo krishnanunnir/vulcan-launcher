@@ -73,7 +73,9 @@ class ImportedLayout(val items: List<Item>, val subgrid: Boolean, val skipped: I
  * belong to the other launcher's widget host, so new ones are made in their place. Dock positions past [dockCols] go to later dock pages.
  */
 fun importToItems(rows: List<ImportRow>, screenRank: Map<Long, Int>, dockCols: Int): ImportedLayout {
-    val subgrid = rows.any { it.container == -100L && (it.cellX % 1 != 0.0 || it.cellY % 1 != 0.0 || it.spanX % 1 != 0.0 || it.spanY % 1 != 0.0) }
+    // Only a real half value: a missing position (NaN) is placed in the first free cell, not taken as a half one.
+    fun Double.half() = isFinite() && this % 1 != 0.0
+    val subgrid = rows.any { it.container == -100L && (it.cellX.half() || it.cellY.half() || it.spanX.half() || it.spanY.half()) }
     val f = if (subgrid) 2 else 1
     var skipped = 0
     fun leaf(r: ImportRow): Item? {
@@ -152,6 +154,12 @@ fun componentKey(s: String, serial: (Long) -> Long? = { maxOf(0L, it) }): String
 
 /** "app:" and the key: the action that opens that app. */
 fun appAction(key: String?) = key?.let { "app:$it" }
+
+/** [settings] without the gestures that open an app not [installed] here, and how many went (they stay behind). */
+fun withoutMissingApps(settings: Map<String, String>, installed: Set<String>): Pair<Map<String, String>, Int> {
+    val gone = settings.filterValues { it.startsWith("app:") && it.removePrefix("app:") !in installed }.keys
+    return settings - gone to gone.size
+}
 
 /** Vulcan settings from a favorites backup's preferences XML (only the grid and page settings carry over). */
 fun importedPrefs(xml: String): Map<String, String> {

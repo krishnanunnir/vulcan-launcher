@@ -247,4 +247,25 @@ class LauncherImportTest {
         assertEquals(nova, favoritesDb(BackupArchive(linkedMapOf("widgets.db" to other, "nova.db" to nova))))
         assertEquals(other, favoritesDb(BackupArchive(linkedMapOf("widgets.db" to other))))
     }
+
+    @Test fun aMissingPlaceIsNotAHalfCell() {
+        fun row(x: Double, y: Double) = ImportRow(1, "t", "#Intent;component=p/.A;end", -100, 0, x, y, 1.0, 1.0, 0, 0, 0)
+        val l = importToItems(listOf(row(1.0, 1.0), row(2.0, 3.0), row(Double.NaN, Double.NaN)), emptyMap(), 5)
+        assertFalse(l.subgrid)
+        assertEquals(listOf(1 to 1, 2 to 3), l.items.take(2).map { it.x to it.y }) // not doubled
+        assertEquals(MAX_CELL, l.items[2].x) // off the grid, for home to move to the first free cell
+        assertTrue("a real half cell still turns them on", importToItems(listOf(row(0.5, 1.0)), emptyMap(), 5).subgrid)
+        // The same from Octopi: an icon with no x and y.
+        val icons = "[" + icon(3, 0.0, 1799.5) + "," + icon(3, 204.0, 1799.5) + "," +
+            icon(3, 0.0, 0.0).replace(Regex(""","x":[^,]*,"y":[^,]*"""), "") + "]"
+        val (rows, ranks, _) = jsonTablesToRows(tables + ("HomeScreenIcon" to icons) + ("HomeScreenWidget" to "[]")) { 0 } // its widget sits on a half cell
+        assertTrue(rows.any { it.container == -100L && it.cellX.isNaN() })
+        assertFalse(importToItems(rows, ranks, 5).subgrid)
+    }
+
+    @Test fun aGestureForAnAppNotHereStaysBehind() {
+        val (kept, gone) = withoutMissingApps(mapOf("g_swipeUp" to "app:a/A/0", "g_doubleTap" to "app:gone/G/0", "homeButton" to "drawer", "cols" to "5"), setOf("a/A/0"))
+        assertEquals(mapOf("g_swipeUp" to "app:a/A/0", "homeButton" to "drawer", "cols" to "5"), kept)
+        assertEquals(1, gone)
+    }
 }
