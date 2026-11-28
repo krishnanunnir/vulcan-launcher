@@ -225,17 +225,17 @@ fun readArchive(input: InputStream, tooLarge: String): BackupArchive {
 
 /**
  * A backup's drawer: its tabs and folders (empty ones left out), the apps it hid and the names it gave apps, by app key.
- * Apps that aren't installed are kept: they show once the app is.
+ * As read; the review keeps only the apps installed here ([installedOnly]).
  */
 class ImportedDrawer(val groups: List<Group> = emptyList(), val hidden: Set<String> = emptySet(), val labels: Map<String, String> = emptyMap())
 
 /**
  * Only the apps installed here: a hidden flag or a name for an app this phone doesn't have would sit in the settings
- * forever and pile up import after import. Groups left with no apps go too.
+ * forever and pile up import after import. Groups left with no apps go too. Apps already [named] in Vulcan keep that name.
  */
-fun ImportedDrawer.installedOnly(installed: Set<String>) = ImportedDrawer(
+fun ImportedDrawer.installedOnly(installed: Set<String>, named: Set<String> = emptySet()) = ImportedDrawer(
     groups.map { it.copy(apps = it.apps.filter(installed::contains)) }.filter { it.apps.isNotEmpty() },
-    hidden.filterTo(mutableSetOf(), installed::contains), labels.filterKeys(installed::contains))
+    hidden.filterTo(mutableSetOf(), installed::contains), labels.filterKeys { it in installed && it !in named })
 
 /**
  * What an import read: the layout, Vulcan settings, the launcher's name (R.string), whether it came from a newer version

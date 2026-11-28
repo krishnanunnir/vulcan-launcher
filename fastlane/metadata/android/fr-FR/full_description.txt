@@ -10,7 +10,7 @@
 <li><b>Votre style :</b> packs d’icônes, icônes thématiques sur Android 13 et versions ultérieures, formes d’icônes, étiquettes et icônes personnalisées, styles et aperçus de dossiers, animations d’ouverture des applis, couleurs et mode nuit programmé.</li>
 <li><b>Pastilles de notification :</b> en option, des points, des compteurs ou l’image de la notification sur les icônes d’applis.</li>
 <li><b>Page Maintenant :</b> commandes de musique, prochains événements du calendrier et contacts favoris, en option.</li>
-<li><b>Importez votre disposition :</b> récupérez applis, dossiers, dock, widgets et réglages de grille depuis une sauvegarde Nova, Lawnchair ou Octopi.</li>
+<li><b>Importez votre disposition :</b> récupérez applis, dossiers, dock, widgets et réglages de grille, ainsi que votre tiroir d’applis, vos gestes et la forme des icônes, depuis une sauvegarde Nova, Lawnchair ou Octopi.</li>
 <li><b>Sauvegardes locales :</b> exportez et restaurez votre configuration dans un fichier JSON lisible.</li>
 </ul>
 

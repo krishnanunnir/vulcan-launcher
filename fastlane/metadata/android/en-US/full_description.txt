@@ -10,7 +10,7 @@
 <li><b>Your style:</b> icon packs, themed icons on Android 13+, icon shapes, custom labels and icons, folder styles and previews, app launch animations, colours and scheduled night mode.</li>
 <li><b>Notification badges:</b> optional dots, counts or the notification's own picture on app icons.</li>
 <li><b>Now page:</b> optional music controls, upcoming calendar events and favourite contacts.</li>
-<li><b>Bring your layout:</b> import apps, folders, dock, widgets and grid settings from a Nova, Lawnchair or Octopi backup file.</li>
+<li><b>Bring your layout:</b> import apps, folders, dock, widgets and grid settings, plus your app drawer, gestures and icon shape, from a Nova, Lawnchair or Octopi backup file.</li>
 <li><b>Local backups:</b> export and restore your setup using a readable JSON file.</li>
 </ul>
 

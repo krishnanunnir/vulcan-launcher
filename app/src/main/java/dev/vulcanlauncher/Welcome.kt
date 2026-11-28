@@ -88,11 +88,14 @@ fun MainActivity.readForReview(uri: android.net.Uri): ImportedBackup? {
     val problem = when {
         layout.items.isEmpty() && layout.skipped == 0 -> getString(R.string.import_no_layout, getString(b.name))
         kept.isEmpty() -> getString(R.string.import_nothing)
-        else -> return ImportedBackup(ImportedLayout(kept, layout.subgrid, layout.skipped, layout.items.size - kept.size), b.settings, b.name, b.newer, b.drawer.installedOnly(repo.apps.keys), b.gesturesLeft)
+        else -> return ImportedBackup(ImportedLayout(kept, layout.subgrid, layout.skipped, layout.items.size - kept.size), b.settings, b.name, b.newer, b.drawer.installedOnly(repo.apps.keys, namedApps()), b.gesturesLeft)
     }
     toast(getString(R.string.import_failed, problem))
     return null
 }
+
+/** The apps the user has given their own name in Vulcan. */
+private fun MainActivity.namedApps() = store.obj("custom").let { c -> c.keys().asSequence().filter { c.optJSONObject(it)?.optString("label").orEmpty().isNotEmpty() }.toSet() }
 
 /** Back from Android's home prompt: move on once Vulcan is the home app. */
 fun MainActivity.refreshWelcome() = welcome?.resumed()

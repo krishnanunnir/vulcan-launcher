@@ -86,7 +86,7 @@ private val LAWNCHAIR_SHAPES = mapOf("roundedSquare" to "rounded")
 /** Settings, gestures left out and the drawer from Lawnchair's DataStore file [b]; nothing from one that can't be read. */
 fun lawnchairOwn(b: ByteArray?): Triple<Map<String, String>, Int, ImportedDrawer> {
     val strings = b?.let { runCatching { dataStoreStrings(it) }.getOrNull() }.orEmpty()
-    val (gestures, left) = gestureSettings(strings.mapValues { it.value.first() }, LAWNCHAIR_GESTURES, ::lawnchairAction)
+    val (gestures, left) = gestureSettings(strings.mapNotNull { (k, v) -> v.firstOrNull()?.let { k to it } }.toMap(), LAWNCHAIR_GESTURES, ::lawnchairAction)
     val shape = strings["icon_shape"]?.firstOrNull()?.let { choice("shape", LAWNCHAIR_SHAPES[it] ?: it) }
     return Triple(gestures + listOfNotNull(shape), left, ImportedDrawer(hidden = strings["hidden_apps"].orEmpty().mapNotNull(::lawnchairKey).toSet()))
 }

@@ -139,6 +139,10 @@ class LauncherImportTest {
         assertEquals(mapOf("drawerAlpha" to "60"), infoPbSettings(ByteArray(0), """<float name="pref_drawerOpacity" value="0.6" />""", null))
         assertEquals("notifications", lawnchairAction("""{"type":"openNotificationdata"}"""))
         assertTrue(lawnchairOwn(byteArrayOf(10, 99)).first.isEmpty())
+        // An app hidden and then shown again leaves an empty set: nothing hidden, and the rest still reads.
+        val emptied = entry("hidden_apps", msg(6, ByteArray(0))) + entry("icon_shape", text("hexagon"))
+        assertEquals(listOf<Byte>(0x0A, 11) + "hidden_apps".toByteArray().toList() + listOf<Byte>(0x12, 2, 0x32, 0), msg(1, "hidden_apps".toByteArray()).toList() + msg(2, msg(6, ByteArray(0))).toList())
+        lawnchairOwn(emptied).let { (own, _, d) -> assertEquals(mapOf("shape" to "hexagon"), own); assertTrue(d.hidden.isEmpty()) }
     }
 
     @Test fun octopiDrawerAndGestures() {
@@ -235,5 +239,12 @@ class LauncherImportTest {
         assertEquals(listOf(Group("Tab", "tab", listOf("a/A#0"))), d.groups)
         assertEquals(setOf("a/A#0"), d.hidden)
         assertEquals(mapOf("a/A#0" to "Mail"), d.labels)
+        assertTrue("a name given in Vulcan stays", ImportedDrawer(labels = mapOf("a/A#0" to "Mail")).installedOnly(setOf("a/A#0"), setOf("a/A#0")).labels.isEmpty())
+    }
+
+    @Test fun novaDbBeatsOtherDatabases() {
+        val nova = byteArrayOf(1); val other = byteArrayOf(2)
+        assertEquals(nova, favoritesDb(BackupArchive(linkedMapOf("widgets.db" to other, "nova.db" to nova))))
+        assertEquals(other, favoritesDb(BackupArchive(linkedMapOf("widgets.db" to other))))
     }
 }

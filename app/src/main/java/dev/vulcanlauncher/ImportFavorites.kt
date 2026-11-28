@@ -115,7 +115,7 @@ fun novaLooks(values: Map<String, String>): Map<String, String> = listOfNotNull(
 ).toMap()
 
 /** The database a favorites backup's layout is in: launcher.db or backup.db by name, else the first one. */
-fun favoritesDb(archive: BackupArchive) = archive["launcher.db"] ?: archive["backup.db"]
+fun favoritesDb(archive: BackupArchive) = archive["launcher.db"] ?: archive["backup.db"] ?: archive["nova.db"]
     ?: archive.files.entries.firstOrNull { it.key.endsWith(".db") }?.value
 
 /**
