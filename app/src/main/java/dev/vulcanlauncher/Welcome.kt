@@ -266,8 +266,22 @@ class WelcomeView(private val a: MainActivity, import: ImportedBackup? = null) :
         val backup = picked ?: return@apply
         val (layout, settings) = backup.layout to backup.settings
         addView(title(a.getString(R.string.review_title, a.getString(backup.name)), 30f))
-        addView(LayoutPreview(a, layout, settings["cols"]?.toIntOrNull() ?: a.looks.int("cols"), settings["rows"]?.toIntOrNull() ?: a.looks.int("rows"),
-            settings["dockCols"]?.toIntOrNull() ?: a.looks.int("dockCols"), widthDp = 128f), LinearLayout.LayoutParams(-2, -2).apply { topMargin = px(14f) })
+        val home = LayoutPreview(a, layout, settings["cols"]?.toIntOrNull() ?: a.looks.int("cols"), settings["rows"]?.toIntOrNull() ?: a.looks.int("rows"),
+            settings["dockCols"]?.toIntOrNull() ?: a.looks.int("dockCols"), widthDp = 128f)
+        val d = backup.drawer
+        if ("drawerCols" !in settings && d.groups.isEmpty() && d.hidden.isEmpty() && d.labels.isEmpty())
+            addView(home, LinearLayout.LayoutParams(-2, -2).apply { topMargin = px(14f) })
+        else addView(LinearLayout(a).apply { // the drawer beside home, as tall as it
+            fun captioned(v: View, label: Int) = LinearLayout(a).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_HORIZONTAL
+                addView(v, LinearLayout.LayoutParams(-2, 0, 1f))
+                addView(TextView(a).apply { text = a.getString(label); textSize = 11f; setTextColor(QUIET); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO },
+                    LinearLayout.LayoutParams(-2, -2).apply { topMargin = px(4f) })
+            }
+            addView(captioned(home, R.string.review_row_home), LinearLayout.LayoutParams(-2, -2))
+            addView(captioned(DrawerPreview(a, backup, 128f), R.string.review_row_drawer), LinearLayout.LayoutParams(-2, -1).apply { marginStart = px(12f) })
+        }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = px(14f) })
         val note = a.importNote(backup)
         // The lists scroll on a short screen; the preview and the keys stay put.
         addView(ScrollView(a).apply {
@@ -614,6 +628,75 @@ class LayoutPreview(private val a: MainActivity, layout: ImportedLayout, private
                 d.alpha = alpha
                 d.draw(c)
             }
+            c.restore()
+        }
+    }
+}
+
+/**
+ * The drawer an import leaves, in miniature beside [LayoutPreview]: the search bar, the tabs (in their colours), then
+ * the folders and the apps that will show, in the imported columns, over a background as see-through as the import sets.
+ * ponytail: icons keep the current shape and have no labels; the review's rows say the rest.
+ */
+class DrawerPreview(private val a: MainActivity, backup: ImportedBackup, private val widthDp: Float) : View(a) {
+    private val dp = a.dp
+    private val settings = backup.settings
+    private val cols = settings["drawerCols"]?.toIntOrNull() ?: a.looks.int("drawerCols")
+    private val groups = mergedGroups(groupsFromJson(a.store.data.getString("groups", "[]")!!), backup.drawer.groups)
+    private val tabColors = listOf<Int?>(null) + groups.filter { it.type == "tab" }.map { g -> g.color?.let { runCatching { android.graphics.Color.parseColor(it) }.getOrNull() } }
+    private val icons: List<android.graphics.drawable.Drawable> = run {
+        val hidden = a.store.strings("hidden") + backup.drawer.hidden
+        val apps = a.repo.apps.values.filter { it.key !in hidden }.sortedBy { (backup.drawer.labels[it.key] ?: it.title).lowercase() }
+        groups.filter { it.type == "folder" }.map { a.groupIcon(it.apps) } +
+            apps.take(cols * 12).map { a.repo.icon(it).let { d -> d.constantState?.newDrawable(resources)?.mutate() ?: d } }
+    }
+    private val opacity = (settings["drawerAlpha"] ?: a.looks.str("drawerAlpha")).toIntOrNull() ?: 100
+    private var p = if (ValueAnimator.areAnimatorsEnabled()) 0f else 1f
+    private val frame = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = EDGE; strokeWidth = dp }
+    private val glass = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.argb(10 + 40 * opacity / 100, 255, 255, 255) }
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val pad = 10 * dp
+
+    init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
+
+    override fun onMeasure(w: Int, h: Int) = setMeasuredDimension((widthDp * dp).toInt(), getDefaultSize(suggestedMinimumHeight, h))
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (p == 1f) return
+        ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 600; startDelay = 380
+            addUpdateListener { p = it.animatedValue as Float; invalidate() }
+        }.start()
+    }
+
+    override fun onDraw(c: Canvas) {
+        val r = 24 * dp
+        c.drawRoundRect(dp / 2, dp / 2, width - dp / 2, height - dp / 2, r, r, glass)
+        c.drawRoundRect(dp / 2, dp / 2, width - dp / 2, height - dp / 2, r, r, frame)
+        val k = (255 * p).toInt()
+        fill.color = 0xD6D3CC.toInt() or 0xFF000000.toInt(); fill.alpha = k
+        c.drawRoundRect(pad + 4 * dp, pad + 8 * dp, width - pad - 4 * dp, pad + 18 * dp, 5 * dp, 5 * dp, fill) // search bar
+        val chipW = (width - 2 * pad - 8 * dp - 2 * 4 * dp) / 3
+        tabColors.take(3).forEachIndexed { i, color -> // All apps, then the first tabs
+            fill.color = color ?: if (i == 0) WARM_WHITE else EDGE; fill.alpha = k
+            val left = pad + 4 * dp + i * (chipW + 4 * dp)
+            c.drawRoundRect(left, pad + 23 * dp, left + chipW, pad + 30 * dp, 4 * dp, 4 * dp, fill)
+        }
+        val cell = (width - 2 * pad) / cols
+        val top = pad + 36 * dp
+        val rows = ((height - top - pad) / cell).toInt()
+        icons.take(rows * cols).forEachIndexed { i, d ->
+            val s = cell * 0.7f
+            val cx = pad + (i % cols + 0.5f) * cell; val cy = top + (i / cols + 0.5f) * cell
+            // Drawn at its own size and scaled: a folder tile's layers have fixed sizes and wouldn't shrink with its bounds.
+            val n = d.intrinsicWidth.takeIf { it > 0 } ?: s.toInt()
+            c.save()
+            c.translate(cx - s / 2, cy - s / 2)
+            c.scale(s / n, s / n)
+            d.setBounds(0, 0, n, n)
+            d.alpha = k
+            d.draw(c)
             c.restore()
         }
     }
