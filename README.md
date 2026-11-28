@@ -22,11 +22,9 @@ Grids, gestures, icon packs, widgets and smart search, with no libraries and no 
 &nbsp;
 <a href="https://github.com/krishnanunnir/vulcan-launcher/releases"><img src="https://img.shields.io/badge/All%20releases-2A2A28?style=for-the-badge&logo=github&logoColor=white" height="44" alt="All Vulcan releases on GitHub"></a>
 
-<img src="docs/screenshots/home.jpg" width="19%" alt="Home screen: the sunset launcher shortcut, mail and photos, five dock apps, and the search bar over the dusk wallpaper">
-<img src="docs/screenshots/menu.jpg" width="19%" alt="Long-press menu on the home screen: widgets, shortcuts, wallpaper, pages, lock and settings">
-<img src="docs/screenshots/drawer.jpg" width="19%" alt="App drawer: an alphabetical app grid and search field on a warm-grey background">
-<img src="docs/screenshots/settings.jpg" width="19%" alt="Settings: the sunset logo beside the No internet permission legend, above grouped layout and appearance options">
-<img src="docs/screenshots/look.jpg" width="19%" alt="Look and feel settings: icon pack, shapes, toggles and the theme color">
+<img src="docs/screenshots/home.jpg" width="40%" alt="Home screen: a clock widget over a sunset wallpaper, a row of apps with a Media folder, five dock apps and the search bar">
+&nbsp;
+<img src="docs/screenshots/settings.jpg" width="40%" alt="Settings: the Vulcan logo and version above home screen, app drawer, folder, search, gesture, Now page and badge options">
 
 </div>
 

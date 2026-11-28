@@ -6,7 +6,7 @@ Everything the [README](../README.md) leaves out: the full feature list, install
 
 It looks like a well-made appliance rather than a phone skin: warm-grey panels (light or night), small printed labels, and one orange dot for whatever is live (the current page, the letter you're on). Your wallpaper and your apps' own icons are left alone. Every Nova-style option (icon packs, shapes, glass panels, wallpaper colours, AMOLED black, your own colours) is still in settings when you want it.
 
-The wallpaper in the screenshots is [docs/wallpaper-dusk.jpg](wallpaper-dusk.jpg), made for Vulcan. Use it freely.
+The wallpaper in the screenshots is [docs/wallpaper-ridge.jpg](wallpaper-ridge.jpg); [docs/wallpaper-dusk.jpg](wallpaper-dusk.jpg) is the earlier one. Both were made for Vulcan. Use them freely.
 
 ## All features
 
