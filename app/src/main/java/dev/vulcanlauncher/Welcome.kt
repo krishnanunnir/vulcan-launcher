@@ -19,6 +19,7 @@ import android.view.animation.DecelerateInterpolator
 import android.view.animation.PathInterpolator
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -35,6 +36,7 @@ private const val CHARCOAL = 0xFF2A2A28.toInt()
 private const val WARM_WHITE = 0xFFE9E7E2.toInt()
 private const val QUIET = 0xFFA9A69F.toInt()
 private const val EDGE = 0xFF4A4945.toInt()
+private const val HAIR = 0xFF45443F.toInt()
 /** Material's emphasized decelerate: things arrive fast and settle slowly. */
 private val ARRIVE = PathInterpolator(0.05f, 0.7f, 0.1f, 1f)
 
@@ -265,28 +267,28 @@ class WelcomeView(private val a: MainActivity, import: ImportedBackup? = null) :
         val (layout, settings) = backup.layout to backup.settings
         addView(title(a.getString(R.string.review_title, a.getString(backup.name)), 30f))
         addView(LayoutPreview(a, layout, settings["cols"]?.toIntOrNull() ?: a.looks.int("cols"), settings["rows"]?.toIntOrNull() ?: a.looks.int("rows"),
-            settings["dockCols"]?.toIntOrNull() ?: a.looks.int("dockCols")), LinearLayout.LayoutParams(-2, -2).apply { topMargin = px(20f) })
-        val items = layout.items
-        val pages = (items.filter { !isDock(it.page) }.maxOfOrNull { it.page } ?: 0) + 1
-        val counts = listOfNotNull(
-            items.count { !it.folder && !it.isWidgetSlot }.takeIf { it > 0 }?.let { a.resources.getQuantityString(R.plurals.review_apps, it, it) },
-            items.count { it.folder }.takeIf { it > 0 }?.let { a.resources.getQuantityString(R.plurals.review_folders, it, it) },
-            layout.widgets.takeIf { it > 0 }?.let { a.resources.getQuantityString(R.plurals.review_widgets, it, it) },
-            pages.takeIf { it > 1 }?.let { a.resources.getQuantityString(R.plurals.review_pages, it, it) },
-        )
-        addView(TextView(a).apply {
-            text = counts.joinToString("  ·  ").uppercase()
-            textSize = 11f
-            // One line: with large text it shrinks (to 8 sp) rather than wrap mid-count.
-            maxLines = 1
-            setAutoSizeTextTypeUniformWithConfiguration(8, 11, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
-            letterSpacing = 0.12f
-            setTextColor(QUIET)
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            gravity = Gravity.CENTER
-        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(16f) })
-        addView(body(a.importNote(backup)).apply { textSize = 14f }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = px(8f) })
-        addView(View(a), LinearLayout.LayoutParams(1, 0, 1f))
+            settings["dockCols"]?.toIntOrNull() ?: a.looks.int("dockCols"), widthDp = 128f), LinearLayout.LayoutParams(-2, -2).apply { topMargin = px(14f) })
+        val note = a.importNote(backup)
+        // The lists scroll on a short screen; the preview and the keys stay put.
+        addView(ScrollView(a).apply {
+            isVerticalScrollBarEnabled = false
+            isVerticalFadingEdgeEnabled = true // a list cut short fades out, so it reads as more below
+            setFadingEdgeLength(px(28f))
+            addView(LinearLayout(a).apply {
+                orientation = LinearLayout.VERTICAL
+                note.warning?.let { w ->
+                    addView(LinearLayout(a).apply {
+                        background = GradientDrawable().apply { cornerRadius = 6 * dp; setColor(0xFF3A3936.toInt()) }
+                        setPadding(px(12f), px(10f), px(12f), px(10f))
+                        addView(dot(SIGNAL, filled = true), LinearLayout.LayoutParams(px(6f), px(6f)).apply { topMargin = px(7f); marginEnd = px(10f) })
+                        addView(TextView(a).apply { text = w; textSize = 13f; setTextColor(WARM_WHITE); setLineSpacing(0f, 1.15f) })
+                    }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = px(14f) })
+                }
+                rows(R.string.review_comes_over, note.comes, filled = true)
+                rows(R.string.review_stays_behind, note.stays, filled = false)
+                addView(TextView(a).apply { text = note.kept; textSize = 13f; setTextColor(QUIET); setLineSpacing(0f, 1.15f) })
+            }, FrameLayout.LayoutParams(-1, -2))
+        }, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = px(16f); bottomMargin = px(12f) })
         addView(primary(R.string.import_) {
             a.applyImport(layout, settings)
             if (layout.widgets == 0) begin()
@@ -317,6 +319,38 @@ class WelcomeView(private val a: MainActivity, import: ImportedBackup? = null) :
             else -> return false
         }
         return true
+    }
+
+    /** A legend in small tracked capitals, then one line per row with a hairline under each. Nothing to list, nothing shown. */
+    private fun LinearLayout.rows(legend: Int, rows: List<ReviewRow>, filled: Boolean) {
+        if (rows.isEmpty()) return
+        addView(TextView(a).apply {
+            text = a.getString(legend).uppercase()
+            textSize = 11f
+            letterSpacing = 0.12f
+            setTextColor(QUIET)
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            isFocusable = true
+        }, LinearLayout.LayoutParams(-2, -2).apply { bottomMargin = px(6f) })
+        addView(View(a).apply { setBackgroundColor(HAIR) }, LinearLayout.LayoutParams(-1, px(1f)))
+        for (r in rows) {
+            addView(LinearLayout(a).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, px(6f), 0, px(6f))
+                isFocusable = true // TalkBack reads the name and what it holds together
+                addView(dot(if (r.signal) SIGNAL else WARM_WHITE, filled), LinearLayout.LayoutParams(px(6f), px(6f)).apply { marginEnd = px(12f) })
+                addView(TextView(a).apply { text = r.label; textSize = 14f; setTextColor(WARM_WHITE) }, LinearLayout.LayoutParams(px(96f), -2).apply { marginEnd = px(8f) })
+                addView(TextView(a).apply { text = r.value; textSize = 14f; setTextColor(QUIET) }, LinearLayout.LayoutParams(0, -2, 1f))
+            }, LinearLayout.LayoutParams(-1, -2))
+            addView(View(a).apply { setBackgroundColor(HAIR) }, LinearLayout.LayoutParams(-1, px(1f)))
+        }
+        addView(View(a), LinearLayout.LayoutParams(1, px(14f)))
+    }
+
+    /** Filled: comes over. A ring: stays behind. */
+    private fun dot(color: Int, filled: Boolean) = View(a).apply {
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        background = GradientDrawable().apply { shape = GradientDrawable.OVAL; if (filled) setColor(color) else setStroke(px(1f), QUIET) }
     }
 
     private fun keyParams(gap: Float = 0f, h: Float = 56f) = LinearLayout.LayoutParams(-1, px(h)).apply { topMargin = px(gap) }
@@ -498,7 +532,8 @@ class SunriseView(private val a: VulcanActivity, risen: Boolean) : View(a) {
  * An imported layout in miniature: its first page and dock in their cells, with the apps' own icons, folder previews and
  * widget spots drawn dashed. The icons land one after another when it first shows.
  */
-class LayoutPreview(private val a: MainActivity, layout: ImportedLayout, private val cols: Int, private val rows: Int, private val dockCols: Int) : View(a) {
+class LayoutPreview(private val a: MainActivity, layout: ImportedLayout, private val cols: Int, private val rows: Int, private val dockCols: Int,
+    private val widthDp: Float = 196f) : View(a) {
     private val dp = a.dp
     private val f = if (layout.subgrid) 2 else 1
     private class Tile(val item: Item, val icon: android.graphics.drawable.Drawable?)
@@ -525,7 +560,7 @@ class LayoutPreview(private val a: MainActivity, layout: ImportedLayout, private
     private val cellH get() = cellW * 1.22f
 
     override fun onMeasure(w: Int, h: Int) {
-        val width = (196 * dp).toInt()
+        val width = (widthDp * dp).toInt()
         val cw = (width - 2 * pad) / cols
         setMeasuredDimension(width, (2 * pad + cw * 1.22f * (rows + 1) + gap).toInt())
     }

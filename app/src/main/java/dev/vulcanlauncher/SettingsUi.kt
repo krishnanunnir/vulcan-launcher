@@ -849,30 +849,42 @@ fun VulcanActivity.restoreBackup(uri: android.net.Uri, restart: () -> Unit) {
         }.onFailure { toast(R.string.restore_failed, it.message) }
 }
 
-/** The review's list, a line each: what comes over, and what comes back differently or not at all. */
-fun VulcanActivity.importNote(backup: ImportedBackup): String {
+/** One line of the review: a name and what it holds. [signal] marks the one that needs a step from the user later. */
+class ReviewRow(val label: String, val value: String, val signal: Boolean = false)
+
+/** The review's text: an optional warning, what comes over, what stays behind (often nothing), and what Vulcan keeps. */
+class ImportNote(val warning: String?, val comes: List<ReviewRow>, val stays: List<ReviewRow>, val kept: String)
+
+fun VulcanActivity.importNote(backup: ImportedBackup): ImportNote {
     val layout = backup.layout
     val s = backup.settings
     val name = getString(backup.name)
     fun count(id: Int, n: Int, vararg args: Any) = resources.getQuantityString(id, n, *args)
-    val dock = layout.items.filter { isDock(it.page) }
+    val (dock, home) = layout.items.filter { !it.isWidgetSlot }.partition { isDock(it.page) }
     val dockPages = dock.map { it.page }.distinct().size
+    val pages = (home.maxOfOrNull { it.page } ?: 0) + 1
+    val held = listOfNotNull(
+        home.count { !it.folder }.takeIf { it > 0 }?.let { count(R.plurals.review_apps, it, it) },
+        home.count { it.folder }.takeIf { it > 0 }?.let { count(R.plurals.review_folders, it, it) },
+        pages.takeIf { it > 1 && home.isNotEmpty() }?.let { count(R.plurals.review_pages, it, it) },
+    )
     val cols = s["cols"]?.toIntOrNull()
     val rows = s["rows"]?.toIntOrNull()
-    val grid = if (cols == null || rows == null) null else getString(R.string.review_grid, cols, rows) +
-        (if (layout.subgrid) getString(R.string.review_grid_half) else "") +
-        (s["drawerCols"]?.toIntOrNull()?.let { getString(R.string.review_grid_drawer, it) } ?: "") +
-        (s["defaultPage"]?.toIntOrNull()?.takeIf { it > 0 }?.let { getString(R.string.review_grid_start, it + 1) } ?: "")
-    return listOfNotNull(
-        if (backup.newer) getString(R.string.review_newer, name) else null,
-        if (layout.items.any { !it.isWidgetSlot && !isDock(it.page) }) getString(R.string.review_items) else null,
-        dock.size.takeIf { it > 0 }?.let { if (dockPages > 1) count(R.plurals.review_dock_pages, it, it, dockPages) else count(R.plurals.review_dock, it, it) },
-        grid,
-        if (layout.widgets > 0) count(R.plurals.import_widgets, layout.widgets, layout.widgets) else null,
-        if (layout.skipped > 0) count(R.plurals.skip_own, layout.skipped, layout.skipped, name) else null,
-        if (layout.missing > 0) count(R.plurals.skip_missing, layout.missing, layout.missing) else null,
-        getString(R.string.review_kept),
-    ).joinToString("\n")
+    val comes = listOfNotNull(
+        held.takeIf { it.isNotEmpty() }?.let { ReviewRow(getString(R.string.review_row_home), getString(R.string.review_where, it.joinToString(", ")) +
+            (s["defaultPage"]?.toIntOrNull()?.takeIf { it > 0 }?.let { getString(R.string.review_grid_start, it + 1) } ?: "")) },
+        dock.size.takeIf { it > 0 }?.let { n -> ReviewRow(getString(R.string.review_row_dock),
+            if (dockPages > 1) count(R.plurals.review_icons_pages, n, n, dockPages) else count(R.plurals.review_icons, n, n)) },
+        layout.widgets.takeIf { it > 0 }?.let { n -> ReviewRow(getString(R.string.review_row_widgets), getString(R.string.review_widgets_later, n), signal = true) },
+        if (cols == null || rows == null) null else ReviewRow(getString(R.string.review_row_grid),
+            getString(R.string.review_grid, cols, rows) + (if (layout.subgrid) getString(R.string.review_grid_half) else "")),
+        s["drawerCols"]?.toIntOrNull()?.let { n -> ReviewRow(getString(R.string.review_row_drawer), count(R.plurals.review_columns, n, n)) },
+    )
+    val stays = listOfNotNull(
+        layout.skipped.takeIf { it > 0 }?.let { n -> ReviewRow(count(R.plurals.review_items_count, n, n), getString(R.string.review_only_in, name)) },
+        layout.missing.takeIf { it > 0 }?.let { n -> ReviewRow(count(R.plurals.review_apps, n, n), getString(R.string.review_not_installed)) },
+    )
+    return ImportNote(if (backup.newer) getString(R.string.review_newer, name) else null, comes, stays, getString(R.string.review_kept))
 }
 
 /** Stores an imported layout and its grid settings in place of the current ones; home is rebuilt after (restart). */

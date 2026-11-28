@@ -598,10 +598,6 @@
         <item quantity="one">%1$d icône a été ignorée : son appli n’est pas installée. Relancez la restauration une fois qu’elle l’est.</item>
         <item quantity="other">%1$d icônes ont été ignorées : leurs applis ne sont pas installées. Relancez la restauration une fois qu’elles le sont.</item>
     </plurals>
-    <plurals name="import_widgets">
-        <item quantity="one">%1$d widget revient après une autorisation unique d’Android.</item>
-        <item quantity="other">%1$d widgets reviennent après une autorisation unique d’Android.</item>
-    </plurals>
     <string name="custom_colors">Couleurs personnalisées</string>
     <string name="custom_colors_info">Chaque couleur remplace celle du thème dans toutes les apparences. Réinitialisez-en une pour retrouver celle du thème.</string>
     <plurals name="custom_colors_set">
@@ -722,29 +718,26 @@
     <string name="import_unknown_shape">Sauvegarde %1$s illisible pour Vulcan, peut-être d’une version plus récente de %1$s</string>
     <string name="import_no_layout">Cette sauvegarde %1$s ne contient aucun écran d’accueil</string>
     <string name="import_nothing">Aucune appli de cette sauvegarde n’est sur ce téléphone</string>
-    <string name="review_items">Applis, raccourcis et dossiers à leur place</string>
-    <plurals name="review_dock">
-        <item quantity="one">Dock : %1$d icône</item>
-        <item quantity="other">Dock : %1$d icônes</item>
-    </plurals>
-    <plurals name="review_dock_pages">
-        <item quantity="one">Dock : %1$d icône sur %2$d pages du dock</item>
-        <item quantity="other">Dock : %1$d icônes sur %2$d pages du dock</item>
-    </plurals>
-    <string name="review_grid">Grille %1$d × %2$d</string>
+    <string name="review_grid">%1$d × %2$d</string>
     <string name="review_grid_half">, demi-cellules</string>
-    <string name="review_grid_drawer">, tiroir d’applis sur %1$d colonnes</string>
     <string name="review_grid_start">, commence à la page %1$d</string>
-    <plurals name="skip_own">
-        <item quantity="one">%1$d ne peut pas être importé : il est propre à %2$s, ou Vulcan n’a pas de place pour lui</item>
-        <item quantity="other">%1$d ne peuvent pas être importés : ils sont propres à %2$s, ou Vulcan n’a pas de place pour eux</item>
-    </plurals>
-    <plurals name="skip_missing">
-        <item quantity="one">%1$d appli n’est pas sur ce téléphone</item>
-        <item quantity="other">%1$d applis ne sont pas sur ce téléphone</item>
-    </plurals>
-    <string name="review_kept">Gestes, pack d’icônes, thème et onglets du tiroir restent tels quels</string>
+    <string name="review_kept">Vos gestes, pack d\'icônes, thème et onglets du tiroir dans Vulcan ne changent pas.</string>
     <string name="review_newer">Cette sauvegarde vient d’une version de %1$s plus récente que celles que Vulcan connaît. Vérifiez l’aperçu avant d’importer.</string>
+    <string name="review_comes_over">Importé</string>
+    <string name="review_stays_behind">Laissé de côté</string>
+    <string name="review_row_home">Écran d\'accueil</string>
+    <string name="review_where">%1$s, à leur place</string>
+    <string name="review_row_dock">Dock</string>
+    <string name="review_widgets_later">%1$d, dès qu\'Android l\'autorise</string>
+    <string name="review_row_grid">Grille</string>
+    <string name="review_row_drawer">Tiroir d\'applis</string>
+    <string name="review_only_in">Ne fonctionne que dans %1$s</string>
+    <string name="review_not_installed">Pas sur ce téléphone</string>
+    <plurals name="review_icons"><item quantity="one">%1$d icône</item><item quantity="other">%1$d icônes</item></plurals>
+    <plurals name="review_icons_pages"><item quantity="one">%1$d icône sur %2$d pages du dock</item><item quantity="other">%1$d icônes sur %2$d pages du dock</item></plurals>
+    <string name="review_row_widgets">Widgets</string>
+    <plurals name="review_columns"><item quantity="one">%1$d colonne</item><item quantity="other">%1$d colonnes</item></plurals>
+    <plurals name="review_items_count"><item quantity="one">%1$d élément</item><item quantity="other">%1$d éléments</item></plurals>
     <plurals name="review_apps">
         <item quantity="one">%1$d appli</item>
         <item quantity="other">%1$d applis</item>
@@ -752,10 +745,6 @@
     <plurals name="review_folders">
         <item quantity="one">%1$d dossier</item>
         <item quantity="other">%1$d dossiers</item>
-    </plurals>
-    <plurals name="review_widgets">
-        <item quantity="one">%1$d widget</item>
-        <item quantity="other">%1$d widgets</item>
     </plurals>
     <plurals name="review_pages">
         <item quantity="one">%1$d page</item>

@@ -631,10 +631,6 @@
         <item quantity="one">%1$d icon was left out: its app isn\'t installed. Restore again once it is.</item>
         <item quantity="other">%1$d icons were left out: their apps aren\'t installed. Restore again once they are.</item>
     </plurals>
-    <plurals name="import_widgets">
-        <item quantity="one">%1$d widget comes back after Android asks you once.</item>
-        <item quantity="other">%1$d widgets come back after Android asks you once.</item>
-    </plurals>
     <string name="custom_colors">Custom colors</string>
     <string name="custom_colors_info">Each color replaces the theme color\'s in every look. Reset one to get the theme\'s back.</string>
     <plurals name="custom_colors_set">
@@ -761,32 +757,28 @@
     <string name="import_unknown_shape">Looks like a %1$s backup Vulcan can\'t read, maybe from a newer %1$s</string>
     <string name="import_no_layout">This %1$s backup has no home screen in it</string>
     <string name="import_nothing">None of this backup\'s apps are on this phone</string>
-    <string name="review_items">Apps, shortcuts and folders where they were</string>
-    <plurals name="review_dock">
-        <item quantity="one">Dock: %1$d icon</item>
-        <item quantity="other">Dock: %1$d icons</item>
-    </plurals>
-    <plurals name="review_dock_pages">
-        <item quantity="one">Dock: %1$d icon on %2$d dock pages</item>
-        <item quantity="other">Dock: %1$d icons on %2$d dock pages</item>
-    </plurals>
-    <string name="review_grid">Grid %1$d × %2$d</string>
+    <string name="review_grid">%1$d × %2$d</string>
     <string name="review_grid_half">, half cells</string>
-    <string name="review_grid_drawer">, app drawer %1$d columns</string>
     <string name="review_grid_start">, starts on page %1$d</string>
-    <plurals name="skip_own">
-        <item quantity="one">%1$d can\'t come over: it\'s %2$s\'s own, or Vulcan has no place for it</item>
-        <item quantity="other">%1$d can\'t come over: they\'re %2$s\'s own, or Vulcan has no place for them</item>
-    </plurals>
-    <plurals name="skip_missing">
-        <item quantity="one">%1$d app isn\'t on this phone</item>
-        <item quantity="other">%1$d apps aren\'t on this phone</item>
-    </plurals>
-    <string name="review_kept">Gestures, icon pack, theme and drawer tabs stay as they are</string>
+    <string name="review_kept">Your gestures, icon pack, theme and drawer tabs in Vulcan don\'t change.</string>
     <string name="review_newer">This backup is from a newer %1$s than Vulcan knows. Check the preview before you import.</string>
+    <string name="review_comes_over">Comes over</string>
+    <string name="review_stays_behind">Stays behind</string>
+    <string name="review_row_home">Home screen</string>
+    <string name="review_where">%1$s, where they were</string>
+    <string name="review_row_dock">Dock</string>
+    <string name="review_widgets_later">%1$d, once Android allows it</string>
+    <string name="review_row_grid">Grid</string>
+    <string name="review_row_drawer">App drawer</string>
+    <string name="review_only_in">Only works in %1$s</string>
+    <string name="review_not_installed">Not installed on this phone</string>
+    <plurals name="review_icons"><item quantity="one">%1$d icon</item><item quantity="other">%1$d icons</item></plurals>
+    <plurals name="review_icons_pages"><item quantity="one">%1$d icon on %2$d dock pages</item><item quantity="other">%1$d icons on %2$d dock pages</item></plurals>
+    <string name="review_row_widgets">Widgets</string>
+    <plurals name="review_columns"><item quantity="one">%1$d column</item><item quantity="other">%1$d columns</item></plurals>
+    <plurals name="review_items_count"><item quantity="one">%1$d item</item><item quantity="other">%1$d items</item></plurals>
     <plurals name="review_apps"><item quantity="one">%1$d app</item><item quantity="other">%1$d apps</item></plurals>
     <plurals name="review_folders"><item quantity="one">%1$d folder</item><item quantity="other">%1$d folders</item></plurals>
-    <plurals name="review_widgets"><item quantity="one">%1$d widget</item><item quantity="other">%1$d widgets</item></plurals>
     <plurals name="review_pages"><item quantity="one">%1$d page</item><item quantity="other">%1$d pages</item></plurals>
     <plurals name="widgets_title"><item quantity="one">Bring back your widget</item><item quantity="other">Bring back your %1$d widgets</item></plurals>
     <string name="widgets_body">Android asks once before Vulcan can show widgets. Tick this box and the rest come back on their own.</string>

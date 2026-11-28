@@ -604,10 +604,6 @@
         <item quantity="one">%1$d ícone ficou de fora: o aplicativo dele não está instalado. Restaure novamente quando ele for instalado.</item>
         <item quantity="other">%1$d ícones ficaram de fora: os aplicativos deles não estão instalados. Restaure novamente quando eles forem instalados.</item>
     </plurals>
-    <plurals name="import_widgets">
-        <item quantity="one">%1$d widget retorna após o Android perguntar uma vez.</item>
-        <item quantity="other">%1$d widgets retornam após o Android perguntar uma vez.</item>
-    </plurals>
     <string name="custom_colors">Cores personalizadas</string>
     <string name="custom_colors_info">Cada cor substitui a cor correspondente do tema em todos os visuais. Redefina uma para restaurar a do tema.</string>
     <plurals name="custom_colors_set">
@@ -728,32 +724,28 @@
     <string name="import_unknown_shape">Parece um backup do %1$s que o Vulcan não consegue ler, talvez de uma versão mais nova do %1$s</string>
     <string name="import_no_layout">Este backup do %1$s não tem tela inicial</string>
     <string name="import_nothing">Nenhum aplicativo deste backup está neste aparelho</string>
-    <string name="review_items">Aplicativos, atalhos e pastas onde estavam</string>
-    <plurals name="review_dock">
-        <item quantity="one">Doca: %1$d ícone</item>
-        <item quantity="other">Doca: %1$d ícones</item>
-    </plurals>
-    <plurals name="review_dock_pages">
-        <item quantity="one">Doca: %1$d ícone em %2$d páginas da doca</item>
-        <item quantity="other">Doca: %1$d ícones em %2$d páginas da doca</item>
-    </plurals>
-    <string name="review_grid">Grade %1$d × %2$d</string>
+    <string name="review_grid">%1$d × %2$d</string>
     <string name="review_grid_half">, meias células</string>
-    <string name="review_grid_drawer">, gaveta de aplicativos com %1$d colunas</string>
     <string name="review_grid_start">, começa na página %1$d</string>
-    <plurals name="skip_own">
-        <item quantity="one">%1$d não pode ser importado: é exclusivo do %2$s ou o Vulcan não tem lugar para ele</item>
-        <item quantity="other">%1$d não podem ser importados: são exclusivos do %2$s ou o Vulcan não tem lugar para eles</item>
-    </plurals>
-    <plurals name="skip_missing">
-        <item quantity="one">%1$d aplicativo não está neste aparelho</item>
-        <item quantity="other">%1$d aplicativos não estão neste aparelho</item>
-    </plurals>
-    <string name="review_kept">Gestos, pacote de ícones, tema e abas da gaveta ficam como estão</string>
+    <string name="review_kept">Seus gestos, pacote de ícones, tema e abas da gaveta no Vulcan não mudam.</string>
     <string name="review_newer">Este backup é de uma versão do %1$s mais nova do que o Vulcan conhece. Confira a prévia antes de importar.</string>
+    <string name="review_comes_over">Vem junto</string>
+    <string name="review_stays_behind">Fica de fora</string>
+    <string name="review_row_home">Tela inicial</string>
+    <string name="review_where">%1$s, onde estavam</string>
+    <string name="review_row_dock">Dock</string>
+    <string name="review_widgets_later">%1$d, quando o Android permitir</string>
+    <string name="review_row_grid">Grade</string>
+    <string name="review_row_drawer">Gaveta de apps</string>
+    <string name="review_only_in">Só funciona no %1$s</string>
+    <string name="review_not_installed">Não está neste telefone</string>
+    <plurals name="review_icons"><item quantity="one">%1$d ícone</item><item quantity="other">%1$d ícones</item></plurals>
+    <plurals name="review_icons_pages"><item quantity="one">%1$d ícone em %2$d páginas do dock</item><item quantity="other">%1$d ícones em %2$d páginas do dock</item></plurals>
+    <string name="review_row_widgets">Widgets</string>
+    <plurals name="review_columns"><item quantity="one">%1$d coluna</item><item quantity="other">%1$d colunas</item></plurals>
+    <plurals name="review_items_count"><item quantity="one">%1$d item</item><item quantity="other">%1$d itens</item></plurals>
     <plurals name="review_apps"><item quantity="one">%1$d aplicativo</item><item quantity="other">%1$d aplicativos</item></plurals>
     <plurals name="review_folders"><item quantity="one">%1$d pasta</item><item quantity="other">%1$d pastas</item></plurals>
-    <plurals name="review_widgets"><item quantity="one">%1$d widget</item><item quantity="other">%1$d widgets</item></plurals>
     <plurals name="review_pages"><item quantity="one">%1$d página</item><item quantity="other">%1$d páginas</item></plurals>
     <plurals name="widgets_title"><!-- one also covers 0 in Portuguese; that rare case reads singular in English too --><item quantity="one" tools:ignore="ImpliedQuantity">Restaurar seu widget</item><item quantity="other">Restaurar seus %1$d widgets</item></plurals>
     <string name="widgets_body">O Android pergunta uma vez antes de o Vulcan poder exibir widgets. Marque esta caixa e os demais voltarão sozinhos.</string>

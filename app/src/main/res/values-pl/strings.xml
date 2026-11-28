@@ -602,12 +602,6 @@
         <item quantity="many">Utworzono %1$d folderów</item>
         <item quantity="other">Utworzono %1$d folderu</item>
     </plurals>
-    <plurals name="import_widgets">
-        <item quantity="one">%1$d widżet wróci, gdy Android poprosi Cię o jednorazowe potwierdzenie.</item>
-        <item quantity="few">%1$d widżety wrócą, gdy Android poprosi Cię o jednorazowe potwierdzenie.</item>
-        <item quantity="many">%1$d widżetów wróci, gdy Android poprosi Cię o jednorazowe potwierdzenie.</item>
-        <item quantity="other">%1$d widżetu wróci, gdy Android poprosi Cię o jednorazowe potwierdzenie.</item>
-    </plurals>
     <string name="custom_colors">Własne kolory</string>
     <string name="custom_colors_info">Każdy z kolorów zastępuje barwę motywu w każdym widoku. Zresetuj dowolny z nich, aby przywrócić pierwotny styl.</string>
     <plurals name="custom_colors_set">
@@ -736,37 +730,26 @@
     <string name="import_unknown_shape">Kopia %1$s, której Vulcan nie umie odczytać, może z nowszej wersji %1$s</string>
     <string name="import_no_layout">Ta kopia zapasowa %1$s nie zawiera ekranu głównego</string>
     <string name="import_nothing">Żadnej aplikacji z tej kopii nie ma na tym telefonie</string>
-    <string name="review_items">Aplikacje, skróty i foldery tam, gdzie były</string>
-    <plurals name="review_dock">
-        <item quantity="one">Dock: %1$d ikona</item>
-        <item quantity="few">Dock: %1$d ikony</item>
-        <item quantity="many">Dock: %1$d ikon</item>
-        <item quantity="other">Dock: %1$d ikony</item>
-    </plurals>
-    <plurals name="review_dock_pages">
-        <item quantity="one">Dock: %1$d ikona na %2$d stronach docka</item>
-        <item quantity="few">Dock: %1$d ikony na %2$d stronach docka</item>
-        <item quantity="many">Dock: %1$d ikon na %2$d stronach docka</item>
-        <item quantity="other">Dock: %1$d ikony na %2$d stronach docka</item>
-    </plurals>
-    <string name="review_grid">Siatka %1$d × %2$d</string>
+    <string name="review_grid">%1$d × %2$d</string>
     <string name="review_grid_half">, połówki komórek</string>
-    <string name="review_grid_drawer">, szuflada aplikacji: %1$d kolumn</string>
     <string name="review_grid_start">, zaczyna od strony %1$d</string>
-    <plurals name="skip_own">
-        <item quantity="one">%1$d element nie może zostać przeniesiony: należy do %2$s lub Vulcan nie ma na niego miejsca</item>
-        <item quantity="few">%1$d elementy nie mogą zostać przeniesione: należą do %2$s lub Vulcan nie ma na nie miejsca</item>
-        <item quantity="many">%1$d elementów nie może zostać przeniesionych: należą do %2$s lub Vulcan nie ma na nie miejsca</item>
-        <item quantity="other">%1$d elementu nie może zostać przeniesionego: należy do %2$s lub Vulcan nie ma na niego miejsca</item>
-    </plurals>
-    <plurals name="skip_missing">
-        <item quantity="one">Na tym telefonie brakuje %1$d aplikacji</item>
-        <item quantity="few">Na tym telefonie brakuje %1$d aplikacji</item>
-        <item quantity="many">Na tym telefonie brakuje %1$d aplikacji</item>
-        <item quantity="other">Na tym telefonie brakuje %1$d aplikacji</item>
-    </plurals>
-    <string name="review_kept">Gesty, pakiet ikon, motyw i karty szuflady pozostają bez zmian</string>
+    <string name="review_kept">Twoje gesty, pakiet ikon, motyw i karty szuflady w Vulcanie się nie zmienią.</string>
     <string name="review_newer">Ta kopia zapasowa pochodzi z nowszej wersji %1$s, niż zna Vulcan. Sprawdź podgląd przed importem.</string>
+    <string name="review_comes_over">Przenoszone</string>
+    <string name="review_stays_behind">Zostaje</string>
+    <string name="review_row_home">Ekran główny</string>
+    <string name="review_where">%1$s, tam gdzie były</string>
+    <string name="review_row_dock">Dock</string>
+    <string name="review_widgets_later">%1$d, gdy Android pozwoli</string>
+    <string name="review_row_grid">Siatka</string>
+    <string name="review_row_drawer">Szuflada aplikacji</string>
+    <string name="review_only_in">Działa tylko w %1$s</string>
+    <string name="review_not_installed">Brak na tym telefonie</string>
+    <plurals name="review_icons"><item quantity="one">%1$d ikona</item><item quantity="few">%1$d ikony</item><item quantity="many">%1$d ikon</item><item quantity="other">%1$d ikony</item></plurals>
+    <plurals name="review_icons_pages"><item quantity="one">%1$d ikona na %2$d stronach docka</item><item quantity="few">%1$d ikony na %2$d stronach docka</item><item quantity="many">%1$d ikon na %2$d stronach docka</item><item quantity="other">%1$d ikony na %2$d stronach docka</item></plurals>
+    <string name="review_row_widgets">Widżety</string>
+    <plurals name="review_columns"><item quantity="one">%1$d kolumna</item><item quantity="few">%1$d kolumny</item><item quantity="many">%1$d kolumn</item><item quantity="other">%1$d kolumny</item></plurals>
+    <plurals name="review_items_count"><item quantity="one">%1$d element</item><item quantity="few">%1$d elementy</item><item quantity="many">%1$d elementów</item><item quantity="other">%1$d elementu</item></plurals>
     <plurals name="review_apps">
         <item quantity="one">%1$d aplikacja</item>
         <item quantity="few">%1$d aplikacje</item>
@@ -778,12 +761,6 @@
         <item quantity="few">%1$d foldery</item>
         <item quantity="many">%1$d folderów</item>
         <item quantity="other">%1$d folderu</item>
-    </plurals>
-    <plurals name="review_widgets">
-        <item quantity="one">%1$d widżet</item>
-        <item quantity="few">%1$d widżety</item>
-        <item quantity="many">%1$d widżetów</item>
-        <item quantity="other">%1$d widżetu</item>
     </plurals>
     <plurals name="review_pages">
         <item quantity="one">%1$d strona</item>

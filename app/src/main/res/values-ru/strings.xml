@@ -664,37 +664,26 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="import_unknown_shape">Похоже на копию %1$s, которую Vulcan не может прочитать, — возможно, из более новой версии %1$s</string>
     <string name="import_no_layout">В этой резервной копии %1$s нет главного экрана</string>
     <string name="import_nothing">Ни одного приложения из этой копии нет на этом телефоне</string>
-    <string name="review_items">Приложения, ярлыки и папки на прежних местах</string>
-    <plurals name="review_dock">
-        <item quantity="one">Док: %1$d значок</item>
-        <item quantity="few">Док: %1$d значка</item>
-        <item quantity="many">Док: %1$d значков</item>
-        <item quantity="other">Док: %1$d значка</item>
-    </plurals>
-    <plurals name="review_dock_pages">
-        <item quantity="one">Док: %1$d значок на %2$d страницах дока</item>
-        <item quantity="few">Док: %1$d значка на %2$d страницах дока</item>
-        <item quantity="many">Док: %1$d значков на %2$d страницах дока</item>
-        <item quantity="other">Док: %1$d значка на %2$d страницах дока</item>
-    </plurals>
-    <string name="review_grid">Сетка %1$d × %2$d</string>
+    <string name="review_grid">%1$d × %2$d</string>
     <string name="review_grid_half">, половинные ячейки</string>
-    <string name="review_grid_drawer">, меню приложений: %1$d столбцов</string>
     <string name="review_grid_start">, начинается со страницы %1$d</string>
-    <plurals name="skip_own">
-        <item quantity="one">Не удалось перенести %1$d элемент: он принадлежит %2$s или для него нет места в Vulcan</item>
-        <item quantity="few">Не удалось перенести %1$d элемента: они принадлежат %2$s или для них нет места в Vulcan</item>
-        <item quantity="many">Не удалось перенести %1$d элементов: они принадлежат %2$s или для них нет места в Vulcan</item>
-        <item quantity="other">Не удалось перенести %1$d элемента: они принадлежат %2$s или для них нет места в Vulcan</item>
-    </plurals>
-    <plurals name="skip_missing">
-        <item quantity="one">%1$d приложение не установлено на этом телефоне</item>
-        <item quantity="few">%1$d приложения не установлены на этом телефоне</item>
-        <item quantity="many">%1$d приложений не установлены на этом телефоне</item>
-        <item quantity="other">%1$d приложения не установлены на этом телефоне</item>
-    </plurals>
-    <string name="review_kept">Жесты, пакет значков, тема и вкладки меню приложений остаются как есть</string>
+    <string name="review_kept">Ваши жесты, пакет значков, тема и вкладки меню приложений в Vulcan не изменятся.</string>
     <string name="review_newer">Эта резервная копия из более новой версии %1$s, чем знает Vulcan. Проверьте превью перед импортом.</string>
+    <string name="review_comes_over">Переносится</string>
+    <string name="review_stays_behind">Остаётся</string>
+    <string name="review_row_home">Главный экран</string>
+    <string name="review_where">%1$s, на прежних местах</string>
+    <string name="review_row_dock">Док</string>
+    <string name="review_widgets_later">%1$d, когда Android разрешит</string>
+    <string name="review_row_grid">Сетка</string>
+    <string name="review_row_drawer">Меню приложений</string>
+    <string name="review_only_in">Работает только в %1$s</string>
+    <string name="review_not_installed">Нет на этом телефоне</string>
+    <plurals name="review_icons"><item quantity="one">%1$d значок</item><item quantity="few">%1$d значка</item><item quantity="many">%1$d значков</item><item quantity="other">%1$d значка</item></plurals>
+    <plurals name="review_icons_pages"><item quantity="one">%1$d значок на %2$d страницах дока</item><item quantity="few">%1$d значка на %2$d страницах дока</item><item quantity="many">%1$d значков на %2$d страницах дока</item><item quantity="other">%1$d значка на %2$d страницах дока</item></plurals>
+    <string name="review_row_widgets">Виджеты</string>
+    <plurals name="review_columns"><item quantity="one">%1$d столбец</item><item quantity="few">%1$d столбца</item><item quantity="many">%1$d столбцов</item><item quantity="other">%1$d столбца</item></plurals>
+    <plurals name="review_items_count"><item quantity="one">%1$d элемент</item><item quantity="few">%1$d элемента</item><item quantity="many">%1$d элементов</item><item quantity="other">%1$d элемента</item></plurals>
     <string name="welcome_tagline">Главный экран без доступа к интернету. Всё, что он делает, остаётся на вашем телефоне.</string>
     <string name="welcome_begin">Начать</string>
     <string name="welcome_fresh">Начать с нуля</string>
@@ -714,12 +703,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
     <string name="widget_slot_describe">Добавить виджет %1$s</string>
     <string name="widget_slot_missing">Приложение не установлено</string>
     <string name="widget_slot_missing_toast">Приложение для этого виджета не установлено</string>
-    <plurals name="import_widgets">
-        <item quantity="one">%1$d виджет вернётся после однократного запроса Android.</item>
-        <item quantity="few">%1$d виджета вернутся после однократного запроса Android.</item>
-        <item quantity="many">%1$d виджетов вернутся после однократного запроса Android.</item>
-        <item quantity="other">%1$d виджета вернутся после однократного запроса Android.</item>
-    </plurals>
     <plurals name="review_apps">
         <item quantity="one">%1$d приложение</item>
         <item quantity="few">%1$d приложения</item>
@@ -731,12 +714,6 @@ adb shell pm grant %1$s android.permission.WRITE_SECURE_SETTINGS
         <item quantity="few">%1$d папки</item>
         <item quantity="many">%1$d папок</item>
         <item quantity="other">%1$d папки</item>
-    </plurals>
-    <plurals name="review_widgets">
-        <item quantity="one">%1$d виджет</item>
-        <item quantity="few">%1$d виджета</item>
-        <item quantity="many">%1$d виджетов</item>
-        <item quantity="other">%1$d виджета</item>
     </plurals>
     <plurals name="review_pages">
         <item quantity="one">%1$d страница</item>

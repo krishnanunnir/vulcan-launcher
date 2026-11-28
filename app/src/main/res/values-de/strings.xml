@@ -651,29 +651,26 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="import_unknown_shape">Sieht nach einer %1$s-Sicherung aus, die Vulcan nicht lesen kann, vielleicht von einer neueren %1$s-Version</string>
     <string name="import_no_layout">Diese %1$s-Sicherung enthält keinen Startbildschirm</string>
     <string name="import_nothing">Keine App aus dieser Sicherung ist auf diesem Telefon</string>
-    <string name="review_items">Apps, Verknüpfungen und Ordner an ihrem alten Platz</string>
-    <plurals name="review_dock">
-        <item quantity="one">Dock: %1$d Symbol</item>
-        <item quantity="other">Dock: %1$d Symbole</item>
-    </plurals>
-    <plurals name="review_dock_pages">
-        <item quantity="one">Dock: %1$d Symbol auf %2$d Dock-Seiten</item>
-        <item quantity="other">Dock: %1$d Symbole auf %2$d Dock-Seiten</item>
-    </plurals>
-    <string name="review_grid">Raster %1$d × %2$d</string>
+    <string name="review_grid">%1$d × %2$d</string>
     <string name="review_grid_half">, halbe Zellen</string>
-    <string name="review_grid_drawer">, App-Drawer mit %1$d Spalten</string>
     <string name="review_grid_start">, beginnt auf Seite %1$d</string>
-    <plurals name="skip_own">
-        <item quantity="one">%1$d kann nicht übernommen werden: gehört zu %2$s selbst, oder Vulcan hat keinen Platz dafür</item>
-        <item quantity="other">%1$d können nicht übernommen werden: gehören zu %2$s selbst, oder Vulcan hat keinen Platz dafür</item>
-    </plurals>
-    <plurals name="skip_missing">
-        <item quantity="one">%1$d App ist nicht auf diesem Telefon</item>
-        <item quantity="other">%1$d Apps sind nicht auf diesem Telefon</item>
-    </plurals>
-    <string name="review_kept">Gesten, Symbolpaket, Design und Drawer-Tabs bleiben, wie sie sind</string>
+    <string name="review_kept">Deine Gesten, dein Symbolpaket, dein Design und deine Drawer-Tabs in Vulcan ändern sich nicht.</string>
     <string name="review_newer">Diese Sicherung stammt von einer neueren %1$s-Version, als Vulcan kennt. Prüfe die Vorschau vor dem Import.</string>
+    <string name="review_comes_over">Kommt mit</string>
+    <string name="review_stays_behind">Bleibt zurück</string>
+    <string name="review_row_home">Startbildschirm</string>
+    <string name="review_where">%1$s, an ihrem alten Platz</string>
+    <string name="review_row_dock">Dock</string>
+    <string name="review_widgets_later">%1$d, sobald Android es erlaubt</string>
+    <string name="review_row_grid">Raster</string>
+    <string name="review_row_drawer">App-Drawer</string>
+    <string name="review_only_in">Funktioniert nur in %1$s</string>
+    <string name="review_not_installed">Nicht auf diesem Telefon installiert</string>
+    <plurals name="review_icons"><item quantity="one">%1$d Symbol</item><item quantity="other">%1$d Symbole</item></plurals>
+    <plurals name="review_icons_pages"><item quantity="one">%1$d Symbol auf %2$d Dock-Seiten</item><item quantity="other">%1$d Symbole auf %2$d Dock-Seiten</item></plurals>
+    <string name="review_row_widgets">Widgets</string>
+    <plurals name="review_columns"><item quantity="one">%1$d Spalte</item><item quantity="other">%1$d Spalten</item></plurals>
+    <plurals name="review_items_count"><item quantity="one">%1$d Element</item><item quantity="other">%1$d Elemente</item></plurals>
     <string name="welcome_tagline">Ein Startbildschirm ohne Internetzugriff. Alles, was Vulcan tut, bleibt auf deinem Telefon.</string>
     <string name="welcome_begin">Loslegen</string>
     <string name="welcome_fresh">Neu anfangen</string>
@@ -693,10 +690,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <string name="widget_slot_describe">Widget %1$s hinzufügen</string>
     <string name="widget_slot_missing">App nicht installiert</string>
     <string name="widget_slot_missing_toast">Die App für dieses Widget ist nicht installiert</string>
-    <plurals name="import_widgets">
-        <item quantity="one">Nach der einmaligen Berechtigungsabfrage durch Android wird %1$d Widget wiederhergestellt.</item>
-        <item quantity="other">Nach der einmaligen Berechtigungsabfrage durch Android werden %1$d Widgets wiederhergestellt.</item>
-    </plurals>
     <plurals name="review_apps">
         <item quantity="one">%1$d App</item>
         <item quantity="other">%1$d Apps</item>
@@ -704,10 +697,6 @@ Einmal ausführen, dann den Launcher neu öffnen."</string>
     <plurals name="review_folders">
         <item quantity="one">%1$d Ordner</item>
         <item quantity="other">%1$d Ordner</item>
-    </plurals>
-    <plurals name="review_widgets">
-        <item quantity="one">%1$d Widget</item>
-        <item quantity="other">%1$d Widgets</item>
     </plurals>
     <plurals name="review_pages">
         <item quantity="one">%1$d Seite</item>
