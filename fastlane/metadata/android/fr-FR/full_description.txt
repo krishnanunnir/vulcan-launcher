@@ -3,11 +3,12 @@
 <p>Organisez vos applis et vos widgets, rangez votre tiroir d’applis et choisissez une apparence qui s’accorde à votre fond d’écran. Vulcan fonctionne entièrement sur votre appareil et ne demande aucun compte.</p>
 
 <ul>
-<li><b>Votre disposition :</b> grilles d’accueil jusqu’à 12 × 12, jusqu’à 9 pages, positionnement en demi-cellule, widgets redimensionnables et un dock que vous pouvez masquer ou faire défiler. Verrouillez votre disposition pour éviter les modifications accidentelles.</li>
-<li><b>Vos applis, bien rangées :</b> un tiroir alphabétique avec recherche, un index alphabétique facultatif, des onglets, des dossiers et des applis masquées.</li>
-<li><b>Une recherche utile :</b> trouvez vos applis malgré les fautes de frappe ou par leurs initiales, ainsi que les raccourcis d’applis et les paramètres Android. Calculez des sommes et confiez minuteurs et alarmes à votre appli d’horloge.</li>
-<li><b>Gestes :</b> balayez, double-touchez ou pincez pour ouvrir des applis, les notifications, le tiroir et d’autres actions. Attribuez une action par glissement vers le haut aux icônes de vos applis.</li>
-<li><b>Votre style :</b> packs d’icônes, icônes thématiques sur Android 13 et versions ultérieures, formes d’icônes, étiquettes et icônes personnalisées, styles de dossiers, couleurs et mode nuit programmé.</li>
+<li><b>Votre disposition :</b> grilles d’accueil jusqu’à 12 × 12, jusqu’à 9 pages, effets de transition entre les pages, positionnement en demi-cellule, un dock avec ses propres pages que vous pouvez masquer, et des widgets à redimensionner, empiler ou faire se chevaucher. Verrouillez votre disposition pour éviter les modifications accidentelles.</li>
+<li><b>Vos applis, bien rangées :</b> un tiroir alphabétique en grille verticale, en liste ou en pages horizontales, avec recherche, un index alphabétique facultatif, des onglets, des dossiers, une rangée des applis fréquentes et des applis masquées.</li>
+<li><b>Une recherche utile :</b> trouvez vos applis malgré les fautes de frappe ou par leurs initiales, ainsi que les raccourcis d’applis, les paramètres Android et, si vous l’autorisez, vos contacts. Calculez des sommes, convertissez des unités et confiez minuteurs et alarmes à votre appli d’horloge.</li>
+<li><b>Gestes :</b> balayez, double-touchez, pincez, ou balayez et tournez à deux doigts pour ouvrir des applis, les notifications, le tiroir et d’autres actions. Attribuez une action par glissement vers le haut aux icônes de vos applis.</li>
+<li><b>Votre style :</b> packs d’icônes, icônes thématiques sur Android 13 et versions ultérieures, formes d’icônes, étiquettes et icônes personnalisées, styles et aperçus de dossiers, animations d’ouverture des applis, couleurs et mode nuit programmé.</li>
+<li><b>Pastilles de notification :</b> en option, des points, des compteurs ou l’image de la notification sur les icônes d’applis.</li>
 <li><b>Page Maintenant :</b> commandes de musique, prochains événements du calendrier et contacts favoris, en option.</li>
 <li><b>Importez votre disposition :</b> récupérez applis, dossiers, dock et réglages de grille depuis un fichier Nova .novabackup. Les widgets doivent être ajoutés à nouveau.</li>
 <li><b>Sauvegardes locales :</b> exportez et restaurez votre configuration dans un fichier JSON lisible.</li>

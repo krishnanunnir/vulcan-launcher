@@ -32,11 +32,12 @@ Grids, gestures, icon packs, widgets and smart search, with no libraries and no 
 
 ## Features
 
-- **Your layout:** grids up to 12×12, up to 9 pages, resizable and stackable widgets, a hideable dock and a layout lock.
-- **App drawer:** A to Z with search, tabs, folders, favourites and hidden apps.
-- **Smarter search:** forgives typos, matches initials, finds shortcuts and settings, does sums, sets timers and alarms.
-- **Gestures:** swipe, double-tap or pinch to open apps, shortcuts, notifications or the screen lock.
-- **Your look:** icon packs, themed icons, shapes, custom icons and labels, night mode on a schedule.
+- **Your layout:** grids up to 12×12, up to 9 pages with transition effects, widgets you can resize, stack or overlap, a dock with pages of its own that you can hide, and a layout lock.
+- **App drawer:** a vertical grid, a list or horizontal pages, with search, tabs, folders, favourites, a frequently used row and hidden apps.
+- **Smarter search:** forgives typos, matches initials, finds shortcuts, settings and contacts, does sums and unit conversions, sets timers and alarms.
+- **Gestures:** swipe, double-tap, pinch, or swipe and rotate with two fingers to open apps, shortcuts, notifications, the flashlight or the screen lock.
+- **Your look:** icon packs, themed icons, shapes, custom icons and labels, folder previews, app launch animations, night mode on a schedule.
+- **Notification badges:** dots, counts or the notification's own picture on app icons.
 - **Now page:** date, music, upcoming events, favourite contacts and cards of your own.
 - **Nova import and backups:** bring your `.novabackup` across, and back up or share your whole setup.
 - **Private by design:** no internet permission, no ads, no analytics. [What each permission is for](docs/PERMISSIONS.md).

@@ -3,11 +3,12 @@
 <p>Arrange apps and widgets, organize your drawer, and choose a look that fits your wallpaper. Vulcan works entirely on your device and needs no account.</p>
 
 <ul>
-<li><b>Your layout:</b> home grids up to 12 by 12, up to 9 pages, subgrid positioning, resizable widgets and a dock you can hide or scroll. Lock your layout to prevent accidental edits.</li>
-<li><b>Your apps, organized:</b> an alphabetical drawer with search, an optional letter index, tabs, folders and hidden apps.</li>
-<li><b>Useful search:</b> find apps with typo-tolerant matching or initials, app shortcuts and Android settings. Calculate sums and hand timers and alarms to your clock app.</li>
-<li><b>Gestures:</b> swipe, double-tap or pinch to open apps, notifications, the drawer and other actions. Give individual app icons a swipe-up action.</li>
-<li><b>Your style:</b> icon packs, themed icons on Android 13+, icon shapes, custom labels and icons, folder styles, colours and scheduled night mode.</li>
+<li><b>Your layout:</b> home grids up to 12 by 12, up to 9 pages, page transition effects, subgrid positioning, a dock with pages of its own that you can hide, and widgets you can resize, stack or overlap. Lock your layout to prevent accidental edits.</li>
+<li><b>Your apps, organized:</b> an alphabetical drawer as a vertical grid, a list or horizontal pages, with search, an optional letter index, tabs, folders, a frequently used row and hidden apps.</li>
+<li><b>Useful search:</b> find apps with typo-tolerant matching or initials, app shortcuts, Android settings and, if you allow it, contacts. Calculate sums, convert units and hand timers and alarms to your clock app.</li>
+<li><b>Gestures:</b> swipe, double-tap, pinch, or swipe and rotate with two fingers to open apps, notifications, the drawer and other actions. Give individual app icons a swipe-up action.</li>
+<li><b>Your style:</b> icon packs, themed icons on Android 13+, icon shapes, custom labels and icons, folder styles and previews, app launch animations, colours and scheduled night mode.</li>
+<li><b>Notification badges:</b> optional dots, counts or the notification's own picture on app icons.</li>
 <li><b>Now page:</b> optional music controls, upcoming calendar events and favourite contacts.</li>
 <li><b>Bring your layout:</b> import apps, folders, dock and grid settings from a Nova .novabackup file. Widgets need to be added again.</li>
 <li><b>Local backups:</b> export and restore your setup using a readable JSON file.</li>
