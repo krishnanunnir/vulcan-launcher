@@ -65,6 +65,15 @@ class LauncherImportTest {
         assertEquals(mapOf("cols" to "12", "rows" to "3", "dockCols" to "9"), infoPbSettings(msg(7, msg(1, "40,1".toByteArray()) + int(2, 99)), "", byteArrayOf(10, 99)))
     }
 
+    @Test fun nova8GridIsRowsByColumns() {
+        // As in a real Nova 8.9.4 nova.xml: 5 columns (its apps reach cellX 4), 6 rows.
+        val xml = """<int name="dock_grid_cols" value="5" /><string name="desktop_grid">6x5 subgrid</string>
+            <int name="workspace_screen_count" value="2" /><string name="drawer_grid">6x4</string><string name="drawer_grid_land">4x6</string>"""
+        assertEquals(mapOf("cols" to "5", "rows" to "6", "pages" to "2", "dockCols" to "5", "drawerCols" to "4", "drawerRows" to "6"), importedPrefs(xml))
+        // An older Nova's own keys win over nothing; junk in the grid is passed over.
+        assertEquals(mapOf("cols" to "7"), importedPrefs("""<int name="desktop_grid_cols" value="7" /><string name="desktop_grid">big</string>"""))
+    }
+
     @Test fun everySettingAFormatSetsIsASetting() {
         // setting() looks its key up strictly, before the value; running each format's settings code once reaches every
         // call, so a mistyped key fails here, not at import. A new format's settings function goes here too.

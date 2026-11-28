@@ -41,26 +41,26 @@ fun readFavorites(context: Context, db: ByteArray): Pair<List<ImportRow>, Map<Lo
 fun favoritesDb(archive: BackupArchive) = archive["launcher.db"] ?: archive["backup.db"]
     ?: archive.files.entries.firstOrNull { it.key.endsWith(".db") }?.value
 
-/** Nova's preferences file: in a backup, the sign that it is Nova's. */
-private const val NOVA_PREFS = "com.teslacoilsw.launcher_preferences.xml"
-
-/** A favorites backup: [prefs] names the preferences file it takes the grid from, when the launcher is known. */
-open class FavoritesFormat(override val name: Int, private val prefs: String?) : BackupFormat {
-    override val reads = listOfNotNull(".db", prefs)
-    override fun matches(archive: BackupArchive) = favoritesDb(archive) != null && (prefs == null || prefs in archive)
+/**
+ * A favorites backup: [prefs] names the launcher's preferences files, the grid's source and the sign that a backup is
+ * that launcher's; none for a catch-all.
+ */
+open class FavoritesFormat(override val name: Int, private val prefs: List<String>) : BackupFormat {
+    override val reads = listOf(".db") + prefs
+    override fun matches(archive: BackupArchive) = favoritesDb(archive) != null && (prefs.isEmpty() || prefs.any { it in archive })
 
     override fun read(context: Context, archive: BackupArchive): ImportedBackup {
         val (rows, ranks) = runCatching { readFavorites(context, favoritesDb(archive)!!) }
             // A database without a layout table isn't a launcher backup at all.
             .getOrElse { throw ImportProblem(context.withLaunchers(R.string.not_launcher_backup)) }
-        val settings = prefs?.let { importedPrefs(archive.text(it)) }.orEmpty()
+        val settings = importedPrefs(prefs.joinToString("") { archive.text(it) })
         return ImportedBackup(importToItems(rows, ranks, settings["dockCols"]?.toInt() ?: 5), settings, name)
     }
 }
 
-object NovaFormat : FavoritesFormat(R.string.format_nova, NOVA_PREFS)
+object NovaFormat : FavoritesFormat(R.string.format_nova, listOf("nova.xml", "com.teslacoilsw.launcher_preferences.xml"))
 
 /** Any other Launcher3-style backup: its layout comes over, its settings (whose names only it knows) don't. */
-object Launcher3Format : FavoritesFormat(R.string.format_launcher3, null) {
+object Launcher3Format : FavoritesFormat(R.string.format_launcher3, emptyList()) {
     override val listed = false
 }

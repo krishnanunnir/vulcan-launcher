@@ -14,6 +14,10 @@ From strings in Nova 8.9.4's DEX files (static, not executed):
   - Fractional cells mean subgrid positions.
 - Grid preference keys: `desktop_grid_cols/rows`, `desktop_page_count`, `dock_grid_cols`, `dock_pages_count`, `drawer_app_grid_cols/rows`.
 
+From a real backup saved by Nova 8.9.4 on the emulator (28 Nov 2026), which differs from the strings above:
+- The zip holds `nova.db` (the same `favorites` table, no `workspaceScreens`), `nova.xml` (the settings), `com.teslacoilsw.launcher_preferences.xml` (consent flags only), `cards.datastore` and `supportDetails.txt`.
+- In `nova.xml` a grid is one string, rows first: `desktop_grid` "6x5 subgrid" is 6 rows by 5 columns, `drawer_grid` "6x5". The page count is `workspace_screen_count`; `dock_grid_cols` is unchanged.
+
 ## Things to deliberately *not* replicate
 
 What Nova 8.9.4 does, and why this project avoids each one:

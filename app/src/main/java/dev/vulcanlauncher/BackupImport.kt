@@ -135,7 +135,11 @@ fun setting(ours: String, n: Int?): Pair<String, String>? {
 
 /** Vulcan settings from a favorites backup's preferences XML (only the grid and page settings carry over). */
 fun importedPrefs(xml: String): Map<String, String> {
-    val values = prefValues(xml)
+    val values = prefValues(xml).toMutableMap()
+    // Nova 8 keeps a grid as one "ROWSxCOLS" ("6x5 subgrid") and the page count under another name; older Novas had a key each.
+    for ((grid, rows, cols) in listOf(Triple("desktop_grid", "desktop_grid_rows", "desktop_grid_cols"), Triple("drawer_grid", "drawer_app_grid_rows", "drawer_app_grid_cols")))
+        Regex("^(\\d+)x(\\d+)").find(values[grid].orEmpty().trim())?.let { m -> values.putIfAbsent(rows, m.groupValues[1]); values.putIfAbsent(cols, m.groupValues[2]) }
+    values["workspace_screen_count"]?.let { values.putIfAbsent("desktop_page_count", it) }
     val map = mapOf("desktop_grid_cols" to "cols", "desktop_grid_rows" to "rows", "desktop_page_count" to "pages",
         "dock_grid_cols" to "dockCols", "dock_pages_count" to "dockPages", "drawer_app_grid_cols" to "drawerCols", "drawer_app_grid_rows" to "drawerRows")
     return map.mapNotNull { (theirs, ours) -> setting(ours, values[theirs]?.toIntOrNull()) }.toMap()
